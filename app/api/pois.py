@@ -6,7 +6,7 @@ from geoalchemy2.functions import ST_SetSRID, ST_MakePoint
 
 from app.core.database import get_db
 from app.models import POI, Destination
-from app.schemas.poi import POICreate, POIUpdate, POIResponse, POIsByCategory
+from app.schemas.poi import POICreate, POIUpdate, POIResponse, POIsByCategory, POIVote
 
 router = APIRouter()
 
@@ -164,3 +164,29 @@ async def delete_poi(
     await db.delete(db_poi)
 
     return None
+
+@router.post("/pois/{id}/vote", response_model=POIResponse)
+async def vote_poi(
+    id: int,
+    vote: POIVote,
+    db: AsyncSession = Depends(get_db)
+):
+    """Vote for a POI (like or veto)"""
+    result = await db.execute(select(POI).where(POI.id == id))
+    db_poi = result.scalar_one_or_none()
+
+    if not db_poi:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"POI with id {id} not found"
+        )
+
+    if vote.type == 'like':
+        db_poi.likes += 1
+    elif vote.type == 'veto':
+        db_poi.vetoes += 1
+
+    await db.flush()
+    await db.refresh(db_poi)
+
+    return db_poi

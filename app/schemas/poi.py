@@ -14,7 +14,8 @@ class POIBase(BaseModel):
     estimated_cost: Optional[Decimal] = Field(None, description="Estimated cost")
     currency: str = Field(default="USD", max_length=3, description="Currency code")
     dwell_time: Optional[int] = Field(None, description="Estimated dwell time in minutes")
-    votes: int = Field(default=0, description="Number of votes")
+    likes: int = Field(default=0, description="Number of likes")
+    vetoes: int = Field(default=0, description="Number of vetoes")
     priority: int = Field(default=0, description="Priority level")
     files: Optional[List[Any]] = Field(None, description="Array of file URLs/metadata")
     metadata_json: Optional[dict] = Field(None, description="Additional metadata")
@@ -36,12 +37,17 @@ class POIUpdate(BaseModel):
     estimated_cost: Optional[Decimal] = Field(None, description="Estimated cost")
     currency: Optional[str] = Field(None, max_length=3, description="Currency code")
     dwell_time: Optional[int] = Field(None, description="Estimated dwell time in minutes")
-    votes: Optional[int] = Field(None, description="Number of votes")
+    likes: Optional[int] = Field(None, description="Number of likes")
+    vetoes: Optional[int] = Field(None, description="Number of vetoes")
     priority: Optional[int] = Field(None, description="Priority level")
     files: Optional[List[Any]] = Field(None, description="Array of file URLs/metadata")
     metadata_json: Optional[dict] = Field(None, description="Additional metadata")
     external_id: Optional[str] = Field(None, max_length=255, description="External source ID")
     external_source: Optional[str] = Field(None, max_length=50, description="External source name")
+
+
+class POIVote(BaseModel):
+    type: str = Field(..., pattern="^(like|veto)$", description="Vote type: 'like' or 'veto'")
 
 
 class POIResponse(POIBase):

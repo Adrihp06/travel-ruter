@@ -20,7 +20,8 @@ class POI(BaseModel):
     dwell_time = Column(Integer, nullable=True, comment="Estimated dwell time in minutes")
 
     # User engagement
-    votes = Column(Integer, nullable=False, default=0)
+    likes = Column(Integer, nullable=False, default=0)
+    vetoes = Column(Integer, nullable=False, default=0)
     priority = Column(Integer, nullable=False, default=0)
 
     # Files and metadata
@@ -41,4 +42,4 @@ class POI(BaseModel):
     )
 
     def __repr__(self):
-        return f"<POI(id={self.id}, name='{self.name}', category='{self.category}', votes={self.votes})>"
+        return f"<POI(id={self.id}, name='{self.name}', category='{self.category}', likes={self.likes}, vetoes={self.vetoes})>"

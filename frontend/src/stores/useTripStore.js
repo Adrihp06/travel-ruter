@@ -36,6 +36,10 @@ const useTripStore = create((set) => ({
       const mockDetails = {
         id: Number(tripId),
         title: 'Summer in Norway',
+        destinations: [
+          { id: 1, name: 'Oslo', arrivalDate: '2026-07-01', departureDate: '2026-07-03' },
+          { id: 2, name: 'Bergen', arrivalDate: '2026-07-03', departureDate: '2026-07-05' }
+        ],
         days: [
           { day: 1, activities: ['Arrival in Oslo', 'Check-in at Hotel', 'Dinner at Aker Brygge'] },
           { day: 2, activities: ['Train to Bergen', 'Fjord Cruise', 'Fish Market'] },
