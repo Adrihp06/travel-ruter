@@ -137,6 +137,87 @@ const useTripStore = create((set, get) => ({
   },
 
   resetSelectedTrip: () => set({ selectedTrip: null, budget: null }),
+
+  createTrip: async (tripData) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_BASE_URL}/trips`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tripData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create trip');
+      }
+
+      const newTrip = await response.json();
+
+      set((state) => ({
+        trips: [...state.trips, newTrip],
+        isLoading: false,
+      }));
+
+      return newTrip;
+    } catch (error) {
+      set({ error: error.message, isLoading: false });
+      throw error;
+    }
+  },
+
+  updateTrip: async (tripId, tripData) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_BASE_URL}/trips/${tripId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tripData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update trip');
+      }
+
+      const updatedTrip = await response.json();
+
+      set((state) => ({
+        trips: state.trips.map((t) => (t.id === tripId ? updatedTrip : t)),
+        tripsWithDestinations: state.tripsWithDestinations.map((t) =>
+          t.id === tripId ? { ...updatedTrip, destinations: t.destinations } : t
+        ),
+        selectedTrip: state.selectedTrip?.id === tripId ? updatedTrip : state.selectedTrip,
+        isLoading: false,
+      }));
+
+      return updatedTrip;
+    } catch (error) {
+      set({ error: error.message, isLoading: false });
+      throw error;
+    }
+  },
+
+  deleteTrip: async (tripId) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_BASE_URL}/trips/${tripId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete trip');
+      }
+
+      set((state) => ({
+        trips: state.trips.filter((t) => t.id !== tripId),
+        tripsWithDestinations: state.tripsWithDestinations.filter((t) => t.id !== tripId),
+        selectedTrip: state.selectedTrip?.id === tripId ? null : state.selectedTrip,
+        isLoading: false,
+      }));
+    } catch (error) {
+      set({ error: error.message, isLoading: false });
+      throw error;
+    }
+  },
 }));
 
 export default useTripStore;
