@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import Map, {
   NavigationControl,
   ScaleControl,
@@ -43,11 +43,47 @@ const DestinationMap = ({
   height = '250px',
   zoom = 12,
   className = '',
+  selectedPOIs = [],
+  centerOnPOI = null,
+  onPOIClick,
 }) => {
   const mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
   const [popupInfo, setPopupInfo] = useState(null);
+  const [viewState, setViewState] = useState(null);
+  const mapRef = useRef(null);
 
   const coords = useMemo(() => getCoordinates(destination), [destination]);
+
+  // Initialize view state when destination changes
+  useEffect(() => {
+    if (coords) {
+      setViewState({
+        longitude: coords.lng,
+        latitude: coords.lat,
+        zoom: zoom,
+      });
+    }
+  }, [coords, zoom]);
+
+  // Center map on POI when centerOnPOI changes
+  useEffect(() => {
+    if (centerOnPOI) {
+      const poiCoords = getCoordinates(centerOnPOI);
+      if (poiCoords && mapRef.current) {
+        mapRef.current.flyTo({
+          center: [poiCoords.lng, poiCoords.lat],
+          zoom: Math.max(viewState?.zoom || zoom, 14),
+          duration: 1000,
+        });
+        // Open popup for centered POI
+        setPopupInfo({ ...centerOnPOI, ...poiCoords });
+      }
+    }
+  }, [centerOnPOI, zoom, viewState?.zoom]);
+
+  const handleMove = useCallback((evt) => {
+    setViewState(evt.viewState);
+  }, []);
 
   // Extract POI coordinates
   const poiMarkers = useMemo(() => {
@@ -89,17 +125,37 @@ const DestinationMap = ({
     );
   }
 
+  // Check if a POI is selected
+  const isPOISelected = (poiId) => selectedPOIs.includes(poiId);
+
+  const handleMarkerClick = (e, poi) => {
+    e.originalEvent.stopPropagation();
+    setPopupInfo(poi);
+    if (onPOIClick) {
+      onPOIClick(poi);
+    }
+  };
+
+  if (!viewState) {
+    return (
+      <div
+        className={`flex items-center justify-center bg-gray-100 rounded-lg ${className}`}
+        style={{ height }}
+      >
+        <p className="text-gray-400 text-sm">Loading map...</p>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`rounded-lg overflow-hidden border border-gray-200 ${className}`}
       style={{ height }}
     >
       <Map
-        initialViewState={{
-          longitude: coords.lng,
-          latitude: coords.lat,
-          zoom: zoom,
-        }}
+        ref={mapRef}
+        {...viewState}
+        onMove={handleMove}
         mapboxAccessToken={mapboxAccessToken}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/streets-v12"
@@ -117,24 +173,24 @@ const DestinationMap = ({
         </Marker>
 
         {/* POI markers */}
-        {poiMarkers.map((poi) => (
-          <Marker
-            key={poi.id}
-            longitude={poi.lng}
-            latitude={poi.lat}
-            anchor="bottom"
-            onClick={(e) => {
-              e.originalEvent.stopPropagation();
-              setPopupInfo(poi);
-            }}
-          >
-            <div className="flex items-center justify-center cursor-pointer hover:scale-110 transition-transform">
-              <div className="bg-amber-500 text-white p-1.5 rounded-full shadow">
-                <MapPin className="w-3 h-3" />
+        {poiMarkers.map((poi) => {
+          const isSelected = isPOISelected(poi.id);
+          return (
+            <Marker
+              key={poi.id}
+              longitude={poi.lng}
+              latitude={poi.lat}
+              anchor="bottom"
+              onClick={(e) => handleMarkerClick(e, poi)}
+            >
+              <div className={`flex items-center justify-center cursor-pointer transition-transform ${isSelected ? 'scale-125' : 'hover:scale-110'}`}>
+                <div className={`text-white p-1.5 rounded-full shadow ${isSelected ? 'bg-indigo-600 ring-2 ring-indigo-300 ring-offset-1' : 'bg-amber-500'}`}>
+                  <MapPin className="w-3 h-3" />
+                </div>
               </div>
-            </div>
-          </Marker>
-        ))}
+            </Marker>
+          );
+        })}
 
         {/* POI Popup */}
         {popupInfo && (
@@ -150,6 +206,9 @@ const DestinationMap = ({
               <h4 className="font-medium text-gray-900 text-sm">{popupInfo.name}</h4>
               {popupInfo.category && (
                 <p className="text-xs text-gray-500">{popupInfo.category}</p>
+              )}
+              {popupInfo.description && (
+                <p className="text-xs text-gray-600 mt-1 max-w-[200px]">{popupInfo.description}</p>
               )}
             </div>
           </Popup>

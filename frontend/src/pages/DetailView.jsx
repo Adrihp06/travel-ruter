@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { Clock, ThumbsUp, ThumbsDown, MapPin } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
@@ -10,6 +10,7 @@ import { BudgetDisplay } from '../components/Budget';
 import { DocumentPanel } from '../components/Documents';
 import { GoogleMapsExportButton } from '../components/GoogleMapsExport';
 import { TripMap, DestinationMap } from '../components/Map';
+import { Agenda } from '../components/Agenda';
 
 const DestinationWeatherCard = ({ destination }) => {
   const { weather, isLoading, error } = useDestinationWeather(destination?.id);
@@ -28,9 +29,43 @@ const DetailView = () => {
   const { selectedTrip, budget, fetchTripDetails, isLoading, isBudgetLoading } = useTripStore();
   const { pois, fetchPOIsByDestination, votePOI } = usePOIStore();
   const [selectedDestinationId, setSelectedDestinationId] = useState(null);
+  const [selectedPOIs, setSelectedPOIs] = useState([]);
+  const [centerOnPOI, setCenterOnPOI] = useState(null);
 
   // Derive the selected destination object for the WeatherCard
   const selectedDestination = selectedTrip?.destinations?.find(d => d.id === selectedDestinationId);
+
+  // Mock accommodation data (in a real app, this would come from an API)
+  const accommodation = selectedDestination ? {
+    name: `Hotel ${selectedDestination.name || selectedDestination.city_name}`,
+    address: `123 Main Street, ${selectedDestination.name || selectedDestination.city_name}`,
+    checkIn: '15:00',
+    checkOut: '11:00',
+    notes: 'Free WiFi, breakfast included',
+  } : null;
+
+  // Handle POI selection for map highlighting
+  const handleSelectPOI = useCallback((poiId) => {
+    setSelectedPOIs(prev => {
+      if (prev.includes(poiId)) {
+        return prev.filter(id => id !== poiId);
+      }
+      return [...prev, poiId];
+    });
+  }, []);
+
+  // Handle centering map on a POI
+  const handleCenterMapOnPOI = useCallback((poi) => {
+    setCenterOnPOI(poi);
+    // Reset after a short delay to allow re-centering on the same POI
+    setTimeout(() => setCenterOnPOI(null), 100);
+  }, []);
+
+  // Reset selected POIs when destination changes
+  useEffect(() => {
+    setSelectedPOIs([]);
+    setCenterOnPOI(null);
+  }, [selectedDestinationId]);
 
   useEffect(() => {
     if (id) {
@@ -62,12 +97,24 @@ const DetailView = () => {
 
   return (
     <div className="flex h-[calc(100vh-64px)]">
-      {/* Timeline Sidebar */}
+      {/* Timeline Sidebar (Level 1 - Left) */}
       {selectedTrip.destinations && (
         <Timeline
           destinations={selectedTrip.destinations}
           selectedDestinationId={selectedDestinationId}
           onSelectDestination={setSelectedDestinationId}
+        />
+      )}
+
+      {/* Agenda Panel (Level 2 - Left Panel for Detail View) */}
+      {selectedDestination && (
+        <Agenda
+          destination={selectedDestination}
+          accommodation={accommodation}
+          pois={pois}
+          selectedPOIs={selectedPOIs}
+          onSelectPOI={handleSelectPOI}
+          onCenterMapOnPOI={handleCenterMapOnPOI}
         />
       )}
 
@@ -125,12 +172,15 @@ const DetailView = () => {
                 </p>
                 <DestinationWeatherCard destination={selectedDestination} />
               </div>
-              <div className="lg:w-80">
+              <div className="lg:w-96">
                 <DestinationMap
                   destination={selectedDestination}
                   pois={pois}
-                  height="200px"
+                  height="250px"
                   zoom={11}
+                  selectedPOIs={selectedPOIs}
+                  centerOnPOI={centerOnPOI}
+                  onPOIClick={handleCenterMapOnPOI}
                 />
               </div>
             </div>
