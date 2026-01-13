@@ -1,0 +1,24 @@
+[run]
+source = app
+omit =
+    app/tests/*
+    app/alembic/*
+    */__pycache__/*
+    */site-packages/*
+branch = True
+parallel = True
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+fail_under = 80
+show_missing = True
+precision = 2
+
+[html]
+directory = htmlcov
