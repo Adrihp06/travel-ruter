@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
 const usePOIStore = create((set, get) => ({
   pois: [], // List of POIsByCategory objects
   selectedPOI: null,
@@ -233,55 +235,55 @@ const usePOIStore = create((set, get) => ({
   },
 
   createPOI: async (poiData) => {
+    set({ isLoading: true, error: null });
     try {
-      // In a real app, this would be an API call
-      // await api.post('/pois', poiData);
+      const response = await fetch(`${API_BASE_URL}/pois`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          destination_id: poiData.destination_id,
+          name: poiData.name,
+          category: poiData.category,
+          description: poiData.description,
+          estimated_cost: poiData.estimated_cost,
+          dwell_time: poiData.dwell_time,
+          latitude: poiData.latitude,
+          longitude: poiData.longitude,
+          address: poiData.address,
+        }),
+      });
 
-      const newPOI = {
-        id: Date.now(), // Temporary ID
-        name: poiData.name || 'New POI',
-        description: poiData.description || '',
-        category: poiData.category || 'Sights',
-        likes: 0,
-        vetoes: 0,
-        latitude: poiData.latitude,
-        longitude: poiData.longitude,
-        address: poiData.address || '',
-        dwell_time: poiData.dwell_time || 30,
-        dwellTime: poiData.dwell_time || 30,
-        estimated_cost: poiData.estimated_cost || 0,
-        estimatedCost: poiData.estimated_cost || 0,
-        currency: poiData.currency || 'USD',
-        priority: poiData.priority || 0,
-        rating: 0,
-        destination_id: poiData.destination_id,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+      if (!response.ok) {
+        throw new Error('Failed to create POI');
+      }
 
+      const newPOI = await response.json();
+
+      // Add to the correct category group in local state
       set((state) => {
-        const category = newPOI.category;
-        const existingCategoryIndex = state.pois.findIndex(c => c.category === category);
+        const updatedPOIs = [...state.pois];
+        const categoryIndex = updatedPOIs.findIndex(
+          group => group.category === newPOI.category
+        );
 
-        if (existingCategoryIndex >= 0) {
-          // Add to existing category
-          const newPOIs = [...state.pois];
-          newPOIs[existingCategoryIndex] = {
-            ...newPOIs[existingCategoryIndex],
-            pois: [...newPOIs[existingCategoryIndex].pois, newPOI]
+        if (categoryIndex >= 0) {
+          updatedPOIs[categoryIndex] = {
+            ...updatedPOIs[categoryIndex],
+            pois: [...updatedPOIs[categoryIndex].pois, newPOI]
           };
-          return { pois: newPOIs };
         } else {
-          // Create new category
-          return {
-            pois: [...state.pois, { category, pois: [newPOI] }]
-          };
+          updatedPOIs.push({
+            category: newPOI.category,
+            pois: [newPOI]
+          });
         }
+
+        return { pois: updatedPOIs, isLoading: false };
       });
 
       return newPOI;
     } catch (error) {
-      set({ error: error.message });
+      set({ error: error.message, isLoading: false });
       throw error;
     }
   },
@@ -296,26 +298,123 @@ const usePOIStore = create((set, get) => ({
     set({ selectedPOI: found || null });
   },
 
-  votePOI: async (poiId, type) => {
-    // Optimistic update
-    set(state => {
-      const newPOIs = state.pois.map(cat => ({
-        ...cat,
-        pois: cat.pois.map(p => {
-          if (p.id === poiId) {
+  votePOI: async (poiId, voteType) => {
+    // Optimistic update first
+    set((state) => {
+      const updatedPOIs = state.pois.map(group => ({
+        ...group,
+        pois: group.pois.map(poi => {
+          if (poi.id === poiId) {
             return {
-              ...p,
-              likes: type === 'like' ? p.likes + 1 : p.likes,
-              vetoes: type === 'veto' ? p.vetoes + 1 : p.vetoes
+              ...poi,
+              likes: voteType === 'like' ? poi.likes + 1 : poi.likes,
+              vetoes: voteType === 'veto' ? poi.vetoes + 1 : poi.vetoes,
             };
           }
-          return p;
-        })
+          return poi;
+        }),
       }));
-      return { pois: newPOIs };
+      return { pois: updatedPOIs };
     });
 
-    // In a real app, call API here: await api.post(`/pois/${poiId}/vote`, { type });
+    try {
+      const response = await fetch(`${API_BASE_URL}/pois/${poiId}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vote_type: voteType }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to vote');
+      }
+
+      const updatedPOI = await response.json();
+
+      // Update with server response
+      set((state) => {
+        const updatedPOIs = state.pois.map(group => ({
+          ...group,
+          pois: group.pois.map(poi =>
+            poi.id === poiId ? { ...poi, ...updatedPOI } : poi
+          ),
+        }));
+        return { pois: updatedPOIs };
+      });
+    } catch (error) {
+      // Revert optimistic update
+      set((state) => {
+        const updatedPOIs = state.pois.map(group => ({
+          ...group,
+          pois: group.pois.map(poi => {
+            if (poi.id === poiId) {
+              return {
+                ...poi,
+                likes: voteType === 'like' ? poi.likes - 1 : poi.likes,
+                vetoes: voteType === 'veto' ? poi.vetoes - 1 : poi.vetoes,
+              };
+            }
+            return poi;
+          }),
+        }));
+        return { pois: updatedPOIs, error: error.message };
+      });
+    }
+  },
+
+  updatePOI: async (poiId, poiData) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_BASE_URL}/pois/${poiId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(poiData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update POI');
+      }
+
+      const updatedPOI = await response.json();
+
+      set((state) => {
+        const updatedPOIs = state.pois.map(group => ({
+          ...group,
+          pois: group.pois.map(poi =>
+            poi.id === poiId ? { ...poi, ...updatedPOI } : poi
+          ),
+        }));
+        return { pois: updatedPOIs, isLoading: false };
+      });
+
+      return updatedPOI;
+    } catch (error) {
+      set({ error: error.message, isLoading: false });
+      throw error;
+    }
+  },
+
+  deletePOI: async (poiId) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_BASE_URL}/pois/${poiId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete POI');
+      }
+
+      set((state) => ({
+        pois: state.pois.map(group => ({
+          ...group,
+          pois: group.pois.filter(poi => poi.id !== poiId)
+        })).filter(group => group.pois.length > 0),
+        isLoading: false,
+      }));
+    } catch (error) {
+      set({ error: error.message, isLoading: false });
+      throw error;
+    }
   }
 }));
 
