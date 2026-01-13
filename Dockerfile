@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     gdal-bin \
     libgdal-dev \
     libspatialindex-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Set environment variables
@@ -32,4 +33,4 @@ COPY ./app /app/app
 EXPOSE 8000
 
 # Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
