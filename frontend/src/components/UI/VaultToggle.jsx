@@ -5,10 +5,10 @@ const VaultToggle = ({ onClick, documentCount = 0 }) => {
   return (
     <button
       onClick={onClick}
-      className="fixed top-4 right-4 z-50 p-2 bg-white rounded-lg shadow-md hover:bg-gray-100 transition-colors border border-gray-200 relative"
+      className="p-2.5 bg-white rounded-xl shadow-lg hover:shadow-xl hover:bg-gray-50 transition-all duration-200 border border-gray-100 flex items-center justify-center group relative"
       aria-label="Toggle document vault"
     >
-      <FolderOpen className="w-6 h-6 text-gray-700" />
+      <FolderOpen className="w-5 h-5 text-gray-600 group-hover:text-indigo-600 transition-colors" />
       {documentCount > 0 && (
         <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
           {documentCount > 9 ? '9+' : documentCount}

@@ -1,31 +1,26 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { Clock, ThumbsUp, ThumbsDown, MapPin, X, Plus } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import usePOIStore from '../stores/usePOIStore';
-import Timeline from '../components/Timeline/Timeline';
-import WeatherDisplay from '../components/Weather/WeatherDisplay';
-import useDestinationWeather from '../hooks/useDestinationWeather';
-import { BudgetDisplay } from '../components/Budget';
-import { DocumentPanel } from '../components/Documents';
-import { GoogleMapsExportButton } from '../components/GoogleMapsExport';
-import { TripMap, DestinationMap, MicroMap } from '../components/Map';
-import { Agenda } from '../components/Agenda';
+import useDocumentStore from '../stores/useDocumentStore';
+
+// Layout components
+import { ItineraryUIProvider, useItineraryUI } from '../contexts/ItineraryUIContext';
 import SidebarToggle from '../components/UI/SidebarToggle';
+import VaultToggle from '../components/UI/VaultToggle';
+import Sidebar from '../components/Layout/Sidebar';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
-import { useItineraryUI, sidebarAnimationClasses } from '../contexts/ItineraryUIContext';
+import { DocumentPanel } from '../components/Documents';
+import { BudgetDisplay } from '../components/Budget';
 
-const DestinationWeatherCard = ({ destination }) => {
-  const { weather, isLoading, error } = useDestinationWeather(destination?.id);
+// Level 1 components
+import Timeline from '../components/Timeline/Timeline';
+import { TripMap } from '../components/Map';
 
-  return (
-    <WeatherDisplay
-      weather={weather}
-      isLoading={isLoading}
-      error={error}
-    />
-  );
-};
+// Level 2 components
+import { DayBasedAgenda } from '../components/Agenda';
+import { MicroMap } from '../components/Map';
 
 // Add POI Modal Component
 const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
@@ -151,329 +146,172 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
   );
 };
 
-const DetailView = () => {
+const DetailViewContent = () => {
   const { id } = useParams();
   const { selectedTrip, budget, fetchTripDetails, isLoading, isBudgetLoading } = useTripStore();
-  const { pois, fetchPOIsByDestination, votePOI, createPOI } = usePOIStore();
-  const [selectedDestinationId, setSelectedDestinationId] = useState(null);
-  
-  const { isSidebarVisible, toggleSidebar } = useItineraryUI();
+  const { pois, fetchPOIsByDestination, createPOI } = usePOIStore();
+  const { documents } = useDocumentStore();
+  const { isSidebarVisible, isVaultVisible, toggleSidebar, toggleVault } = useItineraryUI();
 
-  // State for Agenda/DestinationMap interaction
+  // State
+  const [selectedDestinationId, setSelectedDestinationId] = useState(null); // null = Level 1
   const [selectedPOIs, setSelectedPOIs] = useState([]);
   const [centerOnPOI, setCenterOnPOI] = useState(null);
-  // State for MicroMap add POI
   const [showAddPOIModal, setShowAddPOIModal] = useState(false);
   const [pendingPOILocation, setPendingPOILocation] = useState(null);
 
-  // Derive the selected destination object for the WeatherCard
+  // Derived state
+  const viewLevel = selectedDestinationId ? 2 : 1;
   const selectedDestination = selectedTrip?.destinations?.find(d => d.id === selectedDestinationId);
 
-  // Mock accommodation data (in a real app, this would come from an API)
-  const accommodation = selectedDestination ? {
-    name: `Hotel ${selectedDestination.name || selectedDestination.city_name}`,
-    address: `123 Main Street, ${selectedDestination.name || selectedDestination.city_name}`,
-    checkIn: '15:00',
-    checkOut: '11:00',
-    notes: 'Free WiFi, breakfast included',
-  } : null;
-
-  // Handle POI selection for map highlighting (from Agenda)
-  const handleSelectPOI = useCallback((poiId) => {
-    setSelectedPOIs(prev => {
-      if (prev.includes(poiId)) {
-        return prev.filter(id => id !== poiId);
-      }
-      return [...prev, poiId];
-    });
+  // Handlers
+  const handleSelectDestination = useCallback((destId) => {
+    setSelectedDestinationId(destId);
+    setSelectedPOIs([]);
+    setCenterOnPOI(null);
   }, []);
 
-  // Handle centering map on a POI (from Agenda)
+  const handleBackToLevel1 = useCallback(() => {
+    setSelectedDestinationId(null);
+    setSelectedPOIs([]);
+  }, []);
+
+  const handleSelectPOI = useCallback((poiId) => {
+    setSelectedPOIs(prev =>
+      prev.includes(poiId) ? prev.filter(id => id !== poiId) : [...prev, poiId]
+    );
+  }, []);
+
   const handleCenterMapOnPOI = useCallback((poi) => {
     setCenterOnPOI(poi);
-    // Reset after a short delay to allow re-centering on the same POI
     setTimeout(() => setCenterOnPOI(null), 100);
   }, []);
 
-  // Reset selected POIs when destination changes
-  useEffect(() => {
-    setSelectedPOIs([]);
-    setCenterOnPOI(null);
-  }, [selectedDestinationId]);
-
-  // Handle adding a new POI from MicroMap click
   const handleAddPOI = useCallback((location) => {
     setPendingPOILocation(location);
     setShowAddPOIModal(true);
   }, []);
 
-  // Handle POI form submission
   const handlePOISubmit = useCallback(async (poiData) => {
     if (selectedDestinationId) {
-      await createPOI({
-        ...poiData,
-        destination_id: selectedDestinationId,
-      });
+      await createPOI({ ...poiData, destination_id: selectedDestinationId });
     }
     setPendingPOILocation(null);
   }, [selectedDestinationId, createPOI]);
 
+  // Effects
   useEffect(() => {
-    if (id) {
-      fetchTripDetails(id);
-    }
+    if (id) fetchTripDetails(id);
   }, [id, fetchTripDetails]);
 
-  // Select first destination by default when trip loads
-  useEffect(() => {
-    if (selectedTrip?.destinations?.length > 0 && !selectedDestinationId) {
-      setSelectedDestinationId(selectedTrip.destinations[0].id);
-    }
-  }, [selectedTrip, selectedDestinationId]);
+  // NO auto-select first destination - removed intentionally for Level 1 view
 
-  // Fetch POIs when destination selected
   useEffect(() => {
     if (selectedDestinationId) {
       fetchPOIsByDestination(selectedDestinationId);
     }
   }, [selectedDestinationId, fetchPOIsByDestination]);
 
+  // Loading state
   if (isLoading) {
-    return <div className="p-8 text-center text-gray-500">Loading itinerary...</div>;
+    return <div className="flex items-center justify-center h-screen text-gray-500">Loading...</div>;
   }
 
   if (!selectedTrip) {
-    return <div className="p-8 text-center text-gray-500">Trip not found</div>;
+    return <div className="flex items-center justify-center h-screen text-gray-500">Trip not found</div>;
   }
 
   return (
-    <div className="flex h-screen relative overflow-hidden">
-      {/* Left Sidebars Container */}
-      <div className={`flex h-full z-40 bg-white border-r border-gray-200 shadow-xl ${sidebarAnimationClasses.transition} ${
-        isSidebarVisible 
-          ? 'translate-x-0 opacity-100' 
-          : '-translate-x-full opacity-0 absolute'
-      }`}>
-        {/* Timeline Sidebar (Level 1 - Left) */}
-        {selectedTrip.destinations && (
-          <Timeline
-            destinations={selectedTrip.destinations}
-            selectedDestinationId={selectedDestinationId}
-            onSelectDestination={setSelectedDestinationId}
-          />
-        )}
-
-        {/* Agenda Panel (Level 2 - Left Panel for Detail View) */}
-        {selectedDestination && (
-          <Agenda
-            destination={selectedDestination}
-            accommodation={accommodation}
-            pois={pois}
-            selectedPOIs={selectedPOIs}
-            onSelectPOI={handleSelectPOI}
-            onCenterMapOnPOI={handleCenterMapOnPOI}
-          />
-        )}
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-8 pt-24 relative">
-        <div className="absolute top-6 left-6 z-50 flex items-center space-x-6">
+    <div className="relative h-screen overflow-hidden flex flex-col">
+      {/* Top Navigation Bar */}
+      <div className="h-14 flex-shrink-0 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-30">
+        {/* Left: Sidebar Toggle */}
+        <div className="flex items-center">
           <SidebarToggle onClick={toggleSidebar} />
-          <div className="bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl shadow-sm border border-gray-100">
+        </div>
+
+        {/* Center: Breadcrumbs */}
+        <div className="flex-1 flex justify-center">
+          <div className="bg-gray-50 px-4 py-1.5 rounded-lg">
             <Breadcrumbs className="mb-0" />
           </div>
         </div>
-        
-        <div className="max-w-6xl mx-auto">
-          {/* Trip Header with Budget Display */}
-        <div className="mb-8">
-          <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {selectedTrip.title || selectedTrip.name} (Trip {id})
-              </h1>
-              <p className="text-gray-500">Detailed itinerary view.</p>
 
-              {/* Export to Google Maps */}
-              {selectedTrip?.destinations && selectedTrip.destinations.length >= 2 && (
-                <div className="mt-4">
-                  <GoogleMapsExportButton destinations={selectedTrip.destinations} />
-                </div>
-              )}
-            </div>
-            <div className="xl:w-96">
-              <BudgetDisplay budget={budget} isLoading={isBudgetLoading} />
-            </div>
-          </div>
-        </div>
-
-        {/* Trip Overview Map - Shows all destinations with routes */}
-        {selectedTrip?.destinations && selectedTrip.destinations.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold mb-4 flex items-center">
-              <MapPin className="w-5 h-5 mr-2 text-indigo-600" />
-              Trip Route Overview
-            </h2>
-            <TripMap
-              destinations={selectedTrip.destinations}
-              selectedDestinationId={selectedDestinationId}
-              onSelectDestination={setSelectedDestinationId}
-              showRoute={true}
-              height="350px"
-            />
-          </div>
-        )}
-
-        {/* Selected Destination Details */}
-        {selectedDestination && (
-          <div className="mb-8 p-6 bg-indigo-50 rounded-xl border border-indigo-100">
-            <div className="flex flex-col lg:flex-row gap-6">
-              <div className="flex-1">
-                <h2 className="text-xl font-semibold text-indigo-900 mb-2">
-                  {selectedDestination.name}
-                </h2>
-                <p className="text-sm text-indigo-700 mb-4">
-                  {new Date(selectedDestination.arrivalDate).toLocaleDateString()} - {new Date(selectedDestination.departureDate).toLocaleDateString()}
-                </p>
-                <DestinationWeatherCard destination={selectedDestination} />
-              </div>
-              <div className="lg:w-96">
-                <DestinationMap
-                  destination={selectedDestination}
-                  pois={pois}
-                  height="250px"
-                  zoom={11}
-                  selectedPOIs={selectedPOIs}
-                  centerOnPOI={centerOnPOI}
-                  onPOIClick={handleCenterMapOnPOI}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* POI Section with Voting */}
-        {selectedDestinationId && pois.length > 0 && (
-          <div className="mb-12 border-b border-gray-200 pb-8">
-            <h2 className="text-xl font-semibold mb-6">Collaborative Planning</h2>
-            <div className="space-y-8">
-              {pois.map((categoryGroup) => (
-                <div key={categoryGroup.category}>
-                  <h3 className="text-lg font-medium text-gray-700 mb-4 flex items-center">
-                    <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
-                    {categoryGroup.category}
-                  </h3>
-                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                    {categoryGroup.pois.map((poi) => (
-                      <div key={poi.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-semibold text-gray-900 text-lg">{poi.name}</h4>
-                          <div className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                            (poi.likes - poi.vetoes) > 5 ? 'bg-green-100 text-green-800' :
-                            (poi.likes - poi.vetoes) < 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            Score: {poi.likes - poi.vetoes}
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{poi.description}</p>
-
-                        <div className="flex items-center justify-between mt-auto">
-                          <div className="flex space-x-4">
-                            <button
-                              onClick={() => votePOI(poi.id, 'like')}
-                              className="group flex items-center space-x-1.5 text-gray-500 hover:text-green-600 transition-colors"
-                              title="Like"
-                            >
-                              <div className="p-1.5 rounded-full group-hover:bg-green-50">
-                                <ThumbsUp className="w-4 h-4" />
-                              </div>
-                              <span className="font-medium">{poi.likes}</span>
-                            </button>
-                            <button
-                              onClick={() => votePOI(poi.id, 'veto')}
-                              className="group flex items-center space-x-1.5 text-gray-500 hover:text-red-600 transition-colors"
-                              title="Veto"
-                            >
-                              <div className="p-1.5 rounded-full group-hover:bg-red-50">
-                                <ThumbsDown className="w-4 h-4" />
-                              </div>
-                              <span className="font-medium">{poi.vetoes}</span>
-                            </button>
-                          </div>
-                          {/* Visual indicator for highly liked items */}
-                          {poi.likes > 10 && (
-                            <span className="text-xs font-medium text-amber-500 flex items-center">
-                              ★ Popular
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Daily Itinerary Section */}
-        <div className="space-y-6">
-          <h2 className="text-xl font-semibold mb-4">Daily Itinerary</h2>
-          {selectedTrip.days && selectedTrip.days.map((day) => (
-            <div key={day.day} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-                <h3 className="font-semibold text-gray-900">Day {day.day}</h3>
-              </div>
-              <div className="p-6">
-                <ul className="space-y-4">
-                  {day.activities.map((activity, index) => (
-                    <li key={index} className="flex items-start">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center mr-3 mt-0.5">
-                        <Clock className="w-4 h-4 text-indigo-600" />
-                      </div>
-                      <span className="text-gray-700">{activity}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ))}
+        {/* Right: Vault Toggle */}
+        <div className="flex items-center">
+          <VaultToggle onClick={toggleVault} documentCount={documents?.length || 0} />
         </div>
       </div>
-    </div>
 
-    {/* Right Sidebar - Micro Map and Documents */}
-      <div className="w-96 flex-shrink-0 border-l border-gray-200 overflow-y-auto">
-        <div className="sticky top-0">
-          {/* Micro Map Section */}
-          {selectedDestination && (
-            <div className="p-4 border-b border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-                <MapPin className="w-4 h-4 mr-2 text-indigo-600" />
-                {selectedDestination.city_name || selectedDestination.name} Map
-              </h3>
-              <MicroMap
-                destination={selectedDestination}
-                pois={pois}
-                height="350px"
-                zoom={14}
-                showLegend={true}
-                enableAddPOI={true}
-                onAddPOI={handleAddPOI}
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                Click on markers for details. Click "Add POI" to add new locations.
-              </p>
-            </div>
+      {/* Hideable Sidebar */}
+      {isSidebarVisible && (
+        <div className="fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/50" onClick={toggleSidebar} />
+          <Sidebar isOpen={true} onClose={toggleSidebar} />
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Panel */}
+        <div className="w-80 flex-shrink-0 border-r border-gray-200 overflow-y-auto">
+          {viewLevel === 1 ? (
+            <Timeline
+              destinations={selectedTrip.destinations || []}
+              selectedDestinationId={selectedDestinationId}
+              onSelectDestination={handleSelectDestination}
+            />
+          ) : (
+            <DayBasedAgenda
+              destination={selectedDestination}
+              pois={pois}
+              selectedPOIs={selectedPOIs}
+              onSelectPOI={handleSelectPOI}
+              onCenterMapOnPOI={handleCenterMapOnPOI}
+              onBack={handleBackToLevel1}
+            />
           )}
+        </div>
 
+        {/* Right Panel - Map */}
+        <div className="flex-1 relative">
+          {viewLevel === 1 ? (
+            <TripMap
+              destinations={selectedTrip.destinations || []}
+              selectedDestinationId={selectedDestinationId}
+              onSelectDestination={handleSelectDestination}
+              showRoute={true}
+              height="100%"
+            />
+          ) : (
+            <MicroMap
+              destination={selectedDestination}
+              pois={pois}
+              height="100%"
+              zoom={14}
+              showLegend={true}
+              enableAddPOI={true}
+              onAddPOI={handleAddPOI}
+              selectedPOIs={selectedPOIs}
+              centerOnPOI={centerOnPOI}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Hideable Vault */}
+      {isVaultVisible && (
+        <div className="fixed top-14 right-0 bottom-0 w-96 z-40 bg-white shadow-xl border-l border-gray-200 overflow-y-auto">
+          {/* Budget Display */}
+          <div className="p-4 border-b border-gray-200">
+            <BudgetDisplay budget={budget} isLoading={isBudgetLoading} />
+          </div>
           {/* Document Panel */}
           <div className="p-4">
             <DocumentPanel tripId={Number(id)} title="The Vault" />
           </div>
         </div>
-      </div>
+      )}
 
       {/* Add POI Modal */}
       <AddPOIModal
@@ -486,6 +324,15 @@ const DetailView = () => {
         location={pendingPOILocation}
       />
     </div>
+  );
+};
+
+// Wrapper with context provider
+const DetailView = () => {
+  return (
+    <ItineraryUIProvider>
+      <DetailViewContent />
+    </ItineraryUIProvider>
   );
 };
 
