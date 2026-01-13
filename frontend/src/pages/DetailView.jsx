@@ -11,6 +11,9 @@ import { DocumentPanel } from '../components/Documents';
 import { GoogleMapsExportButton } from '../components/GoogleMapsExport';
 import { TripMap, DestinationMap, MicroMap } from '../components/Map';
 import { Agenda } from '../components/Agenda';
+import SidebarToggle from '../components/UI/SidebarToggle';
+import Breadcrumbs from '../components/Layout/Breadcrumbs';
+import { useItineraryUI, sidebarAnimationClasses } from '../contexts/ItineraryUIContext';
 
 const DestinationWeatherCard = ({ destination }) => {
   const { weather, isLoading, error } = useDestinationWeather(destination?.id);
@@ -153,6 +156,9 @@ const DetailView = () => {
   const { selectedTrip, budget, fetchTripDetails, isLoading, isBudgetLoading } = useTripStore();
   const { pois, fetchPOIsByDestination, votePOI, createPOI } = usePOIStore();
   const [selectedDestinationId, setSelectedDestinationId] = useState(null);
+  
+  const { isSidebarVisible, toggleSidebar } = useItineraryUI();
+
   // State for Agenda/DestinationMap interaction
   const [selectedPOIs, setSelectedPOIs] = useState([]);
   const [centerOnPOI, setCenterOnPOI] = useState(null);
@@ -241,31 +247,46 @@ const DetailView = () => {
   }
 
   return (
-    <div className="flex h-[calc(100vh-64px)]">
-      {/* Timeline Sidebar (Level 1 - Left) */}
-      {selectedTrip.destinations && (
-        <Timeline
-          destinations={selectedTrip.destinations}
-          selectedDestinationId={selectedDestinationId}
-          onSelectDestination={setSelectedDestinationId}
-        />
-      )}
+    <div className="flex h-screen relative overflow-hidden">
+      {/* Left Sidebars Container */}
+      <div className={`flex h-full z-40 bg-white border-r border-gray-200 shadow-xl ${sidebarAnimationClasses.transition} ${
+        isSidebarVisible 
+          ? 'translate-x-0 opacity-100' 
+          : '-translate-x-full opacity-0 absolute'
+      }`}>
+        {/* Timeline Sidebar (Level 1 - Left) */}
+        {selectedTrip.destinations && (
+          <Timeline
+            destinations={selectedTrip.destinations}
+            selectedDestinationId={selectedDestinationId}
+            onSelectDestination={setSelectedDestinationId}
+          />
+        )}
 
-      {/* Agenda Panel (Level 2 - Left Panel for Detail View) */}
-      {selectedDestination && (
-        <Agenda
-          destination={selectedDestination}
-          accommodation={accommodation}
-          pois={pois}
-          selectedPOIs={selectedPOIs}
-          onSelectPOI={handleSelectPOI}
-          onCenterMapOnPOI={handleCenterMapOnPOI}
-        />
-      )}
+        {/* Agenda Panel (Level 2 - Left Panel for Detail View) */}
+        {selectedDestination && (
+          <Agenda
+            destination={selectedDestination}
+            accommodation={accommodation}
+            pois={pois}
+            selectedPOIs={selectedPOIs}
+            onSelectPOI={handleSelectPOI}
+            onCenterMapOnPOI={handleCenterMapOnPOI}
+          />
+        )}
+      </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-8">
-        {/* Trip Header with Budget Display */}
+      <div className="flex-1 overflow-y-auto p-8 pt-24 relative">
+        <div className="absolute top-6 left-6 z-50 flex items-center space-x-6">
+          <SidebarToggle onClick={toggleSidebar} />
+          <div className="bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl shadow-sm border border-gray-100">
+            <Breadcrumbs className="mb-0" />
+          </div>
+        </div>
+        
+        <div className="max-w-6xl mx-auto">
+          {/* Trip Header with Budget Display */}
         <div className="mb-8">
           <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
             <div className="flex-1">
@@ -420,8 +441,9 @@ const DetailView = () => {
           ))}
         </div>
       </div>
+    </div>
 
-      {/* Right Sidebar - Micro Map and Documents */}
+    {/* Right Sidebar - Micro Map and Documents */}
       <div className="w-96 flex-shrink-0 border-l border-gray-200 overflow-y-auto">
         <div className="sticky top-0">
           {/* Micro Map Section */}

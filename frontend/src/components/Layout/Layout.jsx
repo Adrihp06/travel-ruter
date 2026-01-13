@@ -1,19 +1,26 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation, useParams } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import Sidebar from './Sidebar';
 import Breadcrumbs from './Breadcrumbs';
 
 const Layout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const location = useLocation();
+  const { id } = useParams();
+  
+  // Check if we are in a view that should be full-width (itinerary or home)
+  const isFullWidthView = location.pathname === '/trips' || (location.pathname.startsWith('/trips/') && id);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        onClose={() => setIsSidebarOpen(false)} 
-      />
+      {/* Sidebar - Hide on Full Width Views to give more space */}
+      {!isFullWidthView && (
+        <Sidebar 
+          isOpen={isSidebarOpen} 
+          onClose={() => setIsSidebarOpen(false)} 
+        />
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
@@ -29,9 +36,9 @@ const Layout = () => {
         </header>
 
         {/* Main Content Area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="max-w-7xl mx-auto">
-            <Breadcrumbs />
+        <main className={`flex-1 overflow-y-auto ${isFullWidthView ? 'p-0' : 'p-4 md:p-8'}`}>
+          <div className={isFullWidthView ? 'h-full w-full' : 'max-w-7xl mx-auto'}>
+            {!isFullWidthView && <Breadcrumbs />}
             <Outlet />
           </div>
         </main>

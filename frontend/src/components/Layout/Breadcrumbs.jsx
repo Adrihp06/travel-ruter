@@ -2,12 +2,12 @@ import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { ChevronRight, Home } from 'lucide-react';
 
-const Breadcrumbs = () => {
+const Breadcrumbs = ({ className = "" }) => {
   const location = useLocation();
   const pathnames = location.pathname.split('/').filter((x) => x);
 
   return (
-    <nav aria-label="Breadcrumb" className="flex items-center space-x-2 text-sm text-gray-500 mb-4">
+    <nav aria-label="Breadcrumb" className={`flex items-center space-x-2 text-sm text-gray-500 ${className || 'mb-4'}`}>
       <Link to="/" className="hover:text-gray-900 flex items-center">
         <Home className="w-4 h-4" />
       </Link>
