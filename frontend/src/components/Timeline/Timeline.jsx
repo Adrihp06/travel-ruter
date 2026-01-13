@@ -1,63 +1,125 @@
 import React from 'react';
-import { Calendar, Moon } from 'lucide-react';
+import { Calendar, Moon, Plane, Train, Bus, Car, Ship } from 'lucide-react';
 
 const Timeline = ({ destinations, onSelectDestination, selectedDestinationId }) => {
   const calculateNights = (start, end) => {
     const startDate = new Date(start);
     const endDate = new Date(end);
     const diffTime = Math.abs(endDate - startDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-    return diffDays;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  // Sort destinations chronologically
-  const sortedDestinations = [...destinations].sort((a, b) => new Date(a.arrivalDate) - new Date(b.arrivalDate));
+  const sortedDestinations = [...destinations].sort(
+    (a, b) => new Date(a.arrivalDate) - new Date(b.arrivalDate)
+  );
+
+  // Calculate total trip duration
+  const tripStart = sortedDestinations[0]?.arrivalDate;
+  const tripEnd = sortedDestinations[sortedDestinations.length - 1]?.departureDate;
+  const totalDays = tripStart && tripEnd ? calculateNights(tripStart, tripEnd) : 0;
+
+  // Transport mode icons
+  const TransportIcon = ({ mode }) => {
+    const icons = {
+      flight: Plane,
+      train: Train,
+      bus: Bus,
+      car: Car,
+      ferry: Ship,
+    };
+    const Icon = icons[mode] || Plane;
+    return <Icon className="w-3 h-3" />;
+  };
+
+  // Mock travel time function (replace with real data later)
+  const getTravelToNext = (index) => {
+    if (index >= sortedDestinations.length - 1) return null;
+    // Mock data - in production this comes from API
+    return { duration: '2h', mode: 'flight' };
+  };
 
   return (
     <div className="flex flex-col h-full bg-white border-r border-gray-200 w-80 overflow-y-auto">
+      {/* Trip Header */}
       <div className="p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">Itinerary</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Trip Route</h2>
+        <p className="text-sm text-gray-500">
+          {totalDays} days total
+        </p>
+        {tripStart && tripEnd && (
+          <p className="text-xs text-gray-400">
+            {new Date(tripStart).toLocaleDateString()} - {new Date(tripEnd).toLocaleDateString()}
+          </p>
+        )}
       </div>
-      <div className="flex-1 p-2 space-y-2">
-        {sortedDestinations.map((dest) => {
-          const isSelected = selectedDestinationId === dest.id;
-          const nights = calculateNights(dest.arrivalDate, dest.departureDate);
-          
-          return (
-            <div
-              key={dest.id}
-              onClick={() => onSelectDestination(dest.id)}
-              className={`
-                group relative p-3 rounded-lg cursor-pointer transition-all duration-200 border
-                ${isSelected 
-                  ? 'bg-indigo-50 border-indigo-200 shadow-sm' 
-                  : 'bg-white border-transparent hover:bg-gray-50 hover:border-gray-200'}
-              `}
-            >
-              <div className="flex justify-between items-start mb-1">
-                <h3 className={`font-medium ${isSelected ? 'text-indigo-900' : 'text-gray-900'}`}>
-                  {dest.name}
-                </h3>
-              </div>
-              
-              <div className="flex items-center text-xs text-gray-500 mb-2 space-x-2">
-                <div className="flex items-center">
-                  <Calendar className="w-3 h-3 mr-1" />
-                  <span>{new Date(dest.arrivalDate).toLocaleDateString()}</span>
+
+      <div className="flex-1 p-4">
+        {/* Start Marker */}
+        <div className="flex items-center mb-2 text-xs text-gray-500">
+          <span className="w-3 h-3 rounded-full border-2 border-green-500 mr-3"></span>
+          <span>Start: {tripStart && new Date(tripStart).toLocaleDateString()}</span>
+        </div>
+
+        {/* Destinations with travel segments */}
+        <div className="relative">
+          {/* Vertical line */}
+          <div className="absolute left-1.5 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+
+          {sortedDestinations.map((dest, index) => {
+            const isSelected = selectedDestinationId === dest.id;
+            const nights = calculateNights(dest.arrivalDate, dest.departureDate);
+            const travelToNext = getTravelToNext(index);
+
+            return (
+              <div key={dest.id}>
+                {/* Destination Node */}
+                <div
+                  onClick={() => onSelectDestination(dest.id)}
+                  className={`
+                    relative pl-6 py-3 cursor-pointer transition-all duration-200
+                    ${isSelected ? 'bg-indigo-50 rounded-lg' : 'hover:bg-gray-50'}
+                  `}
+                >
+                  {/* Node marker */}
+                  <span className={`
+                    absolute left-0 top-4 w-3 h-3 rounded-full border-2 z-10
+                    ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-indigo-400'}
+                  `}></span>
+
+                  <h3 className={`font-medium ${isSelected ? 'text-indigo-900' : 'text-gray-900'}`}>
+                    {dest.name || dest.city_name}
+                  </h3>
+                  <div className="flex items-center text-xs text-gray-500 mt-1">
+                    <Calendar className="w-3 h-3 mr-1" />
+                    <span>{new Date(dest.arrivalDate).toLocaleDateString()}</span>
+                    <span className="mx-1">→</span>
+                    <span>{new Date(dest.departureDate).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center text-xs font-medium text-indigo-600 mt-1">
+                    <Moon className="w-3 h-3 mr-1" />
+                    {nights} nights
+                  </div>
                 </div>
-                <span>→</span>
-                <div>
-                   <span>{new Date(dest.departureDate).toLocaleDateString()}</span>
-                </div>
+
+                {/* Travel Segment to Next Destination */}
+                {travelToNext && (
+                  <div className="relative pl-6 py-2">
+                    <div className="flex items-center text-xs text-gray-400 bg-gray-50 rounded px-2 py-1 ml-2 w-fit">
+                      <TransportIcon mode={travelToNext.mode} />
+                      <span className="ml-1">{travelToNext.duration}</span>
+                    </div>
+                  </div>
+                )}
               </div>
-              
-              <div className="flex items-center text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded w-fit">
-                <Moon className="w-3 h-3 mr-1" />
-                {nights} nights
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        {/* End Marker */}
+        <div className="flex items-center mt-2 text-xs text-gray-500">
+          <span className="w-3 h-3 rounded-full border-2 border-red-500 mr-3"></span>
+          <span>End: {tripEnd && new Date(tripEnd).toLocaleDateString()}</span>
+        </div>
       </div>
     </div>
   );
