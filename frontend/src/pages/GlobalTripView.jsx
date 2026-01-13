@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, MapPin, ArrowRight } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
+import MapComponent from '../components/Map/Map';
 
 const GlobalTripView = () => {
   const { trips, fetchTrips, isLoading } = useTripStore();
@@ -17,6 +18,11 @@ const GlobalTripView = () => {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">My Trips</h1>
+      
+      <div className="mb-8 h-96 rounded-xl overflow-hidden shadow-sm border border-gray-200">
+        <MapComponent />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {trips.map((trip) => (
           <div key={trip.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
