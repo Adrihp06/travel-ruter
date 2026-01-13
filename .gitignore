@@ -177,3 +177,9 @@ yarn-error.log*
 # Testing
 coverage/
 .nyc_output/
+nosetests.xml
+coverage.xml
+*.cover
+
+# Alembic
+alembic/versions/*.pyc

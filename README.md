@@ -4,99 +4,130 @@ A modern travel routing and planning application that helps users find optimal r
 
 ## Overview
 
-Travel Ruter is a full-stack application designed to provide intelligent travel routing solutions. The application consists of a Python backend API and a modern frontend interface, containerized with Docker for easy deployment.
+Travel Ruter is a full-stack application designed to provide intelligent travel routing solutions. The application consists of a Python FastAPI backend with SQLAlchemy (async) and PostgreSQL/PostGIS for geospatial routing.
 
 ## Project Structure
 
 ```
 travel-ruter/
-├── backend/          # Python backend API (using uv)
-├── frontend/         # Frontend application
-├── docker/           # Docker configuration files
-├── docs/             # Architecture and API documentation
-├── README.md         # This file
-└── .gitignore        # Git ignore rules
+├── app/
+│   ├── api/              # API routes
+│   ├── core/             # Core configuration (database, settings)
+│   ├── models/           # SQLAlchemy models
+│   ├── services/         # Business logic
+│   └── main.py           # FastAPI application entry point
+├── alembic/              # Database migrations
+├── requirements.txt      # Python dependencies
+├── Dockerfile            # Backend container configuration
+├── docker-compose.yml    # Docker services orchestration
+├── .env.example          # Environment variables template
+├── start.sh              # Quick start script
+└── README.md             # This file
 ```
 
 ## Tech Stack
 
 ### Backend
-- Python 3.11+
-- Package management: uv
-- Framework: (to be determined)
-
-### Frontend
-- (to be determined)
+- **Python 3.11+**
+- **FastAPI** - Modern web framework
+- **SQLAlchemy 2.0** - ORM with async support
+- **PostgreSQL + PostGIS** - Database with geospatial extensions
+- **Uvicorn** - ASGI server
+- **GeoPandas, Shapely** - Geospatial data processing
+- **Package management**: uv (optional)
 
 ### Infrastructure
-- Docker & Docker Compose
-- (additional services to be added)
+- **Docker & Docker Compose** - Containerization
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.11 or higher
-- Node.js 18+ and npm/yarn
 - Docker and Docker Compose
-- uv (Python package manager)
+- Python 3.11+ (for local development)
 
-### Installation
+### Setup with Docker
 
-#### Backend Setup
+1. Clone the repository
+2. Create environment file:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Start the services:
+   ```bash
+   ./start.sh
+   # Or manually:
+   docker-compose up --build
+   ```
+
+4. Access the API:
+   - API: http://localhost:8000
+   - Interactive API docs (Swagger UI): http://localhost:8000/docs
+   - Alternative API docs (ReDoc): http://localhost:8000/redoc
+   - Health check: http://localhost:8000/health
+
+### Local Development
+
+1. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. Set up environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your local database settings
+   ```
+
+4. Run the development server:
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+
+## API Documentation
+
+The API automatically generates interactive documentation:
+
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+## Database Migrations
+
+To create and run database migrations using Alembic:
 
 ```bash
-cd backend
-# uv will be used for dependency management
-uv sync
+# Create a new migration
+alembic revision --autogenerate -m "description"
+
+# Run migrations
+alembic upgrade head
+
+# Rollback
+alembic downgrade -1
 ```
 
-#### Frontend Setup
+## Features
 
-```bash
-cd frontend
-npm install
-```
+- Async SQLAlchemy for high performance
+- PostGIS support for geospatial data
+- Automatic API documentation (Swagger/OpenAPI)
+- CORS middleware configured
+- Docker containerization
+- Environment-based configuration
+- Health check endpoint
+- Database migrations with Alembic
 
-#### Docker Setup
+## Environment Variables
 
-```bash
-# Build and run all services
-docker-compose up --build
-```
-
-## Development
-
-### Running Locally
-
-#### Backend
-```bash
-cd backend
-uv run <command>
-```
-
-#### Frontend
-```bash
-cd frontend
-npm run dev
-```
-
-## Documentation
-
-Detailed documentation can be found in the `docs/` directory:
-
-- [Architecture Overview](docs/architecture.md)
-- API Documentation (coming soon)
-- Deployment Guide (coming soon)
-
-## Contributing
-
-Guidelines for contributing will be added soon.
+See `.env.example` for all available configuration options.
 
 ## License
 
-(License to be determined)
-
-## Contact
-
-(Contact information to be added)
+MIT
