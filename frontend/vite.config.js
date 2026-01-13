@@ -12,9 +12,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'Vibe Kanban',
-        short_name: 'VibeKanban',
-        description: 'A vibe-based Kanban board',
+        name: 'Travel Ruter',
+        short_name: 'TravelRuter',
+        description: 'Travel itinerary and route planning',
         theme_color: '#ffffff',
         icons: [
           {
