@@ -2,8 +2,31 @@ import { create } from 'zustand';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
+// Mock destinations for demo when API is unavailable
+const getMockDestinations = (tripId) => {
+  const mockData = {
+    1: [ // Summer in Norway
+      { id: 1, city_name: 'Oslo', country: 'Norway', latitude: 59.9139, longitude: 10.7522, order_index: 0 },
+      { id: 2, city_name: 'Bergen', country: 'Norway', latitude: 60.3913, longitude: 5.3221, order_index: 1 },
+      { id: 3, city_name: 'Trondheim', country: 'Norway', latitude: 63.4305, longitude: 10.3951, order_index: 2 },
+    ],
+    2: [ // Winter Alps
+      { id: 4, city_name: 'Zurich', country: 'Switzerland', latitude: 47.3769, longitude: 8.5417, order_index: 0 },
+      { id: 5, city_name: 'Zermatt', country: 'Switzerland', latitude: 46.0207, longitude: 7.7491, order_index: 1 },
+      { id: 6, city_name: 'Geneva', country: 'Switzerland', latitude: 46.2044, longitude: 6.1432, order_index: 2 },
+    ],
+    3: [ // Japan Cherry Blossom
+      { id: 7, city_name: 'Tokyo', country: 'Japan', latitude: 35.6762, longitude: 139.6503, order_index: 0 },
+      { id: 8, city_name: 'Kyoto', country: 'Japan', latitude: 35.0116, longitude: 135.7681, order_index: 1 },
+      { id: 9, city_name: 'Osaka', country: 'Japan', latitude: 34.6937, longitude: 135.5023, order_index: 2 },
+    ],
+  };
+  return mockData[tripId] || [];
+};
+
 const useTripStore = create((set, get) => ({
   trips: [],
+  tripsWithDestinations: [],
   selectedTrip: null,
   budget: null,
   isLoading: false,
@@ -22,6 +45,8 @@ const useTripStore = create((set, get) => ({
       if (!response.ok) throw new Error('Failed to fetch trips');
       const trips = await response.json();
       set({ trips, isLoading: false });
+      // Fetch destinations for all trips for the macro map
+      get().fetchTripsWithDestinations(trips);
     } catch (error) {
       // Fallback to mock data if API unavailable
       const mockTrips = [
@@ -30,6 +55,33 @@ const useTripStore = create((set, get) => ({
         { id: 3, title: 'Japan Cherry Blossom', date: 'Apr 2027', location: 'Japan' },
       ];
       set({ trips: mockTrips, isLoading: false, error: error.message });
+      // Fetch destinations for mock trips too
+      get().fetchTripsWithDestinations(mockTrips);
+    }
+  },
+
+  fetchTripsWithDestinations: async (trips) => {
+    try {
+      const tripsWithDests = await Promise.all(
+        trips.map(async (trip) => {
+          try {
+            const response = await fetch(`${API_BASE_URL}/trips/${trip.id}/destinations`);
+            if (!response.ok) return { ...trip, destinations: [] };
+            const destinations = await response.json();
+            return { ...trip, destinations };
+          } catch {
+            return { ...trip, destinations: [] };
+          }
+        })
+      );
+      set({ tripsWithDestinations: tripsWithDests });
+    } catch {
+      // Fallback to mock destinations for demonstration
+      const mockTripsWithDestinations = trips.map(trip => ({
+        ...trip,
+        destinations: getMockDestinations(trip.id)
+      }));
+      set({ tripsWithDestinations: mockTripsWithDestinations });
     }
   },
 
