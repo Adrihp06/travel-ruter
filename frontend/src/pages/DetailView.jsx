@@ -1,29 +1,35 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Clock, MapPin, Coffee, Utensils } from 'lucide-react';
+import useTripStore from '../stores/useTripStore';
 
 const DetailView = () => {
   const { id } = useParams();
+  const { selectedTrip, fetchTripDetails, isLoading } = useTripStore();
 
-  // Mock data - in real app fetch based on ID
-  const tripDetails = {
-    title: 'Summer in Norway',
-    days: [
-      { day: 1, activities: ['Arrival in Oslo', 'Check-in at Hotel', 'Dinner at Aker Brygge'] },
-      { day: 2, activities: ['Train to Bergen', 'Fjord Cruise', 'Fish Market'] },
-      { day: 3, activities: ['Hike to Fløyen', 'Departure'] },
-    ]
-  };
+  useEffect(() => {
+    if (id) {
+      fetchTripDetails(id);
+    }
+  }, [id, fetchTripDetails]);
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-gray-500">Loading itinerary...</div>;
+  }
+
+  if (!selectedTrip) {
+    return <div className="p-8 text-center text-gray-500">Trip not found</div>;
+  }
 
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">{tripDetails.title} (Trip {id})</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">{selectedTrip.title} (Trip {id})</h1>
         <p className="text-gray-500">Detailed itinerary view.</p>
       </div>
 
       <div className="space-y-6">
-        {tripDetails.days.map((day) => (
+        {selectedTrip.days.map((day) => (
           <div key={day.day} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
               <h3 className="font-semibold text-gray-900">Day {day.day}</h3>

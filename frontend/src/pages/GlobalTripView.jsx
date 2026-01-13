@@ -1,13 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, MapPin, ArrowRight } from 'lucide-react';
+import useTripStore from '../stores/useTripStore';
 
 const GlobalTripView = () => {
-  const trips = [
-    { id: 1, title: 'Summer in Norway', date: 'Jul 2026', location: 'Norway' },
-    { id: 2, title: 'Winter Alps', date: 'Dec 2026', location: 'Switzerland' },
-    { id: 3, title: 'Japan Cherry Blossom', date: 'Apr 2027', location: 'Japan' },
-  ];
+  const { trips, fetchTrips, isLoading } = useTripStore();
+
+  useEffect(() => {
+    fetchTrips();
+  }, [fetchTrips]);
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-gray-500">Loading trips...</div>;
+  }
 
   return (
     <div>
