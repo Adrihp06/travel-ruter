@@ -8,6 +8,12 @@ from app.schemas.trip import (
     TripUpdate,
     TripResponse,
 )
+from app.schemas.poi import (
+    POICreate,
+    POIUpdate,
+    POIResponse,
+    POIsByCategory,
+)
 
 __all__ = [
     "DestinationCreate",
@@ -16,4 +22,8 @@ __all__ = [
     "TripCreate",
     "TripUpdate",
     "TripResponse",
+    "POICreate",
+    "POIUpdate",
+    "POIResponse",
+    "POIsByCategory",
 ]
