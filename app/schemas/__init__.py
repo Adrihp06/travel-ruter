@@ -14,6 +14,7 @@ from app.schemas.poi import (
     POIResponse,
     POIsByCategory,
 )
+from app.schemas.weather import WeatherResponse
 
 __all__ = [
     "DestinationCreate",
@@ -26,4 +27,5 @@ __all__ = [
     "POIUpdate",
     "POIResponse",
     "POIsByCategory",
+    "WeatherResponse",
 ]

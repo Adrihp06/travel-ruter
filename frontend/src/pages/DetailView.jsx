@@ -2,10 +2,26 @@ import React, { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Clock, MapPin, Coffee, Utensils } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
+import useDestinationStore from '../stores/useDestinationStore';
+import WeatherDisplay from '../components/Weather/WeatherDisplay';
+import useDestinationWeather from '../hooks/useDestinationWeather';
+
+const DestinationWeatherCard = ({ destination }) => {
+  const { weather, isLoading, error } = useDestinationWeather(destination?.id);
+
+  return (
+    <WeatherDisplay
+      weather={weather}
+      isLoading={isLoading}
+      error={error}
+    />
+  );
+};
 
 const DetailView = () => {
   const { id } = useParams();
   const { selectedTrip, fetchTripDetails, isLoading } = useTripStore();
+  const { selectedDestination } = useDestinationStore();
 
   useEffect(() => {
     if (id) {
@@ -26,6 +42,11 @@ const DetailView = () => {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">{selectedTrip.title} (Trip {id})</h1>
         <p className="text-gray-500">Detailed itinerary view.</p>
+        {selectedDestination && (
+          <div className="mt-4">
+            <DestinationWeatherCard destination={selectedDestination} />
+          </div>
+        )}
       </div>
 
       <div className="space-y-6">
