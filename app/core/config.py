@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    # Document Storage (The Vault)
+    DOCUMENTS_UPLOAD_PATH: str = "/app/documents"
+    MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB
+    ALLOWED_FILE_TYPES: list[str] = ["application/pdf", "image/jpeg", "image/jpg"]
+
     class Config:
         env_file = ".env"
         case_sensitive = True

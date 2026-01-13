@@ -7,6 +7,7 @@ import Timeline from '../components/Timeline/Timeline';
 import WeatherDisplay from '../components/Weather/WeatherDisplay';
 import useDestinationWeather from '../hooks/useDestinationWeather';
 import { BudgetDisplay } from '../components/Budget';
+import { DocumentPanel } from '../components/Documents';
 
 const DestinationWeatherCard = ({ destination }) => {
   const { weather, isLoading, error } = useDestinationWeather(destination?.id);
@@ -92,7 +93,7 @@ const DetailView = () => {
           </div>
         </div>
 
-        {/* POI Section */}
+        {/* POI Section with Voting */}
         {selectedDestinationId && pois.length > 0 && (
           <div className="mb-12 border-b border-gray-200 pb-8">
             <h2 className="text-xl font-semibold mb-6">Collaborative Planning</h2>
@@ -156,7 +157,7 @@ const DetailView = () => {
           </div>
         )}
 
-        {/* Existing Days Section */}
+        {/* Daily Itinerary Section */}
         <div className="space-y-6">
           <h2 className="text-xl font-semibold mb-4">Daily Itinerary</h2>
           {selectedTrip.days && selectedTrip.days.map((day) => (
@@ -178,6 +179,13 @@ const DetailView = () => {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Right Sidebar - The Vault (Document Panel) */}
+      <div className="w-80 flex-shrink-0 border-l border-gray-200 overflow-y-auto p-4">
+        <div className="sticky top-4">
+          <DocumentPanel tripId={Number(id)} title="The Vault" />
         </div>
       </div>
     </div>

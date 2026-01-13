@@ -30,10 +30,12 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./app:/app/app
+      - documents_data:/app/documents
     ports:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-travel_ruter}
+      DOCUMENTS_UPLOAD_PATH: /app/documents
     networks:
       - travel-ruter-network
     depends_on:
@@ -43,6 +45,13 @@ services:
 volumes:
   postgres_data:
     driver: local
+  documents_data:
+    driver: local
+    # To map to NAS folder, use:
+    # driver_opts:
+    #   type: nfs
+    #   o: addr=<NAS_IP>,rw
+    #   device: ":/path/to/nas/folder"
 
 networks:
   travel-ruter-network:
