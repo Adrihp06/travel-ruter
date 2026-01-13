@@ -13,6 +13,26 @@ import { useMapboxToken } from '../../contexts/MapboxContext';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 /**
+ * Format date range for display
+ */
+const formatDateRange = (arrivalDate, departureDate) => {
+  const arrival = new Date(arrivalDate);
+  const departure = new Date(departureDate);
+  const options = { month: 'short', day: 'numeric' };
+  return `${arrival.toLocaleDateString('en-US', options)} - ${departure.toLocaleDateString('en-US', options)}`;
+};
+
+/**
+ * Calculate number of nights between dates
+ */
+const calculateNights = (arrivalDate, departureDate) => {
+  const arrival = new Date(arrivalDate);
+  const departure = new Date(departureDate);
+  const diffTime = Math.abs(departure - arrival);
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+};
+
+/**
  * Calculate bounds that fit all destinations
  */
 const calculateBounds = (destinations) => {
@@ -108,7 +128,7 @@ const TripMap = ({
   className = '',
 }) => {
   const { mapboxAccessToken } = useMapboxToken();
-  const [popupInfo, setPopupInfo] = useState(null);
+  const [hoveredDestinationId, setHoveredDestinationId] = useState(null);
   const [viewState, setViewState] = useState({
     longitude: 10.7522,
     latitude: 59.9139,
@@ -160,10 +180,6 @@ const TripMap = ({
   const handleMarkerClick = useCallback(
     (destination, e) => {
       e.originalEvent.stopPropagation();
-      const coords = getCoordinates(destination);
-      if (coords) {
-        setPopupInfo({ ...destination, ...coords });
-      }
       if (onSelectDestination) {
         onSelectDestination(destination.id);
       }
@@ -222,55 +238,67 @@ const TripMap = ({
           if (!coords) return null;
 
           const isSelected = selectedDestinationId === destination.id;
+          const isHovered = hoveredDestinationId === destination.id;
 
           return (
-            <Marker
-              key={destination.id}
-              longitude={coords.lng}
-              latitude={coords.lat}
-              anchor="bottom"
-              onClick={(e) => handleMarkerClick(destination, e)}
-            >
-              <div
-                className={`flex items-center justify-center cursor-pointer transition-transform ${
-                  isSelected ? 'scale-125' : 'hover:scale-110'
-                }`}
+            <React.Fragment key={destination.id}>
+              <Marker
+                longitude={coords.lng}
+                latitude={coords.lat}
+                anchor="bottom"
+                onClick={(e) => handleMarkerClick(destination, e)}
               >
                 <div
-                  className={`relative flex items-center justify-center w-8 h-8 rounded-full ${
-                    isSelected
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-indigo-600 border-2 border-indigo-600'
+                  className={`flex items-center justify-center cursor-pointer transition-transform duration-200 ${
+                    isHovered || isSelected ? 'scale-125' : 'scale-100'
                   }`}
+                  onMouseEnter={() => setHoveredDestinationId(destination.id)}
+                  onMouseLeave={() => setHoveredDestinationId(null)}
                 >
-                  <span className="text-xs font-bold">{index + 1}</span>
+                  <div
+                    className={`relative flex items-center justify-center w-8 h-8 rounded-full ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-white text-indigo-600 border-2 border-indigo-600'
+                    }`}
+                  >
+                    <span className="text-xs font-bold">{index + 1}</span>
+                  </div>
                 </div>
-              </div>
-            </Marker>
+              </Marker>
+              {(isHovered || isSelected) && (
+                <Popup
+                  longitude={coords.lng}
+                  latitude={coords.lat}
+                  anchor="bottom"
+                  offset={[0, -40]}
+                  closeButton={false}
+                  closeOnClick={false}
+                >
+                  <div className="p-2 min-w-[120px]">
+                    <h3 className="font-semibold text-gray-900 text-sm">
+                      {destination.name || destination.city_name}
+                    </h3>
+                    {destination.arrivalDate && destination.departureDate && (
+                      <>
+                        <p className="text-indigo-600 font-medium text-xs mt-1">
+                          {formatDateRange(destination.arrivalDate, destination.departureDate)}
+                        </p>
+                        <p className="text-gray-500 text-xs">
+                          {calculateNights(destination.arrivalDate, destination.departureDate)} nights
+                        </p>
+                      </>
+                    )}
+                    <p className="text-gray-400 text-xs mt-1 italic">
+                      Click to view details
+                    </p>
+                  </div>
+                </Popup>
+              )}
+            </React.Fragment>
           );
         })}
 
-        {/* Popup */}
-        {popupInfo && (
-          <Popup
-            longitude={popupInfo.lng}
-            latitude={popupInfo.lat}
-            anchor="bottom"
-            offset={[0, -30]}
-            onClose={() => setPopupInfo(null)}
-            closeOnClick={false}
-          >
-            <div className="p-2 min-w-[150px]">
-              <h3 className="font-semibold text-gray-900">{popupInfo.name}</h3>
-              {popupInfo.arrivalDate && (
-                <p className="text-xs text-gray-500 mt-1">
-                  {new Date(popupInfo.arrivalDate).toLocaleDateString()} -{' '}
-                  {new Date(popupInfo.departureDate).toLocaleDateString()}
-                </p>
-              )}
-            </div>
-          </Popup>
-        )}
       </Map>
     </div>
   );
