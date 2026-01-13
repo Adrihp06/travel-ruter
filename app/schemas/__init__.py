@@ -15,6 +15,11 @@ from app.schemas.poi import (
     POIsByCategory,
 )
 from app.schemas.weather import WeatherResponse
+from app.schemas.accommodation import (
+    AccommodationCreate,
+    AccommodationUpdate,
+    AccommodationResponse,
+)
 
 __all__ = [
     "DestinationCreate",
@@ -28,4 +33,7 @@ __all__ = [
     "POIResponse",
     "POIsByCategory",
     "WeatherResponse",
+    "AccommodationCreate",
+    "AccommodationUpdate",
+    "AccommodationResponse",
 ]
