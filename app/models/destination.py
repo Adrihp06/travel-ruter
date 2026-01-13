@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Date, Integer, ForeignKey, Text, Index
+from sqlalchemy import Column, String, Date, Integer, ForeignKey, Text, Index, Float
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry
 from app.models.base import BaseModel
@@ -15,6 +15,14 @@ class Destination(BaseModel):
     coordinates = Column(Geometry('POINT', srid=4326), nullable=True)
     notes = Column(Text, nullable=True)
     order_index = Column(Integer, nullable=False, default=0)
+
+    # Additional fields for destination details
+    name = Column(String, nullable=True)
+    description = Column(Text, nullable=True)
+    address = Column(String, nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    location = Column(Geometry('POINT', srid=4326), nullable=True)
 
     # Relationships
     trip = relationship("Trip", back_populates="destinations")

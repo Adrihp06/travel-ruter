@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Optional
 from decimal import Decimal
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 class TripBase(BaseModel):
@@ -54,5 +54,4 @@ class TripResponse(TripBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
