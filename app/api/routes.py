@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.schemas.routing import RoutingRequest, RoutingResponse
+from app.schemas.route import RouteRequest, RouteResponse
 from app.services.route_service import RouteService
 
 router = APIRouter()
@@ -11,6 +12,12 @@ router = APIRouter()
 async def calculate_inter_city_route(request: RoutingRequest):
     """Calculate route between two cities"""
     return RouteService.calculate_inter_city_route(request)
+
+
+@router.post("/routes/intra-city", response_model=RouteResponse)
+async def calculate_intra_city_route(request: RouteRequest):
+    """Calculate intra-city route with ETA"""
+    return RouteService.calculate_intra_city_route(request)
 
 
 @router.get("/routes")
