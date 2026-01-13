@@ -1,5 +1,6 @@
 from sqlalchemy import Column, String, Numeric, Date, Text
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.hybrid import hybrid_property
 from app.models.base import BaseModel
 
 
@@ -16,6 +17,13 @@ class Trip(BaseModel):
 
     # Relationships
     destinations = relationship("Destination", back_populates="trip", cascade="all, delete-orphan")
+
+    @hybrid_property
+    def nights(self) -> int:
+        """Calculate number of nights automatically from start_date and end_date"""
+        if self.start_date and self.end_date:
+            return (self.end_date - self.start_date).days
+        return 0
 
     def __repr__(self):
         return f"<Trip(id={self.id}, name='{self.name}', start_date={self.start_date}, end_date={self.end_date})>"
