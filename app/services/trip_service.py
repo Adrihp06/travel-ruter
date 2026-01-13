@@ -1,8 +1,12 @@
+from decimal import Decimal
 from typing import List, Optional
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from app.models.trip import Trip
-from app.schemas.trip import TripCreate, TripUpdate
+from app.models.destination import Destination
+from app.models.poi import POI
+from app.schemas.trip import TripCreate, TripUpdate, BudgetSummary
 
 
 class TripService:
@@ -59,3 +63,41 @@ class TripService:
         await db.delete(trip)
         await db.flush()
         return True
+
+    @staticmethod
+    async def get_budget_summary(db: AsyncSession, trip_id: int) -> Optional[BudgetSummary]:
+        """Calculate budget summary for a trip by aggregating POI costs"""
+        # Get the trip first
+        trip = await TripService.get_trip(db, trip_id)
+        if not trip:
+            return None
+
+        # Get sum of estimated and actual costs from all POIs in this trip's destinations
+        result = await db.execute(
+            select(
+                func.coalesce(func.sum(POI.estimated_cost), 0).label('estimated_total'),
+                func.coalesce(func.sum(POI.actual_cost), 0).label('actual_total')
+            )
+            .select_from(POI)
+            .join(Destination, POI.destination_id == Destination.id)
+            .where(Destination.trip_id == trip_id)
+        )
+        row = result.one()
+        estimated_total = Decimal(str(row.estimated_total))
+        actual_total = Decimal(str(row.actual_total))
+
+        # Calculate remaining budget and percentage
+        remaining_budget = None
+        budget_percentage = None
+        if trip.total_budget is not None and trip.total_budget > 0:
+            remaining_budget = trip.total_budget - actual_total
+            budget_percentage = float((actual_total / trip.total_budget) * 100)
+
+        return BudgetSummary(
+            total_budget=trip.total_budget,
+            estimated_total=estimated_total,
+            actual_total=actual_total,
+            currency=trip.currency,
+            remaining_budget=remaining_budget,
+            budget_percentage=budget_percentage
+        )

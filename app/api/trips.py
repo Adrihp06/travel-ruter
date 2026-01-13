@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.schemas.trip import TripCreate, TripUpdate, TripResponse
+from app.schemas.trip import TripCreate, TripUpdate, TripResponse, BudgetSummary
 from app.services.trip_service import TripService
 
 router = APIRouter()
@@ -98,3 +98,23 @@ async def delete_trip(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Trip with id {trip_id} not found"
         )
+
+
+@router.get(
+    "/{trip_id}/budget",
+    response_model=BudgetSummary,
+    summary="Get trip budget summary",
+    description="Calculate and return budget summary for a trip, including estimated and actual costs from all POIs"
+)
+async def get_trip_budget(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db)
+) -> BudgetSummary:
+    """Get budget summary for a trip"""
+    budget = await TripService.get_budget_summary(db, trip_id)
+    if not budget:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trip with id {trip_id} not found"
+        )
+    return budget

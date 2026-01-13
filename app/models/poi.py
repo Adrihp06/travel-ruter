@@ -16,6 +16,7 @@ class POI(BaseModel):
 
     # Cost and time
     estimated_cost = Column(Numeric(10, 2), nullable=True)
+    actual_cost = Column(Numeric(10, 2), nullable=True, comment="Actual cost spent")
     currency = Column(String(3), nullable=False, default="USD")
     dwell_time = Column(Integer, nullable=True, comment="Estimated dwell time in minutes")
 

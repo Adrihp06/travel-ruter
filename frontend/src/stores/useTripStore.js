@@ -1,38 +1,49 @@
 import { create } from 'zustand';
 
-const useTripStore = create((set) => ({
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
+const useTripStore = create((set, get) => ({
   trips: [],
   selectedTrip: null,
+  budget: null,
   isLoading: false,
+  isBudgetLoading: false,
   error: null,
 
   setTrips: (trips) => set({ trips }),
   selectTrip: (tripId) => set((state) => ({
     selectedTrip: state.trips.find((t) => t.id === Number(tripId)) || null
   })),
-  
+
   fetchTrips: async () => {
     set({ isLoading: true });
-    // Simulate API call
     try {
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
+      const response = await fetch(`${API_BASE_URL}/trips`);
+      if (!response.ok) throw new Error('Failed to fetch trips');
+      const trips = await response.json();
+      set({ trips, isLoading: false });
+    } catch (error) {
+      // Fallback to mock data if API unavailable
       const mockTrips = [
         { id: 1, title: 'Summer in Norway', date: 'Jul 2026', location: 'Norway' },
         { id: 2, title: 'Winter Alps', date: 'Dec 2026', location: 'Switzerland' },
         { id: 3, title: 'Japan Cherry Blossom', date: 'Apr 2027', location: 'Japan' },
       ];
-      set({ trips: mockTrips, isLoading: false });
-    } catch (error) {
-      set({ error: error.message, isLoading: false });
+      set({ trips: mockTrips, isLoading: false, error: error.message });
     }
   },
 
   fetchTripDetails: async (tripId) => {
     set({ isLoading: true });
-    // Simulate API call
     try {
-      await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delay
-      // Mock details
+      const response = await fetch(`${API_BASE_URL}/trips/${tripId}`);
+      if (!response.ok) throw new Error('Failed to fetch trip details');
+      const tripDetails = await response.json();
+      set({ selectedTrip: tripDetails, isLoading: false });
+      // Also fetch budget when loading trip details
+      get().fetchTripBudget(tripId);
+    } catch (error) {
+      // Fallback to mock data if API unavailable
       const mockDetails = {
         id: Number(tripId),
         title: 'Summer in Norway',
@@ -46,13 +57,34 @@ const useTripStore = create((set) => ({
           { day: 3, activities: ['Hike to Fløyen', 'Departure'] },
         ]
       };
-      set({ selectedTrip: mockDetails, isLoading: false });
-    } catch (error) {
-      set({ error: error.message, isLoading: false });
+      set({ selectedTrip: mockDetails, isLoading: false, error: error.message });
+      // Fetch mock budget
+      get().fetchTripBudget(tripId);
     }
   },
-  
-  resetSelectedTrip: () => set({ selectedTrip: null }),
+
+  fetchTripBudget: async (tripId) => {
+    set({ isBudgetLoading: true });
+    try {
+      const response = await fetch(`${API_BASE_URL}/trips/${tripId}/budget`);
+      if (!response.ok) throw new Error('Failed to fetch budget');
+      const budget = await response.json();
+      set({ budget, isBudgetLoading: false });
+    } catch (error) {
+      // Fallback to mock budget data
+      const mockBudget = {
+        total_budget: 500,
+        estimated_total: 450,
+        actual_total: 320,
+        currency: 'EUR',
+        remaining_budget: 180,
+        budget_percentage: 64
+      };
+      set({ budget: mockBudget, isBudgetLoading: false });
+    }
+  },
+
+  resetSelectedTrip: () => set({ selectedTrip: null, budget: null }),
 }));
 
 export default useTripStore;

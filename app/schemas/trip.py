@@ -55,3 +55,15 @@ class TripResponse(TripBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class BudgetSummary(BaseModel):
+    """Schema for budget summary response"""
+    total_budget: Optional[Decimal] = Field(None, description="Total trip budget set by user")
+    estimated_total: Decimal = Field(..., description="Sum of all estimated costs from POIs")
+    actual_total: Decimal = Field(..., description="Sum of all actual costs spent")
+    currency: str = Field(default="USD", description="Currency code")
+    remaining_budget: Optional[Decimal] = Field(None, description="Remaining budget (total_budget - actual_total)")
+    budget_percentage: Optional[float] = Field(None, description="Percentage of budget spent (0-100)")
+
+    model_config = ConfigDict(from_attributes=True)

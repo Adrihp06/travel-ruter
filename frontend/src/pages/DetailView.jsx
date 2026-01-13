@@ -6,6 +6,7 @@ import usePOIStore from '../stores/usePOIStore';
 import Timeline from '../components/Timeline/Timeline';
 import WeatherDisplay from '../components/Weather/WeatherDisplay';
 import useDestinationWeather from '../hooks/useDestinationWeather';
+import { BudgetDisplay } from '../components/Budget';
 
 const DestinationWeatherCard = ({ destination }) => {
   const { weather, isLoading, error } = useDestinationWeather(destination?.id);
@@ -21,7 +22,7 @@ const DestinationWeatherCard = ({ destination }) => {
 
 const DetailView = () => {
   const { id } = useParams();
-  const { selectedTrip, fetchTripDetails, isLoading } = useTripStore();
+  const { selectedTrip, budget, fetchTripDetails, isLoading, isBudgetLoading } = useTripStore();
   const { pois, fetchPOIsByDestination, votePOI } = usePOIStore();
   const [selectedDestinationId, setSelectedDestinationId] = useState(null);
 
@@ -60,7 +61,7 @@ const DetailView = () => {
     <div className="flex h-[calc(100vh-64px)]">
       {/* Timeline Sidebar */}
       {selectedTrip.destinations && (
-        <Timeline 
+        <Timeline
           destinations={selectedTrip.destinations}
           selectedDestinationId={selectedDestinationId}
           onSelectDestination={setSelectedDestinationId}
@@ -69,16 +70,26 @@ const DetailView = () => {
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-8">
+        {/* Trip Header with Budget Display */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{selectedTrip.title} (Trip {id})</h1>
-          <p className="text-gray-500">Detailed itinerary view.</p>
-          
-          {/* Weather Display from HEAD, integrated with our selection logic */}
-          {selectedDestination && (
-            <div className="mt-4">
-              <DestinationWeatherCard destination={selectedDestination} />
+          <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                {selectedTrip.title || selectedTrip.name} (Trip {id})
+              </h1>
+              <p className="text-gray-500">Detailed itinerary view.</p>
+
+              {/* Weather Display */}
+              {selectedDestination && (
+                <div className="mt-4">
+                  <DestinationWeatherCard destination={selectedDestination} />
+                </div>
+              )}
             </div>
-          )}
+            <div className="xl:w-96">
+              <BudgetDisplay budget={budget} isLoading={isBudgetLoading} />
+            </div>
+          </div>
         </div>
 
         {/* POI Section */}
@@ -98,17 +109,17 @@ const DetailView = () => {
                         <div className="flex justify-between items-start mb-2">
                           <h4 className="font-semibold text-gray-900 text-lg">{poi.name}</h4>
                           <div className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                            (poi.likes - poi.vetoes) > 5 ? 'bg-green-100 text-green-800' : 
+                            (poi.likes - poi.vetoes) > 5 ? 'bg-green-100 text-green-800' :
                             (poi.likes - poi.vetoes) < 0 ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
                           }`}>
                             Score: {poi.likes - poi.vetoes}
                           </div>
                         </div>
                         <p className="text-sm text-gray-600 mb-4 line-clamp-2">{poi.description}</p>
-                        
+
                         <div className="flex items-center justify-between mt-auto">
                           <div className="flex space-x-4">
-                            <button 
+                            <button
                               onClick={() => votePOI(poi.id, 'like')}
                               className="group flex items-center space-x-1.5 text-gray-500 hover:text-green-600 transition-colors"
                               title="Like"
@@ -118,7 +129,7 @@ const DetailView = () => {
                               </div>
                               <span className="font-medium">{poi.likes}</span>
                             </button>
-                            <button 
+                            <button
                               onClick={() => votePOI(poi.id, 'veto')}
                               className="group flex items-center space-x-1.5 text-gray-500 hover:text-red-600 transition-colors"
                               title="Veto"
@@ -148,7 +159,7 @@ const DetailView = () => {
         {/* Existing Days Section */}
         <div className="space-y-6">
           <h2 className="text-xl font-semibold mb-4">Daily Itinerary</h2>
-          {selectedTrip.days.map((day) => (
+          {selectedTrip.days && selectedTrip.days.map((day) => (
             <div key={day.day} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
                 <h3 className="font-semibold text-gray-900">Day {day.day}</h3>
