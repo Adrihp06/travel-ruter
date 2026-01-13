@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB
     ALLOWED_FILE_TYPES: list[str] = ["application/pdf", "image/jpeg", "image/jpg"]
 
+    # Mapbox API
+    MAPBOX_ACCESS_TOKEN: Optional[str] = None
+
     class Config:
         env_file = ".env"
         case_sensitive = True
