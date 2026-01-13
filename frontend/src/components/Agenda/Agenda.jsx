@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Building2,
   MapPin,
@@ -16,20 +16,17 @@ import {
   Star,
 } from 'lucide-react';
 
-// Category icon mapping
-const getCategoryIcon = (category) => {
-  const icons = {
-    'Sights': Landmark,
-    'Museums': Landmark,
-    'Food': UtensilsCrossed,
-    'Restaurants': UtensilsCrossed,
-    'Viewpoints': Mountain,
-    'Nature': TreePine,
-    'Shopping': ShoppingBag,
-    'Entertainment': Music,
-    'Photography': Camera,
-  };
-  return icons[category] || MapPin;
+// Category icon mapping - lookup table, not function creating components
+const categoryIcons = {
+  'Sights': Landmark,
+  'Museums': Landmark,
+  'Food': UtensilsCrossed,
+  'Restaurants': UtensilsCrossed,
+  'Viewpoints': Mountain,
+  'Nature': TreePine,
+  'Shopping': ShoppingBag,
+  'Entertainment': Music,
+  'Photography': Camera,
 };
 
 // Category color mapping
@@ -59,8 +56,8 @@ const Agenda = ({
 }) => {
   const [expandedCategories, setExpandedCategories] = useState({});
 
-  // Initialize all categories as expanded by default
-  useMemo(() => {
+  // Initialize all categories as expanded by default using useEffect
+  useEffect(() => {
     if (pois.length > 0) {
       const initialExpanded = {};
       pois.forEach((cat) => {
@@ -179,7 +176,7 @@ const Agenda = ({
           ) : (
             <div className="space-y-3">
               {pois.map((categoryGroup) => {
-                const CategoryIcon = getCategoryIcon(categoryGroup.category);
+                const CategoryIcon = categoryIcons[categoryGroup.category] || MapPin;
                 const categoryColor = getCategoryColor(categoryGroup.category);
                 const isExpanded = expandedCategories[categoryGroup.category] !== false;
                 const selectedCount = categoryGroup.pois.filter((p) => isPOISelected(p.id)).length;

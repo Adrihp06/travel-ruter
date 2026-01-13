@@ -111,7 +111,7 @@ const FileUpload = ({ onUpload, isUploading, error }) => {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    } catch (err) {
+    } catch {
       // Error handled by parent
     }
   };

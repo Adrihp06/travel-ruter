@@ -122,7 +122,7 @@ const useTripStore = create((set, get) => ({
       if (!response.ok) throw new Error('Failed to fetch budget');
       const budget = await response.json();
       set({ budget, isBudgetLoading: false });
-    } catch (error) {
+    } catch {
       // Fallback to mock budget data
       const mockBudget = {
         total_budget: 500,

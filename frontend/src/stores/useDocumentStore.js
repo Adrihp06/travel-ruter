@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
-const useDocumentStore = create((set, get) => ({
+const useDocumentStore = create((set) => ({
   documents: [],
   selectedDocument: null,
   isLoading: false,

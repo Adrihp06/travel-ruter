@@ -25,8 +25,9 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 
 /**
  * Get icon component for a POI category
+ * Returns the icon component itself, not creating a new one during render
  */
-const getCategoryIcon = (category) => {
+const getCategoryIconComponent = (category) => {
   const normalizedCategory = category?.toLowerCase() || '';
 
   if (normalizedCategory.includes('accommodation') || normalizedCategory.includes('hotel') || normalizedCategory.includes('stay')) {
@@ -115,10 +116,17 @@ const getCoordinates = (item) => {
 };
 
 /**
+ * Render category icon inline
+ */
+const renderCategoryIcon = (category, className = "w-4 h-4") => {
+  const Icon = getCategoryIconComponent(category);
+  return <Icon className={className} />;
+};
+
+/**
  * POI Marker Component
  */
 const POIMarker = ({ poi, isHovered, onClick, onHover, onLeave }) => {
-  const IconComponent = getCategoryIcon(poi.category);
   const colors = getCategoryColor(poi.category);
 
   return (
@@ -144,7 +152,7 @@ const POIMarker = ({ poi, isHovered, onClick, onHover, onLeave }) => {
           text-white p-2 rounded-full shadow-lg
           transition-colors duration-200
         `}>
-          <IconComponent className="w-4 h-4" />
+          {renderCategoryIcon(poi.category, "w-4 h-4")}
         </div>
       </div>
     </Marker>
@@ -170,8 +178,7 @@ const AddPOIModeOverlay = ({ onCancel }) => (
 /**
  * POI Popup Content
  */
-const POIPopupContent = ({ poi, onClose }) => {
-  const IconComponent = getCategoryIcon(poi.category);
+const POIPopupContent = ({ poi }) => {
   const colors = getCategoryColor(poi.category);
   const score = (poi.likes || 0) - (poi.vetoes || 0);
 
@@ -181,7 +188,7 @@ const POIPopupContent = ({ poi, onClose }) => {
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-center space-x-2">
           <div className={`${colors.bg} text-white p-1.5 rounded-full`}>
-            <IconComponent className="w-3 h-3" />
+            {renderCategoryIcon(poi.category, "w-3 h-3")}
           </div>
           <div>
             <h4 className="font-semibold text-gray-900 text-sm leading-tight">{poi.name}</h4>
@@ -251,12 +258,11 @@ const MapLegend = ({ categories }) => {
       <h5 className="text-xs font-semibold text-gray-700 mb-2">Legend</h5>
       <div className="space-y-1.5">
         {categories.map((category) => {
-          const IconComponent = getCategoryIcon(category);
           const colors = getCategoryColor(category);
           return (
             <div key={category} className="flex items-center space-x-2">
               <div className={`${colors.bg} text-white p-1 rounded-full`}>
-                <IconComponent className="w-2.5 h-2.5" />
+                {renderCategoryIcon(category, "w-2.5 h-2.5")}
               </div>
               <span className="text-xs text-gray-600 truncate">{category}</span>
             </div>
@@ -475,7 +481,7 @@ const MicroMap = ({
             closeButton={true}
             className="micro-map-popup"
           >
-            <POIPopupContent poi={popupInfo} onClose={() => setPopupInfo(null)} />
+            <POIPopupContent poi={popupInfo} />
           </Popup>
         )}
       </Map>

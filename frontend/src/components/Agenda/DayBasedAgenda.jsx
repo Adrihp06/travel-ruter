@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ArrowLeft,
   ChevronDown,
@@ -14,22 +14,19 @@ import {
   MapPin,
 } from 'lucide-react';
 
-// Category icon mapping
-const getCategoryIcon = (category) => {
-  const icons = {
-    'Sights': Landmark,
-    'Museums': Landmark,
-    'Food': UtensilsCrossed,
-    'Restaurants': UtensilsCrossed,
-    'Viewpoints': Mountain,
-    'Nature': TreePine,
-    'Shopping': ShoppingBag,
-    'Entertainment': Music,
-    'Photography': Camera,
-    'Accommodation': MapPin,
-    'Activity': MapPin,
-  };
-  return icons[category] || MapPin;
+// Category icon components mapping
+const categoryIcons = {
+  'Sights': Landmark,
+  'Museums': Landmark,
+  'Food': UtensilsCrossed,
+  'Restaurants': UtensilsCrossed,
+  'Viewpoints': Mountain,
+  'Nature': TreePine,
+  'Shopping': ShoppingBag,
+  'Entertainment': Music,
+  'Photography': Camera,
+  'Accommodation': MapPin,
+  'Activity': MapPin,
 };
 
 // Category color mapping
@@ -99,7 +96,8 @@ const formatDayHeader = (dayNumber, date) => {
 
 // POI Item sub-component
 const POIItem = ({ poi, isSelected, onSelect, onCenter, showTime }) => {
-  const CategoryIcon = getCategoryIcon(poi.category);
+  // Get the icon component from the mapping (not creating component during render)
+  const CategoryIcon = categoryIcons[poi.category] || MapPin;
 
   const handleCheckboxChange = (e) => {
     e.stopPropagation();
@@ -170,8 +168,8 @@ const DayBasedAgenda = ({
     [allPOIs, destination?.arrivalDate, nights]
   );
 
-  // Initialize all days as expanded by default
-  useMemo(() => {
+  // Initialize all days as expanded by default using useEffect
+  useEffect(() => {
     if (days.length > 0) {
       const initialExpanded = {};
       days.forEach((day) => {
@@ -179,7 +177,7 @@ const DayBasedAgenda = ({
       });
       setExpandedDays(initialExpanded);
     }
-  }, [days.length]);
+  }, [days]);
 
   const toggleDay = (dayNumber) => {
     setExpandedDays((prev) => ({
