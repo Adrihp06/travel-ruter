@@ -20,6 +20,7 @@ import {
   Clock,
   DollarSign
 } from 'lucide-react';
+import { useMapboxToken } from '../../contexts/MapboxContext';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 /**
@@ -286,7 +287,7 @@ const MicroMap = ({
   onAddPOI = null,
   onPOIClick = null,
 }) => {
-  const mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+  const { mapboxAccessToken } = useMapboxToken();
   const [popupInfo, setPopupInfo] = useState(null);
   const [hoveredPOI, setHoveredPOI] = useState(null);
   const [isAddMode, setIsAddMode] = useState(false);

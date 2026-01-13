@@ -6,6 +6,7 @@ import Map, {
   Popup,
 } from 'react-map-gl';
 import { MapPin } from 'lucide-react';
+import { useMapboxToken } from '../../contexts/MapboxContext';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 /**
@@ -47,7 +48,7 @@ const DestinationMap = ({
   centerOnPOI = null,
   onPOIClick,
 }) => {
-  const mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+  const { mapboxAccessToken } = useMapboxToken();
   const [popupInfo, setPopupInfo] = useState(null);
   const [viewState, setViewState] = useState(null);
   const mapRef = useRef(null);

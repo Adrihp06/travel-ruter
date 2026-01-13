@@ -10,6 +10,7 @@ import Map, {
 } from 'react-map-gl';
 import { useNavigate } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
+import { useMapboxToken } from '../../contexts/MapboxContext';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const MacroMap = ({
@@ -17,7 +18,7 @@ const MacroMap = ({
   style = { width: '100%', height: '100%' },
   mapStyle = "mapbox://styles/mapbox/streets-v11"
 }) => {
-  const mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+  const { mapboxAccessToken } = useMapboxToken();
   const navigate = useNavigate();
   const mapRef = useRef(null);
   const [hoveredDestination, setHoveredDestination] = useState(null);
