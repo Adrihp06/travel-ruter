@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Clock, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Clock, ThumbsUp, ThumbsDown, MapPin } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import usePOIStore from '../stores/usePOIStore';
 import Timeline from '../components/Timeline/Timeline';
@@ -8,6 +8,8 @@ import WeatherDisplay from '../components/Weather/WeatherDisplay';
 import useDestinationWeather from '../hooks/useDestinationWeather';
 import { BudgetDisplay } from '../components/Budget';
 import { DocumentPanel } from '../components/Documents';
+import { GoogleMapsExportButton } from '../components/GoogleMapsExport';
+import { TripMap, DestinationMap } from '../components/Map';
 
 const DestinationWeatherCard = ({ destination }) => {
   const { weather, isLoading, error } = useDestinationWeather(destination?.id);
@@ -74,16 +76,16 @@ const DetailView = () => {
         {/* Trip Header with Budget Display */}
         <div className="mb-8">
           <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6">
-            <div>
+            <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 {selectedTrip.title || selectedTrip.name} (Trip {id})
               </h1>
               <p className="text-gray-500">Detailed itinerary view.</p>
 
-              {/* Weather Display */}
-              {selectedDestination && (
+              {/* Export to Google Maps */}
+              {selectedTrip?.destinations && selectedTrip.destinations.length >= 2 && (
                 <div className="mt-4">
-                  <DestinationWeatherCard destination={selectedDestination} />
+                  <GoogleMapsExportButton destinations={selectedTrip.destinations} />
                 </div>
               )}
             </div>
@@ -92,6 +94,48 @@ const DetailView = () => {
             </div>
           </div>
         </div>
+
+        {/* Trip Overview Map - Shows all destinations with routes */}
+        {selectedTrip?.destinations && selectedTrip.destinations.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4 flex items-center">
+              <MapPin className="w-5 h-5 mr-2 text-indigo-600" />
+              Trip Route Overview
+            </h2>
+            <TripMap
+              destinations={selectedTrip.destinations}
+              selectedDestinationId={selectedDestinationId}
+              onSelectDestination={setSelectedDestinationId}
+              showRoute={true}
+              height="350px"
+            />
+          </div>
+        )}
+
+        {/* Selected Destination Details */}
+        {selectedDestination && (
+          <div className="mb-8 p-6 bg-indigo-50 rounded-xl border border-indigo-100">
+            <div className="flex flex-col lg:flex-row gap-6">
+              <div className="flex-1">
+                <h2 className="text-xl font-semibold text-indigo-900 mb-2">
+                  {selectedDestination.name}
+                </h2>
+                <p className="text-sm text-indigo-700 mb-4">
+                  {new Date(selectedDestination.arrivalDate).toLocaleDateString()} - {new Date(selectedDestination.departureDate).toLocaleDateString()}
+                </p>
+                <DestinationWeatherCard destination={selectedDestination} />
+              </div>
+              <div className="lg:w-80">
+                <DestinationMap
+                  destination={selectedDestination}
+                  pois={pois}
+                  height="200px"
+                  zoom={11}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* POI Section with Voting */}
         {selectedDestinationId && pois.length > 0 && (

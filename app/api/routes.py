@@ -9,12 +9,17 @@ from app.schemas.mapbox import (
     MapboxMultiWaypointRequest,
     MapboxWaypoint,
 )
+from app.schemas.google_maps import (
+    GoogleMapsExportRequest,
+    GoogleMapsExportResponse,
+)
 from app.services.route_service import RouteService
 from app.services.mapbox_service import (
     MapboxService,
     MapboxServiceError,
     MapboxRoutingProfile,
 )
+from app.services.google_maps_service import GoogleMapsService
 
 router = APIRouter()
 
@@ -134,3 +139,19 @@ async def get_mapbox_multi_waypoint_route(request: MapboxMultiWaypointRequest):
 
     except MapboxServiceError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/routes/export/google-maps", response_model=GoogleMapsExportResponse)
+async def export_to_google_maps(request: GoogleMapsExportRequest):
+    """
+    Export a route to Google Maps.
+
+    Generates a Google Maps directions URL that can be opened in a browser
+    or will trigger the Google Maps mobile app if available.
+
+    Supports:
+    - Inter-city routes (origin to destination)
+    - Intra-city routes (with multiple waypoints)
+    - Various travel modes: driving, walking, bicycling, transit
+    """
+    return GoogleMapsService.export_route(request)
