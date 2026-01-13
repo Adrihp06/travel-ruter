@@ -8,11 +8,11 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}   Travel Ruter Development Setup       ${NC}"
+echo -e "${BLUE}   Travel Ruter Dev Server              ${NC}"
 echo -e "${BLUE}========================================${NC}"
 
 # Check prerequisites
-echo -e "${GREEN}[1/5] Checking prerequisites...${NC}"
+echo -e "${GREEN}[1/5] Checking environment...${NC}"
 command -v docker >/dev/null 2>&1 || { echo -e "${RED}Docker is required but not installed. Aborting.${NC}" >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo -e "${RED}Python3 is required but not installed. Aborting.${NC}" >&2; exit 1; }
 command -v npm >/dev/null 2>&1 || { echo -e "${RED}npm is required but not installed. Aborting.${NC}" >&2; exit 1; }
@@ -35,7 +35,7 @@ done
 echo -e "\nDatabase is ready."
 
 # Setup Backend
-echo -e "${GREEN}[3/5] Setting up Backend...${NC}"
+echo -e "${GREEN}[3/5] Preparing Backend...${NC}"
 if [ ! -d "venv" ]; then
     echo "Creating virtual environment..."
     python3 -m venv venv
@@ -70,7 +70,7 @@ else
 fi
 
 # Setup Frontend
-echo -e "${GREEN}[4/5] Setting up Frontend...${NC}"
+echo -e "${GREEN}[4/5] Preparing Frontend...${NC}"
 cd frontend
 if [ ! -d "node_modules" ]; then
     echo "Installing frontend dependencies..."
