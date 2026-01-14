@@ -131,7 +131,7 @@ const DestinationFormModal = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto text-gray-900">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center space-x-2">
@@ -159,7 +159,7 @@ const DestinationFormModal = ({
               type="text"
               value={formData.city_name}
               onChange={(e) => setFormData({ ...formData, city_name: e.target.value })}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 ${
                 errors.city_name ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="e.g., Tokyo, Oslo, Paris"
@@ -179,7 +179,7 @@ const DestinationFormModal = ({
               list="countries"
               value={formData.country}
               onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 ${
                 errors.country ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Select or type country"
@@ -204,7 +204,7 @@ const DestinationFormModal = ({
                 type="date"
                 value={formData.arrival_date}
                 onChange={(e) => setFormData({ ...formData, arrival_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 ${
                   errors.arrival_date ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
@@ -220,7 +220,7 @@ const DestinationFormModal = ({
                 type="date"
                 value={formData.departure_date}
                 onChange={(e) => setFormData({ ...formData, departure_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 ${
                   errors.departure_date ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
@@ -246,7 +246,7 @@ const DestinationFormModal = ({
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
               rows={3}
               placeholder="Any notes about this destination..."
             />
