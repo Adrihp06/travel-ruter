@@ -27,3 +27,4 @@ coverage.xml
 docker-compose.yml
 Dockerfile
 README.md
+data/
