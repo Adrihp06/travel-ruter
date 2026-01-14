@@ -8,6 +8,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
 
   const [formData, setFormData] = useState({
     name: '',
+    location: '',
     description: '',
     start_date: '',
     end_date: '',
@@ -23,6 +24,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
     if (trip) {
       setFormData({
         name: trip.name || '',
+        location: trip.location || '',
         description: trip.description || '',
         start_date: trip.start_date || '',
         end_date: trip.end_date || '',
@@ -34,6 +36,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
       // Reset form for create mode
       setFormData({
         name: '',
+        location: '',
         description: '',
         start_date: '',
         end_date: '',
@@ -138,7 +141,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white ${
                 errors.name ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="e.g., Japan Adventure 2026"
@@ -146,6 +149,20 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
             {errors.name && (
               <p className="text-red-500 text-xs mt-1">{errors.name}</p>
             )}
+          </div>
+
+          {/* Location */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Location
+            </label>
+            <input
+              type="text"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
+              placeholder="e.g., Japan, Tokyo"
+            />
           </div>
 
           {/* Description */}
@@ -156,7 +173,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
               rows={3}
               placeholder="Brief description of your trip..."
             />
@@ -172,9 +189,10 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                 type="date"
                 value={formData.start_date}
                 onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white ${
                   errors.start_date ? 'border-red-500' : 'border-gray-300'
                 }`}
+                style={{ colorScheme: 'light' }}
               />
               {errors.start_date && (
                 <p className="text-red-500 text-xs mt-1">{errors.start_date}</p>
@@ -188,9 +206,10 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                 type="date"
                 value={formData.end_date}
                 onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white ${
                   errors.end_date ? 'border-red-500' : 'border-gray-300'
                 }`}
+                style={{ colorScheme: 'light' }}
               />
               {errors.end_date && (
                 <p className="text-red-500 text-xs mt-1">{errors.end_date}</p>
@@ -210,7 +229,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                 step="0.01"
                 value={formData.total_budget}
                 onChange={(e) => setFormData({ ...formData, total_budget: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
                 placeholder="0.00"
               />
             </div>
@@ -221,10 +240,10 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
               <select
                 value={formData.currency}
                 onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
               >
                 {currencies.map((curr) => (
-                  <option key={curr} value={curr}>{curr}</option>
+                  <option key={curr} value={curr} className="text-gray-900">{curr}</option>
                 ))}
               </select>
             </div>
@@ -239,10 +258,10 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
               >
                 {statuses.map((status) => (
-                  <option key={status.value} value={status.value}>
+                  <option key={status.value} value={status.value} className="text-gray-900">
                     {status.label}
                   </option>
                 ))}

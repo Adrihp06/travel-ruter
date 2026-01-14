@@ -148,7 +148,9 @@ const useTripStore = create((set, get) => ({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create trip');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.detail || `Failed to create trip (${response.status})`;
+        throw new Error(errorMessage);
       }
 
       const newTrip = await response.json();
@@ -160,8 +162,11 @@ const useTripStore = create((set, get) => ({
 
       return newTrip;
     } catch (error) {
-      set({ error: error.message, isLoading: false });
-      throw error;
+      const message = error.message === 'Failed to fetch'
+        ? 'Cannot connect to server. Please ensure the backend is running.'
+        : error.message;
+      set({ error: message, isLoading: false });
+      throw new Error(message);
     }
   },
 

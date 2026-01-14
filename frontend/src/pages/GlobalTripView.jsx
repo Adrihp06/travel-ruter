@@ -1,12 +1,45 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, MapPin, ArrowRight } from 'lucide-react';
+import { MapPin, ArrowRight, Plus, Pencil, Trash2, Plane } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import MacroMap from '../components/Map/MacroMap';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
+import { TripFormModal } from '../components/Trip';
 
 const GlobalTripView = () => {
-  const { trips, tripsWithDestinations, fetchTrips, isLoading } = useTripStore();
+  const { trips, tripsWithDestinations, fetchTrips, deleteTrip, isLoading } = useTripStore();
+  const [showTripModal, setShowTripModal] = useState(false);
+  const [editingTrip, setEditingTrip] = useState(null);
+
+  const handleDeleteTrip = async (tripId) => {
+    if (window.confirm('Are you sure you want to delete this trip? This cannot be undone.')) {
+      try {
+        await deleteTrip(tripId);
+      } catch (error) {
+        alert('Failed to delete trip: ' + error.message);
+      }
+    }
+  };
+
+  // Format date for display (handles both API format and mock data)
+  const formatTripDate = (trip) => {
+    if (trip.date) return trip.date; // Mock data format
+    if (trip.start_date) {
+      const date = new Date(trip.start_date);
+      return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    }
+    return '';
+  };
+
+  // Get trip title (handles both API format and mock data)
+  const getTripTitle = (trip) => trip.title || trip.name || 'Untitled Trip';
+
+  // Get trip description
+  const getTripDescription = (trip) => {
+    if (trip.description) return trip.description;
+    if (trip.location) return `Exploring ${trip.location} and surrounding areas.`;
+    return 'Plan your adventure!';
+  };
 
   useEffect(() => {
     fetchTrips();
@@ -25,33 +58,97 @@ const GlobalTripView = () => {
       </div>
 
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">My Trips</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">My Trips</h1>
+          <button
+            onClick={() => {
+              setEditingTrip(null);
+              setShowTripModal(true);
+            }}
+            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+          >
+            <Plus className="w-5 h-5" />
+            <span>New Trip</span>
+          </button>
+        </div>
 
         <div className="mb-10 h-[450px] rounded-2xl overflow-hidden shadow-md border border-gray-200">
           <MacroMap trips={tripsWithDestinations} />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {trips.map((trip) => (
-            <div key={trip.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition-all duration-300 group">
-              <div className="flex justify-between items-start mb-4">
-                <div className="p-3 bg-indigo-50 rounded-xl group-hover:bg-indigo-100 transition-colors">
-                  <MapPin className="w-6 h-6 text-indigo-600" />
+        {trips.length === 0 ? (
+          <div className="text-center py-16">
+            <Plane className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-600 mb-2">No trips yet</h2>
+            <p className="text-gray-500 mb-6">Create your first trip to get started!</p>
+            <button
+              onClick={() => {
+                setEditingTrip(null);
+                setShowTripModal(true);
+              }}
+              className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            >
+              Create Your First Trip
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {trips.map((trip) => (
+              <div key={trip.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition-all duration-300 group">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-3 bg-indigo-50 rounded-xl group-hover:bg-indigo-100 transition-colors">
+                    <MapPin className="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-medium text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">{formatTripDate(trip)}</span>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setEditingTrip(trip);
+                        setShowTripModal(true);
+                      }}
+                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="Edit trip"
+                    >
+                      <Pencil className="w-4 h-4 text-gray-500" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleDeleteTrip(trip.id);
+                      }}
+                      className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Delete trip"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </button>
+                  </div>
                 </div>
-                <span className="text-xs font-medium text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">{trip.date}</span>
+                <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors">{getTripTitle(trip)}</h3>
+                <p className="text-gray-500 text-sm mb-6 leading-relaxed">{getTripDescription(trip)}</p>
+                <Link
+                  to={`/trips/${trip.id}`}
+                  className="inline-flex items-center text-indigo-600 font-semibold hover:text-indigo-700 transition-colors"
+                >
+                  View Itinerary <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Link>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors">{trip.title}</h3>
-              <p className="text-gray-500 text-sm mb-6 leading-relaxed">Exploring {trip.location} and surrounding areas.</p>
-              <Link 
-                to={`/trips/${trip.id}`} 
-                className="inline-flex items-center text-indigo-600 font-semibold hover:text-indigo-700 transition-colors"
-              >
-                View Itinerary <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Link>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
+
+      <TripFormModal
+        isOpen={showTripModal}
+        onClose={() => {
+          setShowTripModal(false);
+          setEditingTrip(null);
+        }}
+        trip={editingTrip}
+        onSuccess={() => {
+          fetchTrips();
+        }}
+      />
     </div>
   );
 };

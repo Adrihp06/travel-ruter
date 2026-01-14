@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 class TripBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="Trip name")
+    location: Optional[str] = Field(None, max_length=255, description="Trip location")
     description: Optional[str] = Field(None, description="Trip description")
     start_date: date = Field(..., description="Trip start date")
     end_date: date = Field(..., description="Trip end date")
@@ -30,6 +31,7 @@ class TripCreate(TripBase):
 class TripUpdate(BaseModel):
     """Schema for updating a trip - all fields optional"""
     name: Optional[str] = Field(None, min_length=1, max_length=255, description="Trip name")
+    location: Optional[str] = Field(None, max_length=255, description="Trip location")
     description: Optional[str] = Field(None, description="Trip description")
     start_date: Optional[date] = Field(None, description="Trip start date")
     end_date: Optional[date] = Field(None, description="Trip end date")

@@ -8,6 +8,7 @@ class Trip(BaseModel):
     __tablename__ = "trips"
 
     name = Column(String(255), nullable=False, index=True)
+    location = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)
     start_date = Column(Date, nullable=False, index=True)
     end_date = Column(Date, nullable=False, index=True)
