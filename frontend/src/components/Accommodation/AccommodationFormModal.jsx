@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Bed } from 'lucide-react';
+import { X, Bed, Calendar } from 'lucide-react';
 import useAccommodationStore from '../../stores/useAccommodationStore';
 
 const AccommodationFormModal = ({
@@ -38,6 +38,7 @@ const AccommodationFormModal = ({
     { value: 'resort', label: 'Resort' },
     { value: 'camping', label: 'Camping' },
     { value: 'guesthouse', label: 'Guesthouse' },
+    { value: 'ryokan', label: 'Ryokan' },
     { value: 'other', label: 'Other' },
   ];
 
@@ -48,6 +49,18 @@ const AccommodationFormModal = ({
 
   const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'NOK', 'SEK', 'DKK'];
 
+  // Calculate nights automatically
+  const calculateNights = () => {
+    if (formData.check_in_date && formData.check_out_date) {
+      const checkIn = new Date(formData.check_in_date);
+      const checkOut = new Date(formData.check_out_date);
+      const diff = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+      return diff > 0 ? diff : 0;
+    }
+    return 0;
+  };
+
+  // Populate form for edit mode
   useEffect(() => {
     if (accommodation) {
       setFormData({
@@ -152,42 +165,48 @@ const AccommodationFormModal = ({
 
   if (!isOpen) return null;
 
+  const nights = calculateNights();
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <div className="flex items-center space-x-2">
             <Bed className="w-5 h-5 text-indigo-600" />
-            <h3 className="text-lg font-semibold">
+            <h3 className="text-lg font-semibold text-gray-900">
               {isEditMode ? 'Edit Accommodation' : 'Add Accommodation'}
             </h3>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full">
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+          >
             <X className="w-5 h-5 text-gray-500" />
           </button>
         </div>
 
+        {/* Form */}
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {/* Name & Type */}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 sm:col-span-1">
-              <label className="block text-sm font-medium mb-1">Name *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
                 placeholder="e.g., Hotel Nyhavn"
               />
               {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
             </div>
             <div className="col-span-2 sm:col-span-1">
-              <label className="block text-sm font-medium mb-1">Type *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
               <select
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
               >
                 {accommodationTypes.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
@@ -198,12 +217,12 @@ const AccommodationFormModal = ({
 
           {/* Address */}
           <div>
-            <label className="block text-sm font-medium mb-1">Address</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
             <input
               type="text"
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
               placeholder="123 Main St, City"
             />
           </div>
@@ -211,46 +230,54 @@ const AccommodationFormModal = ({
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Check-in *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Check-in *</label>
               <input
                 type="date"
                 value={formData.check_in_date}
                 onChange={(e) => setFormData({ ...formData, check_in_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg ${errors.check_in_date ? 'border-red-500' : 'border-gray-300'}`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${errors.check_in_date ? 'border-red-500' : 'border-gray-300'}`}
               />
               {errors.check_in_date && <p className="text-red-500 text-xs mt-1">{errors.check_in_date}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Check-out *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Check-out *</label>
               <input
                 type="date"
                 value={formData.check_out_date}
                 onChange={(e) => setFormData({ ...formData, check_out_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg ${errors.check_out_date ? 'border-red-500' : 'border-gray-300'}`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${errors.check_out_date ? 'border-red-500' : 'border-gray-300'}`}
               />
               {errors.check_out_date && <p className="text-red-500 text-xs mt-1">{errors.check_out_date}</p>}
             </div>
           </div>
 
+          {/* Nights indicator */}
+          {nights > 0 && (
+            <div className="bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg text-sm flex items-center">
+              <Calendar className="w-4 h-4 mr-2" />
+              {nights} night{nights !== 1 ? 's' : ''}
+            </div>
+          )}
+
           {/* Booking Info */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Booking Ref</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Booking Ref</label>
               <input
                 type="text"
                 value={formData.booking_reference}
                 onChange={(e) => setFormData({ ...formData, booking_reference: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                 placeholder="ABC123"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Booking URL</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Booking URL</label>
               <input
                 type="url"
                 value={formData.booking_url}
                 onChange={(e) => setFormData({ ...formData, booking_url: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                 placeholder="https://..."
               />
             </div>
@@ -259,22 +286,22 @@ const AccommodationFormModal = ({
           {/* Cost & Payment */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Total Cost</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Total Cost</label>
               <input
                 type="number"
                 min="0"
                 step="0.01"
                 value={formData.total_cost}
                 onChange={(e) => setFormData({ ...formData, total_cost: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Currency</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
               <select
                 value={formData.currency}
                 onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
               >
                 {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -294,7 +321,7 @@ const AccommodationFormModal = ({
 
           {/* Amenities */}
           <div>
-            <label className="block text-sm font-medium mb-2">Amenities</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Amenities</label>
             <div className="flex flex-wrap gap-2">
               {amenityOptions.map((amenity) => (
                 <button
@@ -315,7 +342,7 @@ const AccommodationFormModal = ({
 
           {/* Rating */}
           <div>
-            <label className="block text-sm font-medium mb-1">Rating (1-5)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Rating (1-5)</label>
             <input
               type="number"
               min="1"
@@ -323,7 +350,7 @@ const AccommodationFormModal = ({
               step="0.1"
               value={formData.rating}
               onChange={(e) => setFormData({ ...formData, rating: e.target.value })}
-              className={`w-24 px-3 py-2 border rounded-lg ${errors.rating ? 'border-red-500' : 'border-gray-300'}`}
+              className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${errors.rating ? 'border-red-500' : 'border-gray-300'}`}
               placeholder="4.5"
             />
             {errors.rating && <p className="text-red-500 text-xs mt-1">{errors.rating}</p>}
@@ -331,11 +358,11 @@ const AccommodationFormModal = ({
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium mb-1">Notes</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
               rows={3}
               placeholder="Additional notes about this accommodation..."
             />
@@ -348,10 +375,18 @@ const AccommodationFormModal = ({
 
           {/* Buttons */}
           <div className="flex space-x-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
               Cancel
             </button>
-            <button type="submit" disabled={isLoading} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            >
               {isLoading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Add Accommodation'}
             </button>
           </div>

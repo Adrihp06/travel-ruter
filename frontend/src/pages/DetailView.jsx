@@ -1,9 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Pencil, Trash2, Bed } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import usePOIStore from '../stores/usePOIStore';
 import useDocumentStore from '../stores/useDocumentStore';
+import useDestinationStore from '../stores/useDestinationStore';
+import useAccommodationStore from '../stores/useAccommodationStore';
+import { DestinationFormModal } from '../components/Destination';
+import { AccommodationFormModal } from '../components/Accommodation';
 
 // Layout components
 import { ItineraryUIProvider, useItineraryUI } from '../contexts/ItineraryUIContext';
@@ -151,6 +155,8 @@ const DetailViewContent = () => {
   const { selectedTrip, budget, fetchTripDetails, isLoading, isBudgetLoading } = useTripStore();
   const { pois, fetchPOIsByDestination, createPOI } = usePOIStore();
   const { documents } = useDocumentStore();
+  const { deleteDestination } = useDestinationStore();
+  const { accommodations, fetchAccommodations, deleteAccommodation } = useAccommodationStore();
   const { isSidebarVisible, isVaultVisible, toggleSidebar, toggleVault } = useItineraryUI();
 
   // State
@@ -159,6 +165,14 @@ const DetailViewContent = () => {
   const [centerOnPOI, setCenterOnPOI] = useState(null);
   const [showAddPOIModal, setShowAddPOIModal] = useState(false);
   const [pendingPOILocation, setPendingPOILocation] = useState(null);
+
+  // Destination modal state
+  const [showDestinationModal, setShowDestinationModal] = useState(false);
+  const [editingDestination, setEditingDestination] = useState(null);
+
+  // Accommodation modal state
+  const [showAccommodationModal, setShowAccommodationModal] = useState(false);
+  const [editingAccommodation, setEditingAccommodation] = useState(null);
 
   // Derived state
   const viewLevel = selectedDestinationId ? 2 : 1;
@@ -199,6 +213,24 @@ const DetailViewContent = () => {
     setPendingPOILocation(null);
   }, [selectedDestinationId, createPOI]);
 
+  // Delete handlers
+  const handleDeleteDestination = useCallback(async (destId) => {
+    if (window.confirm('Delete this destination and all its POIs?')) {
+      await deleteDestination(destId);
+      if (selectedDestinationId === destId) {
+        setSelectedDestinationId(null); // Return to Level 1
+      }
+      // Refresh trip details
+      fetchTripDetails(id);
+    }
+  }, [deleteDestination, selectedDestinationId, fetchTripDetails, id]);
+
+  const handleDeleteAccommodation = useCallback(async (accId) => {
+    if (window.confirm('Delete this accommodation?')) {
+      await deleteAccommodation(accId);
+    }
+  }, [deleteAccommodation]);
+
   // Effects
   useEffect(() => {
     if (id) fetchTripDetails(id);
@@ -209,8 +241,9 @@ const DetailViewContent = () => {
   useEffect(() => {
     if (selectedDestinationId) {
       fetchPOIsByDestination(selectedDestinationId);
+      fetchAccommodations(selectedDestinationId);
     }
-  }, [selectedDestinationId, fetchPOIsByDestination]);
+  }, [selectedDestinationId, fetchPOIsByDestination, fetchAccommodations]);
 
   // Loading state
   if (isLoading) {
@@ -260,16 +293,84 @@ const DetailViewContent = () => {
               destinations={selectedTrip.destinations || []}
               selectedDestinationId={selectedDestinationId}
               onSelectDestination={handleSelectDestination}
+              onAddDestination={() => {
+                setEditingDestination(null);
+                setShowDestinationModal(true);
+              }}
+              onEditDestination={(dest) => {
+                setEditingDestination(dest);
+                setShowDestinationModal(true);
+              }}
+              onDeleteDestination={handleDeleteDestination}
             />
           ) : (
-            <DayBasedAgenda
-              destination={selectedDestination}
-              pois={pois}
-              selectedPOIs={selectedPOIs}
-              onSelectPOI={handleSelectPOI}
-              onCenterMapOnPOI={handleCenterMapOnPOI}
-              onBack={handleBackToLevel1}
-            />
+            <div className="flex flex-col h-full">
+              <div className="flex-1 overflow-y-auto">
+                <DayBasedAgenda
+                  destination={selectedDestination}
+                  pois={pois}
+                  selectedPOIs={selectedPOIs}
+                  onSelectPOI={handleSelectPOI}
+                  onCenterMapOnPOI={handleCenterMapOnPOI}
+                  onBack={handleBackToLevel1}
+                />
+              </div>
+
+              {/* Accommodation Section */}
+              <div className="p-4 border-t border-gray-200 bg-gray-50">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold flex items-center">
+                    <Bed className="w-4 h-4 mr-2 text-indigo-600" />
+                    Accommodation
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setEditingAccommodation(null);
+                      setShowAccommodationModal(true);
+                    }}
+                    className="text-xs text-indigo-600 hover:text-indigo-700"
+                  >
+                    + Add
+                  </button>
+                </div>
+
+                {accommodations.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">No accommodation added</p>
+                ) : (
+                  <div className="space-y-2">
+                    {accommodations.map((acc) => (
+                      <div key={acc.id} className="bg-white p-2 rounded-lg text-sm group shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{acc.name}</span>
+                          <div className="opacity-0 group-hover:opacity-100 flex space-x-1 transition-opacity">
+                            <button
+                              onClick={() => {
+                                setEditingAccommodation(acc);
+                                setShowAccommodationModal(true);
+                              }}
+                              className="p-1 hover:bg-gray-100 rounded"
+                              title="Edit accommodation"
+                            >
+                              <Pencil className="w-3 h-3 text-gray-500" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAccommodation(acc.id)}
+                              className="p-1 hover:bg-red-100 rounded"
+                              title="Delete accommodation"
+                            >
+                              <Trash2 className="w-3 h-3 text-red-500" />
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          {acc.type} • {acc.check_in_date} - {acc.check_out_date}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </div>
 
@@ -322,6 +423,30 @@ const DetailViewContent = () => {
         }}
         onSubmit={handlePOISubmit}
         location={pendingPOILocation}
+      />
+
+      {/* Destination Form Modal */}
+      <DestinationFormModal
+        isOpen={showDestinationModal}
+        onClose={() => {
+          setShowDestinationModal(false);
+          setEditingDestination(null);
+        }}
+        tripId={Number(id)}
+        destination={editingDestination}
+        onSuccess={() => fetchTripDetails(id)}
+      />
+
+      {/* Accommodation Form Modal */}
+      <AccommodationFormModal
+        isOpen={showAccommodationModal}
+        onClose={() => {
+          setShowAccommodationModal(false);
+          setEditingAccommodation(null);
+        }}
+        destinationId={selectedDestinationId}
+        accommodation={editingAccommodation}
+        onSuccess={() => fetchAccommodations(selectedDestinationId)}
       />
     </div>
   );
