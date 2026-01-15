@@ -36,10 +36,6 @@ class Document(BaseModel):
     poi = relationship("POI", backref="documents")
     trip = relationship("Trip", backref="documents")
 
-    __table_args__ = (
-        Index('ix_documents_poi_id', 'poi_id'),
-        Index('ix_documents_trip_id', 'trip_id'),
-    )
 
     def __repr__(self):
         return f"<Document(id={self.id}, filename='{self.filename}', type='{self.document_type}')>"
