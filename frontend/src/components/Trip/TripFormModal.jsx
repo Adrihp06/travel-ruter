@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plane } from 'lucide-react';
 import useTripStore from '../../stores/useTripStore';
+import LocationAutocomplete from '../Location/LocationAutocomplete';
+import LocationMapPreview from '../Location/LocationMapPreview';
 
 const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
   const { createTrip, updateTrip, isLoading } = useTripStore();
@@ -9,6 +11,8 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
   const [formData, setFormData] = useState({
     name: '',
     location: '',
+    latitude: null,
+    longitude: null,
     description: '',
     start_date: '',
     end_date: '',
@@ -25,6 +29,8 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
       setFormData({
         name: trip.name || '',
         location: trip.location || '',
+        latitude: trip.latitude || null,
+        longitude: trip.longitude || null,
         description: trip.description || '',
         start_date: trip.start_date || '',
         end_date: trip.end_date || '',
@@ -37,6 +43,8 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
       setFormData({
         name: '',
         location: '',
+        latitude: null,
+        longitude: null,
         description: '',
         start_date: '',
         end_date: '',
@@ -156,13 +164,29 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Location
             </label>
-            <input
-              type="text"
+            <LocationAutocomplete
               value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
-              placeholder="e.g., Japan, Tokyo"
+              latitude={formData.latitude}
+              longitude={formData.longitude}
+              onChange={(location, lat, lng) => {
+                setFormData({
+                  ...formData,
+                  location,
+                  latitude: lat,
+                  longitude: lng,
+                });
+              }}
+              placeholder="Search for a location..."
             />
+            {formData.latitude && formData.longitude && (
+              <div className="mt-2">
+                <LocationMapPreview
+                  latitude={formData.latitude}
+                  longitude={formData.longitude}
+                  height={120}
+                />
+              </div>
+            )}
           </div>
 
           {/* Description */}

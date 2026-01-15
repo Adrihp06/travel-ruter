@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Numeric, Date, Text
+from sqlalchemy import Column, String, Numeric, Date, Text, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
 from app.models.base import BaseModel
@@ -9,6 +9,8 @@ class Trip(BaseModel):
 
     name = Column(String(255), nullable=False, index=True)
     location = Column(String(255), nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
     description = Column(Text, nullable=True)
     start_date = Column(Date, nullable=False, index=True)
     end_date = Column(Date, nullable=False, index=True)
