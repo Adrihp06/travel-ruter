@@ -183,3 +183,6 @@ coverage.xml
 
 # Alembic
 alembic/versions/*.pyc
+
+# Data directory
+data/
