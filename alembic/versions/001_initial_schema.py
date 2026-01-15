@@ -1,0 +1,238 @@
+"""Initial schema - consolidated migration
+
+Revision ID: 001_initial_schema
+Revises:
+Create Date: 2026-01-15 22:00:00.000000
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+import geoalchemy2
+
+
+# revision identifiers, used by Alembic.
+revision: str = '001_initial_schema'
+down_revision: Union[str, None] = None
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    # Create trips table
+    op.create_table(
+        'trips',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('updated_at', sa.DateTime(), nullable=False),
+        sa.Column('name', sa.String(255), nullable=False),
+        sa.Column('location', sa.String(255), nullable=True),
+        sa.Column('latitude', sa.Float(), nullable=True),
+        sa.Column('longitude', sa.Float(), nullable=True),
+        sa.Column('description', sa.Text(), nullable=True),
+        sa.Column('start_date', sa.Date(), nullable=False),
+        sa.Column('end_date', sa.Date(), nullable=False),
+        sa.Column('total_budget', sa.Numeric(10, 2), nullable=True),
+        sa.Column('currency', sa.String(3), nullable=False, server_default='USD'),
+        sa.Column('status', sa.String(50), nullable=False, server_default='planning'),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_trips_id'), 'trips', ['id'], unique=False)
+    op.create_index(op.f('ix_trips_name'), 'trips', ['name'], unique=False)
+    op.create_index(op.f('ix_trips_start_date'), 'trips', ['start_date'], unique=False)
+    op.create_index(op.f('ix_trips_end_date'), 'trips', ['end_date'], unique=False)
+    op.create_index(op.f('ix_trips_status'), 'trips', ['status'], unique=False)
+
+    # Create destinations table
+    op.create_table(
+        'destinations',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('updated_at', sa.DateTime(), nullable=False),
+        sa.Column('trip_id', sa.Integer(), nullable=False),
+        sa.Column('city_name', sa.String(255), nullable=False),
+        sa.Column('country', sa.String(255), nullable=False),
+        sa.Column('arrival_date', sa.Date(), nullable=False),
+        sa.Column('departure_date', sa.Date(), nullable=False),
+        sa.Column('coordinates', geoalchemy2.types.Geometry(geometry_type='POINT', srid=4326), nullable=True),
+        sa.Column('notes', sa.Text(), nullable=True),
+        sa.Column('order_index', sa.Integer(), nullable=False, server_default='0'),
+        sa.Column('name', sa.String(), nullable=True),
+        sa.Column('description', sa.Text(), nullable=True),
+        sa.Column('address', sa.String(), nullable=True),
+        sa.Column('latitude', sa.Float(), nullable=True),
+        sa.Column('longitude', sa.Float(), nullable=True),
+        sa.Column('location', geoalchemy2.types.Geometry(geometry_type='POINT', srid=4326), nullable=True),
+        sa.ForeignKeyConstraint(['trip_id'], ['trips.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_destinations_id'), 'destinations', ['id'], unique=False)
+    op.create_index(op.f('ix_destinations_trip_id'), 'destinations', ['trip_id'], unique=False)
+    op.create_index(op.f('ix_destinations_city_name'), 'destinations', ['city_name'], unique=False)
+    op.create_index(op.f('ix_destinations_country'), 'destinations', ['country'], unique=False)
+    op.create_index(op.f('ix_destinations_arrival_date'), 'destinations', ['arrival_date'], unique=False)
+    op.create_index(op.f('ix_destinations_departure_date'), 'destinations', ['departure_date'], unique=False)
+    op.create_index('ix_destinations_trip_order', 'destinations', ['trip_id', 'order_index'], unique=False)
+
+    # Create pois table
+    op.create_table(
+        'pois',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('updated_at', sa.DateTime(), nullable=False),
+        sa.Column('destination_id', sa.Integer(), nullable=False),
+        sa.Column('name', sa.String(255), nullable=False),
+        sa.Column('category', sa.String(100), nullable=False),
+        sa.Column('description', sa.Text(), nullable=True),
+        sa.Column('coordinates', geoalchemy2.types.Geometry(geometry_type='POINT', srid=4326), nullable=True),
+        sa.Column('address', sa.String(500), nullable=True),
+        sa.Column('estimated_cost', sa.Numeric(10, 2), nullable=True),
+        sa.Column('actual_cost', sa.Numeric(10, 2), nullable=True, comment='Actual cost spent'),
+        sa.Column('currency', sa.String(3), nullable=False, server_default='USD'),
+        sa.Column('dwell_time', sa.Integer(), nullable=True, comment='Estimated dwell time in minutes'),
+        sa.Column('likes', sa.Integer(), nullable=False, server_default='0'),
+        sa.Column('vetoes', sa.Integer(), nullable=False, server_default='0'),
+        sa.Column('priority', sa.Integer(), nullable=False, server_default='0'),
+        sa.Column('files', postgresql.JSON(astext_type=sa.Text()), nullable=True, comment='Array of file URLs/metadata'),
+        sa.Column('metadata_json', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.Column('external_id', sa.String(255), nullable=True, comment='ID from external source like Google Places'),
+        sa.Column('external_source', sa.String(50), nullable=True),
+        sa.ForeignKeyConstraint(['destination_id'], ['destinations.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_pois_id'), 'pois', ['id'], unique=False)
+    op.create_index(op.f('ix_pois_destination_id'), 'pois', ['destination_id'], unique=False)
+    op.create_index(op.f('ix_pois_name'), 'pois', ['name'], unique=False)
+    op.create_index(op.f('ix_pois_category'), 'pois', ['category'], unique=False)
+    op.create_index(op.f('ix_pois_external_id'), 'pois', ['external_id'], unique=False)
+    op.create_index('ix_pois_destination_category', 'pois', ['destination_id', 'category'], unique=False)
+    op.create_index('ix_pois_destination_priority', 'pois', ['destination_id', 'priority'], unique=False)
+
+    # Create accommodations table
+    op.create_table(
+        'accommodations',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('updated_at', sa.DateTime(), nullable=False),
+        sa.Column('destination_id', sa.Integer(), nullable=False),
+        sa.Column('name', sa.String(255), nullable=False),
+        sa.Column('type', sa.String(100), nullable=False, comment='hotel, hostel, airbnb, etc.'),
+        sa.Column('address', sa.String(500), nullable=True),
+        sa.Column('coordinates', geoalchemy2.types.Geometry(geometry_type='POINT', srid=4326), nullable=True),
+        sa.Column('check_in_date', sa.Date(), nullable=False),
+        sa.Column('check_out_date', sa.Date(), nullable=False),
+        sa.Column('booking_reference', sa.String(255), nullable=True),
+        sa.Column('booking_url', sa.String(1000), nullable=True),
+        sa.Column('total_cost', sa.Numeric(10, 2), nullable=True),
+        sa.Column('currency', sa.String(3), nullable=False, server_default='USD'),
+        sa.Column('is_paid', sa.Boolean(), nullable=False, server_default='false'),
+        sa.Column('description', sa.Text(), nullable=True),
+        sa.Column('contact_info', postgresql.JSON(astext_type=sa.Text()), nullable=True, comment='Phone, email, etc.'),
+        sa.Column('amenities', postgresql.JSON(astext_type=sa.Text()), nullable=True, comment='Array of amenities'),
+        sa.Column('files', postgresql.JSON(astext_type=sa.Text()), nullable=True, comment='Array of file URLs/metadata (photos, confirmations)'),
+        sa.Column('rating', sa.Numeric(2, 1), nullable=True, comment='Rating out of 5.0'),
+        sa.Column('review', sa.Text(), nullable=True),
+        sa.ForeignKeyConstraint(['destination_id'], ['destinations.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_accommodations_id'), 'accommodations', ['id'], unique=False)
+    op.create_index(op.f('ix_accommodations_destination_id'), 'accommodations', ['destination_id'], unique=False)
+    op.create_index(op.f('ix_accommodations_name'), 'accommodations', ['name'], unique=False)
+    op.create_index(op.f('ix_accommodations_type'), 'accommodations', ['type'], unique=False)
+    op.create_index(op.f('ix_accommodations_check_in_date'), 'accommodations', ['check_in_date'], unique=False)
+    op.create_index(op.f('ix_accommodations_check_out_date'), 'accommodations', ['check_out_date'], unique=False)
+
+    # Create documents table
+    op.create_table(
+        'documents',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('updated_at', sa.DateTime(), nullable=False),
+        sa.Column('filename', sa.String(255), nullable=False),
+        sa.Column('original_filename', sa.String(255), nullable=False),
+        sa.Column('file_path', sa.String(500), nullable=False),
+        sa.Column('file_size', sa.BigInteger(), nullable=False, comment='File size in bytes'),
+        sa.Column('mime_type', sa.String(100), nullable=False),
+        sa.Column('document_type', sa.String(50), nullable=False, server_default='other'),
+        sa.Column('title', sa.String(255), nullable=True),
+        sa.Column('description', sa.Text(), nullable=True),
+        sa.Column('poi_id', sa.Integer(), nullable=True),
+        sa.Column('trip_id', sa.Integer(), nullable=True),
+        sa.ForeignKeyConstraint(['poi_id'], ['pois.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['trip_id'], ['trips.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_documents_id'), 'documents', ['id'], unique=False)
+    op.create_index(op.f('ix_documents_poi_id'), 'documents', ['poi_id'], unique=False)
+    op.create_index(op.f('ix_documents_trip_id'), 'documents', ['trip_id'], unique=False)
+
+    # Create routes table
+    op.create_table(
+        'routes',
+        sa.Column('id', sa.Integer(), nullable=False),
+        sa.Column('created_at', sa.DateTime(), nullable=False),
+        sa.Column('updated_at', sa.DateTime(), nullable=False),
+        sa.Column('name', sa.String(), nullable=False),
+        sa.Column('description', sa.String(), nullable=True),
+        sa.Column('start_location', sa.String(), nullable=False),
+        sa.Column('end_location', sa.String(), nullable=False),
+        sa.Column('distance', sa.Float(), nullable=True),
+        sa.Column('duration', sa.Float(), nullable=True),
+        sa.Column('geometry', geoalchemy2.types.Geometry(geometry_type='LINESTRING', srid=4326), nullable=True),
+        sa.Column('metadata_json', postgresql.JSON(astext_type=sa.Text()), nullable=True),
+        sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_routes_id'), 'routes', ['id'], unique=False)
+    op.create_index(op.f('ix_routes_name'), 'routes', ['name'], unique=False)
+
+
+def downgrade() -> None:
+    # Drop routes table
+    op.drop_index(op.f('ix_routes_name'), table_name='routes')
+    op.drop_index(op.f('ix_routes_id'), table_name='routes')
+    op.drop_table('routes')
+
+    # Drop documents table
+    op.drop_index(op.f('ix_documents_trip_id'), table_name='documents')
+    op.drop_index(op.f('ix_documents_poi_id'), table_name='documents')
+    op.drop_index(op.f('ix_documents_id'), table_name='documents')
+    op.drop_table('documents')
+
+    # Drop accommodations table
+    op.drop_index(op.f('ix_accommodations_check_out_date'), table_name='accommodations')
+    op.drop_index(op.f('ix_accommodations_check_in_date'), table_name='accommodations')
+    op.drop_index(op.f('ix_accommodations_type'), table_name='accommodations')
+    op.drop_index(op.f('ix_accommodations_name'), table_name='accommodations')
+    op.drop_index(op.f('ix_accommodations_destination_id'), table_name='accommodations')
+    op.drop_index(op.f('ix_accommodations_id'), table_name='accommodations')
+    op.drop_table('accommodations')
+
+    # Drop pois table
+    op.drop_index('ix_pois_destination_priority', table_name='pois')
+    op.drop_index('ix_pois_destination_category', table_name='pois')
+    op.drop_index(op.f('ix_pois_external_id'), table_name='pois')
+    op.drop_index(op.f('ix_pois_category'), table_name='pois')
+    op.drop_index(op.f('ix_pois_name'), table_name='pois')
+    op.drop_index(op.f('ix_pois_destination_id'), table_name='pois')
+    op.drop_index(op.f('ix_pois_id'), table_name='pois')
+    op.drop_table('pois')
+
+    # Drop destinations table
+    op.drop_index('ix_destinations_trip_order', table_name='destinations')
+    op.drop_index(op.f('ix_destinations_departure_date'), table_name='destinations')
+    op.drop_index(op.f('ix_destinations_arrival_date'), table_name='destinations')
+    op.drop_index(op.f('ix_destinations_country'), table_name='destinations')
+    op.drop_index(op.f('ix_destinations_city_name'), table_name='destinations')
+    op.drop_index(op.f('ix_destinations_trip_id'), table_name='destinations')
+    op.drop_index(op.f('ix_destinations_id'), table_name='destinations')
+    op.drop_table('destinations')
+
+    # Drop trips table
+    op.drop_index(op.f('ix_trips_status'), table_name='trips')
+    op.drop_index(op.f('ix_trips_end_date'), table_name='trips')
+    op.drop_index(op.f('ix_trips_start_date'), table_name='trips')
+    op.drop_index(op.f('ix_trips_name'), table_name='trips')
+    op.drop_index(op.f('ix_trips_id'), table_name='trips')
+    op.drop_table('trips')
