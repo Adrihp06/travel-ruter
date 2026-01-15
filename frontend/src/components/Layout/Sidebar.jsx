@@ -1,11 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Map, List, Settings, X } from 'lucide-react';
+import { Map, Settings, X } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const navItems = [
     { name: 'Trips', path: '/trips', icon: Map },
-    { name: 'Itinerary', path: '/itinerary', icon: List }, // Placeholder for Level 2 or other views
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
