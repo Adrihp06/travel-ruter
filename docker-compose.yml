@@ -51,13 +51,16 @@ services:
     image: travel_ruter_backend:latest
     container_name: travel_ruter_backend
     restart: unless-stopped
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     volumes:
       # Document storage (The Vault) - persistent storage for uploaded files
       - vault_data:/app/documents
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
+      # Database credentials (for entrypoint health check)
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-travel_ruter}
       # Database
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-travel_ruter}
       # Application

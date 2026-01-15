@@ -26,20 +26,20 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy alembic configuration and migrations
+COPY alembic.ini .
+COPY ./alembic /app/alembic
+
 # Copy application code
 COPY ./app /app/app
 
-# Copy alembic configuration and migrations
-COPY alembic.ini .
-COPY alembic/ ./alembic/
-
-# Copy entrypoint script
+# Copy and set up entrypoint script
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
 
 # Expose port
 EXPOSE 8000
 
-# Run the application
+# Set entrypoint and default command
 ENTRYPOINT ["./entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
