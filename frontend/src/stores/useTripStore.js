@@ -32,6 +32,7 @@ const useTripStore = create((set, get) => ({
   isLoading: false,
   isBudgetLoading: false,
   error: null,
+  pendingDelete: null, // { trip, tripsWithDestinations } for undo functionality
 
   setTrips: (trips) => set({ trips }),
   selectTrip: (tripId) => set((state) => ({
@@ -223,6 +224,64 @@ const useTripStore = create((set, get) => ({
       throw error;
     }
   },
+
+  // Soft delete: removes from UI but keeps data for undo
+  softDeleteTrip: (tripId) => {
+    const state = get();
+    const trip = state.trips.find((t) => t.id === tripId);
+    const tripWithDest = state.tripsWithDestinations.find((t) => t.id === tripId);
+
+    if (!trip) return null;
+
+    set({
+      trips: state.trips.filter((t) => t.id !== tripId),
+      tripsWithDestinations: state.tripsWithDestinations.filter((t) => t.id !== tripId),
+      selectedTrip: state.selectedTrip?.id === tripId ? null : state.selectedTrip,
+      pendingDelete: { trip, tripWithDest },
+    });
+
+    return trip;
+  },
+
+  // Restore soft-deleted trip
+  restoreTrip: () => {
+    const state = get();
+    const pending = state.pendingDelete;
+
+    if (!pending) return;
+
+    set({
+      trips: [...state.trips, pending.trip],
+      tripsWithDestinations: pending.tripWithDest
+        ? [...state.tripsWithDestinations, pending.tripWithDest]
+        : state.tripsWithDestinations,
+      pendingDelete: null,
+    });
+  },
+
+  // Confirm deletion: actually delete from server
+  confirmDeleteTrip: async (tripId) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await fetch(`${API_BASE_URL}/trips/${tripId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete trip');
+      }
+
+      set({ pendingDelete: null, isLoading: false });
+    } catch (error) {
+      // Restore trip on error
+      get().restoreTrip();
+      set({ error: error.message, isLoading: false });
+      throw error;
+    }
+  },
+
+  // Clear pending delete without restoring
+  clearPendingDelete: () => set({ pendingDelete: null }),
 }));
 
 export default useTripStore;

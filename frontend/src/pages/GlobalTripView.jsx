@@ -1,25 +1,113 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, ArrowRight, Plus, Pencil, Trash2, Plane } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import MacroMap from '../components/Map/MacroMap';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
-import { TripFormModal } from '../components/Trip';
+import { TripFormModal, DeleteTripDialog, UndoToast } from '../components/Trip';
+
+const UNDO_DURATION = 5000; // 5 seconds for undo
 
 const GlobalTripView = () => {
-  const { trips, tripsWithDestinations, fetchTrips, deleteTrip, isLoading } = useTripStore();
+  const {
+    trips,
+    tripsWithDestinations,
+    fetchTrips,
+    softDeleteTrip,
+    restoreTrip,
+    confirmDeleteTrip,
+    isLoading
+  } = useTripStore();
   const [showTripModal, setShowTripModal] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
+  const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, trip: null });
+  const [undoToast, setUndoToast] = useState({ isVisible: false, tripName: '', tripId: null });
+  const [isDeleting, setIsDeleting] = useState(false);
+  const undoTimeoutRef = useRef(null);
 
-  const handleDeleteTrip = async (tripId) => {
-    if (window.confirm('Are you sure you want to delete this trip? This cannot be undone.')) {
+  // Open delete confirmation dialog
+  const handleDeleteClick = (trip) => {
+    // Find trip with destinations for showing destination count
+    const tripWithDest = tripsWithDestinations.find(t => t.id === trip.id);
+    setDeleteDialog({
+      isOpen: true,
+      trip: tripWithDest || trip
+    });
+  };
+
+  // Handle delete confirmation
+  const handleConfirmDelete = useCallback(async () => {
+    const trip = deleteDialog.trip;
+    if (!trip) return;
+
+    setIsDeleting(true);
+    const tripName = trip.title || trip.name || 'Trip';
+
+    // Soft delete (remove from UI)
+    softDeleteTrip(trip.id);
+
+    // Close dialog
+    setDeleteDialog({ isOpen: false, trip: null });
+    setIsDeleting(false);
+
+    // Show undo toast
+    setUndoToast({ isVisible: true, tripName, tripId: trip.id });
+
+    // Set timeout for permanent deletion
+    undoTimeoutRef.current = setTimeout(async () => {
       try {
-        await deleteTrip(tripId);
+        await confirmDeleteTrip(trip.id);
       } catch (error) {
-        alert('Failed to delete trip: ' + error.message);
+        console.error('Failed to delete trip:', error);
+      }
+      setUndoToast({ isVisible: false, tripName: '', tripId: null });
+    }, UNDO_DURATION);
+  }, [deleteDialog.trip, softDeleteTrip, confirmDeleteTrip]);
+
+  // Handle undo
+  const handleUndo = useCallback(() => {
+    // Clear the deletion timeout
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = null;
+    }
+
+    // Restore the trip
+    restoreTrip();
+
+    // Hide toast
+    setUndoToast({ isVisible: false, tripName: '', tripId: null });
+  }, [restoreTrip]);
+
+  // Handle toast dismiss (proceed with deletion)
+  const handleDismissToast = useCallback(async () => {
+    // Clear timeout if it exists
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = null;
+    }
+
+    const tripId = undoToast.tripId;
+    setUndoToast({ isVisible: false, tripName: '', tripId: null });
+
+    // Proceed with deletion
+    if (tripId) {
+      try {
+        await confirmDeleteTrip(tripId);
+      } catch (error) {
+        console.error('Failed to delete trip:', error);
       }
     }
-  };
+  }, [undoToast.tripId, confirmDeleteTrip]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Format date for display (handles both API format and mock data)
   const formatTripDate = (trip) => {
@@ -115,7 +203,7 @@ const GlobalTripView = () => {
                     <button
                       onClick={(e) => {
                         e.preventDefault();
-                        handleDeleteTrip(trip.id);
+                        handleDeleteClick(trip);
                       }}
                       className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                       title="Delete trip"
@@ -149,6 +237,23 @@ const GlobalTripView = () => {
           fetchTrips();
         }}
       />
+
+      <DeleteTripDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, trip: null })}
+        trip={deleteDialog.trip}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
+      />
+
+      {undoToast.isVisible && (
+        <UndoToast
+          message={`"${undoToast.tripName}" deleted`}
+          onUndo={handleUndo}
+          onDismiss={handleDismissToast}
+          duration={UNDO_DURATION}
+        />
+      )}
     </div>
   );
 };
