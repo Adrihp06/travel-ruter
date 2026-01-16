@@ -10,18 +10,31 @@ import {
   Receipt,
   Map,
   File,
+  Plane,
+  Building2,
+  Shield,
+  Stamp,
+  Utensils,
 } from 'lucide-react';
 
 const DOCUMENT_TYPE_ICONS = {
+  flight: Plane,
+  hotel: Building2,
+  insurance: Shield,
+  visa: Stamp,
   ticket: Ticket,
   confirmation: CalendarCheck,
-  reservation: CalendarCheck,
+  reservation: Utensils,
   receipt: Receipt,
   map: Map,
   other: File,
 };
 
 const DOCUMENT_TYPE_COLORS = {
+  flight: 'bg-sky-100 text-sky-700',
+  hotel: 'bg-amber-100 text-amber-700',
+  insurance: 'bg-emerald-100 text-emerald-700',
+  visa: 'bg-rose-100 text-rose-700',
   ticket: 'bg-purple-100 text-purple-700',
   confirmation: 'bg-green-100 text-green-700',
   reservation: 'bg-blue-100 text-blue-700',

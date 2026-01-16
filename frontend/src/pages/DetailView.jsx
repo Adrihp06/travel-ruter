@@ -15,8 +15,7 @@ import SidebarToggle from '../components/UI/SidebarToggle';
 import VaultToggle from '../components/UI/VaultToggle';
 import Sidebar from '../components/Layout/Sidebar';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
-import { DocumentPanel } from '../components/Documents';
-import { BudgetDisplay } from '../components/Budget';
+import { DocumentVault } from '../components/Documents';
 
 // Level 1 components
 import Timeline from '../components/Timeline/Timeline';
@@ -152,7 +151,7 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
 
 const DetailViewContent = () => {
   const { id } = useParams();
-  const { selectedTrip, budget, fetchTripDetails, isLoading, isBudgetLoading } = useTripStore();
+  const { selectedTrip, fetchTripDetails, isLoading } = useTripStore();
   const { pois, fetchPOIsByDestination, createPOI } = usePOIStore();
   const { documents } = useDocumentStore();
   const { deleteDestination } = useDestinationStore();
@@ -409,19 +408,12 @@ const DetailViewContent = () => {
         </div>
       </div>
 
-      {/* Hideable Vault */}
-      {isVaultVisible && (
-        <div className="fixed top-14 right-0 bottom-0 w-96 z-40 bg-white shadow-xl border-l border-gray-200 overflow-y-auto">
-          {/* Budget Display */}
-          <div className="p-4 border-b border-gray-200">
-            <BudgetDisplay budget={budget} isLoading={isBudgetLoading} />
-          </div>
-          {/* Document Panel */}
-          <div className="p-4">
-            <DocumentPanel tripId={Number(id)} title="The Vault" />
-          </div>
-        </div>
-      )}
+      {/* Document Vault Drawer */}
+      <DocumentVault
+        tripId={Number(id)}
+        isOpen={isVaultVisible}
+        onClose={toggleVault}
+      />
 
       {/* Add POI Modal */}
       <AddPOIModal

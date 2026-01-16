@@ -1,13 +1,17 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { Upload, X, FileText, Image, AlertCircle, CheckCircle } from 'lucide-react';
 
-const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg'];
+const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 const DOCUMENT_TYPES = [
-  { value: 'ticket', label: 'Ticket' },
-  { value: 'confirmation', label: 'Confirmation' },
-  { value: 'reservation', label: 'Reservation' },
+  { value: 'flight', label: 'Flight Ticket' },
+  { value: 'hotel', label: 'Hotel Reservation' },
+  { value: 'insurance', label: 'Travel Insurance' },
+  { value: 'visa', label: 'Visa/Passport' },
+  { value: 'ticket', label: 'Event Ticket' },
+  { value: 'confirmation', label: 'Booking Confirmation' },
+  { value: 'reservation', label: 'Restaurant Reservation' },
   { value: 'receipt', label: 'Receipt' },
   { value: 'map', label: 'Map' },
   { value: 'other', label: 'Other' },
@@ -25,7 +29,7 @@ const FileUpload = ({ onUpload, isUploading, error }) => {
 
   const validateFile = (file) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return 'Invalid file type. Only PDF and JPG files are allowed.';
+      return 'Invalid file type. Only PDF, JPG, and PNG files are allowed.';
     }
     if (file.size > MAX_FILE_SIZE) {
       return 'File size exceeds 50MB limit.';
@@ -149,7 +153,7 @@ const FileUpload = ({ onUpload, isUploading, error }) => {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf,.jpg,.jpeg"
+          accept=".pdf,.jpg,.jpeg,.png"
           onChange={handleFileSelect}
           className="hidden"
         />
@@ -160,7 +164,7 @@ const FileUpload = ({ onUpload, isUploading, error }) => {
             <p className="mt-2 text-sm text-gray-600">
               <span className="font-medium text-indigo-600">Click to upload</span> or drag and drop
             </p>
-            <p className="mt-1 text-xs text-gray-500">PDF or JPG (max 50MB)</p>
+            <p className="mt-1 text-xs text-gray-500">PDF, JPG, or PNG (max 50MB)</p>
           </>
         ) : (
           <div className="flex items-center justify-center space-x-3">
