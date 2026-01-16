@@ -383,6 +383,15 @@ const DetailViewContent = () => {
               onSelectDestination={handleSelectDestination}
               showRoute={true}
               height="100%"
+              tripLocation={
+                selectedTrip.latitude && selectedTrip.longitude
+                  ? {
+                      latitude: selectedTrip.latitude,
+                      longitude: selectedTrip.longitude,
+                      name: selectedTrip.location,
+                    }
+                  : null
+              }
             />
           ) : (
             <MicroMap

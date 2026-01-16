@@ -88,6 +88,50 @@ const getCoordinates = (destination) => {
 };
 
 /**
+ * Get appropriate zoom level based on location name
+ * Detects if location is a city (has comma separator) or a country
+ * Cities get higher zoom, countries get zoom based on their size
+ */
+const getZoomForLocation = (locationName) => {
+  if (!locationName) return 6; // Default zoom
+
+  const name = locationName.toLowerCase();
+
+  // Check if this is a city (location string contains comma, e.g., "Barcelona, Spain")
+  // The first part before comma is typically the city/place name
+  const isCity = locationName.includes(',');
+
+  if (isCity) {
+    // For cities, use a city-level zoom (11-12)
+    return 11;
+  }
+
+  // For countries, determine zoom based on country size
+  // Very large countries (zoom 3-4)
+  const veryLarge = ['russia', 'canada', 'united states', 'usa', 'china', 'brazil', 'australia', 'india', 'argentina', 'kazakhstan'];
+  if (veryLarge.some((c) => name.includes(c))) return 4;
+
+  // Large countries (zoom 5)
+  const large = ['mexico', 'indonesia', 'sudan', 'libya', 'iran', 'mongolia', 'peru', 'chad', 'niger', 'angola', 'mali', 'south africa', 'colombia', 'ethiopia', 'bolivia', 'mauritania', 'egypt', 'tanzania', 'nigeria', 'venezuela', 'pakistan', 'turkey', 'chile', 'zambia', 'myanmar', 'afghanistan', 'somalia', 'central african', 'ukraine', 'madagascar', 'botswana', 'kenya', 'france', 'yemen', 'thailand', 'spain', 'turkmenistan', 'cameroon', 'papua new guinea', 'sweden', 'uzbekistan', 'morocco', 'iraq', 'paraguay', 'zimbabwe', 'japan', 'germany', 'congo', 'finland', 'vietnam', 'malaysia', 'norway', 'poland', 'ivory coast', 'italy', 'philippines', 'ecuador', 'burkina faso', 'new zealand', 'gabon', 'guinea', 'united kingdom', 'uk', 'great britain', 'england', 'ghana', 'romania', 'laos', 'uganda', 'guyana', 'oman', 'belarus', 'kyrgyzstan', 'senegal', 'syria', 'cambodia', 'uruguay', 'suriname', 'tunisia', 'bangladesh', 'nepal', 'tajikistan', 'greece', 'nicaragua', 'north korea', 'malawi', 'eritrea', 'benin', 'honduras', 'liberia', 'bulgaria', 'cuba', 'guatemala', 'iceland', 'south korea', 'korea', 'hungary', 'jordan', 'serbia', 'azerbaijan', 'panama', 'sierra leone', 'georgia', 'sri lanka', 'lithuania', 'latvia', 'togo', 'costa rica', 'dominican republic', 'estonia', 'bhutan', 'taiwan', 'guinea-bissau', 'moldova', 'lesotho', 'armenia', 'solomon islands', 'equatorial guinea', 'burundi', 'haiti', 'rwanda', 'north macedonia', 'djibouti', 'belize', 'el salvador', 'fiji', 'eswatini', 'east timor', 'bahamas', 'montenegro', 'vanuatu', 'gambia', 'jamaica', 'kosovo', 'brunei', 'trinidad', 'cape verde', 'samoa', 'mauritius', 'comoros', 'são tomé', 'kiribati', 'dominica', 'tonga', 'micronesia', 'saint lucia', 'palau', 'seychelles', 'antigua', 'barbados', 'saint vincent', 'grenada', 'saint kitts', 'marshall islands', 'tuvalu', 'nauru'];
+  if (large.some((c) => name.includes(c))) return 5;
+
+  // Medium countries (zoom 6)
+  const medium = ['portugal', 'austria', 'czech', 'czechia', 'ireland', 'croatia', 'bosnia', 'slovakia', 'denmark', 'netherlands', 'switzerland', 'belgium', 'albania', 'slovenia', 'israel', 'kuwait', 'qatar', 'lebanon', 'cyprus'];
+  if (medium.some((c) => name.includes(c))) return 6;
+
+  // Small countries/regions (zoom 8)
+  const small = ['luxembourg', 'bahrain', 'malta', 'maldives', 'liechtenstein', 'san marino', 'andorra'];
+  if (small.some((c) => name.includes(c))) return 8;
+
+  // City-states (zoom 10)
+  const cityStates = ['monaco', 'vatican', 'singapore', 'hong kong', 'macau'];
+  if (cityStates.some((c) => name.includes(c))) return 10;
+
+  // Default for unrecognized countries
+  return 6;
+};
+
+/**
  * Generate GeoJSON LineString for route between destinations
  */
 const generateRouteGeoJSON = (destinations) => {
@@ -126,6 +170,7 @@ const TripMap = ({
   showRoute = true,
   height = '400px',
   className = '',
+  tripLocation = null, // { latitude, longitude, name } - fallback location when no destinations
 }) => {
   const { mapboxAccessToken } = useMapboxToken();
   const [hoveredDestinationId, setHoveredDestinationId] = useState(null);
@@ -143,7 +188,7 @@ const TripMap = ({
     );
   }, [destinations]);
 
-  // Calculate initial view to fit all destinations
+  // Calculate initial view to fit all destinations or show trip location
   useEffect(() => {
     const bounds = calculateBounds(sortedDestinations);
     if (bounds) {
@@ -168,8 +213,16 @@ const TripMap = ({
         latitude: centerLat,
         zoom: zoom,
       });
+    } else if (tripLocation?.latitude && tripLocation?.longitude) {
+      // No destinations - center on trip location with zoom based on country size
+      const zoom = getZoomForLocation(tripLocation.name);
+      setViewState({
+        longitude: tripLocation.longitude,
+        latitude: tripLocation.latitude,
+        zoom,
+      });
     }
-  }, [sortedDestinations]);
+  }, [sortedDestinations, tripLocation]);
 
   // Generate route line
   const routeGeoJSON = useMemo(() => {
@@ -198,7 +251,10 @@ const TripMap = ({
     );
   }
 
-  if (sortedDestinations.length === 0) {
+  // Check if we have a trip location to center on when no destinations
+  const hasTripLocation = tripLocation?.latitude && tripLocation?.longitude;
+
+  if (sortedDestinations.length === 0 && !hasTripLocation) {
     return (
       <div
         className={`flex items-center justify-center bg-gray-100 rounded-xl ${className}`}
