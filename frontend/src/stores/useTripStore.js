@@ -282,6 +282,74 @@ const useTripStore = create((set, get) => ({
 
   // Clear pending delete without restoring
   clearPendingDelete: () => set({ pendingDelete: null }),
+
+  // Duplicate a trip
+  duplicateTrip: async (trip) => {
+    set({ isLoading: true, error: null });
+    try {
+      // Create a copy with modified name
+      const tripData = {
+        name: `${trip.name || trip.title} (Copy)`,
+        location: trip.location,
+        latitude: trip.latitude,
+        longitude: trip.longitude,
+        description: trip.description,
+        cover_image: trip.cover_image,
+        start_date: trip.start_date,
+        end_date: trip.end_date,
+        total_budget: trip.total_budget,
+        currency: trip.currency || 'USD',
+        status: 'planning',
+      };
+
+      const response = await fetch(`${API_BASE_URL}/trips`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tripData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to duplicate trip');
+      }
+
+      const newTrip = await response.json();
+
+      set((state) => ({
+        trips: [...state.trips, newTrip],
+        isLoading: false,
+      }));
+
+      // Refetch trips with destinations to update the map
+      get().fetchTripsWithDestinations([...get().trips]);
+
+      return newTrip;
+    } catch (error) {
+      set({ error: error.message, isLoading: false });
+      throw error;
+    }
+  },
+
+  // Get destination count for a trip
+  getDestinationCount: (tripId) => {
+    const tripWithDests = get().tripsWithDestinations.find(t => t.id === tripId);
+    return tripWithDests?.destinations?.length || 0;
+  },
+
+  // Get budget info for a trip (from tripsWithDestinations or budget state)
+  getTripBudgetInfo: (tripId) => {
+    const trip = get().trips.find(t => t.id === tripId);
+    if (get().selectedTrip?.id === tripId && get().budget) {
+      return get().budget;
+    }
+    // Return basic budget info from trip itself
+    if (trip?.total_budget) {
+      return {
+        total_budget: trip.total_budget,
+        currency: trip.currency || 'USD',
+      };
+    }
+    return null;
+  },
 }));
 
 export default useTripStore;

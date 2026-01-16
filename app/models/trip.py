@@ -12,6 +12,7 @@ class Trip(BaseModel):
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     description = Column(Text, nullable=True)
+    cover_image = Column(String(500), nullable=True)
     start_date = Column(Date, nullable=False, index=True)
     end_date = Column(Date, nullable=False, index=True)
     total_budget = Column(Numeric(10, 2), nullable=True)

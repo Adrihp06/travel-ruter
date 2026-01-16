@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plane } from 'lucide-react';
+import { X, Plane, Image } from 'lucide-react';
 import useTripStore from '../../stores/useTripStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import LocationMapPreview from '../Location/LocationMapPreview';
@@ -14,6 +14,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
     latitude: null,
     longitude: null,
     description: '',
+    cover_image: '',
     start_date: '',
     end_date: '',
     total_budget: '',
@@ -32,6 +33,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
         latitude: trip.latitude || null,
         longitude: trip.longitude || null,
         description: trip.description || '',
+        cover_image: trip.cover_image || '',
         start_date: trip.start_date || '',
         end_date: trip.end_date || '',
         total_budget: trip.total_budget || '',
@@ -46,6 +48,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
         latitude: null,
         longitude: null,
         description: '',
+        cover_image: '',
         start_date: '',
         end_date: '',
         total_budget: '',
@@ -93,6 +96,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
       const tripData = {
         ...formData,
         total_budget: formData.total_budget ? Number(formData.total_budget) : null,
+        cover_image: formData.cover_image || null,
       };
 
       let result;
@@ -201,6 +205,38 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
               rows={3}
               placeholder="Brief description of your trip..."
             />
+          </div>
+
+          {/* Cover Image URL */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <span className="flex items-center">
+                <Image className="w-4 h-4 mr-1.5" />
+                Cover Image URL
+              </span>
+            </label>
+            <input
+              type="url"
+              value={formData.cover_image}
+              onChange={(e) => setFormData({ ...formData, cover_image: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
+              placeholder="https://example.com/image.jpg"
+            />
+            {formData.cover_image && (
+              <div className="mt-2 rounded-lg overflow-hidden h-24">
+                <img
+                  src={formData.cover_image}
+                  alt="Cover preview"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Optional: Add a URL to an image for your trip card
+            </p>
           </div>
 
           {/* Dates */}

@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { MapPin, ArrowRight, Plus, Pencil, Trash2, Plane } from 'lucide-react';
+import { Plus, Plane } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import MacroMap from '../components/Map/MacroMap';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
-import { TripFormModal, DeleteTripDialog, UndoToast } from '../components/Trip';
+import { TripFormModal, DeleteTripDialog, UndoToast, TripCard } from '../components/Trip';
 
 const UNDO_DURATION = 5000; // 5 seconds for undo
 
@@ -16,6 +15,7 @@ const GlobalTripView = () => {
     softDeleteTrip,
     restoreTrip,
     confirmDeleteTrip,
+    duplicateTrip,
     isLoading
   } = useTripStore();
   const [showTripModal, setShowTripModal] = useState(false);
@@ -26,9 +26,10 @@ const GlobalTripView = () => {
   const undoTimeoutRef = useRef(null);
 
   // Open delete confirmation dialog
-  const handleDeleteClick = (trip) => {
+  const handleDeleteClick = (tripId) => {
     // Find trip with destinations for showing destination count
-    const tripWithDest = tripsWithDestinations.find(t => t.id === trip.id);
+    const trip = trips.find(t => t.id === tripId);
+    const tripWithDest = tripsWithDestinations.find(t => t.id === tripId);
     setDeleteDialog({
       isOpen: true,
       trip: tripWithDest || trip
@@ -109,24 +110,56 @@ const GlobalTripView = () => {
     };
   }, []);
 
-  // Format date for display (handles both API format and mock data)
-  const formatTripDate = (trip) => {
-    if (trip.date) return trip.date; // Mock data format
-    if (trip.start_date) {
-      const date = new Date(trip.start_date);
-      return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    }
-    return '';
+  const handleEditTrip = (trip) => {
+    setEditingTrip(trip);
+    setShowTripModal(true);
   };
 
-  // Get trip title (handles both API format and mock data)
-  const getTripTitle = (trip) => trip.title || trip.name || 'Untitled Trip';
+  const handleDuplicateTrip = async (trip) => {
+    try {
+      await duplicateTrip(trip);
+    } catch (error) {
+      alert('Failed to duplicate trip: ' + error.message);
+    }
+  };
 
-  // Get trip description
-  const getTripDescription = (trip) => {
-    if (trip.description) return trip.description;
-    if (trip.location) return `Exploring ${trip.location} and surrounding areas.`;
-    return 'Plan your adventure!';
+  const handleShareTrip = (trip) => {
+    // Copy trip link to clipboard
+    const tripUrl = `${window.location.origin}/trips/${trip.id}`;
+    navigator.clipboard.writeText(tripUrl).then(() => {
+      alert('Trip link copied to clipboard!');
+    }).catch(() => {
+      alert('Failed to copy link');
+    });
+  };
+
+  const handleExportTrip = (trip) => {
+    // Export trip data as JSON
+    const tripData = {
+      name: trip.name || trip.title,
+      location: trip.location,
+      description: trip.description,
+      start_date: trip.start_date,
+      end_date: trip.end_date,
+      total_budget: trip.total_budget,
+      currency: trip.currency,
+      status: trip.status,
+    };
+    const blob = new Blob([JSON.stringify(tripData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(trip.name || trip.title || 'trip').replace(/\s+/g, '_')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Get destination count for a trip
+  const getDestinationCount = (tripId) => {
+    const tripWithDests = tripsWithDestinations.find(t => t.id === tripId);
+    return tripWithDests?.destinations?.length || 0;
   };
 
   useEffect(() => {
@@ -182,45 +215,17 @@ const GlobalTripView = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {trips.map((trip) => (
-              <div key={trip.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-lg transition-all duration-300 group">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="p-3 bg-indigo-50 rounded-xl group-hover:bg-indigo-100 transition-colors">
-                    <MapPin className="w-6 h-6 text-indigo-600" />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs font-medium text-gray-500 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">{formatTripDate(trip)}</span>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setEditingTrip(trip);
-                        setShowTripModal(true);
-                      }}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                      title="Edit trip"
-                    >
-                      <Pencil className="w-4 h-4 text-gray-500" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleDeleteClick(trip);
-                      }}
-                      className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete trip"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </button>
-                  </div>
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors">{getTripTitle(trip)}</h3>
-                <p className="text-gray-500 text-sm mb-6 leading-relaxed">{getTripDescription(trip)}</p>
-                <Link
-                  to={`/trips/${trip.id}`}
-                  className="inline-flex items-center text-indigo-600 font-semibold hover:text-indigo-700 transition-colors"
-                >
-                  View Itinerary <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </Link>
-              </div>
+              <TripCard
+                key={trip.id}
+                trip={trip}
+                onEdit={handleEditTrip}
+                onDelete={handleDeleteClick}
+                onDuplicate={handleDuplicateTrip}
+                onShare={handleShareTrip}
+                onExport={handleExportTrip}
+                destinationCount={getDestinationCount(trip.id)}
+                completedDestinations={0}
+              />
             ))}
           </div>
         )}
