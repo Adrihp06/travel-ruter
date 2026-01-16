@@ -4,7 +4,8 @@ const MapboxContext = createContext(null);
 
 export const MapboxProvider = ({ children }) => {
   const mapboxAccessToken = useMemo(() => {
-    return import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+    // First check environment variable, then fallback to localStorage
+    return import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || localStorage.getItem('mapbox-access-token');
   }, []);
 
   const value = useMemo(() => ({

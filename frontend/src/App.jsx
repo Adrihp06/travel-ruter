@@ -5,6 +5,7 @@ import { ItineraryUIProvider } from './contexts/ItineraryUIContext';
 import Layout from './components/Layout/Layout';
 import GlobalTripView from './pages/GlobalTripView';
 import DetailView from './pages/DetailView';
+import SettingsPage from './pages/SettingsPage';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
               <Route index element={<Navigate to="/trips" replace />} />
               <Route path="trips" element={<GlobalTripView />} />
               <Route path="trips/:id" element={<DetailView />} />
+              <Route path="settings" element={<SettingsPage />} />
               <Route path="*" element={<div className="p-4">Page not found</div>} />
             </Route>
           </Routes>
