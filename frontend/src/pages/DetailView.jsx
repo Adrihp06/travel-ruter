@@ -25,7 +25,9 @@ import { TripMap } from '../components/Map';
 import { DayBasedAgenda } from '../components/Agenda';
 import { MicroMap } from '../components/Map';
 
-// Add POI Modal Component
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
+// Add POI Modal Component (for MicroMap - Level 2)
 const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -149,6 +151,269 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
   );
 };
 
+// Add POI Modal for TripMap (Level 1) - with reverse geocoding and destination selection
+const TripMapPOIModal = ({ isOpen, onClose, onSubmit, location, destinations = [] }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    category: '',
+    destination_id: '',
+    visit_date: '',
+    visit_time: '',
+    estimated_cost: '',
+    dwell_time: '60',
+  });
+  const [locationInfo, setLocationInfo] = useState(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  const categories = ['Sights', 'Food', 'Accommodation', 'Museum', 'Shopping', 'Entertainment', 'Activity'];
+
+  // Reverse geocode when location changes
+  useEffect(() => {
+    if (location && isOpen) {
+      setIsLoadingLocation(true);
+      fetch(`${API_BASE_URL}/geocoding/reverse?lat=${location.latitude}&lon=${location.longitude}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          setLocationInfo(data);
+          setIsLoadingLocation(false);
+        })
+        .catch(() => {
+          setLocationInfo(null);
+          setIsLoadingLocation(false);
+        });
+    }
+  }, [location, isOpen]);
+
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        name: '',
+        description: '',
+        category: '',
+        destination_id: destinations.length === 1 ? String(destinations[0].id) : '',
+        visit_date: '',
+        visit_time: '',
+        estimated_cost: '',
+        dwell_time: '60',
+      });
+      setErrors({});
+    }
+  }, [isOpen, destinations]);
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.name.trim()) {
+      newErrors.name = 'Name is required';
+    }
+    if (!formData.category) {
+      newErrors.category = 'Category is required';
+    }
+    if (!formData.destination_id) {
+      newErrors.destination_id = 'Please select a destination';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    onSubmit({
+      ...formData,
+      destination_id: Number(formData.destination_id),
+      estimated_cost: formData.estimated_cost ? Number(formData.estimated_cost) : 0,
+      dwell_time: formData.dwell_time ? Number(formData.dwell_time) : 60,
+      latitude: location?.latitude,
+      longitude: location?.longitude,
+    });
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">Add Point of Interest</h3>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        {/* Location info from reverse geocoding */}
+        {location && (
+          <div className="px-4 pt-4">
+            <div className="bg-indigo-50 text-indigo-700 p-3 rounded-lg text-sm">
+              {isLoadingLocation ? (
+                <span className="flex items-center">
+                  <span className="animate-spin mr-2">...</span> Looking up location...
+                </span>
+              ) : locationInfo ? (
+                <div>
+                  <p className="font-medium">{locationInfo.display_name}</p>
+                  <p className="text-xs text-indigo-500 mt-1">
+                    {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                  </p>
+                </div>
+              ) : (
+                <p>{location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                errors.name ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Enter POI name"
+            />
+            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+          </div>
+
+          {/* Category - Required */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+            <select
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                errors.category ? 'border-red-500' : 'border-gray-300'
+              }`}
+            >
+              <option value="">Select a category</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+            {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
+          </div>
+
+          {/* Destination Selection - Required */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Destination *</label>
+            {destinations.length === 0 ? (
+              <p className="text-amber-600 text-sm bg-amber-50 p-2 rounded-lg">
+                No destinations yet. Add a destination first to attach POIs.
+              </p>
+            ) : (
+              <select
+                value={formData.destination_id}
+                onChange={(e) => setFormData({ ...formData, destination_id: e.target.value })}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                  errors.destination_id ? 'border-red-500' : 'border-gray-300'
+                }`}
+              >
+                <option value="">Select a destination</option>
+                {destinations.map((dest) => (
+                  <option key={dest.id} value={dest.id}>
+                    {dest.city_name}, {dest.country}
+                  </option>
+                ))}
+              </select>
+            )}
+            {errors.destination_id && <p className="text-red-500 text-xs mt-1">{errors.destination_id}</p>}
+          </div>
+
+          {/* Date and Time - Optional */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date (optional)</label>
+              <input
+                type="date"
+                value={formData.visit_date}
+                onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Time (optional)</label>
+              <input
+                type="time"
+                value={formData.visit_time}
+                onChange={(e) => setFormData({ ...formData, visit_time: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              rows={2}
+              placeholder="Brief description of the place"
+            />
+          </div>
+
+          {/* Cost and Duration */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Est. Cost ($)</label>
+              <input
+                type="number"
+                min="0"
+                value={formData.estimated_cost}
+                onChange={(e) => setFormData({ ...formData, estimated_cost: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Duration (min)</label>
+              <input
+                type="number"
+                min="0"
+                value={formData.dwell_time}
+                onChange={(e) => setFormData({ ...formData, dwell_time: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="60"
+              />
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex space-x-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={destinations.length === 0}
+              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add POI</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const DetailViewContent = () => {
   const { id } = useParams();
   const { selectedTrip, fetchTripDetails, isLoading } = useTripStore();
@@ -168,6 +433,10 @@ const DetailViewContent = () => {
   // Destination modal state
   const [showDestinationModal, setShowDestinationModal] = useState(false);
   const [editingDestination, setEditingDestination] = useState(null);
+
+  // TripMap POI modal state (Level 1)
+  const [showTripMapPOIModal, setShowTripMapPOIModal] = useState(false);
+  const [pendingTripMapPOILocation, setPendingTripMapPOILocation] = useState(null);
 
   // Accommodation modal state
   const [showAccommodationModal, setShowAccommodationModal] = useState(false);
@@ -204,6 +473,20 @@ const DetailViewContent = () => {
     setPendingPOILocation(location);
     setShowAddPOIModal(true);
   }, []);
+
+  // Handle adding POI via TripMap click (Level 1)
+  const handleAddPOIFromTripMap = useCallback((location) => {
+    setPendingTripMapPOILocation(location);
+    setShowTripMapPOIModal(true);
+  }, []);
+
+  // Handle TripMap POI submission
+  const handleTripMapPOISubmit = useCallback(async (poiData) => {
+    await createPOI(poiData);
+    // Refresh the trip details to show updated POI counts
+    fetchTripDetails(id);
+    setPendingTripMapPOILocation(null);
+  }, [createPOI, fetchTripDetails, id]);
 
   const handlePOISubmit = useCallback(async (poiData) => {
     if (selectedDestinationId) {
@@ -391,6 +674,8 @@ const DetailViewContent = () => {
                     }
                   : null
               }
+              enableAddPOI={true}
+              onAddPOI={handleAddPOIFromTripMap}
             />
           ) : (
             <MicroMap
@@ -424,6 +709,18 @@ const DetailViewContent = () => {
         }}
         onSubmit={handlePOISubmit}
         location={pendingPOILocation}
+      />
+
+      {/* TripMap POI Modal (Level 1) */}
+      <TripMapPOIModal
+        isOpen={showTripMapPOIModal}
+        onClose={() => {
+          setShowTripMapPOIModal(false);
+          setPendingTripMapPOILocation(null);
+        }}
+        onSubmit={handleTripMapPOISubmit}
+        location={pendingTripMapPOILocation}
+        destinations={selectedTrip?.destinations || []}
       />
 
       {/* Destination Form Modal */}

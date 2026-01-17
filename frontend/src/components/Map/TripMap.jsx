@@ -8,7 +8,7 @@ import Map, {
   Layer,
   Popup,
 } from 'react-map-gl';
-import { MapPin } from 'lucide-react';
+import { MapPin, Plus } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -171,9 +171,14 @@ const TripMap = ({
   height = '400px',
   className = '',
   tripLocation = null, // { latitude, longitude, name } - fallback location when no destinations
+  enableAddPOI = false, // Enable click-to-add-POI mode
+  onAddPOI = null, // Callback when clicking on map to add POI: ({ latitude, longitude }) => void
 }) => {
+  // Can only add POI if there are destinations to attach them to
+  const canAddPOI = enableAddPOI && destinations.length > 0;
   const { mapboxAccessToken } = useMapboxToken();
   const [hoveredDestinationId, setHoveredDestinationId] = useState(null);
+  const [isAddMode, setIsAddMode] = useState(false);
   const [viewState, setViewState] = useState({
     longitude: 10.7522,
     latitude: 59.9139,
@@ -240,6 +245,40 @@ const TripMap = ({
     [onSelectDestination]
   );
 
+  // Handle map click for adding POI
+  const handleMapClick = useCallback(
+    (event) => {
+      if (!isAddMode) return;
+
+      const { lngLat } = event;
+      const location = {
+        latitude: lngLat.lat,
+        longitude: lngLat.lng,
+      };
+
+      // Don't set pending location - let the modal handle it
+      // The marker will appear once the POI is actually created
+      setIsAddMode(false);
+
+      if (onAddPOI) {
+        onAddPOI(location);
+      }
+    },
+    [isAddMode, onAddPOI]
+  );
+
+  // Toggle add mode
+  const toggleAddMode = useCallback(() => {
+    setIsAddMode((prev) => !prev);
+  }, []);
+
+  // Reset add mode when feature is disabled or no destinations
+  useEffect(() => {
+    if (!canAddPOI) {
+      setIsAddMode(false);
+    }
+  }, [canAddPOI]);
+
   if (!mapboxAccessToken) {
     return (
       <div
@@ -273,9 +312,11 @@ const TripMap = ({
       <Map
         {...viewState}
         onMove={(evt) => setViewState(evt.viewState)}
+        onClick={handleMapClick}
         mapboxAccessToken={mapboxAccessToken}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/streets-v12"
+        cursor={isAddMode ? 'crosshair' : 'grab'}
       >
         <NavigationControl position="top-right" />
         <ScaleControl position="bottom-left" />
@@ -356,6 +397,44 @@ const TripMap = ({
         })}
 
       </Map>
+
+      {/* Add POI button - only show if enabled and there are destinations */}
+      {enableAddPOI && (
+        <>
+          {canAddPOI ? (
+            <button
+              onClick={toggleAddMode}
+              className={`absolute bottom-4 left-4 px-4 py-2 rounded-lg shadow-lg font-medium transition-all flex items-center space-x-2 ${
+                isAddMode
+                  ? 'bg-red-500 text-white hover:bg-red-600'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              }`}
+            >
+              <Plus className={`w-4 h-4 ${isAddMode ? 'rotate-45' : ''} transition-transform`} />
+              <span>{isAddMode ? 'Cancel' : 'Add POI'}</span>
+            </button>
+          ) : (
+            <div className="absolute bottom-4 left-4 px-4 py-2 rounded-lg shadow-lg bg-gray-400 text-white font-medium flex items-center space-x-2 cursor-not-allowed">
+              <Plus className="w-4 h-4" />
+              <span>Add POI</span>
+            </div>
+          )}
+
+          {/* Overlay hint when in add mode */}
+          {isAddMode && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-lg text-sm">
+              Click on the map to add a point of interest
+            </div>
+          )}
+
+          {/* Hint when no destinations */}
+          {!canAddPOI && (
+            <div className="absolute bottom-16 left-4 bg-amber-100 text-amber-800 px-3 py-2 rounded-lg text-xs max-w-[200px]">
+              Add a destination first to create POIs
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 };
