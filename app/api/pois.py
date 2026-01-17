@@ -6,7 +6,7 @@ from geoalchemy2.functions import ST_SetSRID, ST_MakePoint, ST_X, ST_Y
 
 from app.core.database import get_db
 from app.models import POI, Destination
-from app.schemas.poi import POICreate, POIUpdate, POIResponse, POIsByCategory, POIVote
+from app.schemas.poi import POICreate, POIUpdate, POIResponse, POIsByCategory, POIVote, POIBulkScheduleUpdate
 
 router = APIRouter()
 
@@ -33,6 +33,8 @@ def poi_to_response(poi: POI, latitude: float | None = None, longitude: float | 
         "metadata_json": poi.metadata_json,
         "external_id": poi.external_id,
         "external_source": poi.external_source,
+        "scheduled_date": poi.scheduled_date,
+        "day_order": poi.day_order,
         "created_at": poi.created_at,
         "updated_at": poi.updated_at,
     }
@@ -269,3 +271,56 @@ async def vote_poi(
     updated_poi, lat, lng = row
 
     return poi_to_response(updated_poi, lat, lng)
+
+
+@router.put("/destinations/{destination_id}/pois/schedule", response_model=List[POIResponse])
+async def bulk_update_poi_schedule(
+    destination_id: int,
+    schedule_update: POIBulkScheduleUpdate,
+    db: AsyncSession = Depends(get_db)
+):
+    """Bulk update POI schedules for drag-and-drop functionality"""
+    # Verify that the destination exists
+    dest_result = await db.execute(select(Destination).where(Destination.id == destination_id))
+    destination = dest_result.scalar_one_or_none()
+
+    if not destination:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Destination with id {destination_id} not found"
+        )
+
+    updated_pois = []
+
+    for update_item in schedule_update.updates:
+        result = await db.execute(
+            select(POI).where(POI.id == update_item.id, POI.destination_id == destination_id)
+        )
+        db_poi = result.scalar_one_or_none()
+
+        if not db_poi:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"POI with id {update_item.id} not found in destination {destination_id}"
+            )
+
+        db_poi.scheduled_date = update_item.scheduled_date
+        db_poi.day_order = update_item.day_order
+        updated_pois.append(db_poi)
+
+    await db.flush()
+
+    # Re-query all updated POIs with coordinates
+    poi_ids = [poi.id for poi in updated_pois]
+    result = await db.execute(
+        select(
+            POI,
+            ST_Y(POI.coordinates).label('latitude'),
+            ST_X(POI.coordinates).label('longitude')
+        )
+        .where(POI.id.in_(poi_ids))
+        .order_by(POI.scheduled_date.nulls_last(), POI.day_order)
+    )
+    rows = result.all()
+
+    return [poi_to_response(row[0], row[1], row[2]) for row in rows]

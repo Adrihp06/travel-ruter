@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { X, Plus, Pencil, Trash2 } from 'lucide-react';
+import { X, Plus, Pencil, Trash2, Calendar, List } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import usePOIStore from '../stores/usePOIStore';
 import useDocumentStore from '../stores/useDocumentStore';
@@ -23,6 +23,7 @@ import { TripMap } from '../components/Map';
 
 // Level 2 components
 import { DayBasedAgenda } from '../components/Agenda';
+import DailyItinerary from '../components/Itinerary/DailyItinerary';
 import { MicroMap } from '../components/Map';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
@@ -604,7 +605,7 @@ const TripMapPOIModal = ({ isOpen, onClose, onSubmit, location, destinations = [
 const DetailViewContent = () => {
   const { id } = useParams();
   const { selectedTrip, fetchTripDetails, isLoading, setSelectedTripDestinations } = useTripStore();
-  const { pois, fetchPOIsByDestination, createPOI, updatePOI, deletePOI, votePOI } = usePOIStore();
+  const { pois, fetchPOIsByDestination, createPOI, updatePOI, deletePOI, votePOI, updatePOISchedules } = usePOIStore();
   const { documents } = useDocumentStore();
   const { deleteDestination, reorderDestinations } = useDestinationStore();
   const { accommodations, fetchAccommodations, deleteAccommodation } = useAccommodationStore();
@@ -617,6 +618,7 @@ const DetailViewContent = () => {
   const [showAddPOIModal, setShowAddPOIModal] = useState(false);
   const [pendingPOILocation, setPendingPOILocation] = useState(null);
   const [clearPendingTrigger, setClearPendingTrigger] = useState(0);
+  const [showDailyItinerary, setShowDailyItinerary] = useState(true); // Toggle for itinerary view
 
   // Destination modal state
   const [showDestinationModal, setShowDestinationModal] = useState(false);
@@ -715,7 +717,7 @@ const DetailViewContent = () => {
     await votePOI(poiId, voteType);
   }, [votePOI]);
 
-  // Reorder destinations handler
+// Reorder destinations handler
   const handleReorderDestinations = useCallback(async (destinationIds) => {
     try {
       // Call API and get updated destinations with new order and dates
@@ -728,6 +730,13 @@ const DetailViewContent = () => {
       fetchTripDetails(id);
     }
   }, [id, reorderDestinations, setSelectedTripDestinations, fetchTripDetails]);
+
+  // POI Schedule change handler (for drag-and-drop)
+  const handleScheduleChange = useCallback(async (updates) => {
+    if (selectedDestinationId) {
+      await updatePOISchedules(selectedDestinationId, updates);
+    }
+  }, [selectedDestinationId, updatePOISchedules]);
 
   // Delete handlers
   const handleDeleteDestination = useCallback(async (destId) => {
@@ -803,7 +812,7 @@ const DetailViewContent = () => {
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Panel */}
-        <div className="w-80 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 overflow-y-auto bg-white dark:bg-gray-800 transition-colors">
+        <div className={`${viewLevel === 2 && showDailyItinerary ? 'w-96' : 'w-80'} flex-shrink-0 border-r border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-200`}>
           {viewLevel === 1 ? (
             <Timeline
               destinations={selectedTrip.destinations || []}
@@ -823,22 +832,67 @@ const DetailViewContent = () => {
             />
           ) : (
             <div className="flex flex-col h-full">
-              <div className="flex-1 overflow-y-auto">
-                <DayBasedAgenda
-                  destination={selectedDestination}
-                  pois={pois}
-                  selectedPOIs={selectedPOIs}
-                  onSelectPOI={handleSelectPOI}
-                  onCenterMapOnPOI={handleCenterMapOnPOI}
-                  onBack={handleBackToLevel1}
-                  onEditPOI={handleEditPOI}
-                  onDeletePOI={handleDeletePOI}
-                  onVotePOI={handleVotePOI}
-                />
+              {/* View Toggle */}
+              <div className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                <span className="text-xs text-gray-500 dark:text-gray-400">View:</span>
+                <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <button
+                    onClick={() => setShowDailyItinerary(true)}
+                    className={`px-3 py-1.5 text-xs flex items-center space-x-1 transition-colors ${
+                      showDailyItinerary
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                    title="Daily Itinerary (drag & drop)"
+                  >
+                    <Calendar className="w-3 h-3" />
+                    <span>Daily</span>
+                  </button>
+                  <button
+                    onClick={() => setShowDailyItinerary(false)}
+                    className={`px-3 py-1.5 text-xs flex items-center space-x-1 transition-colors ${
+                      !showDailyItinerary
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                    title="Category List"
+                  >
+                    <List className="w-3 h-3" />
+                    <span>List</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-hidden">
+                {showDailyItinerary ? (
+                  <DailyItinerary
+                    destination={selectedDestination}
+                    pois={pois}
+                    onScheduleChange={handleScheduleChange}
+                    onBack={handleBackToLevel1}
+                    onEditPOI={handleEditPOI}
+                    onDeletePOI={handleDeletePOI}
+                    onVotePOI={handleVotePOI}
+                    className="h-full"
+                  />
+                ) : (
+                  <DayBasedAgenda
+                    destination={selectedDestination}
+                    pois={pois}
+                    selectedPOIs={selectedPOIs}
+                    onSelectPOI={handleSelectPOI}
+                    onCenterMapOnPOI={handleCenterMapOnPOI}
+                    onBack={handleBackToLevel1}
+                    onEditPOI={handleEditPOI}
+                    onDeletePOI={handleDeletePOI}
+                    onVotePOI={handleVotePOI}
+                    className="h-full"
+                  />
+                )}
               </div>
 
               {/* Accommodation Section */}
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
                 <AccommodationList
                   accommodations={accommodations}
                   onAdd={() => {

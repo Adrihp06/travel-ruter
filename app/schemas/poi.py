@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional, Any, List
 from pydantic import BaseModel, ConfigDict, Field
@@ -22,6 +22,8 @@ class POIBase(BaseModel):
     metadata_json: Optional[dict] = Field(None, description="Additional metadata")
     external_id: Optional[str] = Field(None, max_length=255, description="External source ID")
     external_source: Optional[str] = Field(None, max_length=50, description="External source name")
+    scheduled_date: Optional[date] = Field(None, description="Date this POI is scheduled for")
+    day_order: Optional[int] = Field(None, description="Order within the scheduled day")
 
 
 class POICreate(POIBase):
@@ -46,6 +48,8 @@ class POIUpdate(BaseModel):
     metadata_json: Optional[dict] = Field(None, description="Additional metadata")
     external_id: Optional[str] = Field(None, max_length=255, description="External source ID")
     external_source: Optional[str] = Field(None, max_length=50, description="External source name")
+    scheduled_date: Optional[date] = Field(None, description="Date this POI is scheduled for")
+    day_order: Optional[int] = Field(None, description="Order within the scheduled day")
 
 
 class POIVote(BaseModel):
@@ -64,3 +68,15 @@ class POIResponse(POIBase):
 class POIsByCategory(BaseModel):
     category: str
     pois: List[POIResponse]
+
+
+class POIScheduleItem(BaseModel):
+    """Single POI schedule update item"""
+    id: int = Field(..., description="POI ID")
+    scheduled_date: Optional[date] = Field(None, description="Date to schedule the POI (null to unschedule)")
+    day_order: int = Field(..., description="Order within the day (0-indexed)")
+
+
+class POIBulkScheduleUpdate(BaseModel):
+    """Bulk update for POI schedules"""
+    updates: List[POIScheduleItem] = Field(..., description="List of POI schedule updates")

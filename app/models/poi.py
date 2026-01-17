@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, Text, JSON, Index
+from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, Text, JSON, Index, Date
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry
 from geoalchemy2.shape import to_shape
@@ -48,6 +48,10 @@ class POI(BaseModel):
     vetoes = Column(Integer, nullable=False, default=0)
     priority = Column(Integer, nullable=False, default=0)
 
+    # Daily itinerary scheduling
+    scheduled_date = Column(Date, nullable=True, index=True, comment="Date this POI is scheduled for")
+    day_order = Column(Integer, nullable=True, comment="Order within the scheduled day")
+
     # Files and metadata
     files = Column(JSON, nullable=True, comment="Array of file URLs/metadata")
     metadata_json = Column(JSON, nullable=True)
@@ -59,10 +63,11 @@ class POI(BaseModel):
     # Relationships
     destination = relationship("Destination", back_populates="pois")
 
-    # Create composite index for destination_id and category
+    # Create composite indexes
     __table_args__ = (
         Index('ix_pois_destination_category', 'destination_id', 'category'),
         Index('ix_pois_destination_priority', 'destination_id', 'priority'),
+        Index('ix_pois_destination_scheduled', 'destination_id', 'scheduled_date', 'day_order'),
     )
 
     def __repr__(self):

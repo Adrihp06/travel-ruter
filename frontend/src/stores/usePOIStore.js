@@ -207,7 +207,96 @@ const usePOIStore = create((set, get) => ({
       set({ error: error.message, isLoading: false });
       throw error;
     }
-  }
+  },
+
+  // Get all POIs as a flat list for itinerary view
+  getAllPOIs: () => {
+    const state = get();
+    return state.pois.flatMap(group => group.pois);
+  },
+
+  // Get POIs grouped by scheduled date for daily itinerary
+  getPOIsBySchedule: () => {
+    const allPOIs = get().getAllPOIs();
+    const scheduled = {};
+    const unscheduled = [];
+
+    allPOIs.forEach(poi => {
+      if (poi.scheduled_date) {
+        if (!scheduled[poi.scheduled_date]) {
+          scheduled[poi.scheduled_date] = [];
+        }
+        scheduled[poi.scheduled_date].push(poi);
+      } else {
+        unscheduled.push(poi);
+      }
+    });
+
+    // Sort POIs within each day by day_order
+    Object.keys(scheduled).forEach(date => {
+      scheduled[date].sort((a, b) => (a.day_order || 0) - (b.day_order || 0));
+    });
+
+    return { scheduled, unscheduled };
+  },
+
+  // Bulk update POI schedules (for drag-and-drop)
+  updatePOISchedules: async (destinationId, updates) => {
+    // Optimistic update
+    set((state) => {
+      const updatedPOIs = state.pois.map(group => ({
+        ...group,
+        pois: group.pois.map(poi => {
+          const update = updates.find(u => u.id === poi.id);
+          if (update) {
+            return {
+              ...poi,
+              scheduled_date: update.scheduled_date,
+              day_order: update.day_order,
+            };
+          }
+          return poi;
+        }),
+      }));
+      return { pois: updatedPOIs };
+    });
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/destinations/${destinationId}/pois/schedule`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updates }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to update POI schedules');
+      }
+
+      const updatedPOIs = await response.json();
+
+      // Update with server response
+      set((state) => {
+        const newPOIs = state.pois.map(group => ({
+          ...group,
+          pois: group.pois.map(poi => {
+            const updated = updatedPOIs.find(u => u.id === poi.id);
+            return updated ? { ...poi, ...updated } : poi;
+          }),
+        }));
+        return { pois: newPOIs };
+      });
+
+      return updatedPOIs;
+    } catch (error) {
+      // Revert on error by refetching
+      get().fetchPOIsByDestination(destinationId);
+      set({ error: error.message });
+      throw error;
+    }
+  },
 }));
 
 export default usePOIStore;
