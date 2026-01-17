@@ -3,13 +3,15 @@ import Map, {
   NavigationControl,
   ScaleControl,
   FullscreenControl,
+  GeolocateControl,
   Marker,
   Source,
   Layer,
   Popup,
 } from 'react-map-gl';
-import { MapPin, Plus } from 'lucide-react';
+import { MapPin, Plus, Car, Footprints, Bike, Train, Plane, ExternalLink } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
+import useRouteStore from '../../stores/useRouteStore';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 /**
@@ -152,15 +154,110 @@ const generateRouteGeoJSON = (destinations) => {
   };
 };
 
-const routeLayerStyle = {
-  id: 'route-line',
+// Route layer style based on transport mode
+const getRouteLayerStyle = (transportMode) => {
+  const baseStyle = {
+    id: 'route-line',
+    type: 'line',
+    layout: {
+      'line-join': 'round',
+      'line-cap': 'round',
+    },
+    paint: {
+      'line-width': 4,
+      'line-opacity': 0.85,
+    },
+  };
+
+  switch (transportMode) {
+    case 'walking':
+      return {
+        ...baseStyle,
+        paint: {
+          ...baseStyle.paint,
+          'line-color': '#10B981', // green
+          'line-dasharray': [1, 2],
+        },
+      };
+    case 'cycling':
+      return {
+        ...baseStyle,
+        paint: {
+          ...baseStyle.paint,
+          'line-color': '#F59E0B', // amber
+          'line-dasharray': [2, 1],
+        },
+      };
+    case 'train':
+      return {
+        ...baseStyle,
+        paint: {
+          ...baseStyle.paint,
+          'line-color': '#8B5CF6', // purple
+          'line-dasharray': [4, 2],
+        },
+      };
+    case 'flight':
+      return {
+        ...baseStyle,
+        paint: {
+          ...baseStyle.paint,
+          'line-color': '#3B82F6', // blue
+          'line-dasharray': [8, 4],
+        },
+      };
+    case 'driving':
+    case 'driving-traffic':
+    default:
+      return {
+        ...baseStyle,
+        paint: {
+          ...baseStyle.paint,
+          'line-color': '#4F46E5', // indigo
+        },
+      };
+  }
+};
+
+// Route outline for better visibility
+const routeOutlineStyle = {
+  id: 'route-line-outline',
   type: 'line',
-  paint: {
-    'line-color': '#4F46E5',
-    'line-width': 3,
-    'line-opacity': 0.8,
-    'line-dasharray': [2, 1],
+  layout: {
+    'line-join': 'round',
+    'line-cap': 'round',
   },
+  paint: {
+    'line-color': '#ffffff',
+    'line-width': 6,
+    'line-opacity': 0.5,
+  },
+};
+
+// Transport mode icons and colors
+const TRANSPORT_MODES = [
+  { id: 'driving', label: 'Drive', icon: Car, color: 'bg-indigo-100 text-indigo-600' },
+  { id: 'walking', label: 'Walk', icon: Footprints, color: 'bg-green-100 text-green-600' },
+  { id: 'cycling', label: 'Bike', icon: Bike, color: 'bg-amber-100 text-amber-600' },
+  { id: 'train', label: 'Train', icon: Train, color: 'bg-purple-100 text-purple-600' },
+  { id: 'flight', label: 'Fly', icon: Plane, color: 'bg-blue-100 text-blue-600' },
+];
+
+// Format duration nicely
+const formatDuration = (minutes) => {
+  if (!minutes || minutes <= 0) return '';
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  if (hours === 0) return `${mins} min`;
+  if (mins === 0) return `${hours} hr`;
+  return `${hours}h ${mins}m`;
+};
+
+// Format distance
+const formatDistance = (km) => {
+  if (!km || km <= 0) return '';
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  return `${km.toFixed(1)} km`;
 };
 
 const TripMap = ({
@@ -168,6 +265,7 @@ const TripMap = ({
   selectedDestinationId = null,
   onSelectDestination = null,
   showRoute = true,
+  showRouteControls = true, // New prop to show route options UI
   height = '400px',
   className = '',
   tripLocation = null, // { latitude, longitude, name } - fallback location when no destinations
@@ -184,6 +282,16 @@ const TripMap = ({
     latitude: 59.9139,
     zoom: 5,
   });
+  // Route store integration
+  const {
+    transportMode,
+    setTransportMode,
+    routeGeometry,
+    routeDetails,
+    isLoading: isRouteLoading,
+    calculateMapboxRoute,
+    exportToGoogleMaps,
+  } = useRouteStore();
 
   // Sort destinations chronologically
   const sortedDestinations = useMemo(() => {
@@ -229,11 +337,49 @@ const TripMap = ({
     }
   }, [sortedDestinations, tripLocation]);
 
-  // Generate route line
+  // Calculate route using Mapbox when destinations change
+  useEffect(() => {
+    if (showRoute && sortedDestinations.length >= 2) {
+      calculateMapboxRoute(sortedDestinations, transportMode);
+    }
+  }, [sortedDestinations, transportMode, showRoute, calculateMapboxRoute]);
+
+  // Generate route line - prefer API geometry, fallback to straight lines
   const routeGeoJSON = useMemo(() => {
     if (!showRoute) return null;
+
+    // Use route geometry from Mapbox API if available
+    if (routeGeometry?.type === 'LineString' || routeGeometry?.coordinates) {
+      return {
+        type: 'Feature',
+        properties: {},
+        geometry: routeGeometry,
+      };
+    }
+
+    // Fallback to straight lines between destinations
     return generateRouteGeoJSON(sortedDestinations);
-  }, [sortedDestinations, showRoute]);
+  }, [sortedDestinations, showRoute, routeGeometry]);
+
+  // Get route layer style based on transport mode
+  const routeLayerStyle = useMemo(
+    () => getRouteLayerStyle(transportMode),
+    [transportMode]
+  );
+
+  // Handle transport mode change
+  const handleModeChange = useCallback((mode) => {
+    setTransportMode(mode);
+  }, [setTransportMode]);
+
+  // Handle Google Maps export
+  const handleExportToGoogleMaps = useCallback(async () => {
+    if (sortedDestinations.length < 2) return;
+    const origin = sortedDestinations[0];
+    const destination = sortedDestinations[sortedDestinations.length - 1];
+    const waypoints = sortedDestinations.slice(1, -1);
+    await exportToGoogleMaps(origin, destination, waypoints, transportMode);
+  }, [sortedDestinations, transportMode, exportToGoogleMaps]);
 
   const handleMarkerClick = useCallback(
     (destination, e) => {
@@ -322,12 +468,21 @@ const TripMap = ({
         <ScaleControl position="bottom-left" />
         <FullscreenControl position="top-right" />
 
+        {/* Route outline for visibility */}
+        {routeGeoJSON && (
+          <Source id="route-outline" type="geojson" data={routeGeoJSON}>
+            <Layer {...routeOutlineStyle} />
+          </Source>
+        )}
+
         {/* Route line */}
         {routeGeoJSON && (
           <Source id="route" type="geojson" data={routeGeoJSON}>
             <Layer {...routeLayerStyle} />
           </Source>
         )}
+
+        <GeolocateControl position="top-right" />
 
         {/* Destination markers */}
         {sortedDestinations.map((destination, index) => {
@@ -404,7 +559,7 @@ const TripMap = ({
           {canAddPOI ? (
             <button
               onClick={toggleAddMode}
-              className={`absolute bottom-4 left-4 px-4 py-2 rounded-lg shadow-lg font-medium transition-all flex items-center space-x-2 ${
+              className={`absolute bottom-20 left-4 px-4 py-2 rounded-lg shadow-lg font-medium transition-all flex items-center space-x-2 z-10 ${
                 isAddMode
                   ? 'bg-red-500 text-white hover:bg-red-600'
                   : 'bg-indigo-600 text-white hover:bg-indigo-700'
@@ -414,7 +569,7 @@ const TripMap = ({
               <span>{isAddMode ? 'Cancel' : 'Add POI'}</span>
             </button>
           ) : (
-            <div className="absolute bottom-4 left-4 px-4 py-2 rounded-lg shadow-lg bg-gray-400 text-white font-medium flex items-center space-x-2 cursor-not-allowed">
+            <div className="absolute bottom-20 left-4 px-4 py-2 rounded-lg shadow-lg bg-gray-400 text-white font-medium flex items-center space-x-2 cursor-not-allowed z-10">
               <Plus className="w-4 h-4" />
               <span>Add POI</span>
             </div>
@@ -422,17 +577,97 @@ const TripMap = ({
 
           {/* Overlay hint when in add mode */}
           {isAddMode && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-lg text-sm">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-lg text-sm z-20">
               Click on the map to add a point of interest
             </div>
           )}
 
           {/* Hint when no destinations */}
           {!canAddPOI && (
-            <div className="absolute bottom-16 left-4 bg-amber-100 text-amber-800 px-3 py-2 rounded-lg text-xs max-w-[200px]">
+            <div className="absolute bottom-32 left-4 bg-amber-100 text-amber-800 px-3 py-2 rounded-lg text-xs max-w-[200px] z-10">
               Add a destination first to create POIs
             </div>
           )}
+        </>
+      )}
+
+      {/* Route Controls Overlay */}
+      {showRouteControls && sortedDestinations.length >= 2 && (
+        <>
+          {/* Transport Mode Selector - Top Left */}
+          <div className="absolute top-4 left-4 z-10">
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-1">
+              <div className="flex items-center gap-1">
+                {TRANSPORT_MODES.slice(0, 3).map((mode) => {
+                  const Icon = mode.icon;
+                  const isSelected = transportMode === mode.id;
+                  return (
+                    <button
+                      key={mode.id}
+                      onClick={() => handleModeChange(mode.id)}
+                      className={`p-2 rounded-lg transition-all duration-200 ${
+                        isSelected
+                          ? mode.color
+                          : 'text-gray-400 hover:bg-gray-100'
+                      }`}
+                      title={mode.label}
+                    >
+                      <Icon className="w-5 h-5" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Route Info Bar - Bottom */}
+          <div className="absolute bottom-4 left-4 right-4 z-10">
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  {/* Route Stats */}
+                  {routeDetails && (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm font-medium text-gray-900">
+                          {formatDistance(routeDetails.distance_km)}
+                        </span>
+                      </div>
+                      <div className="h-4 w-px bg-gray-200" />
+                      <div className="flex items-center gap-2">
+                        {(() => {
+                          const ModeIcon = TRANSPORT_MODES.find(m => m.id === transportMode)?.icon || Car;
+                          return <ModeIcon className="w-4 h-4 text-gray-400" />;
+                        })()}
+                        <span className="text-sm font-medium text-gray-900">
+                          {formatDuration(routeDetails.duration_min)}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                  {isRouteLoading && (
+                    <span className="text-sm text-gray-500">Calculating route...</span>
+                  )}
+                  {!routeDetails && !isRouteLoading && (
+                    <span className="text-sm text-gray-500">
+                      {sortedDestinations.length} stops
+                    </span>
+                  )}
+                </div>
+
+                {/* Export to Google Maps Button */}
+                <button
+                  onClick={handleExportToGoogleMaps}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span className="hidden sm:inline">Open in Google Maps</span>
+                  <span className="sm:hidden">Navigate</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </>
       )}
     </div>
