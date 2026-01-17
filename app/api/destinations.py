@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -6,7 +7,7 @@ from geoalchemy2.functions import ST_SetSRID, ST_MakePoint
 
 from app.core.database import get_db
 from app.models import Destination, Trip
-from app.schemas import DestinationCreate, DestinationUpdate, DestinationResponse
+from app.schemas import DestinationCreate, DestinationUpdate, DestinationResponse, DestinationReorderRequest
 
 router = APIRouter()
 
@@ -150,3 +151,73 @@ async def delete_destination(
     await db.delete(db_destination)
 
     return None
+
+
+@router.post("/trips/{trip_id}/destinations/reorder", response_model=List[DestinationResponse])
+async def reorder_destinations(
+    trip_id: int,
+    reorder_request: DestinationReorderRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Reorder destinations within a trip by providing destination IDs in new order.
+
+    This endpoint also recalculates arrival/departure dates to maintain sequential ordering:
+    - The first destination keeps its original arrival_date as the trip start
+    - Each destination preserves its duration (nights)
+    - Subsequent destinations' dates are shifted to follow the previous one
+    """
+    # Verify that the trip exists
+    trip_result = await db.execute(select(Trip).where(Trip.id == trip_id))
+    trip = trip_result.scalar_one_or_none()
+
+    if not trip:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trip with id {trip_id} not found"
+        )
+
+    # Fetch all destinations for this trip ordered by current order_index
+    result = await db.execute(
+        select(Destination)
+        .where(Destination.trip_id == trip_id)
+        .order_by(Destination.order_index.asc())
+    )
+    destinations = {d.id: d for d in result.scalars().all()}
+
+    # Validate that all provided IDs belong to this trip
+    for dest_id in reorder_request.destination_ids:
+        if dest_id not in destinations:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Destination with id {dest_id} not found in trip {trip_id}"
+            )
+
+    # Calculate the duration (nights) for each destination before reordering
+    durations = {}
+    for dest_id, dest in destinations.items():
+        duration = (dest.departure_date - dest.arrival_date).days
+        durations[dest_id] = duration
+
+    # Get the trip start date from the earliest arrival date in the current order
+    trip_start = min(dest.arrival_date for dest in destinations.values())
+
+    # Reorder and recalculate dates
+    current_date = trip_start
+    for new_index, dest_id in enumerate(reorder_request.destination_ids):
+        dest = destinations[dest_id]
+        dest.order_index = new_index
+        dest.arrival_date = current_date
+        dest.departure_date = current_date + timedelta(days=durations[dest_id])
+        # Next destination starts when this one ends
+        current_date = dest.departure_date
+
+    # Commit changes to database
+    await db.commit()
+
+    # Refresh all destinations and return in new order
+    reordered = []
+    for dest_id in reorder_request.destination_ids:
+        await db.refresh(destinations[dest_id])
+        reordered.append(destinations[dest_id])
+
+    return reordered

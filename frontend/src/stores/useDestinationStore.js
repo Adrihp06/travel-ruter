@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
-const useDestinationStore = create((set) => ({
+const useDestinationStore = create((set, get) => ({
   destinations: [],
   selectedDestination: null,
   isLoading: false,
@@ -120,6 +120,37 @@ const useDestinationStore = create((set) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  reorderDestinations: async (tripId, destinationIds) => {
+    const previousDestinations = get().destinations;
+
+    // Optimistic update: reorder destinations in state immediately
+    const reorderedDestinations = destinationIds.map((id, index) => {
+      const dest = previousDestinations.find(d => d.id === id);
+      return { ...dest, order_index: index };
+    });
+    set({ destinations: reorderedDestinations });
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/trips/${tripId}/destinations/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ destination_ids: destinationIds }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reorder destinations');
+      }
+
+      const updatedDestinations = await response.json();
+      set({ destinations: updatedDestinations });
+      return updatedDestinations;
+    } catch (error) {
+      // Rollback to previous state on failure
+      set({ destinations: previousDestinations, error: error.message });
+      throw error;
+    }
+  },
 }));
 
 export default useDestinationStore;

@@ -2,6 +2,7 @@ from app.schemas.destination import (
     DestinationCreate,
     DestinationUpdate,
     DestinationResponse,
+    DestinationReorderRequest,
 )
 from app.schemas.trip import (
     TripCreate,
@@ -34,6 +35,7 @@ __all__ = [
     "DestinationCreate",
     "DestinationUpdate",
     "DestinationResponse",
+    "DestinationReorderRequest",
     "TripCreate",
     "TripUpdate",
     "TripResponse",

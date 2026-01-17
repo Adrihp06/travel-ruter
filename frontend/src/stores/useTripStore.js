@@ -364,6 +364,19 @@ const useTripStore = create((set, get) => ({
     }
     return null;
   },
+
+  // Update destinations in selectedTrip (used after reordering)
+  setSelectedTripDestinations: (destinations) => {
+    const state = get();
+    if (state.selectedTrip) {
+      set({
+        selectedTrip: {
+          ...state.selectedTrip,
+          destinations,
+        },
+      });
+    }
+  },
 }));
 
 export default useTripStore;

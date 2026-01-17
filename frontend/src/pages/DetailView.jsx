@@ -603,10 +603,10 @@ const TripMapPOIModal = ({ isOpen, onClose, onSubmit, location, destinations = [
 
 const DetailViewContent = () => {
   const { id } = useParams();
-  const { selectedTrip, fetchTripDetails, isLoading } = useTripStore();
+  const { selectedTrip, fetchTripDetails, isLoading, setSelectedTripDestinations } = useTripStore();
   const { pois, fetchPOIsByDestination, createPOI, updatePOI, deletePOI, votePOI } = usePOIStore();
   const { documents } = useDocumentStore();
-  const { deleteDestination } = useDestinationStore();
+  const { deleteDestination, reorderDestinations } = useDestinationStore();
   const { accommodations, fetchAccommodations, deleteAccommodation } = useAccommodationStore();
   const { isSidebarVisible, isVaultVisible, toggleSidebar, toggleVault } = useItineraryUI();
 
@@ -715,6 +715,20 @@ const DetailViewContent = () => {
     await votePOI(poiId, voteType);
   }, [votePOI]);
 
+  // Reorder destinations handler
+  const handleReorderDestinations = useCallback(async (destinationIds) => {
+    try {
+      // Call API and get updated destinations with new order and dates
+      const updatedDestinations = await reorderDestinations(Number(id), destinationIds);
+      // Directly update the trip store with the API response
+      setSelectedTripDestinations(updatedDestinations);
+    } catch (error) {
+      console.error('Failed to reorder destinations:', error);
+      // On error, refresh from server to restore correct state
+      fetchTripDetails(id);
+    }
+  }, [id, reorderDestinations, setSelectedTripDestinations, fetchTripDetails]);
+
   // Delete handlers
   const handleDeleteDestination = useCallback(async (destId) => {
     if (window.confirm('Delete this destination and all its POIs?')) {
@@ -805,6 +819,7 @@ const DetailViewContent = () => {
                 setShowDestinationModal(true);
               }}
               onDeleteDestination={handleDeleteDestination}
+              onReorderDestinations={handleReorderDestinations}
             />
           ) : (
             <div className="flex flex-col h-full">

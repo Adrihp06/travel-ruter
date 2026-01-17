@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -44,3 +44,11 @@ class DestinationResponse(DestinationBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DestinationReorderRequest(BaseModel):
+    destination_ids: List[int] = Field(
+        ...,
+        min_length=1,
+        description="List of destination IDs in the new desired order"
+    )
