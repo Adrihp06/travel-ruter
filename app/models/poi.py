@@ -1,6 +1,8 @@
 from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, Text, JSON, Index
 from sqlalchemy.orm import relationship
+from sqlalchemy.ext.hybrid import hybrid_property
 from geoalchemy2 import Geometry
+from geoalchemy2.shape import to_shape
 from app.models.base import BaseModel
 
 
@@ -13,6 +15,28 @@ class POI(BaseModel):
     description = Column(Text, nullable=True)
     coordinates = Column(Geometry('POINT', srid=4326), nullable=True)
     address = Column(String(500), nullable=True)
+
+    @hybrid_property
+    def latitude(self):
+        """Extract latitude from coordinates geometry"""
+        if self.coordinates is not None:
+            try:
+                point = to_shape(self.coordinates)
+                return point.y
+            except Exception:
+                return None
+        return None
+
+    @hybrid_property
+    def longitude(self):
+        """Extract longitude from coordinates geometry"""
+        if self.coordinates is not None:
+            try:
+                point = to_shape(self.coordinates)
+                return point.x
+            except Exception:
+                return None
+        return None
 
     # Cost and time
     estimated_cost = Column(Numeric(10, 2), nullable=True)
