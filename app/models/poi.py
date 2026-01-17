@@ -1,6 +1,5 @@
 from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, Text, JSON, Index
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.hybrid import hybrid_property
 from geoalchemy2 import Geometry
 from geoalchemy2.shape import to_shape
 from app.models.base import BaseModel
@@ -16,9 +15,9 @@ class POI(BaseModel):
     coordinates = Column(Geometry('POINT', srid=4326), nullable=True)
     address = Column(String(500), nullable=True)
 
-    @hybrid_property
+    @property
     def latitude(self):
-        """Extract latitude from coordinates geometry"""
+        """Extract latitude from PostGIS coordinates"""
         if self.coordinates is not None:
             try:
                 point = to_shape(self.coordinates)
@@ -27,9 +26,9 @@ class POI(BaseModel):
                 return None
         return None
 
-    @hybrid_property
+    @property
     def longitude(self):
-        """Extract longitude from coordinates geometry"""
+        """Extract longitude from PostGIS coordinates"""
         if self.coordinates is not None:
             try:
                 point = to_shape(self.coordinates)

@@ -35,9 +35,40 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
     category: 'Sights',
     estimated_cost: '',
     dwell_time: '30',
+    address: '',
   });
+  const [locationInfo, setLocationInfo] = useState(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
   const categories = ['Sights', 'Food', 'Accommodation', 'Museum', 'Shopping', 'Entertainment', 'Activity'];
+
+  // Reverse geocode when location changes
+  useEffect(() => {
+    if (location && isOpen) {
+      setIsLoadingLocation(true);
+      fetch(`${API_BASE_URL}/geocoding/reverse?lat=${location.latitude}&lon=${location.longitude}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          setLocationInfo(data);
+          if (data?.display_name) {
+            setFormData(prev => ({ ...prev, address: data.display_name }));
+          }
+          setIsLoadingLocation(false);
+        })
+        .catch(() => {
+          setLocationInfo(null);
+          setIsLoadingLocation(false);
+        });
+    }
+  }, [location, isOpen]);
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setFormData({ name: '', description: '', category: 'Sights', estimated_cost: '', dwell_time: '30', address: '' });
+      setLocationInfo(null);
+    }
+  }, [isOpen]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -48,17 +79,178 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
       latitude: location?.latitude,
       longitude: location?.longitude,
     });
-    setFormData({ name: '', description: '', category: 'Sights', estimated_cost: '', dwell_time: '30' });
-    onClose();
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Add New POI</h3>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+          >
+            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+          </button>
+        </div>
+
+        {/* Location info from reverse geocoding */}
+        {location && (
+          <div className="px-4 pt-4">
+            <div className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 p-3 rounded-lg text-sm">
+              {isLoadingLocation ? (
+                <span className="flex items-center">
+                  <span className="animate-pulse mr-2">...</span> Looking up location...
+                </span>
+              ) : locationInfo ? (
+                <div>
+                  <p className="font-medium">{locationInfo.display_name}</p>
+                  <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-1">
+                    {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                  </p>
+                </div>
+              ) : (
+                <p>{location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="Enter POI name"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
+            <select
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            >
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Address</label>
+            <input
+              type="text"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              placeholder="Street address (auto-filled from map)"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              rows={2}
+              placeholder="Brief description of the place"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Est. Cost ($)</label>
+              <input
+                type="number"
+                min="0"
+                value={formData.estimated_cost}
+                onChange={(e) => setFormData({ ...formData, estimated_cost: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Duration (min)</label>
+              <input
+                type="number"
+                min="0"
+                value={formData.dwell_time}
+                onChange={(e) => setFormData({ ...formData, dwell_time: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                placeholder="30"
+              />
+            </div>
+          </div>
+          <div className="flex space-x-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center space-x-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add POI</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Edit POI Modal Component
+const EditPOIModal = ({ isOpen, onClose, onSubmit, poi }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    category: 'Sights',
+    estimated_cost: '',
+    dwell_time: '30',
+  });
+
+  const categories = ['Sights', 'Food', 'Accommodation', 'Museum', 'Shopping', 'Entertainment', 'Activity'];
+
+  // Populate form when poi changes
+  useEffect(() => {
+    if (poi) {
+      setFormData({
+        name: poi.name || '',
+        description: poi.description || '',
+        category: poi.category || 'Sights',
+        estimated_cost: poi.estimated_cost ? String(poi.estimated_cost) : '',
+        dwell_time: poi.dwell_time ? String(poi.dwell_time) : '30',
+      });
+    }
+  }, [poi]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit({
+      name: formData.name,
+      description: formData.description,
+      category: formData.category,
+      estimated_cost: formData.estimated_cost ? Number(formData.estimated_cost) : 0,
+      dwell_time: formData.dwell_time ? Number(formData.dwell_time) : 30,
+    });
+  };
+
+  if (!isOpen || !poi) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Edit POI</h3>
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
@@ -124,11 +316,6 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
               />
             </div>
           </div>
-          {location && (
-            <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg">
-              Location: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
-            </div>
-          )}
           <div className="flex space-x-3 pt-2">
             <button
               type="button"
@@ -141,8 +328,8 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
               type="submit"
               className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center space-x-2"
             >
-              <Plus className="w-4 h-4" />
-              <span>Add POI</span>
+              <Pencil className="w-4 h-4" />
+              <span>Save Changes</span>
             </button>
           </div>
         </form>
@@ -417,7 +604,7 @@ const TripMapPOIModal = ({ isOpen, onClose, onSubmit, location, destinations = [
 const DetailViewContent = () => {
   const { id } = useParams();
   const { selectedTrip, fetchTripDetails, isLoading } = useTripStore();
-  const { pois, fetchPOIsByDestination, createPOI } = usePOIStore();
+  const { pois, fetchPOIsByDestination, createPOI, updatePOI, deletePOI, votePOI } = usePOIStore();
   const { documents } = useDocumentStore();
   const { deleteDestination } = useDestinationStore();
   const { accommodations, fetchAccommodations, deleteAccommodation } = useAccommodationStore();
@@ -429,6 +616,7 @@ const DetailViewContent = () => {
   const [centerOnPOI, setCenterOnPOI] = useState(null);
   const [showAddPOIModal, setShowAddPOIModal] = useState(false);
   const [pendingPOILocation, setPendingPOILocation] = useState(null);
+  const [clearPendingTrigger, setClearPendingTrigger] = useState(0);
 
   // Destination modal state
   const [showDestinationModal, setShowDestinationModal] = useState(false);
@@ -441,6 +629,10 @@ const DetailViewContent = () => {
   // Accommodation modal state
   const [showAccommodationModal, setShowAccommodationModal] = useState(false);
   const [editingAccommodation, setEditingAccommodation] = useState(null);
+
+  // POI edit modal state
+  const [showEditPOIModal, setShowEditPOIModal] = useState(false);
+  const [editingPOI, setEditingPOI] = useState(null);
 
   // Derived state
   const viewLevel = selectedDestinationId ? 2 : 1;
@@ -491,9 +683,37 @@ const DetailViewContent = () => {
   const handlePOISubmit = useCallback(async (poiData) => {
     if (selectedDestinationId) {
       await createPOI({ ...poiData, destination_id: selectedDestinationId });
+      setShowAddPOIModal(false);
     }
     setPendingPOILocation(null);
   }, [selectedDestinationId, createPOI]);
+
+  // POI Edit handler
+  const handleEditPOI = useCallback((poi) => {
+    setEditingPOI(poi);
+    setShowEditPOIModal(true);
+  }, []);
+
+  // POI Edit submit
+  const handleEditPOISubmit = useCallback(async (poiData) => {
+    if (editingPOI) {
+      await updatePOI(editingPOI.id, poiData);
+      setShowEditPOIModal(false);
+      setEditingPOI(null);
+    }
+  }, [editingPOI, updatePOI]);
+
+  // POI Delete handler
+  const handleDeletePOI = useCallback(async (poi) => {
+    if (window.confirm(`Delete "${poi.name}"? This action cannot be undone.`)) {
+      await deletePOI(poi.id);
+    }
+  }, [deletePOI]);
+
+  // POI Vote handler
+  const handleVotePOI = useCallback(async (poiId, voteType) => {
+    await votePOI(poiId, voteType);
+  }, [votePOI]);
 
   // Delete handlers
   const handleDeleteDestination = useCallback(async (destId) => {
@@ -595,6 +815,9 @@ const DetailViewContent = () => {
                   onSelectPOI={handleSelectPOI}
                   onCenterMapOnPOI={handleCenterMapOnPOI}
                   onBack={handleBackToLevel1}
+                  onEditPOI={handleEditPOI}
+                  onDeletePOI={handleDeletePOI}
+                  onVotePOI={handleVotePOI}
                 />
               </div>
 
@@ -688,6 +911,10 @@ const DetailViewContent = () => {
               onAddPOI={handleAddPOI}
               selectedPOIs={selectedPOIs}
               centerOnPOI={centerOnPOI}
+              onVotePOI={handleVotePOI}
+              onEditPOI={handleEditPOI}
+              onDeletePOI={handleDeletePOI}
+              clearPendingTrigger={clearPendingTrigger}
             />
           )}
         </div>
@@ -706,6 +933,7 @@ const DetailViewContent = () => {
         onClose={() => {
           setShowAddPOIModal(false);
           setPendingPOILocation(null);
+          setClearPendingTrigger(prev => prev + 1);
         }}
         onSubmit={handlePOISubmit}
         location={pendingPOILocation}
@@ -746,6 +974,17 @@ const DetailViewContent = () => {
         destinationId={selectedDestinationId}
         accommodation={editingAccommodation}
         onSuccess={() => fetchAccommodations(selectedDestinationId)}
+      />
+
+      {/* Edit POI Modal */}
+      <EditPOIModal
+        isOpen={showEditPOIModal}
+        onClose={() => {
+          setShowEditPOIModal(false);
+          setEditingPOI(null);
+        }}
+        onSubmit={handleEditPOISubmit}
+        poi={editingPOI}
       />
     </div>
   );

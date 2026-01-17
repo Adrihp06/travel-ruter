@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import Map, {
   NavigationControl,
   ScaleControl,
@@ -18,7 +18,11 @@ import {
   Plus,
   X,
   Clock,
-  DollarSign
+  DollarSign,
+  ThumbsUp,
+  ThumbsDown,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -126,8 +130,9 @@ const renderCategoryIcon = (category, className = "w-4 h-4") => {
 /**
  * POI Marker Component
  */
-const POIMarker = ({ poi, isHovered, onClick, onHover, onLeave }) => {
+const POIMarker = ({ poi, isHovered, isSelected, onClick, onHover, onLeave }) => {
   const colors = getCategoryColor(poi.category);
+  const showHighlight = isHovered || isSelected;
 
   return (
     <Marker
@@ -142,7 +147,7 @@ const POIMarker = ({ poi, isHovered, onClick, onHover, onLeave }) => {
       <div
         className={`
           cursor-pointer transition-all duration-200
-          ${isHovered ? 'scale-125 z-10' : 'scale-100'}
+          ${showHighlight ? 'scale-125 z-10' : 'scale-100'}
         `}
         onMouseEnter={() => onHover(poi)}
         onMouseLeave={onLeave}
@@ -151,6 +156,7 @@ const POIMarker = ({ poi, isHovered, onClick, onHover, onLeave }) => {
           ${colors.bg} ${colors.hover}
           text-white p-2 rounded-full shadow-lg
           transition-colors duration-200
+          ${isSelected ? 'ring-4 ring-indigo-400 ring-opacity-75' : ''}
         `}>
           {renderCategoryIcon(poi.category, "w-4 h-4")}
         </div>
@@ -178,7 +184,7 @@ const AddPOIModeOverlay = ({ onCancel }) => (
 /**
  * POI Popup Content
  */
-const POIPopupContent = ({ poi }) => {
+const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
   const colors = getCategoryColor(poi.category);
   const score = (poi.likes || 0) - (poi.vetoes || 0);
 
@@ -236,13 +242,50 @@ const POIPopupContent = ({ poi }) => {
         )}
       </div>
 
-      {/* Voting info */}
-      <div className="mt-3 pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
-        <span>👍 {poi.likes || 0} · 👎 {poi.vetoes || 0}</span>
-        {poi.priority > 0 && (
-          <span className="text-amber-500 font-medium">★ Priority {poi.priority}</span>
-        )}
+      {/* Action buttons */}
+      <div className="mt-3 pt-2 border-t border-gray-100 flex items-center justify-between">
+        {/* Voting buttons */}
+        <div className="flex items-center space-x-1">
+          <button
+            onClick={() => onVote && onVote(poi.id, 'like')}
+            className="flex items-center px-2 py-1 text-xs bg-green-50 hover:bg-green-100 text-green-700 rounded transition-colors"
+            title="Like this POI"
+          >
+            <ThumbsUp className="w-3 h-3 mr-1" />
+            {poi.likes || 0}
+          </button>
+          <button
+            onClick={() => onVote && onVote(poi.id, 'veto')}
+            className="flex items-center px-2 py-1 text-xs bg-red-50 hover:bg-red-100 text-red-700 rounded transition-colors"
+            title="Veto this POI"
+          >
+            <ThumbsDown className="w-3 h-3 mr-1" />
+            {poi.vetoes || 0}
+          </button>
+        </div>
+        {/* Edit/Delete buttons */}
+        <div className="flex items-center space-x-1">
+          <button
+            onClick={() => onEdit && onEdit(poi)}
+            className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+            title="Edit POI"
+          >
+            <Pencil className="w-3.5 h-3.5 text-gray-500" />
+          </button>
+          <button
+            onClick={() => onDelete && onDelete(poi)}
+            className="p-1.5 hover:bg-red-50 rounded transition-colors"
+            title="Delete POI"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-red-500" />
+          </button>
+        </div>
       </div>
+      {poi.priority > 0 && (
+        <div className="mt-2 text-xs text-amber-500 font-medium">
+          ★ Priority {poi.priority}
+        </div>
+      )}
     </div>
   );
 };
@@ -292,15 +335,53 @@ const MicroMap = ({
   enableAddPOI = true,
   onAddPOI = null,
   onPOIClick = null,
+  onVotePOI = null,
+  onEditPOI = null,
+  onDeletePOI = null,
+  centerOnPOI = null,
+  selectedPOIs = [],
+  clearPendingTrigger = 0,
 }) => {
   const { mapboxAccessToken } = useMapboxToken();
   const [popupInfo, setPopupInfo] = useState(null);
   const [hoveredPOI, setHoveredPOI] = useState(null);
   const [isAddMode, setIsAddMode] = useState(false);
   const [pendingLocation, setPendingLocation] = useState(null);
+  const mapRef = useRef(null);
 
   // Get destination coordinates
   const destinationCoords = useMemo(() => getCoordinates(destination), [destination]);
+
+  // Effect to fly to POI when centerOnPOI changes
+  useEffect(() => {
+    if (centerOnPOI && mapRef.current) {
+      const coords = getCoordinates(centerOnPOI);
+      if (coords) {
+        mapRef.current.flyTo({
+          center: [coords.lng, coords.lat],
+          zoom: 16,
+          duration: 1000,
+        });
+        // Also open the popup for this POI
+        setPopupInfo({
+          ...centerOnPOI,
+          ...coords,
+        });
+      }
+    }
+  }, [centerOnPOI]);
+
+  // Clear pending location when POIs change (i.e., new POI was added)
+  useEffect(() => {
+    setPendingLocation(null);
+  }, [pois]);
+
+  // Clear pending location when triggered externally (e.g., modal closed without creating POI)
+  useEffect(() => {
+    if (clearPendingTrigger > 0) {
+      setPendingLocation(null);
+    }
+  }, [clearPendingTrigger]);
 
   // Extract and flatten POI markers with coordinates
   const poiMarkers = useMemo(() => {
@@ -410,6 +491,7 @@ const MicroMap = ({
       )}
 
       <Map
+        ref={mapRef}
         initialViewState={{
           longitude: destinationCoords.lng,
           latitude: destinationCoords.lat,
@@ -425,29 +507,13 @@ const MicroMap = ({
         <NavigationControl position="top-right" showCompass={true} />
         <ScaleControl position="bottom-right" />
 
-        {/* Main destination marker */}
-        <Marker
-          longitude={destinationCoords.lng}
-          latitude={destinationCoords.lat}
-          anchor="bottom"
-        >
-          <div className="flex items-center justify-center">
-            <div className="relative">
-              <div className="bg-indigo-600 text-white p-2.5 rounded-full shadow-lg border-2 border-white">
-                <MapPin className="w-5 h-5" />
-              </div>
-              {/* Pulse animation */}
-              <div className="absolute inset-0 bg-indigo-400 rounded-full animate-ping opacity-25" />
-            </div>
-          </div>
-        </Marker>
-
         {/* POI markers */}
         {poiMarkers.map((poi) => (
           <POIMarker
             key={poi.id}
             poi={poi}
             isHovered={hoveredPOI?.id === poi.id}
+            isSelected={selectedPOIs.includes(poi.id)}
             onClick={handleMarkerClick}
             onHover={setHoveredPOI}
             onLeave={() => setHoveredPOI(null)}
@@ -481,7 +547,12 @@ const MicroMap = ({
             closeButton={true}
             className="micro-map-popup"
           >
-            <POIPopupContent poi={popupInfo} />
+            <POIPopupContent
+              poi={popupInfo}
+              onVote={onVotePOI}
+              onEdit={onEditPOI}
+              onDelete={onDeletePOI}
+            />
           </Popup>
         )}
       </Map>

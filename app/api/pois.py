@@ -2,13 +2,40 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from geoalchemy2.functions import ST_SetSRID, ST_MakePoint
+from geoalchemy2.functions import ST_SetSRID, ST_MakePoint, ST_X, ST_Y
 
 from app.core.database import get_db
 from app.models import POI, Destination
 from app.schemas.poi import POICreate, POIUpdate, POIResponse, POIsByCategory, POIVote
 
 router = APIRouter()
+
+
+def poi_to_response(poi: POI, latitude: float | None = None, longitude: float | None = None) -> dict:
+    """Convert POI model to response dict with explicit lat/lng"""
+    return {
+        "id": poi.id,
+        "destination_id": poi.destination_id,
+        "name": poi.name,
+        "category": poi.category,
+        "description": poi.description,
+        "address": poi.address,
+        "latitude": latitude if latitude is not None else poi.latitude,
+        "longitude": longitude if longitude is not None else poi.longitude,
+        "estimated_cost": poi.estimated_cost,
+        "actual_cost": poi.actual_cost,
+        "currency": poi.currency,
+        "dwell_time": poi.dwell_time,
+        "likes": poi.likes,
+        "vetoes": poi.vetoes,
+        "priority": poi.priority,
+        "files": poi.files,
+        "metadata_json": poi.metadata_json,
+        "external_id": poi.external_id,
+        "external_source": poi.external_source,
+        "created_at": poi.created_at,
+        "updated_at": poi.updated_at,
+    }
 
 
 @router.post("/pois", response_model=POIResponse, status_code=status.HTTP_201_CREATED)
@@ -44,9 +71,20 @@ async def create_poi(
 
     db.add(db_poi)
     await db.flush()
-    await db.refresh(db_poi)
 
-    return db_poi
+    # Re-query to get the coordinates properly extracted
+    result = await db.execute(
+        select(
+            POI,
+            ST_Y(POI.coordinates).label('latitude'),
+            ST_X(POI.coordinates).label('longitude')
+        )
+        .where(POI.id == db_poi.id)
+    )
+    row = result.one()
+    created_poi, lat, lng = row
+
+    return poi_to_response(created_poi, lat, lng)
 
 
 @router.get("/destinations/{destination_id}/pois", response_model=List[POIsByCategory])
@@ -65,24 +103,35 @@ async def list_pois_by_destination(
             detail=f"Destination with id {destination_id} not found"
         )
 
-    # Get POIs ordered by category and priority
+    # Get POIs ordered by category and priority, with explicit lat/lng extraction
     result = await db.execute(
-        select(POI)
+        select(
+            POI,
+            ST_Y(POI.coordinates).label('latitude'),
+            ST_X(POI.coordinates).label('longitude')
+        )
         .where(POI.destination_id == destination_id)
         .order_by(POI.category.asc(), POI.priority.desc(), POI.created_at.asc())
     )
-    pois = result.scalars().all()
+    rows = result.all()
 
     # Group POIs by category
     categories_dict: dict[str, list] = {}
-    for poi in pois:
+    for row in rows:
+        poi = row[0]
+        lat = row[1]
+        lng = row[2]
+
         if poi.category not in categories_dict:
             categories_dict[poi.category] = []
-        categories_dict[poi.category].append(poi)
+
+        # Create response dict with explicit coordinates
+        poi_response = poi_to_response(poi, lat, lng)
+        categories_dict[poi.category].append(poi_response)
 
     # Convert to list of POIsByCategory
     grouped_pois = [
-        POIsByCategory(category=category, pois=pois_list)
+        {"category": category, "pois": pois_list}
         for category, pois_list in categories_dict.items()
     ]
 
@@ -95,16 +144,24 @@ async def get_poi(
     db: AsyncSession = Depends(get_db)
 ):
     """Get a specific POI by ID"""
-    result = await db.execute(select(POI).where(POI.id == id))
-    poi = result.scalar_one_or_none()
+    result = await db.execute(
+        select(
+            POI,
+            ST_Y(POI.coordinates).label('latitude'),
+            ST_X(POI.coordinates).label('longitude')
+        )
+        .where(POI.id == id)
+    )
+    row = result.one_or_none()
 
-    if not poi:
+    if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"POI with id {id} not found"
         )
 
-    return poi
+    poi, lat, lng = row
+    return poi_to_response(poi, lat, lng)
 
 
 @router.put("/pois/{id}", response_model=POIResponse)
@@ -141,9 +198,20 @@ async def update_poi(
         )
 
     await db.flush()
-    await db.refresh(db_poi)
 
-    return db_poi
+    # Re-query to get the coordinates properly extracted
+    result = await db.execute(
+        select(
+            POI,
+            ST_Y(POI.coordinates).label('latitude'),
+            ST_X(POI.coordinates).label('longitude')
+        )
+        .where(POI.id == id)
+    )
+    row = result.one()
+    updated_poi, lat, lng = row
+
+    return poi_to_response(updated_poi, lat, lng)
 
 
 @router.delete("/pois/{id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -187,6 +255,17 @@ async def vote_poi(
         db_poi.vetoes += 1
 
     await db.flush()
-    await db.refresh(db_poi)
 
-    return db_poi
+    # Re-query to get the coordinates properly extracted
+    result = await db.execute(
+        select(
+            POI,
+            ST_Y(POI.coordinates).label('latitude'),
+            ST_X(POI.coordinates).label('longitude')
+        )
+        .where(POI.id == id)
+    )
+    row = result.one()
+    updated_poi, lat, lng = row
+
+    return poi_to_response(updated_poi, lat, lng)
