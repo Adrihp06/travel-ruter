@@ -7,7 +7,8 @@ const DestinationFormModal = ({
   onClose,
   tripId,
   destination = null,
-  onSuccess
+  onSuccess,
+  trip = null,
 }) => {
   const { createDestination, updateDestination, isLoading } = useDestinationStore();
   const isEditMode = !!destination;
@@ -35,6 +36,25 @@ const DestinationFormModal = ({
     return 0;
   };
 
+  // Infer country from trip location or existing destinations
+  const inferCountry = () => {
+    if (!trip) return '';
+    // Check if there are existing destinations with a country
+    if (trip.destinations?.length > 0) {
+      const destWithCountry = trip.destinations.find(d => d.country);
+      if (destWithCountry) return destWithCountry.country;
+    }
+    // Try to extract country from trip location (e.g., "Tokyo, Japan" -> "Japan")
+    if (trip.location) {
+      const parts = trip.location.split(',').map(p => p.trim());
+      if (parts.length > 1) {
+        return parts[parts.length - 1]; // Last part is usually the country
+      }
+      return trip.location; // Single value, assume it's the country
+    }
+    return '';
+  };
+
   // Populate form for edit mode
   useEffect(() => {
     if (destination) {
@@ -50,7 +70,7 @@ const DestinationFormModal = ({
     } else {
       setFormData({
         city_name: '',
-        country: '',
+        country: inferCountry(),
         arrival_date: '',
         departure_date: '',
         notes: '',
@@ -59,17 +79,13 @@ const DestinationFormModal = ({
       });
     }
     setErrors({});
-  }, [destination, isOpen]);
+  }, [destination, isOpen, trip]);
 
   const validateForm = () => {
     const newErrors = {};
 
     if (!formData.city_name.trim()) {
       newErrors.city_name = 'City name is required';
-    }
-
-    if (!formData.country.trim()) {
-      newErrors.country = 'Country is required';
     }
 
     if (!formData.arrival_date) {
@@ -83,6 +99,25 @@ const DestinationFormModal = ({
     if (formData.arrival_date && formData.departure_date) {
       if (new Date(formData.departure_date) <= new Date(formData.arrival_date)) {
         newErrors.departure_date = 'Departure must be after arrival';
+      }
+    }
+
+    // Validate dates are within trip date range
+    if (trip && formData.arrival_date) {
+      if (new Date(formData.arrival_date) < new Date(trip.start_date)) {
+        newErrors.arrival_date = `Arrival must be on or after trip start (${trip.start_date})`;
+      }
+      if (new Date(formData.arrival_date) > new Date(trip.end_date)) {
+        newErrors.arrival_date = `Arrival must be on or before trip end (${trip.end_date})`;
+      }
+    }
+
+    if (trip && formData.departure_date) {
+      if (new Date(formData.departure_date) > new Date(trip.end_date)) {
+        newErrors.departure_date = `Departure must be on or before trip end (${trip.end_date})`;
+      }
+      if (new Date(formData.departure_date) < new Date(trip.start_date)) {
+        newErrors.departure_date = `Departure must be on or after trip start (${trip.start_date})`;
       }
     }
 
@@ -172,26 +207,21 @@ const DestinationFormModal = ({
           {/* Country */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Country *
+              Country
             </label>
             <input
               type="text"
               list="countries"
               value={formData.country}
               onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 ${
-                errors.country ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="Select or type country"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
+              placeholder="Select or type country (optional)"
             />
             <datalist id="countries">
               {countries.map((country) => (
                 <option key={country} value={country} />
               ))}
             </datalist>
-            {errors.country && (
-              <p className="text-red-500 text-xs mt-1">{errors.country}</p>
-            )}
           </div>
 
           {/* Dates */}
@@ -204,6 +234,8 @@ const DestinationFormModal = ({
                 type="date"
                 value={formData.arrival_date}
                 onChange={(e) => setFormData({ ...formData, arrival_date: e.target.value })}
+                min={trip?.start_date}
+                max={trip?.end_date}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 ${
                   errors.arrival_date ? 'border-red-500' : 'border-gray-300'
                 }`}
@@ -220,6 +252,8 @@ const DestinationFormModal = ({
                 type="date"
                 value={formData.departure_date}
                 onChange={(e) => setFormData({ ...formData, departure_date: e.target.value })}
+                min={trip?.start_date}
+                max={trip?.end_date}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 ${
                   errors.departure_date ? 'border-red-500' : 'border-gray-300'
                 }`}

@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class DestinationBase(BaseModel):
     city_name: str = Field(..., min_length=1, max_length=255, description="City name")
-    country: str = Field(..., min_length=1, max_length=255, description="Country")
+    country: Optional[str] = Field(None, max_length=255, description="Country")
     arrival_date: date = Field(..., description="Arrival date")
     departure_date: date = Field(..., description="Departure date")
     notes: Optional[str] = Field(None, description="Additional notes")

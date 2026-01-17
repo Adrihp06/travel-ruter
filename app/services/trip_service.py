@@ -28,6 +28,16 @@ class TripService:
         return result.scalar_one_or_none()
 
     @staticmethod
+    async def get_trip_with_destinations(db: AsyncSession, trip_id: int) -> Optional[Trip]:
+        """Get a trip by ID with destinations eagerly loaded"""
+        result = await db.execute(
+            select(Trip)
+            .options(selectinload(Trip.destinations))
+            .where(Trip.id == trip_id)
+        )
+        return result.scalar_one_or_none()
+
+    @staticmethod
     async def get_trips(
         db: AsyncSession, skip: int = 0, limit: int = 100
     ) -> List[Trip]:

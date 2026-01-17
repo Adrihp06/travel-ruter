@@ -17,12 +17,12 @@ const Timeline = ({
   };
 
   const sortedDestinations = [...destinations].sort(
-    (a, b) => new Date(a.arrivalDate) - new Date(b.arrivalDate)
+    (a, b) => new Date(a.arrival_date) - new Date(b.arrival_date)
   );
 
   // Calculate total trip duration
-  const tripStart = sortedDestinations[0]?.arrivalDate;
-  const tripEnd = sortedDestinations[sortedDestinations.length - 1]?.departureDate;
+  const tripStart = sortedDestinations[0]?.arrival_date;
+  const tripEnd = sortedDestinations[sortedDestinations.length - 1]?.departure_date;
   const totalDays = tripStart && tripEnd ? calculateNights(tripStart, tripEnd) : 0;
 
   // Transport mode icons
@@ -85,7 +85,7 @@ const Timeline = ({
 
           {sortedDestinations.map((dest, index) => {
             const isSelected = selectedDestinationId === dest.id;
-            const nights = calculateNights(dest.arrivalDate, dest.departureDate);
+            const nights = calculateNights(dest.arrival_date, dest.departure_date);
             const travelToNext = getTravelToNext(index);
 
             return (
@@ -111,9 +111,9 @@ const Timeline = ({
                       </h3>
                       <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1">
                         <Calendar className="w-3 h-3 mr-1" />
-                        <span>{new Date(dest.arrivalDate).toLocaleDateString()}</span>
+                        <span>{new Date(dest.arrival_date).toLocaleDateString()}</span>
                         <span className="mx-1">→</span>
-                        <span>{new Date(dest.departureDate).toLocaleDateString()}</span>
+                        <span>{new Date(dest.departure_date).toLocaleDateString()}</span>
                       </div>
                       <div className="flex items-center text-xs font-medium text-indigo-600 dark:text-indigo-400 mt-1">
                         <Moon className="w-3 h-3 mr-1" />

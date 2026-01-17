@@ -89,10 +89,24 @@ const useTripStore = create((set, get) => ({
   fetchTripDetails: async (tripId) => {
     set({ isLoading: true });
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}`);
-      if (!response.ok) throw new Error('Failed to fetch trip details');
-      const tripDetails = await response.json();
-      set({ selectedTrip: tripDetails, isLoading: false });
+      // Fetch trip details and destinations in parallel
+      const [tripResponse, destinationsResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/trips/${tripId}`),
+        fetch(`${API_BASE_URL}/trips/${tripId}/destinations`)
+      ]);
+
+      if (!tripResponse.ok) throw new Error('Failed to fetch trip details');
+
+      const tripDetails = await tripResponse.json();
+      const destinations = destinationsResponse.ok ? await destinationsResponse.json() : [];
+
+      // Merge destinations into trip details
+      const tripWithDestinations = {
+        ...tripDetails,
+        destinations: destinations
+      };
+
+      set({ selectedTrip: tripWithDestinations, isLoading: false });
       // Also fetch budget when loading trip details
       get().fetchTripBudget(tripId);
     } catch (error) {
@@ -101,8 +115,8 @@ const useTripStore = create((set, get) => ({
         id: Number(tripId),
         title: 'Summer in Norway',
         destinations: [
-          { id: 1, name: 'Oslo', arrivalDate: '2026-07-01', departureDate: '2026-07-03' },
-          { id: 2, name: 'Bergen', arrivalDate: '2026-07-03', departureDate: '2026-07-05' }
+          { id: 1, name: 'Oslo', arrival_date: '2026-07-01', departure_date: '2026-07-03' },
+          { id: 2, name: 'Bergen', arrival_date: '2026-07-03', departure_date: '2026-07-05' }
         ],
         days: [
           { day: 1, activities: ['Arrival in Oslo', 'Check-in at Hotel', 'Dinner at Aker Brygge'] },

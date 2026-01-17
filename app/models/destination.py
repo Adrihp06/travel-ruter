@@ -9,7 +9,7 @@ class Destination(BaseModel):
 
     trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=False, index=True)
     city_name = Column(String(255), nullable=False, index=True)
-    country = Column(String(255), nullable=False, index=True)
+    country = Column(String(255), nullable=True, index=True)
     arrival_date = Column(Date, nullable=False, index=True)
     departure_date = Column(Date, nullable=False, index=True)
     coordinates = Column(Geometry('POINT', srid=4326), nullable=True)

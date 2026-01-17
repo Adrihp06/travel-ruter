@@ -733,6 +733,7 @@ const DetailViewContent = () => {
         tripId={Number(id)}
         destination={editingDestination}
         onSuccess={() => fetchTripDetails(id)}
+        trip={selectedTrip}
       />
 
       {/* Accommodation Form Modal */}

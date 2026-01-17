@@ -1,7 +1,10 @@
+from __future__ import annotations
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List
 from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator, ConfigDict
+
+from app.schemas.destination import DestinationResponse
 
 
 class TripBase(BaseModel):
@@ -63,6 +66,11 @@ class TripResponse(TripBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TripWithDestinationsResponse(TripResponse):
+    """Schema for trip response with destinations included"""
+    destinations: List[DestinationResponse] = Field(default_factory=list, description="List of destinations in this trip")
 
 
 class BudgetSummary(BaseModel):

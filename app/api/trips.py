@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.schemas.trip import TripCreate, TripUpdate, TripResponse, BudgetSummary
+from app.schemas.trip import TripCreate, TripUpdate, TripResponse, TripWithDestinationsResponse, BudgetSummary
 from app.services.trip_service import TripService
 
 router = APIRouter()
@@ -42,22 +42,22 @@ async def get_trips(
 
 @router.get(
     "/{trip_id}",
-    response_model=TripResponse,
+    response_model=TripWithDestinationsResponse,
     summary="Get trip details",
-    description="Retrieve details of a specific trip by ID"
+    description="Retrieve details of a specific trip by ID, including all destinations"
 )
 async def get_trip(
     trip_id: int,
     db: AsyncSession = Depends(get_db)
-) -> TripResponse:
-    """Get a specific trip by ID"""
-    trip = await TripService.get_trip(db, trip_id)
+) -> TripWithDestinationsResponse:
+    """Get a specific trip by ID with destinations"""
+    trip = await TripService.get_trip_with_destinations(db, trip_id)
     if not trip:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Trip with id {trip_id} not found"
         )
-    return TripResponse.model_validate(trip)
+    return TripWithDestinationsResponse.model_validate(trip)
 
 
 @router.put(

@@ -160,12 +160,12 @@ const DayBasedAgenda = ({
 
   const allPOIs = useMemo(() => flattenPOIs(pois), [pois]);
   const nights = useMemo(
-    () => calculateNights(destination?.arrivalDate, destination?.departureDate),
-    [destination?.arrivalDate, destination?.departureDate]
+    () => calculateNights(destination?.arrival_date, destination?.departure_date),
+    [destination?.arrival_date, destination?.departure_date]
   );
   const { days, unassigned } = useMemo(
-    () => organizeByDay(allPOIs, destination?.arrivalDate, nights),
-    [allPOIs, destination?.arrivalDate, nights]
+    () => organizeByDay(allPOIs, destination?.arrival_date, nights),
+    [allPOIs, destination?.arrival_date, nights]
   );
 
   // Initialize all days as expanded by default using useEffect
@@ -232,7 +232,7 @@ const DayBasedAgenda = ({
           {destination.name || destination.city_name}
         </h2>
         <p className="text-sm text-gray-500">
-          {formatDate(destination.arrivalDate)} - {formatDate(destination.departureDate)}
+          {formatDate(destination.arrival_date)} - {formatDate(destination.departure_date)}
         </p>
         <p className="text-xs text-indigo-600 font-medium mt-1">
           {nights} {nights === 1 ? 'night' : 'nights'}
