@@ -12,7 +12,7 @@ import geoalchemy2
 
 # revision identifiers, used by Alembic.
 revision = '004_add_travel_segments'
-down_revision = '003_make_destination_country_optional'
+down_revision = '003_country_optional'
 branch_labels = None
 depends_on = None
 
