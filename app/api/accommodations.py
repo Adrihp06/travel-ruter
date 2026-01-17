@@ -2,12 +2,41 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from geoalchemy2.functions import ST_SetSRID, ST_MakePoint, ST_X, ST_Y
 
 from app.core.database import get_db
 from app.models import Accommodation, Destination
 from app.schemas import AccommodationCreate, AccommodationUpdate, AccommodationResponse
 
 router = APIRouter()
+
+
+def accommodation_to_response(acc: Accommodation, latitude: float | None = None, longitude: float | None = None) -> dict:
+    """Convert Accommodation model to response dict with explicit lat/lng"""
+    return {
+        "id": acc.id,
+        "destination_id": acc.destination_id,
+        "name": acc.name,
+        "type": acc.type,
+        "address": acc.address,
+        "latitude": latitude if latitude is not None else acc.latitude,
+        "longitude": longitude if longitude is not None else acc.longitude,
+        "check_in_date": acc.check_in_date,
+        "check_out_date": acc.check_out_date,
+        "booking_reference": acc.booking_reference,
+        "booking_url": acc.booking_url,
+        "total_cost": float(acc.total_cost) if acc.total_cost is not None else None,
+        "currency": acc.currency,
+        "is_paid": acc.is_paid,
+        "description": acc.description,
+        "contact_info": acc.contact_info,
+        "amenities": acc.amenities,
+        "files": acc.files,
+        "rating": float(acc.rating) if acc.rating is not None else None,
+        "review": acc.review,
+        "created_at": acc.created_at,
+        "updated_at": acc.updated_at,
+    }
 
 
 @router.post("/accommodations", response_model=AccommodationResponse, status_code=status.HTTP_201_CREATED)
@@ -27,13 +56,36 @@ async def create_accommodation(
         )
 
     # Create accommodation
-    db_accommodation = Accommodation(**accommodation.model_dump())
+    acc_data = accommodation.model_dump()
+    # Remove latitude/longitude as they're not direct model fields
+    latitude = acc_data.pop("latitude", None)
+    longitude = acc_data.pop("longitude", None)
+
+    db_accommodation = Accommodation(**acc_data)
+
+    # If latitude and longitude are provided, create PostGIS point
+    if latitude is not None and longitude is not None:
+        db_accommodation.coordinates = ST_SetSRID(
+            ST_MakePoint(longitude, latitude),
+            4326
+        )
 
     db.add(db_accommodation)
     await db.flush()
-    await db.refresh(db_accommodation)
 
-    return db_accommodation
+    # Re-query to get the coordinates properly extracted
+    result = await db.execute(
+        select(
+            Accommodation,
+            ST_Y(Accommodation.coordinates).label('latitude'),
+            ST_X(Accommodation.coordinates).label('longitude')
+        )
+        .where(Accommodation.id == db_accommodation.id)
+    )
+    row = result.one()
+    created_acc, lat, lng = row
+
+    return accommodation_to_response(created_acc, lat, lng)
 
 
 @router.get("/destinations/{destination_id}/accommodations", response_model=List[AccommodationResponse])
@@ -52,15 +104,19 @@ async def list_accommodations_by_destination(
             detail=f"Destination with id {destination_id} not found"
         )
 
-    # Get accommodations ordered by check-in date
+    # Get accommodations ordered by check-in date, with explicit lat/lng extraction
     result = await db.execute(
-        select(Accommodation)
+        select(
+            Accommodation,
+            ST_Y(Accommodation.coordinates).label('latitude'),
+            ST_X(Accommodation.coordinates).label('longitude')
+        )
         .where(Accommodation.destination_id == destination_id)
         .order_by(Accommodation.check_in_date.asc(), Accommodation.created_at.asc())
     )
-    accommodations = result.scalars().all()
+    rows = result.all()
 
-    return accommodations
+    return [accommodation_to_response(row[0], row[1], row[2]) for row in rows]
 
 
 @router.get("/accommodations/{id}", response_model=AccommodationResponse)
@@ -69,16 +125,24 @@ async def get_accommodation(
     db: AsyncSession = Depends(get_db)
 ):
     """Get a specific accommodation by ID"""
-    result = await db.execute(select(Accommodation).where(Accommodation.id == id))
-    accommodation = result.scalar_one_or_none()
+    result = await db.execute(
+        select(
+            Accommodation,
+            ST_Y(Accommodation.coordinates).label('latitude'),
+            ST_X(Accommodation.coordinates).label('longitude')
+        )
+        .where(Accommodation.id == id)
+    )
+    row = result.one_or_none()
 
-    if not accommodation:
+    if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Accommodation with id {id} not found"
         )
 
-    return accommodation
+    acc, lat, lng = row
+    return accommodation_to_response(acc, lat, lng)
 
 
 @router.put("/accommodations/{id}", response_model=AccommodationResponse)
@@ -100,6 +164,10 @@ async def update_accommodation(
     # Update fields
     update_data = accommodation_update.model_dump(exclude_unset=True)
 
+    # Handle coordinates separately
+    latitude = update_data.pop("latitude", None)
+    longitude = update_data.pop("longitude", None)
+
     # Validate dates if both are being updated
     check_in = update_data.get('check_in_date', db_accommodation.check_in_date)
     check_out = update_data.get('check_out_date', db_accommodation.check_out_date)
@@ -112,10 +180,28 @@ async def update_accommodation(
     for field, value in update_data.items():
         setattr(db_accommodation, field, value)
 
-    await db.flush()
-    await db.refresh(db_accommodation)
+    # Update coordinates if latitude and longitude are provided
+    if latitude is not None and longitude is not None:
+        db_accommodation.coordinates = ST_SetSRID(
+            ST_MakePoint(longitude, latitude),
+            4326
+        )
 
-    return db_accommodation
+    await db.flush()
+
+    # Re-query to get the coordinates properly extracted
+    result = await db.execute(
+        select(
+            Accommodation,
+            ST_Y(Accommodation.coordinates).label('latitude'),
+            ST_X(Accommodation.coordinates).label('longitude')
+        )
+        .where(Accommodation.id == id)
+    )
+    row = result.one()
+    updated_acc, lat, lng = row
+
+    return accommodation_to_response(updated_acc, lat, lng)
 
 
 @router.delete("/accommodations/{id}", status_code=status.HTTP_204_NO_CONTENT)

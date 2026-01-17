@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Bed, Calendar } from 'lucide-react';
 import useAccommodationStore from '../../stores/useAccommodationStore';
+import LocationAutocomplete from '../Location/LocationAutocomplete';
 
 const AccommodationFormModal = ({
   isOpen,
@@ -16,6 +17,8 @@ const AccommodationFormModal = ({
     name: '',
     type: 'hotel',
     address: '',
+    latitude: null,
+    longitude: null,
     check_in_date: '',
     check_out_date: '',
     booking_reference: '',
@@ -67,6 +70,8 @@ const AccommodationFormModal = ({
         name: accommodation.name || '',
         type: accommodation.type || 'hotel',
         address: accommodation.address || '',
+        latitude: accommodation.latitude || null,
+        longitude: accommodation.longitude || null,
         check_in_date: accommodation.check_in_date || '',
         check_out_date: accommodation.check_out_date || '',
         booking_reference: accommodation.booking_reference || '',
@@ -83,6 +88,8 @@ const AccommodationFormModal = ({
         name: '',
         type: 'hotel',
         address: '',
+        latitude: null,
+        longitude: null,
         check_in_date: '',
         check_out_date: '',
         booking_reference: '',
@@ -136,6 +143,16 @@ const AccommodationFormModal = ({
     }));
   };
 
+  // Handle location selection from autocomplete
+  const handleLocationChange = (address, latitude, longitude) => {
+    setFormData((prev) => ({
+      ...prev,
+      address: address,
+      latitude: latitude,
+      longitude: longitude,
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -147,6 +164,8 @@ const AccommodationFormModal = ({
         destination_id: destinationId,
         total_cost: formData.total_cost ? parseFloat(formData.total_cost) : null,
         rating: formData.rating ? parseFloat(formData.rating) : null,
+        latitude: formData.latitude,
+        longitude: formData.longitude,
       };
 
       let result;
@@ -169,20 +188,20 @@ const AccommodationFormModal = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-2">
-            <Bed className="w-5 h-5 text-indigo-600" />
-            <h3 className="text-lg font-semibold text-gray-900">
+            <Bed className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               {isEditMode ? 'Edit Accommodation' : 'Add Accommodation'}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
@@ -191,22 +210,22 @@ const AccommodationFormModal = ({
           {/* Name & Type */}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 sm:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                 placeholder="e.g., Hotel Nyhavn"
               />
-              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+              {errors.name && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.name}</p>}
             </div>
             <div className="col-span-2 sm:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type *</label>
               <select
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 {accommodationTypes.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
@@ -215,45 +234,46 @@ const AccommodationFormModal = ({
             </div>
           </div>
 
-          {/* Address */}
+          {/* Address with Geocoding */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-            <input
-              type="text"
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Address / Location</label>
+            <LocationAutocomplete
               value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-              placeholder="123 Main St, City"
+              latitude={formData.latitude}
+              longitude={formData.longitude}
+              onChange={handleLocationChange}
+              placeholder="Search for hotel address..."
+              className="[&_input]:dark:bg-gray-700 [&_input]:dark:text-white [&_input]:dark:border-gray-600"
             />
           </div>
 
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Check-in *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-in *</label>
               <input
                 type="date"
                 value={formData.check_in_date}
                 onChange={(e) => setFormData({ ...formData, check_in_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${errors.check_in_date ? 'border-red-500' : 'border-gray-300'}`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${errors.check_in_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
               />
-              {errors.check_in_date && <p className="text-red-500 text-xs mt-1">{errors.check_in_date}</p>}
+              {errors.check_in_date && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.check_in_date}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Check-out *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-out *</label>
               <input
                 type="date"
                 value={formData.check_out_date}
                 onChange={(e) => setFormData({ ...formData, check_out_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${errors.check_out_date ? 'border-red-500' : 'border-gray-300'}`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${errors.check_out_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
               />
-              {errors.check_out_date && <p className="text-red-500 text-xs mt-1">{errors.check_out_date}</p>}
+              {errors.check_out_date && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.check_out_date}</p>}
             </div>
           </div>
 
           {/* Nights indicator */}
           {nights > 0 && (
-            <div className="bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg text-sm flex items-center">
+            <div className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-3 py-2 rounded-lg text-sm flex items-center">
               <Calendar className="w-4 h-4 mr-2" />
               {nights} night{nights !== 1 ? 's' : ''}
             </div>
@@ -262,22 +282,22 @@ const AccommodationFormModal = ({
           {/* Booking Info */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Booking Ref</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Booking Ref</label>
               <input
                 type="text"
                 value={formData.booking_reference}
                 onChange={(e) => setFormData({ ...formData, booking_reference: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="ABC123"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Booking URL</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Booking URL</label>
               <input
                 type="url"
                 value={formData.booking_url}
                 onChange={(e) => setFormData({ ...formData, booking_url: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="https://..."
               />
             </div>
@@ -286,22 +306,22 @@ const AccommodationFormModal = ({
           {/* Cost & Payment */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Total Cost</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Total Cost</label>
               <input
                 type="number"
                 min="0"
                 step="0.01"
                 value={formData.total_cost}
                 onChange={(e) => setFormData({ ...formData, total_cost: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Currency</label>
               <select
                 value={formData.currency}
                 onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -314,14 +334,14 @@ const AccommodationFormModal = ({
                   onChange={(e) => setFormData({ ...formData, is_paid: e.target.checked })}
                   className="w-4 h-4 text-indigo-600 rounded"
                 />
-                <span className="text-sm">Paid</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Paid</span>
               </label>
             </div>
           </div>
 
           {/* Amenities */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Amenities</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Amenities</label>
             <div className="flex flex-wrap gap-2">
               {amenityOptions.map((amenity) => (
                 <button
@@ -330,8 +350,8 @@ const AccommodationFormModal = ({
                   onClick={() => handleAmenityToggle(amenity)}
                   className={`px-3 py-1 text-xs rounded-full border transition-colors ${
                     formData.amenities.includes(amenity)
-                      ? 'bg-indigo-100 border-indigo-300 text-indigo-700'
-                      : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                      ? 'bg-indigo-100 dark:bg-indigo-900/30 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300'
+                      : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
                   }`}
                 >
                   {amenity}
@@ -342,7 +362,7 @@ const AccommodationFormModal = ({
 
           {/* Rating */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Rating (1-5)</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rating (1-5)</label>
             <input
               type="number"
               min="1"
@@ -350,19 +370,19 @@ const AccommodationFormModal = ({
               step="0.1"
               value={formData.rating}
               onChange={(e) => setFormData({ ...formData, rating: e.target.value })}
-              className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${errors.rating ? 'border-red-500' : 'border-gray-300'}`}
+              className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${errors.rating ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
               placeholder="4.5"
             />
-            {errors.rating && <p className="text-red-500 text-xs mt-1">{errors.rating}</p>}
+            {errors.rating && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.rating}</p>}
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               rows={3}
               placeholder="Additional notes about this accommodation..."
             />
@@ -370,7 +390,7 @@ const AccommodationFormModal = ({
 
           {/* Error */}
           {errors.submit && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">{errors.submit}</div>
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm">{errors.submit}</div>
           )}
 
           {/* Buttons */}
@@ -378,7 +398,7 @@ const AccommodationFormModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Cancel
             </button>

@@ -317,6 +317,144 @@ const MapLegend = ({ categories }) => {
 };
 
 /**
+ * Accommodation Marker Component
+ */
+const AccommodationMarker = ({ accommodation, isHovered, onClick, onHover, onLeave }) => {
+  const coords = getCoordinates(accommodation);
+  if (!coords) return null;
+
+  return (
+    <Marker
+      longitude={coords.lng}
+      latitude={coords.lat}
+      anchor="bottom"
+      onClick={(e) => {
+        e.originalEvent.stopPropagation();
+        onClick(accommodation);
+      }}
+    >
+      <div
+        className={`
+          cursor-pointer transition-all duration-200
+          ${isHovered ? 'scale-125 z-10' : 'scale-100'}
+        `}
+        onMouseEnter={() => onHover(accommodation)}
+        onMouseLeave={onLeave}
+      >
+        <div className={`
+          bg-blue-600 hover:bg-blue-700
+          text-white p-2 rounded-full shadow-lg
+          transition-colors duration-200
+          ${isHovered ? 'ring-4 ring-blue-400 ring-opacity-75' : ''}
+        `}>
+          <Bed className="w-4 h-4" />
+        </div>
+      </div>
+    </Marker>
+  );
+};
+
+/**
+ * Accommodation Popup Content
+ */
+const AccommodationPopupContent = ({ accommodation, onEdit, onDelete }) => {
+  const nights = (() => {
+    if (accommodation.check_in_date && accommodation.check_out_date) {
+      const checkIn = new Date(accommodation.check_in_date);
+      const checkOut = new Date(accommodation.check_out_date);
+      const diff = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+      return diff > 0 ? diff : 0;
+    }
+    return 0;
+  })();
+
+  const typeEmoji = {
+    hotel: '🏨',
+    hostel: '🛏️',
+    airbnb: '🏠',
+    apartment: '🏢',
+    resort: '🏝️',
+    camping: '⛺',
+    guesthouse: '🏡',
+    ryokan: '🏯',
+    other: '🏘️',
+  };
+
+  return (
+    <div className="p-3 min-w-[200px] max-w-[280px]">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center space-x-2">
+          <span className="text-xl">{typeEmoji[accommodation.type] || typeEmoji.other}</span>
+          <div>
+            <h4 className="font-semibold text-gray-900 text-sm leading-tight">{accommodation.name}</h4>
+            <span className="text-xs text-blue-600 font-medium capitalize">{accommodation.type}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Details */}
+      <div className="space-y-1.5 text-xs text-gray-500">
+        {/* Dates */}
+        <div className="flex items-center">
+          <Clock className="w-3 h-3 mr-1.5" />
+          <span>{accommodation.check_in_date} - {accommodation.check_out_date}</span>
+          <span className="ml-1 text-blue-600">({nights} night{nights !== 1 ? 's' : ''})</span>
+        </div>
+
+        {/* Cost */}
+        {accommodation.total_cost && (
+          <div className="flex items-center">
+            <DollarSign className="w-3 h-3 mr-1.5" />
+            <span>{accommodation.total_cost} {accommodation.currency || 'USD'}</span>
+          </div>
+        )}
+
+        {/* Address */}
+        {accommodation.address && (
+          <div className="flex items-start">
+            <MapPin className="w-3 h-3 mr-1.5 mt-0.5 flex-shrink-0" />
+            <span className="line-clamp-2">{accommodation.address}</span>
+          </div>
+        )}
+
+        {/* Booking Reference */}
+        {accommodation.booking_reference && (
+          <div className="flex items-center text-gray-400">
+            <span className="mr-1">#</span>
+            <span className="font-mono">{accommodation.booking_reference}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Action buttons */}
+      {(onEdit || onDelete) && (
+        <div className="mt-3 pt-2 border-t border-gray-100 flex items-center justify-end space-x-1">
+          {onEdit && (
+            <button
+              onClick={() => onEdit(accommodation)}
+              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+              title="Edit accommodation"
+            >
+              <Pencil className="w-3.5 h-3.5 text-gray-500" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(accommodation.id)}
+              className="p-1.5 hover:bg-red-50 rounded transition-colors"
+              title="Delete accommodation"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
  * MicroMap - Deep zoom city map with POI markers
  *
  * Features:
@@ -324,10 +462,12 @@ const MapLegend = ({ categories }) => {
  * - Custom icons per POI category (Bed, Fork, Camera, etc.)
  * - Popup on click with POI details
  * - Click to add new POI mode
+ * - Accommodation markers with hotel icon
  */
 const MicroMap = ({
   destination,
   pois = [],
+  accommodations = [],
   height = '400px',
   zoom = 14,
   className = '',
@@ -338,19 +478,34 @@ const MicroMap = ({
   onVotePOI = null,
   onEditPOI = null,
   onDeletePOI = null,
+  onEditAccommodation = null,
+  onDeleteAccommodation = null,
   centerOnPOI = null,
   selectedPOIs = [],
   clearPendingTrigger = 0,
 }) => {
   const { mapboxAccessToken } = useMapboxToken();
   const [popupInfo, setPopupInfo] = useState(null);
+  const [popupType, setPopupType] = useState(null); // 'poi' or 'accommodation'
   const [hoveredPOI, setHoveredPOI] = useState(null);
+  const [hoveredAccommodation, setHoveredAccommodation] = useState(null);
   const [isAddMode, setIsAddMode] = useState(false);
   const [pendingLocation, setPendingLocation] = useState(null);
   const mapRef = useRef(null);
 
   // Get destination coordinates
   const destinationCoords = useMemo(() => getCoordinates(destination), [destination]);
+
+  // Effect to fly to destination when it changes
+  useEffect(() => {
+    if (destination && mapRef.current && destinationCoords) {
+      mapRef.current.flyTo({
+        center: [destinationCoords.lng, destinationCoords.lat],
+        zoom: zoom,
+        duration: 1000,
+      });
+    }
+  }, [destination?.id, destinationCoords, zoom]);
 
   // Effect to fly to POI when centerOnPOI changes
   useEffect(() => {
@@ -414,13 +569,21 @@ const MicroMap = ({
     return Array.from(cats);
   }, [poiMarkers]);
 
-  // Handle marker click
+  // Handle POI marker click
   const handleMarkerClick = useCallback((poi) => {
     setPopupInfo(poi);
+    setPopupType('poi');
     if (onPOIClick) {
       onPOIClick(poi);
     }
   }, [onPOIClick]);
+
+  // Handle accommodation marker click
+  const handleAccommodationClick = useCallback((accommodation) => {
+    const coords = getCoordinates(accommodation);
+    setPopupInfo({ ...accommodation, lat: coords?.lat, lng: coords?.lng });
+    setPopupType('accommodation');
+  }, []);
 
   // Handle map click for adding POI
   const handleMapClick = useCallback((event) => {
@@ -520,6 +683,18 @@ const MicroMap = ({
           />
         ))}
 
+        {/* Accommodation markers */}
+        {accommodations.map((accommodation) => (
+          <AccommodationMarker
+            key={`acc-${accommodation.id}`}
+            accommodation={accommodation}
+            isHovered={hoveredAccommodation?.id === accommodation.id}
+            onClick={handleAccommodationClick}
+            onHover={setHoveredAccommodation}
+            onLeave={() => setHoveredAccommodation(null)}
+          />
+        ))}
+
         {/* Pending location marker (when adding POI) */}
         {pendingLocation && (
           <Marker
@@ -536,13 +711,13 @@ const MicroMap = ({
         )}
 
         {/* POI Popup */}
-        {popupInfo && (
+        {popupInfo && popupType === 'poi' && (
           <Popup
             longitude={popupInfo.lng}
             latitude={popupInfo.lat}
             anchor="bottom"
             offset={[0, -35]}
-            onClose={() => setPopupInfo(null)}
+            onClose={() => { setPopupInfo(null); setPopupType(null); }}
             closeOnClick={false}
             closeButton={true}
             className="micro-map-popup"
@@ -552,6 +727,26 @@ const MicroMap = ({
               onVote={onVotePOI}
               onEdit={onEditPOI}
               onDelete={onDeletePOI}
+            />
+          </Popup>
+        )}
+
+        {/* Accommodation Popup */}
+        {popupInfo && popupType === 'accommodation' && (
+          <Popup
+            longitude={popupInfo.lng}
+            latitude={popupInfo.lat}
+            anchor="bottom"
+            offset={[0, -35]}
+            onClose={() => { setPopupInfo(null); setPopupType(null); }}
+            closeOnClick={false}
+            closeButton={true}
+            className="micro-map-popup"
+          >
+            <AccommodationPopupContent
+              accommodation={popupInfo}
+              onEdit={onEditAccommodation}
+              onDelete={onDeleteAccommodation}
             />
           </Popup>
         )}

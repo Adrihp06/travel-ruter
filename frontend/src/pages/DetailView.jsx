@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { X, Plus, Pencil, Trash2, Bed } from 'lucide-react';
+import { X, Plus, Pencil, Trash2 } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import usePOIStore from '../stores/usePOIStore';
 import useDocumentStore from '../stores/useDocumentStore';
 import useDestinationStore from '../stores/useDestinationStore';
 import useAccommodationStore from '../stores/useAccommodationStore';
 import { DestinationFormModal } from '../components/Destination';
-import { AccommodationFormModal } from '../components/Accommodation';
+import { AccommodationFormModal, AccommodationList } from '../components/Accommodation';
 
 // Layout components
 import { ItineraryUIProvider, useItineraryUI } from '../contexts/ItineraryUIContext';
@@ -839,57 +839,21 @@ const DetailViewContent = () => {
 
               {/* Accommodation Section */}
               <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold flex items-center text-gray-900 dark:text-white">
-                    <Bed className="w-4 h-4 mr-2 text-indigo-600 dark:text-indigo-400" />
-                    Accommodation
-                  </h3>
-                  <button
-                    onClick={() => {
-                      setEditingAccommodation(null);
-                      setShowAccommodationModal(true);
-                    }}
-                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
-                  >
-                    + Add
-                  </button>
-                </div>
-
-                {accommodations.length === 0 ? (
-                  <p className="text-xs text-gray-400 dark:text-gray-500 italic">No accommodation added</p>
-                ) : (
-                  <div className="space-y-2">
-                    {accommodations.map((acc) => (
-                      <div key={acc.id} className="bg-white dark:bg-gray-700 p-2 rounded-lg text-sm group shadow-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-gray-900 dark:text-white">{acc.name}</span>
-                          <div className="opacity-0 group-hover:opacity-100 flex space-x-1 transition-opacity">
-                            <button
-                              onClick={() => {
-                                setEditingAccommodation(acc);
-                                setShowAccommodationModal(true);
-                              }}
-                              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-600 rounded"
-                              title="Edit accommodation"
-                            >
-                              <Pencil className="w-3 h-3 text-gray-500 dark:text-gray-400" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteAccommodation(acc.id)}
-                              className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
-                              title="Delete accommodation"
-                            >
-                              <Trash2 className="w-3 h-3 text-red-500 dark:text-red-400" />
-                            </button>
-                          </div>
-                        </div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
-                          {acc.type} • {acc.check_in_date} - {acc.check_out_date}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <AccommodationList
+                  accommodations={accommodations}
+                  onAdd={() => {
+                    setEditingAccommodation(null);
+                    setShowAccommodationModal(true);
+                  }}
+                  onEdit={(acc) => {
+                    setEditingAccommodation(acc);
+                    setShowAccommodationModal(true);
+                  }}
+                  onDelete={handleDeleteAccommodation}
+                  isCompact={true}
+                  title="Accommodation"
+                  emptyMessage="No accommodation added"
+                />
               </div>
             </div>
           )}
@@ -920,6 +884,7 @@ const DetailViewContent = () => {
             <MicroMap
               destination={selectedDestination}
               pois={pois}
+              accommodations={accommodations}
               height="100%"
               zoom={14}
               showLegend={true}
@@ -930,6 +895,11 @@ const DetailViewContent = () => {
               onVotePOI={handleVotePOI}
               onEditPOI={handleEditPOI}
               onDeletePOI={handleDeletePOI}
+              onEditAccommodation={(acc) => {
+                setEditingAccommodation(acc);
+                setShowAccommodationModal(true);
+              }}
+              onDeleteAccommodation={handleDeleteAccommodation}
               clearPendingTrigger={clearPendingTrigger}
             />
           )}

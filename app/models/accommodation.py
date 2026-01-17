@@ -1,6 +1,7 @@
 from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, Date, Text, JSON, Boolean
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry
+from geoalchemy2.shape import to_shape
 from app.models.base import BaseModel
 
 
@@ -12,6 +13,28 @@ class Accommodation(BaseModel):
     type = Column(String(100), nullable=False, index=True, comment="hotel, hostel, airbnb, etc.")
     address = Column(String(500), nullable=True)
     coordinates = Column(Geometry('POINT', srid=4326), nullable=True)
+
+    @property
+    def latitude(self):
+        """Extract latitude from PostGIS coordinates"""
+        if self.coordinates is not None:
+            try:
+                point = to_shape(self.coordinates)
+                return point.y
+            except Exception:
+                return None
+        return None
+
+    @property
+    def longitude(self):
+        """Extract longitude from PostGIS coordinates"""
+        if self.coordinates is not None:
+            try:
+                point = to_shape(self.coordinates)
+                return point.x
+            except Exception:
+                return None
+        return None
 
     # Booking details
     check_in_date = Column(Date, nullable=False, index=True)
