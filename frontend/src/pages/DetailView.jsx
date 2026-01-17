@@ -56,34 +56,34 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4">
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Add New POI</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Add New POI</h3>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
             <input
               type="text"
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               placeholder="Enter POI name"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Category</label>
             <select
               value={formData.category}
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
               {categories.map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
@@ -91,41 +91,41 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               rows={3}
               placeholder="Brief description of the place"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Est. Cost ($)</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Est. Cost ($)</label>
               <input
                 type="number"
                 min="0"
                 value={formData.estimated_cost}
                 onChange={(e) => setFormData({ ...formData, estimated_cost: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="0"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Duration (min)</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Duration (min)</label>
               <input
                 type="number"
                 min="0"
                 value={formData.dwell_time}
                 onChange={(e) => setFormData({ ...formData, dwell_time: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="30"
               />
             </div>
           </div>
           {location && (
-            <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">
+            <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg">
               Location: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
             </div>
           )}
@@ -133,7 +133,7 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               Cancel
             </button>
@@ -529,17 +529,17 @@ const DetailViewContent = () => {
 
   // Loading state
   if (isLoading) {
-    return <div className="flex items-center justify-center h-screen text-gray-500">Loading...</div>;
+    return <div className="flex items-center justify-center h-screen text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900">Loading...</div>;
   }
 
   if (!selectedTrip) {
-    return <div className="flex items-center justify-center h-screen text-gray-500">Trip not found</div>;
+    return <div className="flex items-center justify-center h-screen text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900">Trip not found</div>;
   }
 
   return (
-    <div className="relative h-screen overflow-hidden flex flex-col">
+    <div className="relative h-screen overflow-hidden flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Top Navigation Bar */}
-      <div className="h-14 flex-shrink-0 bg-white border-b border-gray-200 flex items-center justify-between px-4 z-30">
+      <div className="h-14 flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 z-30 transition-colors">
         {/* Left: Sidebar Toggle */}
         <div className="flex items-center">
           <SidebarToggle onClick={toggleSidebar} />
@@ -547,7 +547,7 @@ const DetailViewContent = () => {
 
         {/* Center: Breadcrumbs */}
         <div className="flex-1 flex justify-center">
-          <div className="bg-gray-50 px-4 py-1.5 rounded-lg">
+          <div className="bg-gray-50 dark:bg-gray-700 px-4 py-1.5 rounded-lg">
             <Breadcrumbs className="mb-0" />
           </div>
         </div>
@@ -569,7 +569,7 @@ const DetailViewContent = () => {
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Panel */}
-        <div className="w-80 flex-shrink-0 border-r border-gray-200 overflow-y-auto">
+        <div className="w-80 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 overflow-y-auto bg-white dark:bg-gray-800 transition-colors">
           {viewLevel === 1 ? (
             <Timeline
               destinations={selectedTrip.destinations || []}
@@ -599,10 +599,10 @@ const DetailViewContent = () => {
               </div>
 
               {/* Accommodation Section */}
-              <div className="p-4 border-t border-gray-200 bg-gray-50">
+              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold flex items-center">
-                    <Bed className="w-4 h-4 mr-2 text-indigo-600" />
+                  <h3 className="text-sm font-semibold flex items-center text-gray-900 dark:text-white">
+                    <Bed className="w-4 h-4 mr-2 text-indigo-600 dark:text-indigo-400" />
                     Accommodation
                   </h3>
                   <button
@@ -610,41 +610,41 @@ const DetailViewContent = () => {
                       setEditingAccommodation(null);
                       setShowAccommodationModal(true);
                     }}
-                    className="text-xs text-indigo-600 hover:text-indigo-700"
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
                   >
                     + Add
                   </button>
                 </div>
 
                 {accommodations.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic">No accommodation added</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 italic">No accommodation added</p>
                 ) : (
                   <div className="space-y-2">
                     {accommodations.map((acc) => (
-                      <div key={acc.id} className="bg-white p-2 rounded-lg text-sm group shadow-sm">
+                      <div key={acc.id} className="bg-white dark:bg-gray-700 p-2 rounded-lg text-sm group shadow-sm">
                         <div className="flex items-center justify-between">
-                          <span className="font-medium">{acc.name}</span>
+                          <span className="font-medium text-gray-900 dark:text-white">{acc.name}</span>
                           <div className="opacity-0 group-hover:opacity-100 flex space-x-1 transition-opacity">
                             <button
                               onClick={() => {
                                 setEditingAccommodation(acc);
                                 setShowAccommodationModal(true);
                               }}
-                              className="p-1 hover:bg-gray-100 rounded"
+                              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-600 rounded"
                               title="Edit accommodation"
                             >
-                              <Pencil className="w-3 h-3 text-gray-500" />
+                              <Pencil className="w-3 h-3 text-gray-500 dark:text-gray-400" />
                             </button>
                             <button
                               onClick={() => handleDeleteAccommodation(acc.id)}
-                              className="p-1 hover:bg-red-100 rounded"
+                              className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
                               title="Delete accommodation"
                             >
-                              <Trash2 className="w-3 h-3 text-red-500" />
+                              <Trash2 className="w-3 h-3 text-red-500 dark:text-red-400" />
                             </button>
                           </div>
                         </div>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                           {acc.type} • {acc.check_in_date} - {acc.check_out_date}
                         </p>
                       </div>

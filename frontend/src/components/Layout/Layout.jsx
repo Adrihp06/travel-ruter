@@ -11,7 +11,7 @@ const Layout = () => {
   const isItineraryView = /^\/trips\/[a-zA-Z0-9-]+$/.test(location.pathname);
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
       {/* Sidebar - hidden in itinerary view (handled by DetailView) */}
       {!isItineraryView && (
         <Sidebar
@@ -24,15 +24,15 @@ const Layout = () => {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile Header - only in non-itinerary views */}
         {!isItineraryView && (
-          <header className="md:hidden h-16 flex items-center justify-between px-4 bg-white border-b border-gray-200 flex-shrink-0">
+          <header className="md:hidden h-16 flex items-center justify-between px-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0 transition-colors">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="p-2 rounded-md hover:bg-gray-100"
+              className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
               aria-label="Open menu"
             >
-              <Menu className="w-6 h-6 text-gray-600" />
+              <Menu className="w-6 h-6 text-gray-600 dark:text-gray-300" />
             </button>
-            <span className="text-xl font-bold text-indigo-600">Travel Ruter</span>
+            <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">Travel Ruter</span>
             <div className="w-10" />
           </header>
         )}

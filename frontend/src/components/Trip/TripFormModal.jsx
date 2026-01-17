@@ -125,20 +125,20 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-2">
-            <Plane className="w-5 h-5 text-indigo-600" />
-            <h3 className="text-lg font-semibold text-gray-900">
+            <Plane className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               {isEditMode ? 'Edit Trip' : 'Create New Trip'}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
@@ -146,26 +146,26 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {/* Trip Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Trip Name *
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white ${
-                errors.name ? 'border-red-500' : 'border-gray-300'
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ${
+                errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
               }`}
               placeholder="e.g., Japan Adventure 2026"
             />
             {errors.name && (
-              <p className="text-red-500 text-xs mt-1">{errors.name}</p>
+              <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.name}</p>
             )}
           </div>
 
           {/* Location */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Location
             </label>
             <LocationAutocomplete
@@ -195,13 +195,13 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Description
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
               rows={3}
               placeholder="Brief description of your trip..."
             />
@@ -209,7 +209,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
 
           {/* Cover Image URL */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               <span className="flex items-center">
                 <Image className="w-4 h-4 mr-1.5" />
                 Cover Image URL
@@ -219,7 +219,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
               type="url"
               value={formData.cover_image}
               onChange={(e) => setFormData({ ...formData, cover_image: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
               placeholder="https://example.com/image.jpg"
             />
             {formData.cover_image && (
@@ -234,7 +234,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                 />
               </div>
             )}
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Optional: Add a URL to an image for your trip card
             </p>
           </div>
@@ -242,37 +242,35 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Start Date *
               </label>
               <input
                 type="date"
                 value={formData.start_date}
                 onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white ${
-                  errors.start_date ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ${
+                  errors.start_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
-                style={{ colorScheme: 'light' }}
               />
               {errors.start_date && (
-                <p className="text-red-500 text-xs mt-1">{errors.start_date}</p>
+                <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.start_date}</p>
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 End Date *
               </label>
               <input
                 type="date"
                 value={formData.end_date}
                 onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white ${
-                  errors.end_date ? 'border-red-500' : 'border-gray-300'
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ${
+                  errors.end_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
-                style={{ colorScheme: 'light' }}
               />
               {errors.end_date && (
-                <p className="text-red-500 text-xs mt-1">{errors.end_date}</p>
+                <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.end_date}</p>
               )}
             </div>
           </div>
@@ -280,7 +278,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           {/* Budget */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Budget
               </label>
               <input
@@ -289,21 +287,21 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                 step="0.01"
                 value={formData.total_budget}
                 onChange={(e) => setFormData({ ...formData, total_budget: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
                 placeholder="0.00"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Currency
               </label>
               <select
                 value={formData.currency}
                 onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
               >
                 {currencies.map((curr) => (
-                  <option key={curr} value={curr} className="text-gray-900">{curr}</option>
+                  <option key={curr} value={curr}>{curr}</option>
                 ))}
               </select>
             </div>
@@ -312,16 +310,16 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           {/* Status (edit mode only) */}
           {isEditMode && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Status
               </label>
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
               >
                 {statuses.map((status) => (
-                  <option key={status.value} value={status.value} className="text-gray-900">
+                  <option key={status.value} value={status.value}>
                     {status.label}
                   </option>
                 ))}
@@ -331,7 +329,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
 
           {/* Error Message */}
           {errors.submit && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
+            <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm">
               {errors.submit}
             </div>
           )}
@@ -341,7 +339,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
             >
               Cancel
             </button>

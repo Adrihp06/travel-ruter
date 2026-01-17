@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { MapboxProvider } from './contexts/MapboxContext';
 import { ItineraryUIProvider } from './contexts/ItineraryUIContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/Layout/Layout';
 import GlobalTripView from './pages/GlobalTripView';
 import DetailView from './pages/DetailView';
@@ -9,8 +10,9 @@ import SettingsPage from './pages/SettingsPage';
 
 function App() {
   return (
-    <ItineraryUIProvider>
-      <MapboxProvider>
+    <ThemeProvider>
+      <ItineraryUIProvider>
+        <MapboxProvider>
         <Router>
           <Routes>
             <Route path="/" element={<Layout />}>
@@ -23,7 +25,8 @@ function App() {
           </Routes>
         </Router>
       </MapboxProvider>
-    </ItineraryUIProvider>
+      </ItineraryUIProvider>
+    </ThemeProvider>
   );
 }
 

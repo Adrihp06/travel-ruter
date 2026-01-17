@@ -7,8 +7,8 @@ const Breadcrumbs = ({ className = "" }) => {
   const pathnames = location.pathname.split('/').filter((x) => x);
 
   return (
-    <nav aria-label="Breadcrumb" className={`flex items-center space-x-2 text-sm text-gray-500 ${className || 'mb-4'}`}>
-      <Link to="/" className="hover:text-gray-900 flex items-center">
+    <nav aria-label="Breadcrumb" className={`flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400 ${className || 'mb-4'}`}>
+      <Link to="/" className="hover:text-gray-900 dark:hover:text-white flex items-center">
         <Home className="w-4 h-4" />
       </Link>
       {pathnames.length > 0 && <ChevronRight className="w-4 h-4" />}
@@ -19,9 +19,9 @@ const Breadcrumbs = ({ className = "" }) => {
         return (
           <div key={to} className="flex items-center">
             {isLast ? (
-              <span className="font-medium text-gray-900 capitalize">{value}</span>
+              <span className="font-medium text-gray-900 dark:text-white capitalize">{value}</span>
             ) : (
-              <Link to={to} className="hover:text-gray-900 capitalize">
+              <Link to={to} className="hover:text-gray-900 dark:hover:text-white capitalize">
                 {value}
               </Link>
             )}

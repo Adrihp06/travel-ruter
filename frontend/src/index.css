@@ -1,21 +1,37 @@
 @import "tailwindcss";
 
+/* Dark mode configuration for Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
-  color-scheme: light dark;
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+.dark {
+  color-scheme: dark;
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+}
+
+/* Dark mode transition for smooth theme switching */
+html {
+  transition: background-color 0.2s ease-in-out;
+}
+
+html.dark {
+  background-color: #111827;
 }
 
 /* Trip Card Animations */

@@ -167,20 +167,20 @@ const GlobalTripView = () => {
   }, [fetchTrips]);
 
   if (isLoading) {
-    return <div className="p-8 text-center text-gray-500">Loading trips...</div>;
+    return <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading trips...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 pt-24 relative overflow-y-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8 pt-24 relative overflow-y-auto transition-colors">
       <div className="absolute top-6 left-6 z-50">
-        <div className="bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm px-4 py-2 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
           <Breadcrumbs className="mb-0" />
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My Trips</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">My Trips</h1>
           <button
             onClick={() => {
               setEditingTrip(null);
@@ -193,15 +193,15 @@ const GlobalTripView = () => {
           </button>
         </div>
 
-        <div className="mb-10 h-[450px] rounded-2xl overflow-hidden shadow-md border border-gray-200">
+        <div className="mb-10 h-[450px] rounded-2xl overflow-hidden shadow-md border border-gray-200 dark:border-gray-700">
           <MacroMap trips={tripsWithDestinations} />
         </div>
 
         {trips.length === 0 ? (
           <div className="text-center py-16">
-            <Plane className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-600 mb-2">No trips yet</h2>
-            <p className="text-gray-500 mb-6">Create your first trip to get started!</p>
+            <Plane className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-2">No trips yet</h2>
+            <p className="text-gray-500 dark:text-gray-400 mb-6">Create your first trip to get started!</p>
             <button
               onClick={() => {
                 setEditingTrip(null);

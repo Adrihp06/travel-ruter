@@ -175,7 +175,7 @@ const TripCard = ({
   const coverImage = trip.cover_image || getDefaultCoverImage();
 
   return (
-    <div className="trip-card group bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 relative">
+    <div className="trip-card group bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-xl dark:hover:shadow-2xl dark:hover:shadow-black/30 transition-all duration-300 hover:-translate-y-1 relative">
       {/* Quick actions menu - positioned outside overflow-hidden */}
       <div className="absolute top-3 right-3 z-30">
         <div className="relative">
@@ -186,15 +186,15 @@ const TripCard = ({
               e.stopPropagation();
               setShowActions(!showActions);
             }}
-            className="p-2 bg-white/90 hover:bg-white rounded-lg transition-colors shadow-sm"
+            className="p-2 bg-white/90 dark:bg-gray-700/90 hover:bg-white dark:hover:bg-gray-600 rounded-lg transition-colors shadow-sm"
           >
-            <MoreVertical className="w-4 h-4 text-gray-600" />
+            <MoreVertical className="w-4 h-4 text-gray-600 dark:text-gray-300" />
           </button>
 
           {showActions && (
             <div
               ref={menuRef}
-              className="absolute right-0 mt-1 w-40 bg-white rounded-lg shadow-2xl border border-gray-300 py-1 z-50"
+              className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-700 rounded-lg shadow-2xl border border-gray-300 dark:border-gray-600 py-1 z-50"
             >
                 <button
                   onClick={(e) => {
@@ -203,7 +203,7 @@ const TripCard = ({
                     onEdit?.(trip);
                     setShowActions(false);
                   }}
-                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
                   <Pencil className="w-4 h-4 mr-2" /> Edit
                 </button>
@@ -214,7 +214,7 @@ const TripCard = ({
                     onDuplicate?.(trip);
                     setShowActions(false);
                   }}
-                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
                   <Copy className="w-4 h-4 mr-2" /> Duplicate
                 </button>
@@ -225,7 +225,7 @@ const TripCard = ({
                     onShare?.(trip);
                     setShowActions(false);
                   }}
-                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
                   <Share2 className="w-4 h-4 mr-2" /> Share
                 </button>
@@ -236,11 +236,11 @@ const TripCard = ({
                     onExport?.(trip);
                     setShowActions(false);
                   }}
-                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
                   <Download className="w-4 h-4 mr-2" /> Export
                 </button>
-                <hr className="my-1 border-gray-100" />
+                <hr className="my-1 border-gray-100 dark:border-gray-600" />
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -248,7 +248,7 @@ const TripCard = ({
                     onDelete?.(trip.id);
                     setShowActions(false);
                   }}
-                  className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                  className="w-full flex items-center px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                 >
                   <Trash2 className="w-4 h-4 mr-2" /> Delete
                 </button>
@@ -296,11 +296,11 @@ const TripCard = ({
       <div className="p-5">
         {/* Title and location */}
         <div className="mb-3">
-          <h3 className="text-lg font-bold text-gray-900 mb-1 group-hover:text-indigo-600 transition-colors line-clamp-1">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1">
             {title}
           </h3>
           {trip.location && (
-            <div className="flex items-center text-gray-500 text-sm">
+            <div className="flex items-center text-gray-500 dark:text-gray-400 text-sm">
               <MapPin className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
               <span className="line-clamp-1">{trip.location}</span>
             </div>
@@ -308,13 +308,13 @@ const TripCard = ({
         </div>
 
         {/* Description */}
-        <p className="text-gray-500 text-sm mb-4 leading-relaxed line-clamp-2">
+        <p className="text-gray-500 dark:text-gray-400 text-sm mb-4 leading-relaxed line-clamp-2">
           {description}
         </p>
 
         {/* Dates */}
-        <div className="flex items-center text-sm text-gray-600 mb-4">
-          <Calendar className="w-4 h-4 mr-1.5 text-gray-400" />
+        <div className="flex items-center text-sm text-gray-600 dark:text-gray-300 mb-4">
+          <Calendar className="w-4 h-4 mr-1.5 text-gray-400 dark:text-gray-500" />
           <span>
             {formatDate(trip.start_date)}
             {trip.end_date && ` - ${formatDate(trip.end_date)}`}
@@ -323,17 +323,17 @@ const TripCard = ({
 
         {/* Budget display */}
         {(trip.total_budget || budget) && (
-          <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 rounded-lg">
+          <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
             <div className="flex items-center text-sm">
-              <DollarSign className="w-4 h-4 mr-1.5 text-gray-400" />
-              <span className="text-gray-600">Budget</span>
+              <DollarSign className="w-4 h-4 mr-1.5 text-gray-400 dark:text-gray-500" />
+              <span className="text-gray-600 dark:text-gray-300">Budget</span>
             </div>
             <div className="text-right">
-              <div className="font-semibold text-gray-900">
+              <div className="font-semibold text-gray-900 dark:text-white">
                 {formatCurrency(trip.total_budget || budget?.total_budget, trip.currency)}
               </div>
               {budget?.actual_total != null && (
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
                   {formatCurrency(budget.actual_total, trip.currency)} spent
                 </div>
               )}
@@ -345,10 +345,10 @@ const TripCard = ({
         {destinationCount > 0 && (
           <div className="mb-4">
             <div className="flex items-center justify-between text-sm mb-1.5">
-              <span className="text-gray-600">Destinations</span>
-              <span className="text-gray-900 font-medium">{completedDestinations}/{destinationCount}</span>
+              <span className="text-gray-600 dark:text-gray-300">Destinations</span>
+              <span className="text-gray-900 dark:text-white font-medium">{completedDestinations}/{destinationCount}</span>
             </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
                 style={{ width: `${progressPercent}%` }}
@@ -360,7 +360,7 @@ const TripCard = ({
         {/* View itinerary link */}
         <Link
           to={`/trips/${trip.id}`}
-          className="inline-flex items-center w-full justify-center px-4 py-2.5 bg-indigo-50 text-indigo-600 font-semibold rounded-lg hover:bg-indigo-100 transition-colors group/link"
+          className="inline-flex items-center w-full justify-center px-4 py-2.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors group/link"
         >
           View Itinerary
           <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover/link:translate-x-1" />
