@@ -1,14 +1,25 @@
-import React from 'react';
-import { Calendar, Moon, Plane, Train, Bus, Car, Ship, Plus, Pencil, Trash2 } from 'lucide-react';
+import React, { useEffect, useCallback } from 'react';
+import { Calendar, Moon, Plus, Pencil, Trash2 } from 'lucide-react';
+import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
+import { TravelSegmentCard } from '../TravelSegment';
 
 const Timeline = ({
   destinations,
+  tripId,
   onSelectDestination,
   selectedDestinationId,
   onAddDestination,
   onEditDestination,
   onDeleteDestination
 }) => {
+  const {
+    segments,
+    fetchTripSegments,
+    calculateSegment,
+    getSegment,
+    calculatingSegments,
+  } = useTravelSegmentStore();
+
   const calculateNights = (start, end) => {
     const startDate = new Date(start);
     const endDate = new Date(end);
@@ -25,25 +36,25 @@ const Timeline = ({
   const tripEnd = sortedDestinations[sortedDestinations.length - 1]?.departure_date;
   const totalDays = tripStart && tripEnd ? calculateNights(tripStart, tripEnd) : 0;
 
-  // Transport mode icons
-  const TransportIcon = ({ mode }) => {
-    const icons = {
-      flight: Plane,
-      train: Train,
-      bus: Bus,
-      car: Car,
-      ferry: Ship,
-    };
-    const Icon = icons[mode] || Plane;
-    return <Icon className="w-3 h-3" />;
-  };
+  // Fetch travel segments when trip changes
+  useEffect(() => {
+    if (tripId) {
+      fetchTripSegments(tripId);
+    }
+  }, [tripId, fetchTripSegments]);
 
-  // Mock travel time function (replace with real data later)
-  const getTravelToNext = (index) => {
+  // Get travel segment to the next destination
+  const getTravelToNext = useCallback((index) => {
     if (index >= sortedDestinations.length - 1) return null;
-    // Mock data - in production this comes from API
-    return { duration: '2h', mode: 'flight' };
-  };
+    const fromDest = sortedDestinations[index];
+    const toDest = sortedDestinations[index + 1];
+    return getSegment(fromDest.id, toDest.id);
+  }, [sortedDestinations, getSegment]);
+
+  // Handle mode change for a segment
+  const handleModeChange = useCallback(async (fromId, toId, mode) => {
+    await calculateSegment(fromId, toId, mode);
+  }, [calculateSegment]);
 
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 w-80 overflow-y-auto transition-colors">
@@ -86,7 +97,10 @@ const Timeline = ({
           {sortedDestinations.map((dest, index) => {
             const isSelected = selectedDestinationId === dest.id;
             const nights = calculateNights(dest.arrival_date, dest.departure_date);
-            const travelToNext = getTravelToNext(index);
+            const segment = getTravelToNext(index);
+            const nextDest = sortedDestinations[index + 1];
+            const segmentKey = nextDest ? `${dest.id}-${nextDest.id}` : null;
+            const isCalculating = segmentKey ? calculatingSegments[segmentKey] || false : false;
 
             return (
               <div key={dest.id} className="group">
@@ -154,12 +168,19 @@ const Timeline = ({
                 </div>
 
                 {/* Travel Segment to Next Destination */}
-                {travelToNext && (
+                {nextDest && (
                   <div className="relative pl-6 py-2">
-                    <div className="flex items-center text-xs text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-700 rounded px-2 py-1 ml-2 w-fit">
-                      <TransportIcon mode={travelToNext.mode} />
-                      <span className="ml-1">{travelToNext.duration}</span>
-                    </div>
+                    <TravelSegmentCard
+                      segment={segment}
+                      fromCity={dest.name || dest.city_name}
+                      toCity={nextDest.name || nextDest.city_name}
+                      onModeChange={(mode) => handleModeChange(dest.id, nextDest.id, mode)}
+                      isCalculating={isCalculating}
+                      hasCoordinates={
+                        dest.latitude != null && dest.longitude != null &&
+                        nextDest.latitude != null && nextDest.longitude != null
+                      }
+                    />
                   </div>
                 )}
               </div>

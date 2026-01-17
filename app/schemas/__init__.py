@@ -20,6 +20,15 @@ from app.schemas.accommodation import (
     AccommodationUpdate,
     AccommodationResponse,
 )
+from app.schemas.travel_segment import (
+    TravelMode,
+    TravelSegmentCreate,
+    TravelSegmentUpdate,
+    TravelSegmentResponse,
+    TravelSegmentCalculateRequest,
+    TravelSegmentWithDestinations,
+    TripTravelSegmentsResponse,
+)
 
 __all__ = [
     "DestinationCreate",
@@ -36,4 +45,11 @@ __all__ = [
     "AccommodationCreate",
     "AccommodationUpdate",
     "AccommodationResponse",
+    "TravelMode",
+    "TravelSegmentCreate",
+    "TravelSegmentUpdate",
+    "TravelSegmentResponse",
+    "TravelSegmentCalculateRequest",
+    "TravelSegmentWithDestinations",
+    "TripTravelSegmentsResponse",
 ]

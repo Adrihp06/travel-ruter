@@ -7,6 +7,7 @@ from app.api.weather import router as weather_router
 from app.api.documents import router as documents_router
 from app.api.accommodations import router as accommodations_router
 from app.api.geocoding import router as geocoding_router
+from app.api.travel_segments import router as travel_segments_router
 
 api_router = APIRouter()
 
@@ -19,5 +20,6 @@ api_router.include_router(weather_router, tags=["weather"])
 api_router.include_router(documents_router, tags=["documents"])
 api_router.include_router(accommodations_router, tags=["accommodations"])
 api_router.include_router(geocoding_router, prefix="/geocoding", tags=["geocoding"])
+api_router.include_router(travel_segments_router, tags=["travel-segments"])
 
 __all__ = ["api_router"]

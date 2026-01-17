@@ -793,6 +793,7 @@ const DetailViewContent = () => {
           {viewLevel === 1 ? (
             <Timeline
               destinations={selectedTrip.destinations || []}
+              tripId={Number(id)}
               selectedDestinationId={selectedDestinationId}
               onSelectDestination={handleSelectDestination}
               onAddDestination={() => {
