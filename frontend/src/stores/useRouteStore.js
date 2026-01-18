@@ -29,7 +29,22 @@ const mapProfileToBackend = (profile) => {
   }
 };
 
-const useRouteStore = create((set) => ({
+// Map mode to OpenRouteService profile
+const mapModeToORS = (mode) => {
+  switch (mode) {
+    case 'driving':
+    case 'train': // Use driving-car for train as ORS follows roads (gives realistic route geometry)
+      return 'driving-car';
+    case 'walking':
+      return 'foot-walking';
+    case 'cycling':
+      return 'cycling-regular';
+    default:
+      return 'driving-car';
+  }
+};
+
+const useRouteStore = create((set, get) => ({
   // State
   routes: [],
   activeRoute: null,
@@ -44,11 +59,87 @@ const useRouteStore = create((set) => ({
   // Calculated route details
   routeDetails: null,
 
+  // OpenRouteService availability (cached)
+  orsAvailable: null, // null = not checked, true/false = cached result
+
   // Actions
   setTransportMode: (mode) => set({ transportMode: mode }),
   setShowRoute: (show) => set({ showRoute: show }),
   clearError: () => set({ error: null }),
   clearRoute: () => set({ activeRoute: null, routeGeometry: null, routeDetails: null }),
+
+  // Check if OpenRouteService is available
+  checkORSAvailability: async () => {
+    const { orsAvailable } = get();
+    if (orsAvailable !== null) return orsAvailable;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/routes/ors/status`);
+      if (response.ok) {
+        const data = await response.json();
+        set({ orsAvailable: data.available });
+        return data.available;
+      }
+    } catch {
+      // ORS not available
+    }
+    set({ orsAvailable: false });
+    return false;
+  },
+
+  // Calculate route using OpenRouteService (real road network routing)
+  calculateORSRoute: async (destinations, mode = 'driving') => {
+    if (!destinations || destinations.length < 2) {
+      set({ routeGeometry: null, routeDetails: null });
+      return null;
+    }
+
+    set({ isLoading: true, error: null });
+
+    try {
+      // Build waypoints from destinations
+      const waypoints = destinations.map(dest => ({
+        lon: dest.longitude || dest.lng || dest.coordinates?.[0],
+        lat: dest.latitude || dest.lat || dest.coordinates?.[1],
+      })).filter(wp => wp.lon && wp.lat);
+
+      if (waypoints.length < 2) {
+        throw new Error('Need at least 2 valid waypoints');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/routes/ors/multi-waypoint`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          waypoints,
+          profile: mapModeToORS(mode),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || 'Failed to calculate route via OpenRouteService');
+      }
+
+      const data = await response.json();
+
+      set({
+        routeGeometry: data.geometry,
+        routeDetails: {
+          distance_km: data.distance_km,
+          duration_min: data.duration_min,
+          profile: data.profile,
+          segments: data.segments,
+        },
+        isLoading: false,
+      });
+
+      return data;
+    } catch (error) {
+      set({ error: error.message, isLoading: false });
+      return null;
+    }
+  },
 
   // Calculate route between destinations using Mapbox
   calculateMapboxRoute: async (destinations, profile = 'driving') => {
@@ -106,8 +197,32 @@ const useRouteStore = create((set) => ({
   },
 
   // Calculate inter-city route (driving/train/flight)
+  // For train mode: uses OpenRouteService if available for real road geometry,
+  // otherwise falls back to heuristic-based straight line
   calculateInterCityRoute: async (origin, destination, mode = 'driving') => {
     set({ isLoading: true, error: null });
+
+    // For train mode, try to use OpenRouteService for real road network routing
+    // This gives a more realistic route geometry that follows actual roads
+    if (mode === 'train') {
+      const orsAvailable = await get().checkORSAvailability();
+      if (orsAvailable) {
+        const result = await get().calculateORSRoute([origin, destination], 'train');
+        if (result) {
+          // ORS succeeded - adjust the duration for train speed (faster than car)
+          // Train average speed is ~120 km/h vs car ~90 km/h, so reduce duration by 25%
+          set((state) => ({
+            routeDetails: {
+              ...state.routeDetails,
+              duration_min: Math.round(state.routeDetails.duration_min * 0.75),
+              mode: 'train',
+            },
+          }));
+          return result;
+        }
+        // If ORS failed, fall through to heuristic-based routing
+      }
+    }
 
     try {
       const response = await fetch(`${API_BASE_URL}/routes/inter-city`, {

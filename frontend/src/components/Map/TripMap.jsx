@@ -290,6 +290,7 @@ const TripMap = ({
     routeDetails,
     isLoading: isRouteLoading,
     calculateMapboxRoute,
+    calculateInterCityRoute,
     exportToGoogleMaps,
   } = useRouteStore();
 
@@ -337,12 +338,25 @@ const TripMap = ({
     }
   }, [sortedDestinations, tripLocation]);
 
-  // Calculate route using Mapbox when destinations change
+  // Calculate route when destinations or transport mode change
   useEffect(() => {
-    if (showRoute && sortedDestinations.length >= 2) {
+    if (!showRoute || sortedDestinations.length < 2) return;
+
+    // For train and flight, we use inter-city routing (straight lines with estimates)
+    // For driving/walking/cycling, we use Mapbox routing for accurate paths
+    if (transportMode === 'train' || transportMode === 'flight') {
+      // For inter-city modes, calculate route using our heuristic-based service
+      // The geometry will be straight lines, but we get accurate time/distance estimates
+      calculateInterCityRoute(
+        sortedDestinations[0],
+        sortedDestinations[sortedDestinations.length - 1],
+        transportMode
+      );
+    } else {
+      // For road-based transport, use Mapbox routing for accurate paths
       calculateMapboxRoute(sortedDestinations, transportMode);
     }
-  }, [sortedDestinations, transportMode, showRoute, calculateMapboxRoute]);
+  }, [sortedDestinations, transportMode, showRoute, calculateMapboxRoute, calculateInterCityRoute]);
 
   // Generate route line - prefer API geometry, fallback to straight lines
   const routeGeoJSON = useMemo(() => {
@@ -598,7 +612,7 @@ const TripMap = ({
           <div className="absolute top-4 left-4 z-10">
             <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-1">
               <div className="flex items-center gap-1">
-                {TRANSPORT_MODES.slice(0, 3).map((mode) => {
+                {TRANSPORT_MODES.map((mode) => {
                   const Icon = mode.icon;
                   const isSelected = transportMode === mode.id;
                   return (

@@ -36,7 +36,12 @@ import {
   Trash2,
   ThumbsUp,
   ThumbsDown,
+  Footprints,
+  Bike,
+  Car,
+  ArrowDown,
 } from 'lucide-react';
+import useDayRoutesStore from '../../stores/useDayRoutesStore';
 
 // Category icon mapping
 const categoryIcons = {
@@ -77,6 +82,74 @@ const formatDwellTime = (minutes) => {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+};
+
+// Transport mode options for segment routing
+const TRANSPORT_MODES = [
+  { id: 'walking', label: 'Walk', icon: Footprints, color: 'text-green-600 bg-green-50' },
+  { id: 'cycling', label: 'Bike', icon: Bike, color: 'text-amber-600 bg-amber-50' },
+  { id: 'driving', label: 'Drive', icon: Car, color: 'text-indigo-600 bg-indigo-50' },
+];
+
+// Transport Mode Connector between POIs
+const TransportModeConnector = ({ fromPoiId, toPoiId, segment }) => {
+  const { getSegmentMode, setSegmentMode } = useDayRoutesStore();
+  const currentMode = getSegmentMode(fromPoiId, toPoiId);
+
+  const handleModeChange = (mode) => {
+    setSegmentMode(fromPoiId, toPoiId, mode);
+  };
+
+  // Format segment info
+  const formatDistance = (km) => {
+    if (!km) return '';
+    return km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(1)}km`;
+  };
+
+  const formatDuration = (min) => {
+    if (!min) return '';
+    return min < 60 ? `${Math.round(min)}min` : `${Math.floor(min / 60)}h${Math.round(min % 60)}m`;
+  };
+
+  return (
+    <div className="flex items-center justify-center py-1.5 px-2">
+      <div className="flex items-center gap-2">
+        {/* Connector line */}
+        <div className="flex flex-col items-center">
+          <ArrowDown className="w-3 h-3 text-gray-300" />
+        </div>
+
+        {/* Transport mode buttons */}
+        <div className="flex items-center gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-full p-0.5">
+          {TRANSPORT_MODES.map((mode) => {
+            const Icon = mode.icon;
+            const isSelected = currentMode === mode.id;
+            return (
+              <button
+                key={mode.id}
+                onClick={() => handleModeChange(mode.id)}
+                className={`p-1 rounded-full transition-all duration-150 ${
+                  isSelected
+                    ? mode.color
+                    : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                }`}
+                title={mode.label}
+              >
+                <Icon className="w-3 h-3" />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Segment stats (if available) */}
+        {segment && (
+          <span className="text-xs text-gray-400 dark:text-gray-500">
+            {formatDistance(segment.distance)} · {formatDuration(segment.duration)}
+          </span>
+        )}
+      </div>
+    </div>
+  );
 };
 
 // Generate days between arrival and departure
@@ -274,7 +347,7 @@ const DayColumn = ({
       </button>
 
       {isExpanded && (
-        <DroppableContainer id={day.date} className="p-2 min-h-[60px] space-y-2 transition-all">
+        <DroppableContainer id={day.date} className="p-2 min-h-[60px] transition-all">
           <SortableContext
             items={pois.map(p => p.id)}
             strategy={verticalListSortingStrategy}
@@ -284,14 +357,22 @@ const DayColumn = ({
                 Drop POIs here
               </div>
             ) : (
-              pois.map((poi) => (
-                <SortablePOIItem
-                  key={poi.id}
-                  poi={poi}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  onVote={onVote}
-                />
+              pois.map((poi, index) => (
+                <React.Fragment key={poi.id}>
+                  <SortablePOIItem
+                    poi={poi}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onVote={onVote}
+                  />
+                  {/* Transport mode connector between POIs */}
+                  {index < pois.length - 1 && (
+                    <TransportModeConnector
+                      fromPoiId={poi.id}
+                      toPoiId={pois[index + 1].id}
+                    />
+                  )}
+                </React.Fragment>
               ))
             )}
           </SortableContext>

@@ -5,6 +5,8 @@ import Map, {
   FullscreenControl,
   Marker,
   Popup,
+  Source,
+  Layer,
 } from 'react-map-gl';
 import {
   MapPin,
@@ -23,8 +25,14 @@ import {
   ThumbsDown,
   Pencil,
   Trash2,
+  Car,
+  Footprints,
+  Bike,
+  ExternalLink,
+  Route,
 } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
+import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 /**
@@ -125,6 +133,71 @@ const getCoordinates = (item) => {
 const renderCategoryIcon = (category, className = "w-4 h-4") => {
   const Icon = getCategoryIconComponent(category);
   return <Icon className={className} />;
+};
+
+// Intra-city transport modes
+const INTRA_CITY_MODES = [
+  { id: 'walking', label: 'Walk', icon: Footprints, color: 'bg-green-100 text-green-600' },
+  { id: 'cycling', label: 'Bike', icon: Bike, color: 'bg-amber-100 text-amber-600' },
+  { id: 'driving', label: 'Drive', icon: Car, color: 'bg-indigo-100 text-indigo-600' },
+];
+
+// Day colors for route display
+const DAY_COLORS = [
+  { stroke: '#4F46E5', name: 'Indigo' },   // Day 1
+  { stroke: '#10B981', name: 'Emerald' },  // Day 2
+  { stroke: '#F59E0B', name: 'Amber' },    // Day 3
+  { stroke: '#EF4444', name: 'Red' },      // Day 4
+  { stroke: '#8B5CF6', name: 'Violet' },   // Day 5
+  { stroke: '#06B6D4', name: 'Cyan' },     // Day 6
+  { stroke: '#EC4899', name: 'Pink' },     // Day 7
+];
+
+// Get route layer style for a specific day
+const getDayRouteLayerStyle = (dayIndex, layerId) => ({
+  id: layerId,
+  type: 'line',
+  layout: {
+    'line-join': 'round',
+    'line-cap': 'round',
+  },
+  paint: {
+    'line-color': DAY_COLORS[dayIndex % DAY_COLORS.length].stroke,
+    'line-width': 4,
+    'line-opacity': 0.85,
+  },
+});
+
+// Route outline for visibility
+const getDayRouteOutlineStyle = (layerId) => ({
+  id: layerId,
+  type: 'line',
+  layout: {
+    'line-join': 'round',
+    'line-cap': 'round',
+  },
+  paint: {
+    'line-color': '#ffffff',
+    'line-width': 6,
+    'line-opacity': 0.5,
+  },
+});
+
+// Format duration
+const formatDuration = (minutes) => {
+  if (!minutes || minutes <= 0) return '';
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  if (hours === 0) return `${mins} min`;
+  if (mins === 0) return `${hours} hr`;
+  return `${hours}h ${mins}m`;
+};
+
+// Format distance
+const formatDistance = (km) => {
+  if (!km || km <= 0) return '';
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  return `${km.toFixed(1)} km`;
 };
 
 /**
@@ -483,6 +556,9 @@ const MicroMap = ({
   centerOnPOI = null,
   selectedPOIs = [],
   clearPendingTrigger = 0,
+  showRouteControls = true, // Show route UI controls
+  days = [], // Array of { date, displayDate, dayNumber } for route display
+  poisByDay = {}, // Map of date -> POIs for that day
 }) => {
   const { mapboxAccessToken } = useMapboxToken();
   const [popupInfo, setPopupInfo] = useState(null);
@@ -492,6 +568,17 @@ const MicroMap = ({
   const [isAddMode, setIsAddMode] = useState(false);
   const [pendingLocation, setPendingLocation] = useState(null);
   const mapRef = useRef(null);
+
+  // Day routes store integration
+  const {
+    dayRoutes,
+    visibleDays,
+    toggleDayVisibility,
+    calculateDayRoute,
+    calculateAllDayRoutes,
+    exportDayToGoogleMaps,
+    isCalculating,
+  } = useDayRoutesStore();
 
   // Get destination coordinates
   const destinationCoords = useMemo(() => getCoordinates(destination), [destination]);
@@ -537,6 +624,44 @@ const MicroMap = ({
       setPendingLocation(null);
     }
   }, [clearPendingTrigger]);
+
+  // Calculate routes when poisByDay changes
+  useEffect(() => {
+    if (Object.keys(poisByDay).length > 0) {
+      calculateAllDayRoutes(poisByDay);
+    }
+  }, [poisByDay, calculateAllDayRoutes]);
+
+  // Get visible routes for rendering
+  const visibleRoutes = useMemo(() => {
+    return visibleDays
+      .map((date, index) => {
+        const route = dayRoutes[date];
+        if (!route?.geometry) return null;
+        const dayIndex = days.findIndex(d => d.date === date);
+        return {
+          date,
+          dayIndex: dayIndex >= 0 ? dayIndex : index,
+          geometry: route.geometry,
+          totalDistance: route.totalDistance,
+          totalDuration: route.totalDuration,
+          totalDwellTime: route.totalDwellTime,
+          segments: route.segments,
+          pois: route.pois,
+        };
+      })
+      .filter(Boolean);
+  }, [visibleDays, dayRoutes, days]);
+
+  // Handle day route toggle
+  const handleToggleDayRoute = useCallback((date) => {
+    toggleDayVisibility(date);
+  }, [toggleDayVisibility]);
+
+  // Handle Google Maps export for a day
+  const handleExportDayToGoogleMaps = useCallback(async (date) => {
+    await exportDayToGoogleMaps(date);
+  }, [exportDayToGoogleMaps]);
 
   // Extract and flatten POI markers with coordinates
   const poiMarkers = useMemo(() => {
@@ -670,6 +795,37 @@ const MicroMap = ({
         <NavigationControl position="top-right" showCompass={true} />
         <ScaleControl position="bottom-right" />
 
+        {/* Day route layers - render each visible day's route with unique color */}
+        {visibleRoutes.map((route) => (
+          <React.Fragment key={route.date}>
+            {/* Route outline for visibility */}
+            <Source
+              id={`day-route-outline-${route.date}`}
+              type="geojson"
+              data={{
+                type: 'Feature',
+                properties: {},
+                geometry: route.geometry,
+              }}
+            >
+              <Layer {...getDayRouteOutlineStyle(`day-route-outline-layer-${route.date}`)} />
+            </Source>
+
+            {/* Route line with day color */}
+            <Source
+              id={`day-route-${route.date}`}
+              type="geojson"
+              data={{
+                type: 'Feature',
+                properties: {},
+                geometry: route.geometry,
+              }}
+            >
+              <Layer {...getDayRouteLayerStyle(route.dayIndex, `day-route-layer-${route.date}`)} />
+            </Source>
+          </React.Fragment>
+        ))}
+
         {/* POI markers */}
         {poiMarkers.map((poi) => (
           <POIMarker
@@ -754,6 +910,132 @@ const MicroMap = ({
 
       {/* Legend */}
       {showLegend && <MapLegend categories={categories} />}
+
+      {/* Day Route Controls - shown when we have days with POIs */}
+      {showRouteControls && days.length > 0 && (
+        <>
+          {/* Day Route Toggle Buttons - Top Left */}
+          <div className="absolute top-3 left-3 z-10">
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-2">
+              <div className="text-xs font-medium text-gray-500 mb-1.5">Show routes:</div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {days.map((day, index) => {
+                  const dayPois = poisByDay[day.date] || [];
+                  const isVisible = visibleDays.includes(day.date);
+                  const hasRoute = dayPois.length >= 2;
+                  const color = DAY_COLORS[index % DAY_COLORS.length];
+
+                  return (
+                    <button
+                      key={day.date}
+                      onClick={() => hasRoute && handleToggleDayRoute(day.date)}
+                      disabled={!hasRoute}
+                      className={`
+                        px-2 py-1 rounded-md text-xs font-medium transition-all duration-200
+                        flex items-center gap-1.5
+                        ${hasRoute
+                          ? isVisible
+                            ? 'text-white shadow-sm'
+                            : 'text-gray-600 hover:bg-gray-100 border border-gray-200'
+                          : 'text-gray-300 cursor-not-allowed'
+                        }
+                      `}
+                      style={hasRoute && isVisible ? { backgroundColor: color.stroke } : {}}
+                      title={hasRoute ? `Day ${day.dayNumber}: ${dayPois.length} POIs` : 'No route (need 2+ POIs)'}
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: hasRoute ? color.stroke : '#D1D5DB' }}
+                      />
+                      Day {day.dayNumber}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Route Legend - Top Right (when multiple routes visible) */}
+          {visibleRoutes.length > 1 && (
+            <div className="absolute top-3 right-14 z-10">
+              <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-2">
+                <div className="text-xs font-medium text-gray-500 mb-1">Route Legend</div>
+                <div className="space-y-1">
+                  {visibleRoutes.map((route) => {
+                    const day = days.find(d => d.date === route.date);
+                    const color = DAY_COLORS[route.dayIndex % DAY_COLORS.length];
+                    return (
+                      <div key={route.date} className="flex items-center gap-1.5 text-xs">
+                        <span
+                          className="w-3 h-0.5 rounded"
+                          style={{ backgroundColor: color.stroke }}
+                        />
+                        <span className="text-gray-700">Day {day?.dayNumber}</span>
+                        <span className="text-gray-400">
+                          {formatDistance(route.totalDistance)} · {formatDuration(route.totalDuration)}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Route Summary Bar - Bottom (when routes visible) */}
+          {visibleRoutes.length > 0 && (
+            <div className="absolute bottom-3 left-3 right-3 z-10">
+              <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {/* Route summary */}
+                    <div className="flex items-center gap-1.5">
+                      <Route className="w-4 h-4 text-indigo-600" />
+                      <span className="text-xs font-medium text-gray-600">
+                        {visibleRoutes.length} {visibleRoutes.length === 1 ? 'day' : 'days'}
+                      </span>
+                    </div>
+
+                    {/* Total stats */}
+                    <div className="h-4 w-px bg-gray-200" />
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="text-sm font-medium text-gray-900">
+                        {formatDistance(visibleRoutes.reduce((sum, r) => sum + r.totalDistance, 0))}
+                      </span>
+                    </div>
+                    <div className="h-4 w-px bg-gray-200" />
+                    <div className="flex items-center gap-1.5">
+                      <Footprints className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="text-sm font-medium text-gray-900">
+                        {formatDuration(visibleRoutes.reduce((sum, r) => sum + r.totalDuration, 0))}
+                      </span>
+                    </div>
+
+                    {isCalculating && (
+                      <span className="text-xs text-gray-500 animate-pulse">Calculating...</span>
+                    )}
+                  </div>
+
+                  {/* Export buttons */}
+                  <div className="flex items-center gap-1">
+                    {visibleRoutes.length === 1 && (
+                      <button
+                        onClick={() => handleExportDayToGoogleMaps(visibleRoutes[0].date)}
+                        disabled={isCalculating}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Google Maps</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 };

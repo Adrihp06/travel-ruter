@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     # Mapbox API
     MAPBOX_ACCESS_TOKEN: Optional[str] = None
 
+    # OpenRouteService API (for transit/public transport routing)
+    # Get free API key at: https://openrouteservice.org/dev/#/signup
+    OPENROUTESERVICE_API_KEY: Optional[str] = None
+
     class Config:
         env_file = ".env"
         case_sensitive = True

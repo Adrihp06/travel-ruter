@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { X, Plus, Pencil, Trash2, Calendar, List } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
@@ -640,6 +640,59 @@ const DetailViewContent = () => {
   const viewLevel = selectedDestinationId ? 2 : 1;
   const selectedDestination = selectedTrip?.destinations?.find(d => d.id === selectedDestinationId);
 
+  // Generate days for the selected destination
+  const destinationDays = useMemo(() => {
+    if (!selectedDestination?.arrival_date || !selectedDestination?.departure_date) return [];
+
+    const days = [];
+    const arrival = new Date(selectedDestination.arrival_date);
+    const departure = new Date(selectedDestination.departure_date);
+    let currentDate = new Date(arrival);
+    let dayNumber = 1;
+
+    while (currentDate < departure) {
+      days.push({
+        dayNumber,
+        date: currentDate.toISOString().split('T')[0],
+        displayDate: currentDate.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric'
+        }),
+      });
+      currentDate.setDate(currentDate.getDate() + 1);
+      dayNumber++;
+    }
+    return days;
+  }, [selectedDestination?.arrival_date, selectedDestination?.departure_date]);
+
+  // Organize POIs by day for routing
+  const poisByDay = useMemo(() => {
+    if (!pois || pois.length === 0 || destinationDays.length === 0) return {};
+
+    // Flatten all POIs from category groups
+    const allPOIs = pois.flatMap((group) => group.pois || []);
+
+    // Group POIs by scheduled date
+    const byDay = {};
+    destinationDays.forEach((day) => {
+      byDay[day.date] = [];
+    });
+
+    allPOIs.forEach((poi) => {
+      if (poi.scheduled_date && poi.latitude && poi.longitude && byDay[poi.scheduled_date]) {
+        byDay[poi.scheduled_date].push(poi);
+      }
+    });
+
+    // Sort each day's POIs by day_order
+    Object.keys(byDay).forEach((date) => {
+      byDay[date].sort((a, b) => (a.day_order || 0) - (b.day_order || 0));
+    });
+
+    return byDay;
+  }, [pois, destinationDays]);
+
   // Handlers
   const handleSelectDestination = useCallback((destId) => {
     setSelectedDestinationId(destId);
@@ -966,6 +1019,9 @@ const DetailViewContent = () => {
               }}
               onDeleteAccommodation={handleDeleteAccommodation}
               clearPendingTrigger={clearPendingTrigger}
+              showRouteControls={true}
+              days={destinationDays}
+              poisByDay={poisByDay}
             />
           )}
         </div>
