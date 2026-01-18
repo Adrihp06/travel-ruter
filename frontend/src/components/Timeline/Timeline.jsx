@@ -33,10 +33,12 @@ const Timeline = ({
   const [activeId, setActiveId] = useState(null);
 
   const {
+    segments,
     fetchTripSegments,
     calculateSegment,
     getSegment,
     calculatingSegments,
+    hasFetchedInitial,
   } = useTravelSegmentStore();
 
   // Configure sensors for pointer, touch, and keyboard interactions
@@ -115,7 +117,7 @@ const Timeline = ({
     const fromDest = sortedDestinations[index];
     const toDest = sortedDestinations[index + 1];
     return getSegment(fromDest.id, toDest.id);
-  }, [sortedDestinations, getSegment]);
+  }, [sortedDestinations, getSegment, segments]);
 
   // Handle mode change for a segment
   const handleModeChange = useCallback(async (fromId, toId, mode) => {
@@ -199,6 +201,7 @@ const Timeline = ({
                           toCity={nextDest.name || nextDest.city_name}
                           onModeChange={(mode) => handleModeChange(dest.id, nextDest.id, mode)}
                           isCalculating={isCalculating}
+                          hasFetchedInitial={hasFetchedInitial}
                           hasCoordinates={
                             dest.latitude != null && dest.longitude != null &&
                             nextDest.latitude != null && nextDest.longitude != null

@@ -15,6 +15,7 @@ export const TRAVEL_MODES = {
 const useTravelSegmentStore = create((set, get) => ({
   segments: [],
   isLoading: false,
+  hasFetchedInitial: false, // Track if initial fetch has completed
   error: null,
   calculatingSegments: {}, // Track which segments are being calculated { "fromId-toId": true }
 
@@ -43,10 +44,10 @@ const useTravelSegmentStore = create((set, get) => ({
       }
 
       const data = await response.json();
-      set({ segments: data.segments, isLoading: false });
+      set({ segments: data.segments, isLoading: false, hasFetchedInitial: true });
       return data.segments;
     } catch (error) {
-      set({ error: error.message, isLoading: false });
+      set({ error: error.message, isLoading: false, hasFetchedInitial: true });
       throw error;
     }
   },
@@ -156,7 +157,7 @@ const useTravelSegmentStore = create((set, get) => ({
   clearError: () => set({ error: null }),
 
   // Clear segments when changing trips
-  clearSegments: () => set({ segments: [], error: null, calculatingSegments: {} }),
+  clearSegments: () => set({ segments: [], error: null, calculatingSegments: {}, hasFetchedInitial: false }),
 }));
 
 export default useTravelSegmentStore;

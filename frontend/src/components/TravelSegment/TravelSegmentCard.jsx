@@ -33,6 +33,7 @@ const TravelSegmentCard = ({
   toCity,
   onModeChange,
   isCalculating = false,
+  hasFetchedInitial = false,
   expanded = false,
   hasCoordinates = true,
   error = null,
@@ -43,15 +44,16 @@ const TravelSegmentCard = ({
   const [calcError, setCalcError] = useState(null);
 
   // Auto-calculate on first render if no segment exists and has coordinates
+  // Wait until initial segment fetch completes to avoid overwriting saved travel_mode
   useEffect(() => {
-    if (!segment && !isCalculating && !hasTriggeredInitialCalc && onModeChange && hasCoordinates) {
+    if (!segment && !isCalculating && hasFetchedInitial && !hasTriggeredInitialCalc && onModeChange && hasCoordinates) {
       setHasTriggeredInitialCalc(true);
       setCalcError(null);
       onModeChange('car').catch(err => {
         setCalcError(err?.message || 'Calculation failed');
       });
     }
-  }, [segment, isCalculating, hasTriggeredInitialCalc, onModeChange, hasCoordinates]);
+  }, [segment, isCalculating, hasFetchedInitial, hasTriggeredInitialCalc, onModeChange, hasCoordinates]);
 
   // Update selected mode when segment changes
   useEffect(() => {
