@@ -128,6 +128,10 @@ class TravelSegmentService:
         if mode in (TravelMode.PLANE, TravelMode.FERRY):
             return None, None, None
 
+        geometry = None
+        distance_km = None
+        duration_min = None
+
         # Try Mapbox first for car, walking, biking
         mapbox_profile = cls._map_mode_to_mapbox_profile(mode)
         if mapbox_profile:
@@ -140,18 +144,13 @@ class TravelSegmentService:
                 )
                 distance_km = round(result.distance_meters / 1000, 2)
                 duration_min = int(round(result.duration_seconds / 60))
+                geometry = result.geometry
 
-                # Apply train overhead if applicable
-                if mode == TravelMode.TRAIN:
-                    # Trains are faster than cars, reduce duration by 25%
-                    duration_min = int(round(duration_min * 0.75))
-                    duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.TRAIN, 30)
-
-                return result.geometry, distance_km, duration_min
+                return geometry, distance_km, duration_min
             except MapboxServiceError as e:
                 logger.warning(f"Mapbox routing failed: {e}")
 
-        # Fallback to OpenRouteService for train/bus or if Mapbox failed
+        # Try OpenRouteService for train/bus or as fallback if Mapbox failed
         ors_profile = cls._map_mode_to_ors_profile(mode)
         if ors_profile:
             try:
@@ -178,6 +177,39 @@ class TravelSegmentService:
                     return result.geometry, distance_km, duration_min
             except ORSServiceError as e:
                 logger.warning(f"ORS routing failed: {e}")
+
+        # Final fallback: For train/bus, try Mapbox driving profile to get road network geometry
+        # This is better than a straight line since trains/buses often follow road corridors
+        if mode in (TravelMode.TRAIN, TravelMode.BUS) and geometry is None:
+            try:
+                service = MapboxService()
+                result = await service.get_route(
+                    origin=(lon1, lat1),
+                    destination=(lon2, lat2),
+                    profile=MapboxRoutingProfile.DRIVING,
+                )
+                # Use driving geometry as approximation
+                geometry = result.geometry
+                # Calculate distance and duration based on heuristics since driving
+                # route doesn't accurately reflect train/bus times
+                base_distance_km = round(result.distance_meters / 1000, 2)
+
+                if mode == TravelMode.TRAIN:
+                    # Trains are faster than cars, use driving distance but faster time
+                    distance_km = base_distance_km
+                    # Train speed ~120 km/h vs car ~80 km/h
+                    duration_min = int(round((base_distance_km / 120) * 60))
+                    duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.TRAIN, 30)
+                elif mode == TravelMode.BUS:
+                    # Buses follow roads but are slower
+                    distance_km = base_distance_km
+                    # Bus speed ~60 km/h
+                    duration_min = int(round((base_distance_km / 60) * 60))
+                    duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.BUS, 20)
+
+                return geometry, distance_km, duration_min
+            except MapboxServiceError as e:
+                logger.warning(f"Mapbox fallback for {mode} failed: {e}")
 
         return None, None, None
 
