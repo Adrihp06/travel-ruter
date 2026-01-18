@@ -14,6 +14,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
+  arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -534,17 +535,27 @@ const DailyItinerary = ({
 
     if (activeContainer === overContainer) {
       // Reordering within same container
-      const overIndex = targetItems.findIndex(p => p.id === overId);
+      let overIndex = targetItems.findIndex(p => p.id === overId);
 
-      if (overIndex === -1 || activeIndex === overIndex) return;
+      // If overId is the container ID (not a POI ID), overIndex will be -1
+      // In this case, we're dropping into an empty area of the container
+      // or the overId is the container itself - skip if no valid target
+      if (overIndex === -1) {
+        // Check if overId is a container ID - if so, place at end of container
+        if (overId === activeContainer || overId === 'unscheduled' || scheduledByDay[overId] !== undefined) {
+          // Dropping onto the container itself - no reorder needed within same container
+          return;
+        }
+        return;
+      }
 
-      // Remove from current position
-      sourceItems.splice(activeIndex, 1);
-      // Insert at new position
-      sourceItems.splice(overIndex, 0, movedPOI);
+      if (activeIndex === overIndex) return;
+
+      // Use arrayMove for proper reordering
+      const reorderedItems = arrayMove(targetItems, activeIndex, overIndex);
 
       // Create updates for all items in this container
-      sourceItems.forEach((poi, index) => {
+      reorderedItems.forEach((poi, index) => {
         updates.push({
           id: poi.id,
           scheduled_date: activeContainer === 'unscheduled' ? null : activeContainer,

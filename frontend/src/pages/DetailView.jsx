@@ -719,17 +719,28 @@ const DetailViewContent = () => {
 
 // Reorder destinations handler
   const handleReorderDestinations = useCallback(async (destinationIds) => {
+    const previousDestinations = selectedTrip?.destinations || [];
+
+    // Optimistic update: immediately reorder in trip store to prevent visual snapback
+    const reorderedDestinations = destinationIds.map((destId, index) => {
+      const dest = previousDestinations.find(d => d.id === destId);
+      return { ...dest, order_index: index };
+    });
+    setSelectedTripDestinations(reorderedDestinations);
+
     try {
       // Call API and get updated destinations with new order and dates
       const updatedDestinations = await reorderDestinations(Number(id), destinationIds);
-      // Directly update the trip store with the API response
+      // Update with server response (may include recalculated dates, etc.)
       setSelectedTripDestinations(updatedDestinations);
     } catch (error) {
       console.error('Failed to reorder destinations:', error);
-      // On error, refresh from server to restore correct state
+      // On error, rollback to previous state
+      setSelectedTripDestinations(previousDestinations);
+      // Also refresh from server to ensure consistency
       fetchTripDetails(id);
     }
-  }, [id, reorderDestinations, setSelectedTripDestinations, fetchTripDetails]);
+  }, [id, selectedTrip?.destinations, reorderDestinations, setSelectedTripDestinations, fetchTripDetails]);
 
   // POI Schedule change handler (for drag-and-drop)
   const handleScheduleChange = useCallback(async (updates) => {
