@@ -9,7 +9,7 @@ import Map, {
   Layer,
   Popup,
 } from 'react-map-gl';
-import { MapPin, Plus, Car, Footprints, Bike, Train, Plane, Ship, Bus, ExternalLink } from 'lucide-react';
+import { MapPin, Plus, Car, Footprints, Bike, Train, Plane, Ship, Bus, ExternalLink, AlertTriangle } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
 import useRouteStore from '../../stores/useRouteStore';
@@ -265,6 +265,7 @@ const TripMap = ({
     latitude: 59.9139,
     zoom: 5,
   });
+  const [showFallbackWarning, setShowFallbackWarning] = useState(true);
 
   // Travel segments store for segment-based routing
   const { segments, fetchTripSegments, clearSegments, isLoading: isSegmentsLoading } = useTravelSegmentStore();
@@ -413,13 +414,27 @@ const TripMap = ({
 
     const totalDistance = validSegments.reduce((sum, s) => sum + (s.distance_km || 0), 0);
     const totalDuration = validSegments.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    const fallbackSegments = validSegments.filter(s => s.is_fallback);
 
     return {
       distance_km: totalDistance,
       duration_minutes: totalDuration,
       segment_count: validSegments.length,
+      has_fallback: fallbackSegments.length > 0,
+      fallback_count: fallbackSegments.length,
     };
   }, [validSegments]);
+
+  // Auto-hide fallback warning after 4 seconds
+  useEffect(() => {
+    if (routeTotals?.has_fallback) {
+      setShowFallbackWarning(true);
+      const timer = setTimeout(() => {
+        setShowFallbackWarning(false);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [routeTotals?.has_fallback, routeTotals?.fallback_count]);
 
   // Handle Google Maps export
   const handleExportToGoogleMaps = useCallback(async () => {
@@ -652,6 +667,18 @@ const TripMap = ({
       {/* Route Info Bar - Bottom */}
       {showRouteControls && sortedDestinations.length >= 2 && (
         <div className="absolute bottom-4 left-4 right-4 z-10">
+          {/* Fallback Warning - auto-hides after 4 seconds */}
+          {routeTotals?.has_fallback && showFallbackWarning && (
+            <div className="bg-red-50 border border-red-200 rounded-lg shadow-lg p-3 mb-2 transition-opacity duration-300">
+              <div className="flex items-center gap-2 text-red-700">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm font-medium">
+                  Public transport route unavailable for {routeTotals.fallback_count} segment{routeTotals.fallback_count > 1 ? 's' : ''}.
+                  Showing car route instead.
+                </span>
+              </div>
+            </div>
+          )}
           <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -679,9 +706,9 @@ const TripMap = ({
                         return (
                           <div
                             key={seg.id}
-                            className="p-1 rounded"
-                            style={{ color: style.color }}
-                            title={`${seg.travel_mode}`}
+                            className={`p-1 rounded ${seg.is_fallback ? 'bg-red-100' : ''}`}
+                            style={{ color: seg.is_fallback ? '#dc2626' : style.color }}
+                            title={seg.is_fallback ? `${seg.travel_mode} (fallback - car route)` : seg.travel_mode}
                           >
                             <Icon className="w-4 h-4" />
                           </div>

@@ -34,6 +34,7 @@ class TravelSegmentResponse(TravelSegmentBase):
     distance_km: Optional[float] = Field(None, description="Distance in kilometers")
     duration_minutes: Optional[int] = Field(None, description="Duration in minutes")
     route_geometry: Optional[dict[str, Any]] = Field(None, description="GeoJSON LineString geometry for the route")
+    is_fallback: bool = Field(False, description="True if route is from fallback service (car route when transit unavailable)")
     created_at: datetime
     updated_at: datetime
 

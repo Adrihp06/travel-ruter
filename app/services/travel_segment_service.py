@@ -197,7 +197,7 @@ class TravelSegmentService:
         lat2: float, lon2: float,
         mode: TravelMode,
         routing_preference: RoutingPreference = RoutingPreference.DEFAULT
-    ) -> tuple[Optional[dict], Optional[float], Optional[int]]:
+    ) -> tuple[Optional[dict], Optional[float], Optional[int], bool]:
         """
         Fetch real route geometry from routing services.
 
@@ -208,7 +208,7 @@ class TravelSegmentService:
             routing_preference: Which routing service to prefer
 
         Returns:
-            tuple: (geometry_dict, distance_km, duration_minutes) or (None, None, None) if failed
+            tuple: (geometry_dict, distance_km, duration_minutes, is_fallback) or (None, None, None, False) if failed
         """
         # Log routing service availability
         mapbox_service = MapboxService()
@@ -223,7 +223,7 @@ class TravelSegmentService:
         # For flights and ferries, we don't have real routing - use straight line
         if mode in (TravelMode.PLANE, TravelMode.FERRY):
             logger.debug(f"Mode {mode} does not support routing, using straight line")
-            return None, None, None
+            return None, None, None, False
 
         geometry = None
         distance_km = None
@@ -246,7 +246,7 @@ class TravelSegmentService:
                 lat1, lon1, lat2, lon2, mode
             )
             if geometry is not None:
-                return geometry, distance_km, duration_min
+                return geometry, distance_km, duration_min, False  # Not a fallback - got real transit data
             # If Google Maps failed, fall through to other services
             logger.info(f"Google Maps routing failed for {mode}, falling back to other services")
 
@@ -268,7 +268,7 @@ class TravelSegmentService:
                     duration_min = int(round(result.duration_seconds / 60))
                     geometry = result.geometry
                     logger.info(f"Mapbox routing successful: {distance_km}km, {duration_min}min")
-                    return geometry, distance_km, duration_min
+                    return geometry, distance_km, duration_min, False  # Not a fallback for car/walk/bike
             except MapboxServiceError as e:
                 logger.warning(f"Mapbox routing failed: {e}")
 
@@ -290,6 +290,8 @@ class TravelSegmentService:
                     duration_min = int(round(result.duration_seconds / 60))
 
                     # Adjust for train/bus speed differences
+                    # ORS uses driving profile for train/bus, so it's a fallback
+                    is_fallback = cls._is_public_transport(mode)
                     if mode == TravelMode.TRAIN:
                         # Trains are faster than cars
                         duration_min = int(round(duration_min * 0.75))
@@ -299,8 +301,8 @@ class TravelSegmentService:
                         duration_min = int(round(duration_min * 1.2))
                         duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.BUS, 20)
 
-                    logger.info(f"ORS routing successful: {distance_km}km, {duration_min}min")
-                    return result.geometry, distance_km, duration_min
+                    logger.info(f"ORS routing successful: {distance_km}km, {duration_min}min (fallback={is_fallback})")
+                    return result.geometry, distance_km, duration_min, is_fallback
             except ORSServiceError as e:
                 logger.warning(f"ORS routing failed: {e}")
 
@@ -338,12 +340,13 @@ class TravelSegmentService:
                         duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.BUS, 20)
 
                     logger.info(f"Mapbox driving fallback successful for {mode}: {distance_km}km, {duration_min}min")
-                    return geometry, distance_km, duration_min
+                    return geometry, distance_km, duration_min, True  # This is a fallback - using car route for transit
             except MapboxServiceError as e:
                 logger.warning(f"Mapbox fallback for {mode} failed: {e}")
 
         logger.warning(f"All routing services failed for mode {mode}, using straight line fallback")
-        return None, None, None
+        # If we're returning None for public transport, it's still a fallback situation
+        return None, None, None, cls._is_public_transport(mode)
 
     @staticmethod
     async def get_segment(
@@ -439,7 +442,7 @@ class TravelSegmentService:
             )
 
         # Try to fetch real route geometry from routing services
-        route_geometry, api_distance_km, api_duration_min = await cls._fetch_route_geometry(
+        route_geometry, api_distance_km, api_duration_min, is_fallback = await cls._fetch_route_geometry(
             from_dest.latitude, from_dest.longitude,
             to_dest.latitude, to_dest.longitude,
             mode
@@ -476,6 +479,7 @@ class TravelSegmentService:
             existing.distance_km = distance_km
             existing.duration_minutes = duration_minutes
             existing.geometry = geometry_wkt
+            existing.is_fallback = is_fallback
             await db.flush()
             await db.refresh(existing)
             return existing
@@ -487,7 +491,8 @@ class TravelSegmentService:
                 travel_mode=mode.value,
                 distance_km=distance_km,
                 duration_minutes=duration_minutes,
-                geometry=geometry_wkt
+                geometry=geometry_wkt,
+                is_fallback=is_fallback
             )
             db.add(segment)
             await db.flush()

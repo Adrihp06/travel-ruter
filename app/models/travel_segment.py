@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, Float, UniqueConstraint
+from sqlalchemy import Column, String, Integer, ForeignKey, Float, UniqueConstraint, Boolean
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry
 from geoalchemy2.shape import to_shape
@@ -29,6 +29,12 @@ class TravelSegment(BaseModel):
     distance_km = Column(Float, nullable=True, comment="Distance in kilometers")
     duration_minutes = Column(Integer, nullable=True, comment="Duration in minutes")
     geometry = Column(Geometry('LINESTRING', srid=4326), nullable=True)
+    is_fallback = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="True if route is from fallback service (e.g., car route when transit unavailable)"
+    )
 
     # Relationships
     from_destination = relationship(
