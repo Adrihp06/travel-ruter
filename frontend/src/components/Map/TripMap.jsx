@@ -9,8 +9,9 @@ import Map, {
   Layer,
   Popup,
 } from 'react-map-gl';
-import { MapPin, Plus, Car, Footprints, Bike, Train, Plane, ExternalLink } from 'lucide-react';
+import { MapPin, Plus, Car, Footprints, Bike, Train, Plane, Ship, Bus, ExternalLink } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
+import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
 import useRouteStore from '../../stores/useRouteStore';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -154,74 +155,49 @@ const generateRouteGeoJSON = (destinations) => {
   };
 };
 
-// Route layer style based on transport mode
-const getRouteLayerStyle = (transportMode) => {
-  const baseStyle = {
-    id: 'route-line',
+// Route colors and styles based on transport mode
+const TRANSPORT_MODE_STYLES = {
+  car: { color: '#4F46E5', dasharray: null }, // indigo (solid)
+  driving: { color: '#4F46E5', dasharray: null }, // indigo (solid)
+  walk: { color: '#10B981', dasharray: [1, 2] }, // green (dotted)
+  walking: { color: '#10B981', dasharray: [1, 2] }, // green (dotted)
+  bike: { color: '#F59E0B', dasharray: [2, 1] }, // amber (dashed)
+  cycling: { color: '#F59E0B', dasharray: [2, 1] }, // amber (dashed)
+  train: { color: '#8B5CF6', dasharray: [4, 2] }, // purple (dash-dot)
+  bus: { color: '#EC4899', dasharray: [3, 2] }, // pink (dashed)
+  plane: { color: '#3B82F6', dasharray: [8, 4] }, // blue (long-dash)
+  flight: { color: '#3B82F6', dasharray: [8, 4] }, // blue (long-dash)
+  ferry: { color: '#06B6D4', dasharray: [6, 3] }, // cyan (dashed)
+};
+
+// Get route layer style for a specific segment
+const getSegmentLayerStyle = (segmentId, transportMode) => {
+  const style = TRANSPORT_MODE_STYLES[transportMode] || TRANSPORT_MODE_STYLES.car;
+
+  const paint = {
+    'line-color': style.color,
+    'line-width': 4,
+    'line-opacity': 0.85,
+  };
+
+  if (style.dasharray) {
+    paint['line-dasharray'] = style.dasharray;
+  }
+
+  return {
+    id: `route-segment-${segmentId}`,
     type: 'line',
     layout: {
       'line-join': 'round',
       'line-cap': 'round',
     },
-    paint: {
-      'line-width': 4,
-      'line-opacity': 0.85,
-    },
+    paint,
   };
-
-  switch (transportMode) {
-    case 'walking':
-      return {
-        ...baseStyle,
-        paint: {
-          ...baseStyle.paint,
-          'line-color': '#10B981', // green
-          'line-dasharray': [1, 2],
-        },
-      };
-    case 'cycling':
-      return {
-        ...baseStyle,
-        paint: {
-          ...baseStyle.paint,
-          'line-color': '#F59E0B', // amber
-          'line-dasharray': [2, 1],
-        },
-      };
-    case 'train':
-      return {
-        ...baseStyle,
-        paint: {
-          ...baseStyle.paint,
-          'line-color': '#8B5CF6', // purple
-          'line-dasharray': [4, 2],
-        },
-      };
-    case 'flight':
-      return {
-        ...baseStyle,
-        paint: {
-          ...baseStyle.paint,
-          'line-color': '#3B82F6', // blue
-          'line-dasharray': [8, 4],
-        },
-      };
-    case 'driving':
-    case 'driving-traffic':
-    default:
-      return {
-        ...baseStyle,
-        paint: {
-          ...baseStyle.paint,
-          'line-color': '#4F46E5', // indigo
-        },
-      };
-  }
 };
 
-// Route outline for better visibility
-const routeOutlineStyle = {
-  id: 'route-line-outline',
+// Route outline layer style for a specific segment
+const getSegmentOutlineStyle = (segmentId) => ({
+  id: `route-segment-outline-${segmentId}`,
   type: 'line',
   layout: {
     'line-join': 'round',
@@ -232,16 +208,22 @@ const routeOutlineStyle = {
     'line-width': 6,
     'line-opacity': 0.5,
   },
-};
+});
 
-// Transport mode icons and colors
-const TRANSPORT_MODES = [
-  { id: 'driving', label: 'Drive', icon: Car, color: 'bg-indigo-100 text-indigo-600' },
-  { id: 'walking', label: 'Walk', icon: Footprints, color: 'bg-green-100 text-green-600' },
-  { id: 'cycling', label: 'Bike', icon: Bike, color: 'bg-amber-100 text-amber-600' },
-  { id: 'train', label: 'Train', icon: Train, color: 'bg-purple-100 text-purple-600' },
-  { id: 'flight', label: 'Fly', icon: Plane, color: 'bg-blue-100 text-blue-600' },
-];
+// Transport mode icons mapping
+const TRANSPORT_MODE_ICONS = {
+  car: Car,
+  driving: Car,
+  walk: Footprints,
+  walking: Footprints,
+  bike: Bike,
+  cycling: Bike,
+  train: Train,
+  bus: Bus,
+  plane: Plane,
+  flight: Plane,
+  ferry: Ship,
+};
 
 // Format duration nicely
 const formatDuration = (minutes) => {
@@ -265,12 +247,13 @@ const TripMap = ({
   selectedDestinationId = null,
   onSelectDestination = null,
   showRoute = true,
-  showRouteControls = true, // New prop to show route options UI
+  showRouteControls = true, // Show route info bar
   height = '400px',
   className = '',
   tripLocation = null, // { latitude, longitude, name } - fallback location when no destinations
   enableAddPOI = false, // Enable click-to-add-POI mode
   onAddPOI = null, // Callback when clicking on map to add POI: ({ latitude, longitude }) => void
+  tripId = null, // Trip ID for fetching travel segments
 }) => {
   // Can only add POI if there are destinations to attach them to
   const canAddPOI = enableAddPOI && destinations.length > 0;
@@ -282,17 +265,12 @@ const TripMap = ({
     latitude: 59.9139,
     zoom: 5,
   });
-  // Route store integration
-  const {
-    transportMode,
-    setTransportMode,
-    routeGeometry,
-    routeDetails,
-    isLoading: isRouteLoading,
-    calculateMapboxRoute,
-    calculateInterCityRoute,
-    exportToGoogleMaps,
-  } = useRouteStore();
+
+  // Travel segments store for segment-based routing
+  const { segments, fetchTripSegments, isLoading: isSegmentsLoading } = useTravelSegmentStore();
+
+  // Route store for Google Maps export only
+  const { exportToGoogleMaps } = useRouteStore();
 
   // Sort destinations chronologically
   const sortedDestinations = useMemo(() => {
@@ -301,6 +279,13 @@ const TripMap = ({
       (a, b) => new Date(a.arrivalDate) - new Date(b.arrivalDate)
     );
   }, [destinations]);
+
+  // Fetch travel segments when trip changes
+  useEffect(() => {
+    if (tripId && sortedDestinations.length >= 2) {
+      fetchTripSegments(tripId);
+    }
+  }, [tripId, sortedDestinations.length, fetchTripSegments]);
 
   // Calculate initial view to fit all destinations or show trip location
   useEffect(() => {
@@ -338,53 +323,67 @@ const TripMap = ({
     }
   }, [sortedDestinations, tripLocation]);
 
-  // Calculate route when destinations or transport mode change
-  useEffect(() => {
-    if (!showRoute || sortedDestinations.length < 2) return;
+  // Build segment data with GeoJSON for rendering
+  const segmentGeoJSONs = useMemo(() => {
+    if (!showRoute || !segments || segments.length === 0) return [];
 
-    // For train and flight, we use inter-city routing (straight lines with estimates)
-    // For driving/walking/cycling, we use Mapbox routing for accurate paths
-    if (transportMode === 'train' || transportMode === 'flight') {
-      // For inter-city modes, calculate route using our heuristic-based service
-      // The geometry will be straight lines, but we get accurate time/distance estimates
-      calculateInterCityRoute(
-        sortedDestinations[0],
-        sortedDestinations[sortedDestinations.length - 1],
-        transportMode
-      );
-    } else {
-      // For road-based transport, use Mapbox routing for accurate paths
-      calculateMapboxRoute(sortedDestinations, transportMode);
-    }
-  }, [sortedDestinations, transportMode, showRoute, calculateMapboxRoute, calculateInterCityRoute]);
+    return segments.map((segment) => {
+      // Get from/to destinations for fallback coordinates
+      const fromDest = sortedDestinations.find(d => d.id === segment.from_destination_id);
+      const toDest = sortedDestinations.find(d => d.id === segment.to_destination_id);
 
-  // Generate route line - prefer API geometry, fallback to straight lines
-  const routeGeoJSON = useMemo(() => {
-    if (!showRoute) return null;
+      let geometry = null;
 
-    // Use route geometry from Mapbox API if available
-    if (routeGeometry?.type === 'LineString' || routeGeometry?.coordinates) {
+      // Use route_geometry from API if available
+      if (segment.route_geometry?.type === 'LineString' && segment.route_geometry?.coordinates?.length >= 2) {
+        geometry = segment.route_geometry;
+      } else {
+        // Fallback to straight line between destinations
+        const fromCoords = getCoordinates(fromDest);
+        const toCoords = getCoordinates(toDest);
+        if (fromCoords && toCoords) {
+          geometry = {
+            type: 'LineString',
+            coordinates: [
+              [fromCoords.lng, fromCoords.lat],
+              [toCoords.lng, toCoords.lat],
+            ],
+          };
+        }
+      }
+
+      if (!geometry) return null;
+
       return {
-        type: 'Feature',
-        properties: {},
-        geometry: routeGeometry,
+        id: segment.id,
+        travel_mode: segment.travel_mode,
+        distance_km: segment.distance_km,
+        duration_minutes: segment.duration_minutes,
+        geojson: {
+          type: 'Feature',
+          properties: {
+            id: segment.id,
+            travel_mode: segment.travel_mode,
+          },
+          geometry,
+        },
       };
-    }
+    }).filter(Boolean);
+  }, [showRoute, segments, sortedDestinations]);
 
-    // Fallback to straight lines between destinations
-    return generateRouteGeoJSON(sortedDestinations);
-  }, [sortedDestinations, showRoute, routeGeometry]);
+  // Calculate total distance and duration from all segments
+  const routeTotals = useMemo(() => {
+    if (!segments || segments.length === 0) return null;
 
-  // Get route layer style based on transport mode
-  const routeLayerStyle = useMemo(
-    () => getRouteLayerStyle(transportMode),
-    [transportMode]
-  );
+    const totalDistance = segments.reduce((sum, s) => sum + (s.distance_km || 0), 0);
+    const totalDuration = segments.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
 
-  // Handle transport mode change
-  const handleModeChange = useCallback((mode) => {
-    setTransportMode(mode);
-  }, [setTransportMode]);
+    return {
+      distance_km: totalDistance,
+      duration_minutes: totalDuration,
+      segment_count: segments.length,
+    };
+  }, [segments]);
 
   // Handle Google Maps export
   const handleExportToGoogleMaps = useCallback(async () => {
@@ -392,8 +391,9 @@ const TripMap = ({
     const origin = sortedDestinations[0];
     const destination = sortedDestinations[sortedDestinations.length - 1];
     const waypoints = sortedDestinations.slice(1, -1);
-    await exportToGoogleMaps(origin, destination, waypoints, transportMode);
-  }, [sortedDestinations, transportMode, exportToGoogleMaps]);
+    // Use driving as default for Google Maps export
+    await exportToGoogleMaps(origin, destination, waypoints, 'driving');
+  }, [sortedDestinations, exportToGoogleMaps]);
 
   const handleMarkerClick = useCallback(
     (destination, e) => {
@@ -482,19 +482,27 @@ const TripMap = ({
         <ScaleControl position="bottom-left" />
         <FullscreenControl position="top-right" />
 
-        {/* Route outline for visibility */}
-        {routeGeoJSON && (
-          <Source id="route-outline" type="geojson" data={routeGeoJSON}>
-            <Layer {...routeOutlineStyle} />
-          </Source>
-        )}
-
-        {/* Route line */}
-        {routeGeoJSON && (
-          <Source id="route" type="geojson" data={routeGeoJSON}>
-            <Layer {...routeLayerStyle} />
-          </Source>
-        )}
+        {/* Route segments - each with its own color based on transport mode */}
+        {segmentGeoJSONs.map((segmentData) => (
+          <React.Fragment key={`segment-${segmentData.id}`}>
+            {/* Segment outline for visibility */}
+            <Source
+              id={`route-segment-outline-${segmentData.id}`}
+              type="geojson"
+              data={segmentData.geojson}
+            >
+              <Layer {...getSegmentOutlineStyle(segmentData.id)} />
+            </Source>
+            {/* Segment line with transport mode color */}
+            <Source
+              id={`route-segment-${segmentData.id}`}
+              type="geojson"
+              data={segmentData.geojson}
+            >
+              <Layer {...getSegmentLayerStyle(segmentData.id, segmentData.travel_mode)} />
+            </Source>
+          </React.Fragment>
+        ))}
 
         <GeolocateControl position="top-right" />
 
@@ -605,84 +613,72 @@ const TripMap = ({
         </>
       )}
 
-      {/* Route Controls Overlay */}
+      {/* Route Info Bar - Bottom */}
       {showRouteControls && sortedDestinations.length >= 2 && (
-        <>
-          {/* Transport Mode Selector - Top Left */}
-          <div className="absolute top-4 left-4 z-10">
-            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-1">
-              <div className="flex items-center gap-1">
-                {TRANSPORT_MODES.map((mode) => {
-                  const Icon = mode.icon;
-                  const isSelected = transportMode === mode.id;
-                  return (
-                    <button
-                      key={mode.id}
-                      onClick={() => handleModeChange(mode.id)}
-                      className={`p-2 rounded-lg transition-all duration-200 ${
-                        isSelected
-                          ? mode.color
-                          : 'text-gray-400 hover:bg-gray-100'
-                      }`}
-                      title={mode.label}
-                    >
-                      <Icon className="w-5 h-5" />
-                    </button>
-                  );
-                })}
+        <div className="absolute bottom-4 left-4 right-4 z-10">
+          <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                {/* Route Stats from travel segments */}
+                {routeTotals && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm font-medium text-gray-900">
+                        {formatDistance(routeTotals.distance_km)}
+                      </span>
+                    </div>
+                    <div className="h-4 w-px bg-gray-200" />
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-900">
+                        {formatDuration(routeTotals.duration_minutes)}
+                      </span>
+                    </div>
+                    <div className="h-4 w-px bg-gray-200" />
+                    <div className="flex items-center gap-1">
+                      {/* Show transport mode icons for each segment */}
+                      {segments.slice(0, 5).map((seg, idx) => {
+                        const Icon = TRANSPORT_MODE_ICONS[seg.travel_mode] || Car;
+                        const style = TRANSPORT_MODE_STYLES[seg.travel_mode] || TRANSPORT_MODE_STYLES.car;
+                        return (
+                          <div
+                            key={seg.id}
+                            className="p-1 rounded"
+                            style={{ color: style.color }}
+                            title={`${seg.travel_mode}`}
+                          >
+                            <Icon className="w-4 h-4" />
+                          </div>
+                        );
+                      })}
+                      {segments.length > 5 && (
+                        <span className="text-xs text-gray-400 ml-1">+{segments.length - 5}</span>
+                      )}
+                    </div>
+                  </>
+                )}
+                {isSegmentsLoading && (
+                  <span className="text-sm text-gray-500">Loading routes...</span>
+                )}
+                {!routeTotals && !isSegmentsLoading && (
+                  <span className="text-sm text-gray-500">
+                    {sortedDestinations.length} stops
+                  </span>
+                )}
               </div>
+
+              {/* Export to Google Maps Button */}
+              <button
+                onClick={handleExportToGoogleMaps}
+                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span className="hidden sm:inline">Open in Google Maps</span>
+                <span className="sm:hidden">Navigate</span>
+              </button>
             </div>
           </div>
-
-          {/* Route Info Bar - Bottom */}
-          <div className="absolute bottom-4 left-4 right-4 z-10">
-            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  {/* Route Stats */}
-                  {routeDetails && (
-                    <>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm font-medium text-gray-900">
-                          {formatDistance(routeDetails.distance_km)}
-                        </span>
-                      </div>
-                      <div className="h-4 w-px bg-gray-200" />
-                      <div className="flex items-center gap-2">
-                        {(() => {
-                          const ModeIcon = TRANSPORT_MODES.find(m => m.id === transportMode)?.icon || Car;
-                          return <ModeIcon className="w-4 h-4 text-gray-400" />;
-                        })()}
-                        <span className="text-sm font-medium text-gray-900">
-                          {formatDuration(routeDetails.duration_min)}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                  {isRouteLoading && (
-                    <span className="text-sm text-gray-500">Calculating route...</span>
-                  )}
-                  {!routeDetails && !isRouteLoading && (
-                    <span className="text-sm text-gray-500">
-                      {sortedDestinations.length} stops
-                    </span>
-                  )}
-                </div>
-
-                {/* Export to Google Maps Button */}
-                <button
-                  onClick={handleExportToGoogleMaps}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  <span className="hidden sm:inline">Open in Google Maps</span>
-                  <span className="sm:hidden">Navigate</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );

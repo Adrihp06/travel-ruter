@@ -3,10 +3,16 @@ from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
 from typing import Optional
 from pyproj import Geod
+import json
+import logging
 
 from app.models.travel_segment import TravelSegment
 from app.models.destination import Destination
 from app.schemas.travel_segment import TravelMode, TravelSegmentCreate
+from app.services.mapbox_service import MapboxService, MapboxServiceError, MapboxRoutingProfile
+from app.services.openrouteservice import OpenRouteServiceService, ORSServiceError, ORSRoutingProfile
+
+logger = logging.getLogger(__name__)
 
 
 class TravelSegmentService:
@@ -81,6 +87,100 @@ class TravelSegmentService:
 
         return round(effective_distance, 2), total_minutes
 
+    @classmethod
+    def _map_mode_to_mapbox_profile(cls, mode: TravelMode) -> Optional[MapboxRoutingProfile]:
+        """Map travel mode to Mapbox routing profile."""
+        mapping = {
+            TravelMode.CAR: MapboxRoutingProfile.DRIVING,
+            TravelMode.WALK: MapboxRoutingProfile.WALKING,
+            TravelMode.BIKE: MapboxRoutingProfile.CYCLING,
+        }
+        return mapping.get(mode)
+
+    @classmethod
+    def _map_mode_to_ors_profile(cls, mode: TravelMode) -> Optional[ORSRoutingProfile]:
+        """Map travel mode to OpenRouteService routing profile."""
+        mapping = {
+            TravelMode.CAR: ORSRoutingProfile.DRIVING_CAR,
+            TravelMode.WALK: ORSRoutingProfile.FOOT_WALKING,
+            TravelMode.BIKE: ORSRoutingProfile.CYCLING_REGULAR,
+            # For train/bus, we use driving-car to get road network geometry
+            # (as a reasonable approximation since there's no dedicated rail routing)
+            TravelMode.TRAIN: ORSRoutingProfile.DRIVING_CAR,
+            TravelMode.BUS: ORSRoutingProfile.DRIVING_CAR,
+        }
+        return mapping.get(mode)
+
+    @classmethod
+    async def _fetch_route_geometry(
+        cls,
+        lat1: float, lon1: float,
+        lat2: float, lon2: float,
+        mode: TravelMode
+    ) -> tuple[Optional[dict], Optional[float], Optional[int]]:
+        """
+        Fetch real route geometry from routing services.
+
+        Returns:
+            tuple: (geometry_dict, distance_km, duration_minutes) or (None, None, None) if failed
+        """
+        # For flights and ferries, we don't have real routing - use straight line
+        if mode in (TravelMode.PLANE, TravelMode.FERRY):
+            return None, None, None
+
+        # Try Mapbox first for car, walking, biking
+        mapbox_profile = cls._map_mode_to_mapbox_profile(mode)
+        if mapbox_profile:
+            try:
+                service = MapboxService()
+                result = await service.get_route(
+                    origin=(lon1, lat1),
+                    destination=(lon2, lat2),
+                    profile=mapbox_profile,
+                )
+                distance_km = round(result.distance_meters / 1000, 2)
+                duration_min = int(round(result.duration_seconds / 60))
+
+                # Apply train overhead if applicable
+                if mode == TravelMode.TRAIN:
+                    # Trains are faster than cars, reduce duration by 25%
+                    duration_min = int(round(duration_min * 0.75))
+                    duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.TRAIN, 30)
+
+                return result.geometry, distance_km, duration_min
+            except MapboxServiceError as e:
+                logger.warning(f"Mapbox routing failed: {e}")
+
+        # Fallback to OpenRouteService for train/bus or if Mapbox failed
+        ors_profile = cls._map_mode_to_ors_profile(mode)
+        if ors_profile:
+            try:
+                service = OpenRouteServiceService()
+                if service.is_available():
+                    result = await service.get_route(
+                        origin=(lon1, lat1),
+                        destination=(lon2, lat2),
+                        profile=ors_profile,
+                    )
+                    distance_km = round(result.distance_meters / 1000, 2)
+                    duration_min = int(round(result.duration_seconds / 60))
+
+                    # Adjust for train/bus speed differences
+                    if mode == TravelMode.TRAIN:
+                        # Trains are faster than cars
+                        duration_min = int(round(duration_min * 0.75))
+                        duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.TRAIN, 30)
+                    elif mode == TravelMode.BUS:
+                        # Buses are slower than cars
+                        duration_min = int(round(duration_min * 1.2))
+                        duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.BUS, 20)
+
+                    return result.geometry, distance_km, duration_min
+            except ORSServiceError as e:
+                logger.warning(f"ORS routing failed: {e}")
+
+        return None, None, None
+
     @staticmethod
     async def get_segment(
         db: AsyncSession,
@@ -148,6 +248,7 @@ class TravelSegmentService:
     ) -> TravelSegment:
         """
         Calculate travel time between two destinations and save/update the segment.
+        Fetches real route geometry from routing services when available.
         """
         # Get destination coordinates
         from_dest_result = await db.execute(
@@ -173,15 +274,34 @@ class TravelSegmentService:
                 f"Target destination '{to_dest.city_name}' has no coordinates"
             )
 
-        # Calculate distance and duration
-        distance_km, duration_minutes = cls.calculate_travel_time(
+        # Try to fetch real route geometry from routing services
+        route_geometry, api_distance_km, api_duration_min = await cls._fetch_route_geometry(
             from_dest.latitude, from_dest.longitude,
             to_dest.latitude, to_dest.longitude,
             mode
         )
 
-        # Build geometry
-        geometry = f"LINESTRING({from_dest.longitude} {from_dest.latitude}, {to_dest.longitude} {to_dest.latitude})"
+        if route_geometry and api_distance_km is not None and api_duration_min is not None:
+            # Use API results
+            distance_km = api_distance_km
+            duration_minutes = api_duration_min
+            # Convert GeoJSON geometry to WKT for PostGIS storage
+            if route_geometry.get("type") == "LineString":
+                coords = route_geometry.get("coordinates", [])
+                wkt_coords = ", ".join(f"{c[0]} {c[1]}" for c in coords)
+                geometry_wkt = f"LINESTRING({wkt_coords})"
+            else:
+                # Fallback to straight line
+                geometry_wkt = f"LINESTRING({from_dest.longitude} {from_dest.latitude}, {to_dest.longitude} {to_dest.latitude})"
+        else:
+            # Fallback to heuristic calculation
+            distance_km, duration_minutes = cls.calculate_travel_time(
+                from_dest.latitude, from_dest.longitude,
+                to_dest.latitude, to_dest.longitude,
+                mode
+            )
+            # Straight line geometry
+            geometry_wkt = f"LINESTRING({from_dest.longitude} {from_dest.latitude}, {to_dest.longitude} {to_dest.latitude})"
 
         # Check if segment already exists
         existing = await cls.get_segment(db, from_destination_id, to_destination_id)
@@ -191,7 +311,7 @@ class TravelSegmentService:
             existing.travel_mode = mode.value
             existing.distance_km = distance_km
             existing.duration_minutes = duration_minutes
-            existing.geometry = geometry
+            existing.geometry = geometry_wkt
             await db.flush()
             await db.refresh(existing)
             return existing
@@ -203,7 +323,7 @@ class TravelSegmentService:
                 travel_mode=mode.value,
                 distance_km=distance_km,
                 duration_minutes=duration_minutes,
-                geometry=geometry
+                geometry=geometry_wkt
             )
             db.add(segment)
             await db.flush()

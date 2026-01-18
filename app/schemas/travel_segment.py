@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any
 from pydantic import BaseModel, ConfigDict, Field
 from enum import Enum
 
@@ -33,6 +33,7 @@ class TravelSegmentResponse(TravelSegmentBase):
     to_destination_id: int
     distance_km: Optional[float] = Field(None, description="Distance in kilometers")
     duration_minutes: Optional[int] = Field(None, description="Duration in minutes")
+    route_geometry: Optional[dict[str, Any]] = Field(None, description="GeoJSON LineString geometry for the route")
     created_at: datetime
     updated_at: datetime
 

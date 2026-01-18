@@ -1,6 +1,8 @@
 from sqlalchemy import Column, String, Integer, ForeignKey, Float, UniqueConstraint
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry
+from geoalchemy2.shape import to_shape
+from shapely.geometry import mapping
 from app.models.base import BaseModel
 
 
@@ -47,6 +49,17 @@ class TravelSegment(BaseModel):
             name='uq_travel_segment_destinations'
         ),
     )
+
+    @property
+    def route_geometry(self) -> dict | None:
+        """Convert PostGIS geometry to GeoJSON dict for API responses."""
+        if self.geometry is not None:
+            try:
+                shape = to_shape(self.geometry)
+                return mapping(shape)
+            except Exception:
+                return None
+        return None
 
     def __repr__(self):
         return (

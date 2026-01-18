@@ -986,6 +986,7 @@ const DetailViewContent = () => {
               onSelectDestination={handleSelectDestination}
               showRoute={true}
               height="100%"
+              tripId={Number(id)}
               tripLocation={
                 selectedTrip.latitude && selectedTrip.longitude
                   ? {
