@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Calendar } from 'lucide-react';
 import useDestinationStore from '../../stores/useDestinationStore';
+import LocationAutocomplete from '../Location/LocationAutocomplete';
 
 const DestinationFormModal = ({
   isOpen,
@@ -53,6 +54,31 @@ const DestinationFormModal = ({
       return trip.location; // Single value, assume it's the country
     }
     return '';
+  };
+
+  // Parse city and country from geo API display_name (e.g., "Tokyo, Japan" or "Paris, Île-de-France, France")
+  const parseCityAndCountry = (displayName) => {
+    if (!displayName) return { city: '', country: '' };
+    const parts = displayName.split(',').map(p => p.trim());
+    if (parts.length === 0) return { city: '', country: '' };
+    // First part is typically the city/location name
+    const city = parts[0];
+    // Last part is typically the country
+    const country = parts.length > 1 ? parts[parts.length - 1] : '';
+    return { city, country };
+  };
+
+  // Handle location selection from autocomplete
+  const handleLocationSelect = (location) => {
+    if (!location) return;
+    const { city, country } = parseCityAndCountry(location.display_name);
+    setFormData(prev => ({
+      ...prev,
+      city_name: city,
+      country: country || prev.country, // Keep existing country if not found
+      latitude: location.latitude,
+      longitude: location.longitude,
+    }));
   };
 
   // Populate form for edit mode
@@ -185,23 +211,23 @@ const DestinationFormModal = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {/* City Name */}
+          {/* City Name with Location Autocomplete */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               City *
             </label>
-            <input
-              type="text"
+            <LocationAutocomplete
               value={formData.city_name}
-              onChange={(e) => setFormData({ ...formData, city_name: e.target.value })}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 ${
-                errors.city_name ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="e.g., Tokyo, Oslo, Paris"
+              latitude={formData.latitude}
+              longitude={formData.longitude}
+              onChange={(value) => {
+                // Only update city_name when user types (not from selection)
+                setFormData(prev => ({ ...prev, city_name: value }));
+              }}
+              onSelect={handleLocationSelect}
+              placeholder="Search for a city..."
+              error={errors.city_name}
             />
-            {errors.city_name && (
-              <p className="text-red-500 text-xs mt-1">{errors.city_name}</p>
-            )}
           </div>
 
           {/* Country */}
