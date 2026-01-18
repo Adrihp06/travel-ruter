@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { User, Map, DollarSign, Sun, Moon, Monitor, Download, Upload, Save, Check } from 'lucide-react';
+import { User, Map, DollarSign, Sun, Moon, Monitor, Download, Upload, Save, Check, Route } from 'lucide-react';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { useTheme } from '../contexts/ThemeContext';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 const SETTINGS_KEY = 'travel-ruter-settings';
 
@@ -13,6 +15,10 @@ const defaultSettings = {
   },
   map: {
     mapboxToken: '',
+  },
+  routing: {
+    preference: 'default', // 'default', 'google_public_transport', 'google_everything'
+    googleMapsApiKey: '',
   },
   currency: {
     default: 'USD',
@@ -131,6 +137,7 @@ const SettingsPage = () => {
   const sections = [
     { id: 'profile', name: 'Profile', icon: User },
     { id: 'map', name: 'Map Settings', icon: Map },
+    { id: 'routing', name: 'Routing', icon: Route },
     { id: 'currency', name: 'Currency', icon: DollarSign },
     { id: 'theme', name: 'Theme', icon: getThemeIcon() },
     { id: 'export', name: 'Export/Import', icon: Download },
@@ -274,6 +281,123 @@ const SettingsPage = () => {
                     the page for maps to load with the new token.
                   </p>
                 </div>
+              </div>
+            )}
+
+            {/* Routing Settings */}
+            {activeSection === 'routing' && (
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Routing Settings</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Configure which routing service to use for calculating routes between destinations.
+                </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+                    Routing Service Preference
+                  </label>
+                  <div className="space-y-3">
+                    <label className="flex items-start p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 border-gray-200 dark:border-gray-600">
+                      <input
+                        type="radio"
+                        name="routingPreference"
+                        value="default"
+                        checked={settings.routing?.preference === 'default'}
+                        onChange={(e) => updateSetting('routing', 'preference', e.target.value)}
+                        className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      />
+                      <div className="ml-3">
+                        <span className="block text-sm font-medium text-gray-900 dark:text-white">
+                          Default (OpenRouteService)
+                        </span>
+                        <span className="block text-sm text-gray-500 dark:text-gray-400">
+                          Use OpenRouteService for all routing. Train/bus routes use road geometry as approximation.
+                        </span>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 border-gray-200 dark:border-gray-600">
+                      <input
+                        type="radio"
+                        name="routingPreference"
+                        value="google_public_transport"
+                        checked={settings.routing?.preference === 'google_public_transport'}
+                        onChange={(e) => updateSetting('routing', 'preference', e.target.value)}
+                        className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      />
+                      <div className="ml-3">
+                        <span className="block text-sm font-medium text-gray-900 dark:text-white">
+                          Google Maps for Public Transport Only
+                        </span>
+                        <span className="block text-sm text-gray-500 dark:text-gray-400">
+                          Use Google Maps Routes API for train/bus routes (shows actual rail/bus geometry). Other modes use OpenRouteService.
+                        </span>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 border-gray-200 dark:border-gray-600">
+                      <input
+                        type="radio"
+                        name="routingPreference"
+                        value="google_everything"
+                        checked={settings.routing?.preference === 'google_everything'}
+                        onChange={(e) => updateSetting('routing', 'preference', e.target.value)}
+                        className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      />
+                      <div className="ml-3">
+                        <span className="block text-sm font-medium text-gray-900 dark:text-white">
+                          Google Maps for Everything
+                        </span>
+                        <span className="block text-sm text-gray-500 dark:text-gray-400">
+                          Use Google Maps Routes API for all transport modes (car, train, bus, walk, bike).
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Google Maps API Key
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.routing?.googleMapsApiKey || ''}
+                    onChange={(e) => updateSetting('routing', 'googleMapsApiKey', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                    placeholder="AIza..."
+                  />
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Get your API key from{' '}
+                    <a
+                      href="https://console.cloud.google.com/apis/credentials"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                    >
+                      Google Cloud Console
+                    </a>
+                    . Enable the "Routes API" for your project.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-300">
+                    <strong>Note:</strong> Google Maps Routes API requires billing to be enabled but includes
+                    a free tier. If no API key is configured, the system falls back to OpenRouteService.
+                  </p>
+                </div>
+
+                {(settings.routing?.preference === 'google_public_transport' ||
+                  settings.routing?.preference === 'google_everything') &&
+                  !settings.routing?.googleMapsApiKey && (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <p className="text-sm text-amber-800 dark:text-amber-300">
+                      <strong>Warning:</strong> You have selected a Google Maps routing option but haven't
+                      provided an API key. Routes will fall back to OpenRouteService.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

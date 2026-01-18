@@ -9,8 +9,14 @@ import logging
 from app.models.travel_segment import TravelSegment
 from app.models.destination import Destination
 from app.schemas.travel_segment import TravelMode, TravelSegmentCreate
+from app.schemas.routing_preferences import RoutingPreference
 from app.services.mapbox_service import MapboxService, MapboxServiceError, MapboxRoutingProfile
 from app.services.openrouteservice import OpenRouteServiceService, ORSServiceError, ORSRoutingProfile
+from app.services.google_maps_routes_service import (
+    GoogleMapsRoutesService,
+    GoogleMapsRoutesError,
+    GoogleMapsRouteTravelMode,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -112,14 +118,82 @@ class TravelSegmentService:
         return mapping.get(mode)
 
     @classmethod
-    async def _fetch_route_geometry(
+    def _map_mode_to_google_maps(cls, mode: TravelMode) -> Optional[GoogleMapsRouteTravelMode]:
+        """Map travel mode to Google Maps Routes API travel mode."""
+        mapping = {
+            TravelMode.CAR: GoogleMapsRouteTravelMode.DRIVE,
+            TravelMode.WALK: GoogleMapsRouteTravelMode.WALK,
+            TravelMode.BIKE: GoogleMapsRouteTravelMode.BICYCLE,
+            # For train/bus, we use TRANSIT to get real public transport routes
+            TravelMode.TRAIN: GoogleMapsRouteTravelMode.TRANSIT,
+            TravelMode.BUS: GoogleMapsRouteTravelMode.TRANSIT,
+        }
+        return mapping.get(mode)
+
+    @classmethod
+    def _is_public_transport(cls, mode: TravelMode) -> bool:
+        """Check if the travel mode is public transport (train or bus)."""
+        return mode in (TravelMode.TRAIN, TravelMode.BUS)
+
+    @classmethod
+    async def _fetch_google_maps_route(
         cls,
         lat1: float, lon1: float,
         lat2: float, lon2: float,
         mode: TravelMode
     ) -> tuple[Optional[dict], Optional[float], Optional[int]]:
         """
+        Fetch route geometry from Google Maps Routes API.
+
+        Returns:
+            tuple: (geometry_dict, distance_km, duration_minutes) or (None, None, None) if failed
+        """
+        google_mode = cls._map_mode_to_google_maps(mode)
+        if not google_mode:
+            return None, None, None
+
+        try:
+            service = GoogleMapsRoutesService()
+            if not service.is_available():
+                return None, None, None
+
+            result = await service.get_route(
+                origin=(lon1, lat1),
+                destination=(lon2, lat2),
+                travel_mode=google_mode,
+            )
+
+            distance_km = round(result.distance_meters / 1000, 2)
+            duration_min = int(round(result.duration_seconds / 60))
+
+            # Add overhead for public transport
+            if mode == TravelMode.TRAIN:
+                duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.TRAIN, 30)
+            elif mode == TravelMode.BUS:
+                duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.BUS, 20)
+
+            return result.geometry, distance_km, duration_min
+
+        except GoogleMapsRoutesError as e:
+            logger.warning(f"Google Maps routing failed: {e}")
+            return None, None, None
+
+    @classmethod
+    async def _fetch_route_geometry(
+        cls,
+        lat1: float, lon1: float,
+        lat2: float, lon2: float,
+        mode: TravelMode,
+        routing_preference: RoutingPreference = RoutingPreference.DEFAULT
+    ) -> tuple[Optional[dict], Optional[float], Optional[int]]:
+        """
         Fetch real route geometry from routing services.
+
+        Args:
+            lat1, lon1: Origin coordinates
+            lat2, lon2: Destination coordinates
+            mode: Travel mode (car, train, bus, walk, bike, etc.)
+            routing_preference: Which routing service to prefer
 
         Returns:
             tuple: (geometry_dict, distance_km, duration_minutes) or (None, None, None) if failed
@@ -132,7 +206,24 @@ class TravelSegmentService:
         distance_km = None
         duration_min = None
 
-        # Try Mapbox first for car, walking, biking
+        # Check if we should use Google Maps based on preference
+        use_google = False
+        if routing_preference == RoutingPreference.GOOGLE_EVERYTHING:
+            use_google = True
+        elif routing_preference == RoutingPreference.GOOGLE_PUBLIC_TRANSPORT:
+            use_google = cls._is_public_transport(mode)
+
+        # Try Google Maps first if preference is set
+        if use_google:
+            geometry, distance_km, duration_min = await cls._fetch_google_maps_route(
+                lat1, lon1, lat2, lon2, mode
+            )
+            if geometry is not None:
+                return geometry, distance_km, duration_min
+            # If Google Maps failed, fall through to other services
+            logger.info(f"Google Maps routing failed for {mode}, falling back to other services")
+
+        # Try Mapbox for car, walking, biking
         mapbox_profile = cls._map_mode_to_mapbox_profile(mode)
         if mapbox_profile:
             try:

@@ -13,6 +13,19 @@ from app.schemas.google_maps import (
     GoogleMapsExportRequest,
     GoogleMapsExportResponse,
 )
+from app.schemas.google_maps_routes import (
+    GoogleMapsRoutesRequest,
+    GoogleMapsRoutesResponse,
+    GoogleMapsMultiWaypointRequest,
+    GoogleMapsRoutesTravelMode,
+    TransitStep,
+)
+from app.schemas.routing_preferences import (
+    RoutingPreference,
+    RoutingPreferencesRequest,
+    RoutingPreferencesResponse,
+    GoogleMapsStatusResponse,
+)
 from app.schemas.openrouteservice import (
     ORSRouteRequest,
     ORSRouteResponse,
@@ -27,6 +40,11 @@ from app.services.mapbox_service import (
     MapboxRoutingProfile,
 )
 from app.services.google_maps_service import GoogleMapsService
+from app.services.google_maps_routes_service import (
+    GoogleMapsRoutesService,
+    GoogleMapsRoutesError,
+    GoogleMapsRouteTravelMode,
+)
 from app.services.openrouteservice import (
     OpenRouteServiceService,
     ORSServiceError,
@@ -281,3 +299,175 @@ async def get_ors_multi_waypoint_route(request: ORSMultiWaypointRequest):
 
     except ORSServiceError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# =============================================================================
+# Google Maps Routes API Endpoints (for real transit/public transport routing)
+# =============================================================================
+
+
+@router.get("/routes/google-maps/status", response_model=GoogleMapsStatusResponse)
+async def get_google_maps_status():
+    """
+    Check if Google Maps Routes API is configured and available.
+
+    Returns the status of the Google Maps API configuration.
+    If not available, provides instructions on how to configure it.
+    """
+    service = GoogleMapsRoutesService()
+    if service.is_available():
+        return GoogleMapsStatusResponse(
+            available=True,
+            message="Google Maps Routes API is configured and ready to use."
+        )
+    else:
+        return GoogleMapsStatusResponse(
+            available=False,
+            message="Google Maps API key not configured. Set GOOGLE_MAPS_API_KEY environment variable. Get a key at https://console.cloud.google.com/apis/credentials"
+        )
+
+
+@router.post("/routes/google-maps", response_model=GoogleMapsRoutesResponse)
+async def get_google_maps_route(request: GoogleMapsRoutesRequest):
+    """
+    Get route using Google Maps Routes API.
+
+    Supports multiple travel modes:
+    - DRIVE: Car routing
+    - WALK: Pedestrian routing
+    - BICYCLE: Bicycle routing
+    - TRANSIT: Public transport routing (trains, buses, etc.)
+
+    For TRANSIT mode, returns actual public transport routes with
+    real rail/bus geometry and transit details (stops, lines, etc.).
+
+    Note: Requires a Google Maps API key with Routes API enabled.
+    Get a key at https://console.cloud.google.com/apis/credentials
+    """
+    try:
+        service = GoogleMapsRoutesService()
+        travel_mode = GoogleMapsRouteTravelMode(request.travel_mode.value)
+
+        # Convert optional waypoints
+        waypoints = None
+        if request.waypoints:
+            waypoints = [(wp.lon, wp.lat) for wp in request.waypoints]
+
+        result = await service.get_route(
+            origin=(request.origin.lon, request.origin.lat),
+            destination=(request.destination.lon, request.destination.lat),
+            travel_mode=travel_mode,
+            waypoints=waypoints,
+            departure_time=request.departure_time,
+        )
+
+        # Parse transit details if available
+        transit_details = None
+        if result.transit_details and result.transit_details.get("steps"):
+            transit_details = [
+                TransitStep(
+                    line_name=step.get("transitLine", {}).get("name"),
+                    vehicle_type=step.get("transitLine", {}).get("vehicle", {}).get("type"),
+                    departure_stop=step.get("stopDetails", {}).get("departureStop", {}).get("name"),
+                    arrival_stop=step.get("stopDetails", {}).get("arrivalStop", {}).get("name"),
+                    num_stops=step.get("stopCount"),
+                )
+                for step in result.transit_details["steps"]
+            ]
+
+        return GoogleMapsRoutesResponse(
+            distance_km=round(result.distance_meters / 1000, 2),
+            duration_min=int(round(result.duration_seconds / 60)),
+            geometry=result.geometry,
+            travel_mode=request.travel_mode.value,
+            polyline=result.polyline,
+            transit_details=transit_details,
+        )
+
+    except GoogleMapsRoutesError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/routes/google-maps/multi-waypoint", response_model=GoogleMapsRoutesResponse)
+async def get_google_maps_multi_waypoint_route(request: GoogleMapsMultiWaypointRequest):
+    """
+    Get route through multiple waypoints using Google Maps Routes API.
+
+    Requires at least 2 waypoints. Routes are calculated in order.
+
+    Supports all travel modes including TRANSIT for public transport.
+    """
+    try:
+        service = GoogleMapsRoutesService()
+        travel_mode = GoogleMapsRouteTravelMode(request.travel_mode.value)
+
+        waypoints = [(wp.lon, wp.lat) for wp in request.waypoints]
+
+        result = await service.get_multi_waypoint_route(
+            waypoints=waypoints,
+            travel_mode=travel_mode,
+        )
+
+        return GoogleMapsRoutesResponse(
+            distance_km=round(result.distance_meters / 1000, 2),
+            duration_min=int(round(result.duration_seconds / 60)),
+            geometry=result.geometry,
+            travel_mode=request.travel_mode.value,
+            polyline=result.polyline,
+            transit_details=None,
+        )
+
+    except GoogleMapsRoutesError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# =============================================================================
+# Routing Preferences Endpoints
+# =============================================================================
+
+# Store routing preference in memory (in production, this would be per-user in DB)
+_current_routing_preference = RoutingPreference.DEFAULT
+
+
+@router.get("/routes/preferences", response_model=RoutingPreferencesResponse)
+async def get_routing_preferences():
+    """
+    Get current routing preferences.
+
+    Returns which routing service is configured to be used and
+    the availability status of each service.
+    """
+    google_service = GoogleMapsRoutesService()
+    ors_service = OpenRouteServiceService()
+
+    return RoutingPreferencesResponse(
+        preference=_current_routing_preference,
+        google_maps_available=google_service.is_available(),
+        ors_available=ors_service.is_available(),
+    )
+
+
+@router.put("/routes/preferences", response_model=RoutingPreferencesResponse)
+async def update_routing_preferences(request: RoutingPreferencesRequest):
+    """
+    Update routing preferences.
+
+    Options:
+    - default: Use OpenRouteService for everything (current behavior)
+    - google_public_transport: Use Google Maps for train/bus only, ORS for others
+    - google_everything: Use Google Maps for all transport modes
+
+    Note: If a service is not available (API key not configured),
+    the system will fall back to the next available service.
+    """
+    global _current_routing_preference
+    _current_routing_preference = request.preference
+
+    google_service = GoogleMapsRoutesService()
+    ors_service = OpenRouteServiceService()
+
+    return RoutingPreferencesResponse(
+        preference=_current_routing_preference,
+        google_maps_available=google_service.is_available(),
+        ors_available=ors_service.is_available(),
+    )

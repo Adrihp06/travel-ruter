@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     # Get free API key at: https://openrouteservice.org/dev/#/signup
     OPENROUTESERVICE_API_KEY: Optional[str] = None
 
+    # Google Maps API (for Routes API with real transit routing)
+    # Get API key at: https://console.cloud.google.com/apis/credentials
+    # Enable "Routes API" in Google Cloud Console
+    GOOGLE_MAPS_API_KEY: Optional[str] = None
+
     class Config:
         env_file = ".env"
         case_sensitive = True
