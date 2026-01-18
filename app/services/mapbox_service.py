@@ -34,9 +34,12 @@ class MapboxService:
     BASE_URL = "https://api.mapbox.com/directions/v5/mapbox"
 
     def __init__(self, access_token: Optional[str] = None):
-        self.access_token = access_token or settings.MAPBOX_ACCESS_TOKEN
-        if not self.access_token:
-            raise MapboxServiceError("Mapbox access token is not configured")
+        self.access_token = access_token or getattr(settings, 'MAPBOX_ACCESS_TOKEN', None)
+        self._has_access_token = bool(self.access_token)
+
+    def is_available(self) -> bool:
+        """Check if the service is available (has access token configured)."""
+        return self._has_access_token
 
     async def get_route(
         self,
@@ -65,6 +68,9 @@ class MapboxService:
         Returns:
             MapboxRouteResult with distance, duration, and geometry
         """
+        if not self._has_access_token:
+            raise MapboxServiceError("Mapbox access token is not configured")
+
         # Build coordinates string: origin;waypoints;destination
         coords = [f"{origin[0]},{origin[1]}"]
         if waypoints:

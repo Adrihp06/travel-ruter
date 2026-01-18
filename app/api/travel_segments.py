@@ -1,8 +1,11 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from pydantic import BaseModel
 
 from app.core.database import get_db
+from app.models.trip import Trip
 from app.schemas.travel_segment import (
     TravelMode,
     TravelSegmentResponse,
@@ -10,6 +13,13 @@ from app.schemas.travel_segment import (
     TripTravelSegmentsResponse,
 )
 from app.services.travel_segment_service import TravelSegmentService
+
+
+class RecalculateAllResponse(BaseModel):
+    """Response model for bulk recalculation endpoint."""
+    trips_processed: int
+    total_segments_recalculated: int
+    message: str
 
 router = APIRouter()
 
@@ -112,3 +122,36 @@ async def delete_travel_segment(
 
     await db.commit()
     return None
+
+
+@router.post(
+    "/travel-segments/recalculate-all",
+    response_model=RecalculateAllResponse
+)
+async def recalculate_all_travel_segments(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Recalculate all travel segments for all trips in the system.
+    Useful after updating routing service configuration or API keys.
+    """
+    # Get all trips
+    result = await db.execute(select(Trip))
+    trips = list(result.scalars().all())
+
+    trips_processed = 0
+    total_segments = 0
+
+    for trip in trips:
+        segments = await TravelSegmentService.recalculate_trip_segments(db, trip.id)
+        if segments:
+            trips_processed += 1
+            total_segments += len(segments)
+
+    await db.commit()
+
+    return RecalculateAllResponse(
+        trips_processed=trips_processed,
+        total_segments_recalculated=total_segments,
+        message=f"Successfully recalculated {total_segments} segments across {trips_processed} trips"
+    )

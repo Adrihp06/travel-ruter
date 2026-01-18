@@ -9,8 +9,11 @@ from typing import Optional
 from dataclasses import dataclass
 import httpx
 import base64
+import logging
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class GoogleMapsRouteTravelMode(str, Enum):
@@ -169,8 +172,10 @@ class GoogleMapsRoutesService:
         }
 
         try:
+            print(f"[GOOGLE MAPS] Request: mode={travel_mode.value}, origin={origin}, dest={destination}")
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(self.BASE_URL, headers=headers, json=body)
+                print(f"[GOOGLE MAPS] Response status: {response.status_code}, body: {response.text[:500]}")
 
                 if response.status_code == 400:
                     error_data = response.json()
@@ -188,8 +193,13 @@ class GoogleMapsRoutesService:
                 response.raise_for_status()
                 data = response.json()
 
+                logger.info(f"Google Maps API response status: {response.status_code}")
+                logger.debug(f"Google Maps API response: {data}")
+
                 routes = data.get("routes", [])
                 if not routes:
+                    # Log the full response for debugging
+                    logger.warning(f"Google Maps returned no routes. Full response: {data}")
                     raise GoogleMapsRoutesError("No route found between given points")
 
                 route = routes[0]

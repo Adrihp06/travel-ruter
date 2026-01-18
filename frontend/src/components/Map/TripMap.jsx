@@ -267,7 +267,7 @@ const TripMap = ({
   });
 
   // Travel segments store for segment-based routing
-  const { segments, fetchTripSegments, isLoading: isSegmentsLoading } = useTravelSegmentStore();
+  const { segments, fetchTripSegments, clearSegments, isLoading: isSegmentsLoading } = useTravelSegmentStore();
 
   // Route store for Google Maps export only
   const { exportToGoogleMaps } = useRouteStore();
@@ -280,12 +280,24 @@ const TripMap = ({
     );
   }, [destinations]);
 
-  // Fetch travel segments when trip changes
+  // Create a stable key for destination ordering to detect reorders
+  const destinationOrderKey = useMemo(() => {
+    return sortedDestinations.map(d => d.id).join(',');
+  }, [sortedDestinations]);
+
+  // Clear segments when tripId changes or component unmounts
+  useEffect(() => {
+    return () => {
+      clearSegments();
+    };
+  }, [tripId, clearSegments]);
+
+  // Fetch travel segments when trip changes or destinations are reordered
   useEffect(() => {
     if (tripId && sortedDestinations.length >= 2) {
       fetchTripSegments(tripId);
     }
-  }, [tripId, sortedDestinations.length, fetchTripSegments]);
+  }, [tripId, destinationOrderKey, fetchTripSegments]);
 
   // Calculate initial view to fit all destinations or show trip location
   useEffect(() => {
@@ -323,67 +335,91 @@ const TripMap = ({
     }
   }, [sortedDestinations, tripLocation]);
 
+  // Build valid consecutive destination pairs
+  const validSegmentPairs = useMemo(() => {
+    const pairs = new Set();
+    for (let i = 0; i < sortedDestinations.length - 1; i++) {
+      pairs.add(`${sortedDestinations[i].id}-${sortedDestinations[i + 1].id}`);
+    }
+    return pairs;
+  }, [sortedDestinations]);
+
   // Build segment data with GeoJSON for rendering
   const segmentGeoJSONs = useMemo(() => {
     if (!showRoute || !segments || segments.length === 0) return [];
 
-    return segments.map((segment) => {
-      // Get from/to destinations for fallback coordinates
-      const fromDest = sortedDestinations.find(d => d.id === segment.from_destination_id);
-      const toDest = sortedDestinations.find(d => d.id === segment.to_destination_id);
+    return segments
+      // Only include segments that match current destination order
+      .filter((segment) => {
+        const pairKey = `${segment.from_destination_id}-${segment.to_destination_id}`;
+        return validSegmentPairs.has(pairKey);
+      })
+      .map((segment) => {
+        // Get from/to destinations for fallback coordinates
+        const fromDest = sortedDestinations.find(d => d.id === segment.from_destination_id);
+        const toDest = sortedDestinations.find(d => d.id === segment.to_destination_id);
 
-      let geometry = null;
+        let geometry = null;
 
-      // Use route_geometry from API if available
-      if (segment.route_geometry?.type === 'LineString' && segment.route_geometry?.coordinates?.length >= 2) {
-        geometry = segment.route_geometry;
-      } else {
-        // Fallback to straight line between destinations
-        const fromCoords = getCoordinates(fromDest);
-        const toCoords = getCoordinates(toDest);
-        if (fromCoords && toCoords) {
-          geometry = {
-            type: 'LineString',
-            coordinates: [
-              [fromCoords.lng, fromCoords.lat],
-              [toCoords.lng, toCoords.lat],
-            ],
-          };
+        // Use route_geometry from API if available
+        if (segment.route_geometry?.type === 'LineString' && segment.route_geometry?.coordinates?.length >= 2) {
+          geometry = segment.route_geometry;
+        } else {
+          // Fallback to straight line between destinations
+          const fromCoords = getCoordinates(fromDest);
+          const toCoords = getCoordinates(toDest);
+          if (fromCoords && toCoords) {
+            geometry = {
+              type: 'LineString',
+              coordinates: [
+                [fromCoords.lng, fromCoords.lat],
+                [toCoords.lng, toCoords.lat],
+              ],
+            };
+          }
         }
-      }
 
-      if (!geometry) return null;
+        if (!geometry) return null;
 
-      return {
-        id: segment.id,
-        travel_mode: segment.travel_mode,
-        distance_km: segment.distance_km,
-        duration_minutes: segment.duration_minutes,
-        geojson: {
-          type: 'Feature',
-          properties: {
-            id: segment.id,
-            travel_mode: segment.travel_mode,
+        return {
+          id: segment.id,
+          travel_mode: segment.travel_mode,
+          distance_km: segment.distance_km,
+          duration_minutes: segment.duration_minutes,
+          geojson: {
+            type: 'Feature',
+            properties: {
+              id: segment.id,
+              travel_mode: segment.travel_mode,
+            },
+            geometry,
           },
-          geometry,
-        },
-      };
-    }).filter(Boolean);
-  }, [showRoute, segments, sortedDestinations]);
+        };
+      }).filter(Boolean);
+  }, [showRoute, segments, sortedDestinations, validSegmentPairs]);
 
-  // Calculate total distance and duration from all segments
+  // Filter segments to only valid pairs for calculations
+  const validSegments = useMemo(() => {
+    if (!segments || segments.length === 0) return [];
+    return segments.filter((segment) => {
+      const pairKey = `${segment.from_destination_id}-${segment.to_destination_id}`;
+      return validSegmentPairs.has(pairKey);
+    });
+  }, [segments, validSegmentPairs]);
+
+  // Calculate total distance and duration from valid segments only
   const routeTotals = useMemo(() => {
-    if (!segments || segments.length === 0) return null;
+    if (!validSegments || validSegments.length === 0) return null;
 
-    const totalDistance = segments.reduce((sum, s) => sum + (s.distance_km || 0), 0);
-    const totalDuration = segments.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    const totalDistance = validSegments.reduce((sum, s) => sum + (s.distance_km || 0), 0);
+    const totalDuration = validSegments.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
 
     return {
       distance_km: totalDistance,
       duration_minutes: totalDuration,
-      segment_count: segments.length,
+      segment_count: validSegments.length,
     };
-  }, [segments]);
+  }, [validSegments]);
 
   // Handle Google Maps export
   const handleExportToGoogleMaps = useCallback(async () => {
@@ -636,8 +672,8 @@ const TripMap = ({
                     </div>
                     <div className="h-4 w-px bg-gray-200" />
                     <div className="flex items-center gap-1">
-                      {/* Show transport mode icons for each segment */}
-                      {segments.slice(0, 5).map((seg, idx) => {
+                      {/* Show transport mode icons for each valid segment */}
+                      {validSegments.slice(0, 5).map((seg, idx) => {
                         const Icon = TRANSPORT_MODE_ICONS[seg.travel_mode] || Car;
                         const style = TRANSPORT_MODE_STYLES[seg.travel_mode] || TRANSPORT_MODE_STYLES.car;
                         return (
@@ -651,8 +687,8 @@ const TripMap = ({
                           </div>
                         );
                       })}
-                      {segments.length > 5 && (
-                        <span className="text-xs text-gray-400 ml-1">+{segments.length - 5}</span>
+                      {validSegments.length > 5 && (
+                        <span className="text-xs text-gray-400 ml-1">+{validSegments.length - 5}</span>
                       )}
                     </div>
                   </>

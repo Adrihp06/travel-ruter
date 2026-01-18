@@ -148,6 +148,8 @@ class TravelSegmentService:
         Returns:
             tuple: (geometry_dict, distance_km, duration_minutes) or (None, None, None) if failed
         """
+        from datetime import datetime, timedelta
+
         google_mode = cls._map_mode_to_google_maps(mode)
         if not google_mode:
             return None, None, None
@@ -157,10 +159,20 @@ class TravelSegmentService:
             if not service.is_available():
                 return None, None, None
 
+            # For transit, we need to provide a departure time
+            # Use tomorrow at 9 AM as a reasonable default
+            departure_time = None
+            if google_mode == GoogleMapsRouteTravelMode.TRANSIT:
+                tomorrow = datetime.utcnow() + timedelta(days=1)
+                tomorrow_9am = tomorrow.replace(hour=9, minute=0, second=0, microsecond=0)
+                departure_time = tomorrow_9am.strftime("%Y-%m-%dT%H:%M:%SZ")
+                logger.info(f"Using departure time for transit: {departure_time}")
+
             result = await service.get_route(
                 origin=(lon1, lat1),
                 destination=(lon2, lat2),
                 travel_mode=google_mode,
+                departure_time=departure_time,
             )
 
             distance_km = round(result.distance_meters / 1000, 2)
@@ -198,22 +210,37 @@ class TravelSegmentService:
         Returns:
             tuple: (geometry_dict, distance_km, duration_minutes) or (None, None, None) if failed
         """
+        # Log routing service availability
+        mapbox_service = MapboxService()
+        ors_service = OpenRouteServiceService()
+        google_service = GoogleMapsRoutesService()
+
+        logger.info(
+            f"Routing service availability - Mapbox: {mapbox_service.is_available()}, "
+            f"ORS: {ors_service.is_available()}, Google Maps: {google_service.is_available()}"
+        )
+
         # For flights and ferries, we don't have real routing - use straight line
         if mode in (TravelMode.PLANE, TravelMode.FERRY):
+            logger.debug(f"Mode {mode} does not support routing, using straight line")
             return None, None, None
 
         geometry = None
         distance_km = None
         duration_min = None
 
-        # Check if we should use Google Maps based on preference
+        # Determine if we should use Google Maps
+        # Always try Google Maps first for public transport (train/bus) since it's the only
+        # service that provides real transit routing. For other modes, check the preference.
         use_google = False
-        if routing_preference == RoutingPreference.GOOGLE_EVERYTHING:
+        if cls._is_public_transport(mode):
+            # Always use Google Maps for train/bus - it's the only real transit routing
             use_google = True
-        elif routing_preference == RoutingPreference.GOOGLE_PUBLIC_TRANSPORT:
-            use_google = cls._is_public_transport(mode)
+            logger.info(f"Using Google Maps for public transport mode: {mode}")
+        elif routing_preference == RoutingPreference.GOOGLE_EVERYTHING:
+            use_google = True
 
-        # Try Google Maps first if preference is set
+        # Try Google Maps first for public transport or if preference is set
         if use_google:
             geometry, distance_km, duration_min = await cls._fetch_google_maps_route(
                 lat1, lon1, lat2, lon2, mode
@@ -228,16 +255,20 @@ class TravelSegmentService:
         if mapbox_profile:
             try:
                 service = MapboxService()
-                result = await service.get_route(
-                    origin=(lon1, lat1),
-                    destination=(lon2, lat2),
-                    profile=mapbox_profile,
-                )
-                distance_km = round(result.distance_meters / 1000, 2)
-                duration_min = int(round(result.duration_seconds / 60))
-                geometry = result.geometry
-
-                return geometry, distance_km, duration_min
+                if not service.is_available():
+                    logger.warning("Mapbox service not available (no access token)")
+                else:
+                    logger.debug(f"Attempting Mapbox routing with profile {mapbox_profile}")
+                    result = await service.get_route(
+                        origin=(lon1, lat1),
+                        destination=(lon2, lat2),
+                        profile=mapbox_profile,
+                    )
+                    distance_km = round(result.distance_meters / 1000, 2)
+                    duration_min = int(round(result.duration_seconds / 60))
+                    geometry = result.geometry
+                    logger.info(f"Mapbox routing successful: {distance_km}km, {duration_min}min")
+                    return geometry, distance_km, duration_min
             except MapboxServiceError as e:
                 logger.warning(f"Mapbox routing failed: {e}")
 
@@ -246,7 +277,10 @@ class TravelSegmentService:
         if ors_profile:
             try:
                 service = OpenRouteServiceService()
-                if service.is_available():
+                if not service.is_available():
+                    logger.warning("OpenRouteService not available (no API key)")
+                else:
+                    logger.debug(f"Attempting ORS routing with profile {ors_profile}")
                     result = await service.get_route(
                         origin=(lon1, lat1),
                         destination=(lon2, lat2),
@@ -265,6 +299,7 @@ class TravelSegmentService:
                         duration_min = int(round(duration_min * 1.2))
                         duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.BUS, 20)
 
+                    logger.info(f"ORS routing successful: {distance_km}km, {duration_min}min")
                     return result.geometry, distance_km, duration_min
             except ORSServiceError as e:
                 logger.warning(f"ORS routing failed: {e}")
@@ -274,34 +309,40 @@ class TravelSegmentService:
         if mode in (TravelMode.TRAIN, TravelMode.BUS) and geometry is None:
             try:
                 service = MapboxService()
-                result = await service.get_route(
-                    origin=(lon1, lat1),
-                    destination=(lon2, lat2),
-                    profile=MapboxRoutingProfile.DRIVING,
-                )
-                # Use driving geometry as approximation
-                geometry = result.geometry
-                # Calculate distance and duration based on heuristics since driving
-                # route doesn't accurately reflect train/bus times
-                base_distance_km = round(result.distance_meters / 1000, 2)
+                if not service.is_available():
+                    logger.warning("Mapbox fallback not available (no access token)")
+                else:
+                    logger.debug(f"Attempting Mapbox driving fallback for {mode}")
+                    result = await service.get_route(
+                        origin=(lon1, lat1),
+                        destination=(lon2, lat2),
+                        profile=MapboxRoutingProfile.DRIVING,
+                    )
+                    # Use driving geometry as approximation
+                    geometry = result.geometry
+                    # Calculate distance and duration based on heuristics since driving
+                    # route doesn't accurately reflect train/bus times
+                    base_distance_km = round(result.distance_meters / 1000, 2)
 
-                if mode == TravelMode.TRAIN:
-                    # Trains are faster than cars, use driving distance but faster time
-                    distance_km = base_distance_km
-                    # Train speed ~120 km/h vs car ~80 km/h
-                    duration_min = int(round((base_distance_km / 120) * 60))
-                    duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.TRAIN, 30)
-                elif mode == TravelMode.BUS:
-                    # Buses follow roads but are slower
-                    distance_km = base_distance_km
-                    # Bus speed ~60 km/h
-                    duration_min = int(round((base_distance_km / 60) * 60))
-                    duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.BUS, 20)
+                    if mode == TravelMode.TRAIN:
+                        # Trains are faster than cars, use driving distance but faster time
+                        distance_km = base_distance_km
+                        # Train speed ~120 km/h vs car ~80 km/h
+                        duration_min = int(round((base_distance_km / 120) * 60))
+                        duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.TRAIN, 30)
+                    elif mode == TravelMode.BUS:
+                        # Buses follow roads but are slower
+                        distance_km = base_distance_km
+                        # Bus speed ~60 km/h
+                        duration_min = int(round((base_distance_km / 60) * 60))
+                        duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.BUS, 20)
 
-                return geometry, distance_km, duration_min
+                    logger.info(f"Mapbox driving fallback successful for {mode}: {distance_km}km, {duration_min}min")
+                    return geometry, distance_km, duration_min
             except MapboxServiceError as e:
                 logger.warning(f"Mapbox fallback for {mode} failed: {e}")
 
+        logger.warning(f"All routing services failed for mode {mode}, using straight line fallback")
         return None, None, None
 
     @staticmethod

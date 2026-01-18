@@ -35,7 +35,8 @@ const useTravelSegmentStore = create((set, get) => ({
 
   // Fetch all travel segments for a trip
   fetchTripSegments: async (tripId) => {
-    set({ isLoading: true, error: null });
+    // Clear old segments first to prevent stale data from showing
+    set({ isLoading: true, error: null, segments: [] });
     try {
       const response = await fetch(`${API_BASE_URL}/trips/${tripId}/travel-segments`);
 
