@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # Document Storage (The Vault)
     DOCUMENTS_UPLOAD_PATH: str = "/app/documents"
     MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB
-    ALLOWED_FILE_TYPES: list[str] = ["application/pdf", "image/jpeg", "image/jpg"]
+    ALLOWED_FILE_TYPES: list[str] = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"]
 
     # Mapbox API
     MAPBOX_ACCESS_TOKEN: Optional[str] = None

@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Numeric, Date, Text, Float
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
 from app.models.base import BaseModel
@@ -18,6 +19,7 @@ class Trip(BaseModel):
     total_budget = Column(Numeric(10, 2), nullable=True)
     currency = Column(String(3), nullable=False, default="USD")
     status = Column(String(50), nullable=False, default="planning", index=True)
+    tags = Column(ARRAY(String(50)), nullable=True, default=[])
 
     # Relationships
     destinations = relationship("Destination", back_populates="trip", cascade="all, delete-orphan")

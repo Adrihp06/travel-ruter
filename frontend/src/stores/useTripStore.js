@@ -314,6 +314,7 @@ const useTripStore = create((set, get) => ({
         total_budget: trip.total_budget,
         currency: trip.currency || 'USD',
         status: 'planning',
+        tags: trip.tags || [],
       };
 
       const response = await fetch(`${API_BASE_URL}/trips`, {

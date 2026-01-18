@@ -1,11 +1,86 @@
+import os
+import uuid
+import aiofiles
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
-from app.schemas.trip import TripCreate, TripUpdate, TripResponse, TripWithDestinationsResponse, BudgetSummary
+from app.core.config import settings
+from app.schemas.trip import TripCreate, TripUpdate, TripResponse, TripWithDestinationsResponse, BudgetSummary, CoverImageUploadResponse
 from app.services.trip_service import TripService
 
 router = APIRouter()
+
+# Allowed image types for cover upload
+ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+@router.post(
+    "/upload-cover",
+    response_model=CoverImageUploadResponse,
+    summary="Upload a cover image for a trip",
+    description="Upload an image file to be used as a trip cover. Returns the URL of the uploaded image."
+)
+async def upload_cover_image(
+    file: UploadFile = File(...),
+) -> CoverImageUploadResponse:
+    """Upload a cover image and return its URL"""
+    # Validate file type
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File type {file.content_type} not allowed. Allowed types: JPEG, PNG, WebP"
+        )
+
+    # Read and validate file size
+    content = await file.read()
+    if len(content) > MAX_IMAGE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File size exceeds maximum allowed size of {MAX_IMAGE_SIZE // (1024 * 1024)}MB"
+        )
+
+    # Generate unique filename
+    ext = os.path.splitext(file.filename)[1].lower() if file.filename else '.jpg'
+    unique_filename = f"{uuid.uuid4()}{ext}"
+
+    # Create covers directory
+    covers_dir = os.path.join(settings.DOCUMENTS_UPLOAD_PATH, "covers")
+    os.makedirs(covers_dir, exist_ok=True)
+
+    file_path = os.path.join(covers_dir, unique_filename)
+
+    # Save file
+    async with aiofiles.open(file_path, 'wb') as out_file:
+        await out_file.write(content)
+
+    # Return the URL that can be used to access the image
+    # This assumes a static files route is configured
+    url = f"/api/v1/trips/covers/{unique_filename}"
+
+    return CoverImageUploadResponse(url=url, filename=unique_filename)
+
+
+@router.get(
+    "/covers/{filename}",
+    summary="Get a cover image",
+    description="Retrieve an uploaded cover image by filename"
+)
+async def get_cover_image(filename: str):
+    """Serve a cover image file"""
+    from fastapi.responses import FileResponse
+
+    covers_dir = os.path.join(settings.DOCUMENTS_UPLOAD_PATH, "covers")
+    file_path = os.path.join(covers_dir, filename)
+
+    if not os.path.exists(file_path):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Cover image not found"
+        )
+
+    return FileResponse(file_path)
 
 
 @router.post(

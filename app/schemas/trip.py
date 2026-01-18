@@ -19,6 +19,7 @@ class TripBase(BaseModel):
     total_budget: Optional[Decimal] = Field(None, description="Total trip budget", ge=0)
     currency: str = Field(default="USD", min_length=3, max_length=3, description="Currency code (ISO 4217)")
     status: str = Field(default="planning", max_length=50, description="Trip status (planning, booked, completed, cancelled)")
+    tags: Optional[List[str]] = Field(default_factory=list, description="Trip tags/categories")
 
     @field_validator("end_date")
     @classmethod
@@ -47,6 +48,7 @@ class TripUpdate(BaseModel):
     total_budget: Optional[Decimal] = Field(None, description="Total trip budget", ge=0)
     currency: Optional[str] = Field(None, min_length=3, max_length=3, description="Currency code (ISO 4217)")
     status: Optional[str] = Field(None, max_length=50, description="Trip status")
+    tags: Optional[List[str]] = Field(None, description="Trip tags/categories")
 
     @field_validator("end_date")
     @classmethod
@@ -62,6 +64,7 @@ class TripResponse(TripBase):
     """Schema for trip response - includes computed fields"""
     id: int
     nights: int = Field(..., description="Number of nights (automatically calculated)")
+    tags: Optional[List[str]] = Field(default_factory=list, description="Trip tags/categories")
     created_at: datetime
     updated_at: datetime
 
@@ -83,3 +86,9 @@ class BudgetSummary(BaseModel):
     budget_percentage: Optional[float] = Field(None, description="Percentage of budget spent (0-100)")
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CoverImageUploadResponse(BaseModel):
+    """Schema for cover image upload response"""
+    url: str = Field(..., description="URL to access the uploaded cover image")
+    filename: str = Field(..., description="Unique filename of the uploaded image")

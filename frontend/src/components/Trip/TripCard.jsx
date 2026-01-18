@@ -15,8 +15,21 @@ import {
   MoreVertical,
   CheckCircle2,
   Circle,
-  Plane
+  Plane,
+  Tag
 } from 'lucide-react';
+
+// Tag color mapping (matches TripFormModal)
+const TAG_COLORS = {
+  business: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
+  vacation: 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300',
+  adventure: 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300',
+  romantic: 'bg-pink-100 text-pink-700 dark:bg-pink-900/50 dark:text-pink-300',
+  family: 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300',
+  solo: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
+  cultural: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
+  beach: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300',
+};
 
 const TripCard = ({
   trip,
@@ -303,6 +316,26 @@ const TripCard = ({
             <div className="flex items-center text-gray-500 dark:text-gray-400 text-sm">
               <MapPin className="w-3.5 h-3.5 mr-1 flex-shrink-0" />
               <span className="line-clamp-1">{trip.location}</span>
+            </div>
+          )}
+          {/* Tags */}
+          {trip.tags && trip.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {trip.tags.slice(0, 3).map((tagId) => (
+                <span
+                  key={tagId}
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                    TAG_COLORS[tagId] || 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+                  }`}
+                >
+                  {tagId.charAt(0).toUpperCase() + tagId.slice(1)}
+                </span>
+              ))}
+              {trip.tags.length > 3 && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400">
+                  +{trip.tags.length - 3}
+                </span>
+              )}
             </div>
           )}
         </div>
