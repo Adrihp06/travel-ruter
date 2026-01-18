@@ -2,6 +2,136 @@ import { create } from 'zustand';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
+// Helper to get trip status priority for default sorting
+// Order: ongoing/in progress > planning/upcoming > completed
+const getStatusPriority = (trip) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const startDate = trip.start_date ? new Date(trip.start_date) : null;
+  const endDate = trip.end_date ? new Date(trip.end_date) : null;
+
+  if (startDate) startDate.setHours(0, 0, 0, 0);
+  if (endDate) endDate.setHours(0, 0, 0, 0);
+
+  // Check if trip is ongoing (between start and end date)
+  if (startDate && endDate && today >= startDate && today <= endDate) {
+    return 0; // Highest priority - ongoing
+  }
+
+  // Check if trip is upcoming (start date in future)
+  if (startDate && today < startDate) {
+    // Calculate days until departure for secondary sorting
+    const daysUntil = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+    return 1 + (daysUntil / 10000); // Planning trips, closer ones first
+  }
+
+  // Completed or past trips
+  if (trip.status === 'completed' || (endDate && today > endDate)) {
+    return 3; // Lowest priority - completed
+  }
+
+  // Cancelled trips
+  if (trip.status === 'cancelled') {
+    return 4;
+  }
+
+  // Default planning status
+  return 2;
+};
+
+// Helper to filter and sort trips
+const filterAndSortTrips = (trips, { searchQuery, statusFilter, sortBy, showCompleted }) => {
+  let filtered = [...trips];
+
+  // Filter by status
+  if (statusFilter && statusFilter !== 'all') {
+    filtered = filtered.filter(trip => trip.status === statusFilter);
+  }
+
+  // Hide completed trips by default
+  if (!showCompleted) {
+    filtered = filtered.filter(trip => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const endDate = trip.end_date ? new Date(trip.end_date) : null;
+      if (endDate) endDate.setHours(0, 0, 0, 0);
+
+      // Hide if status is completed OR if end date has passed
+      const isPastTrip = endDate && today > endDate;
+      return trip.status !== 'completed' && !isPastTrip;
+    });
+  }
+
+  // Search filter
+  if (searchQuery && searchQuery.trim()) {
+    const query = searchQuery.toLowerCase().trim();
+    filtered = filtered.filter(trip => {
+      const name = (trip.name || trip.title || '').toLowerCase();
+      const location = (trip.location || '').toLowerCase();
+      const description = (trip.description || '').toLowerCase();
+      const startDate = trip.start_date || '';
+      const endDate = trip.end_date || '';
+      const tags = (trip.tags || []).join(' ').toLowerCase();
+
+      return (
+        name.includes(query) ||
+        location.includes(query) ||
+        description.includes(query) ||
+        startDate.includes(query) ||
+        endDate.includes(query) ||
+        tags.includes(query)
+      );
+    });
+  }
+
+  // Sort
+  switch (sortBy) {
+    case 'date_asc':
+      filtered.sort((a, b) => {
+        const dateA = a.start_date ? new Date(a.start_date) : new Date(0);
+        const dateB = b.start_date ? new Date(b.start_date) : new Date(0);
+        return dateA - dateB;
+      });
+      break;
+    case 'date_desc':
+      filtered.sort((a, b) => {
+        const dateA = a.start_date ? new Date(a.start_date) : new Date(0);
+        const dateB = b.start_date ? new Date(b.start_date) : new Date(0);
+        return dateB - dateA;
+      });
+      break;
+    case 'name_asc':
+      filtered.sort((a, b) => {
+        const nameA = (a.name || a.title || '').toLowerCase();
+        const nameB = (b.name || b.title || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+      break;
+    case 'name_desc':
+      filtered.sort((a, b) => {
+        const nameA = (a.name || a.title || '').toLowerCase();
+        const nameB = (b.name || b.title || '').toLowerCase();
+        return nameB.localeCompare(nameA);
+      });
+      break;
+    case 'modified':
+      filtered.sort((a, b) => {
+        const dateA = a.updated_at ? new Date(a.updated_at) : new Date(0);
+        const dateB = b.updated_at ? new Date(b.updated_at) : new Date(0);
+        return dateB - dateA;
+      });
+      break;
+    case 'default':
+    default:
+      // Default sort: ongoing > planning (by proximity) > completed
+      filtered.sort((a, b) => getStatusPriority(a) - getStatusPriority(b));
+      break;
+  }
+
+  return filtered;
+};
+
 // Mock destinations for demo when API is unavailable
 const getMockDestinations = (tripId) => {
   const mockData = {
@@ -34,7 +164,47 @@ const useTripStore = create((set, get) => ({
   error: null,
   pendingDelete: null, // { trip, tripsWithDestinations } for undo functionality
 
+  // Filter state
+  searchQuery: '',
+  statusFilter: 'all',
+  sortBy: 'default',
+  showCompleted: false,
+
   setTrips: (trips) => set({ trips }),
+
+  // Filter actions
+  setSearchQuery: (searchQuery) => set({ searchQuery }),
+  setStatusFilter: (statusFilter) => set({ statusFilter }),
+  setSortBy: (sortBy) => set({ sortBy }),
+  setShowCompleted: (showCompleted) => set({ showCompleted }),
+  clearFilters: () => set({
+    searchQuery: '',
+    statusFilter: 'all',
+    sortBy: 'default',
+    showCompleted: false,
+  }),
+
+  // Get filtered and sorted trips
+  getFilteredTrips: () => {
+    const state = get();
+    return filterAndSortTrips(state.trips, {
+      searchQuery: state.searchQuery,
+      statusFilter: state.statusFilter,
+      sortBy: state.sortBy,
+      showCompleted: state.showCompleted,
+    });
+  },
+
+  // Get count of active filters
+  getActiveFiltersCount: () => {
+    const state = get();
+    let count = 0;
+    if (state.searchQuery.trim()) count++;
+    if (state.statusFilter !== 'all') count++;
+    if (state.sortBy !== 'default') count++;
+    if (state.showCompleted) count++;
+    return count;
+  },
   selectTrip: (tripId) => set((state) => ({
     selectedTrip: state.trips.find((t) => t.id === Number(tripId)) || null
   })),

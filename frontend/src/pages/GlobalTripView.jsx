@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Plus, Plane } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { Plus, Plane, SearchX } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import MacroMap from '../components/Map/MacroMap';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
-import { TripFormModal, DeleteTripDialog, UndoToast, TripCard } from '../components/Trip';
+import { TripFormModal, DeleteTripDialog, UndoToast, TripCard, TripSearchFilter } from '../components/Trip';
 
 const UNDO_DURATION = 5000; // 5 seconds for undo
 
@@ -16,7 +16,19 @@ const GlobalTripView = () => {
     restoreTrip,
     confirmDeleteTrip,
     duplicateTrip,
-    isLoading
+    isLoading,
+    // Filter state and actions
+    searchQuery,
+    statusFilter,
+    sortBy,
+    showCompleted,
+    setSearchQuery,
+    setStatusFilter,
+    setSortBy,
+    setShowCompleted,
+    clearFilters,
+    getFilteredTrips,
+    getActiveFiltersCount,
   } = useTripStore();
   const [showTripModal, setShowTripModal] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
@@ -166,6 +178,20 @@ const GlobalTripView = () => {
     fetchTrips();
   }, [fetchTrips]);
 
+  // Get filtered and sorted trips
+  const filteredTrips = useMemo(
+    () => getFilteredTrips(),
+    [trips, searchQuery, statusFilter, sortBy, showCompleted, getFilteredTrips]
+  );
+
+  const activeFiltersCount = useMemo(
+    () => getActiveFiltersCount(),
+    [searchQuery, statusFilter, sortBy, showCompleted, getActiveFiltersCount]
+  );
+
+  // Check if there are no results due to filtering
+  const hasNoFilterResults = trips.length > 0 && filteredTrips.length === 0;
+
   if (isLoading) {
     return <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading trips...</div>;
   }
@@ -213,21 +239,56 @@ const GlobalTripView = () => {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {trips.map((trip) => (
-              <TripCard
-                key={trip.id}
-                trip={trip}
-                onEdit={handleEditTrip}
-                onDelete={handleDeleteClick}
-                onDuplicate={handleDuplicateTrip}
-                onShare={handleShareTrip}
-                onExport={handleExportTrip}
-                destinationCount={getDestinationCount(trip.id)}
-                completedDestinations={0}
-              />
-            ))}
-          </div>
+          <>
+            {/* Search and Filter Controls */}
+            <TripSearchFilter
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              statusFilter={statusFilter}
+              onStatusChange={setStatusFilter}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              showCompleted={showCompleted}
+              onShowCompletedChange={setShowCompleted}
+              activeFiltersCount={activeFiltersCount}
+              onClearFilters={clearFilters}
+            />
+
+            {/* No results state */}
+            {hasNoFilterResults ? (
+              <div className="text-center py-16">
+                <SearchX className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                <h2 className="text-xl font-semibold text-gray-600 dark:text-gray-300 mb-2">No trips found</h2>
+                <p className="text-gray-500 dark:text-gray-400 mb-6">
+                  {searchQuery
+                    ? `No trips match "${searchQuery}"`
+                    : 'No trips match your current filters'}
+                </p>
+                <button
+                  onClick={clearFilters}
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Clear Filters
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredTrips.map((trip) => (
+                  <TripCard
+                    key={trip.id}
+                    trip={trip}
+                    onEdit={handleEditTrip}
+                    onDelete={handleDeleteClick}
+                    onDuplicate={handleDuplicateTrip}
+                    onShare={handleShareTrip}
+                    onExport={handleExportTrip}
+                    destinationCount={getDestinationCount(trip.id)}
+                    completedDestinations={0}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
