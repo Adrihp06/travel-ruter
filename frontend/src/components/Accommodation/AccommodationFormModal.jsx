@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Bed } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Bed, Calendar } from 'lucide-react';
 import useAccommodationStore from '../../stores/useAccommodationStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import DateRangePicker from '../common/DateRangePicker';
@@ -8,7 +8,9 @@ const AccommodationFormModal = ({
   isOpen,
   onClose,
   destinationId,
+  destination = null,
   accommodation = null,
+  preFillDates = null,
   onSuccess,
 }) => {
   const { createAccommodation, updateAccommodation, isLoading } = useAccommodationStore();
@@ -27,8 +29,6 @@ const AccommodationFormModal = ({
     total_cost: '',
     currency: 'USD',
     is_paid: false,
-    amenities: [],
-    rating: '',
     description: '',
   });
 
@@ -46,14 +46,45 @@ const AccommodationFormModal = ({
     { value: 'other', label: 'Other' },
   ];
 
-  const amenityOptions = [
-    'WiFi', 'Breakfast', 'Parking', 'Pool', 'Gym', 'AC',
-    'Kitchen', 'Laundry', 'Pet Friendly', 'Airport Shuttle',
-  ];
-
   const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'NOK', 'SEK', 'DKK'];
 
-  // Populate form for edit mode
+  // Calculate which nights of the destination stay this accommodation covers
+  const nightCoverage = useMemo(() => {
+    if (!formData.check_in_date || !formData.check_out_date || !destination?.arrival_date || !destination?.departure_date) {
+      return { nights: [], display: '' };
+    }
+
+    const destArrival = new Date(destination.arrival_date);
+    const destDeparture = new Date(destination.departure_date);
+    const checkInDate = new Date(formData.check_in_date);
+    const checkOutDate = new Date(formData.check_out_date);
+
+    const nights = [];
+    let current = new Date(checkInDate);
+
+    while (current < checkOutDate) {
+      if (current >= destArrival && current < destDeparture) {
+        const nightNum = Math.floor((current - destArrival) / (1000 * 60 * 60 * 24)) + 1;
+        nights.push(nightNum);
+      }
+      current.setDate(current.getDate() + 1);
+    }
+
+    if (nights.length === 0) return { nights: [], display: '' };
+
+    let display;
+    if (nights.length === 1) {
+      display = `Covers night ${nights[0]} of your stay`;
+    } else if (nights[nights.length - 1] - nights[0] + 1 === nights.length) {
+      display = `Covers nights ${nights[0]}-${nights[nights.length - 1]} of your stay`;
+    } else {
+      display = `Covers nights ${nights.join(', ')} of your stay`;
+    }
+
+    return { nights, display };
+  }, [formData.check_in_date, formData.check_out_date, destination]);
+
+  // Populate form for edit mode or set defaults
   useEffect(() => {
     if (accommodation) {
       setFormData({
@@ -69,31 +100,28 @@ const AccommodationFormModal = ({
         total_cost: accommodation.total_cost || '',
         currency: accommodation.currency || 'USD',
         is_paid: accommodation.is_paid || false,
-        amenities: accommodation.amenities || [],
-        rating: accommodation.rating || '',
         description: accommodation.description || '',
       });
     } else {
+      // For new accommodations, default to destination dates or preFillDates
       setFormData({
         name: '',
         type: 'hotel',
         address: '',
         latitude: null,
         longitude: null,
-        check_in_date: '',
-        check_out_date: '',
+        check_in_date: preFillDates?.check_in_date || destination?.arrival_date || '',
+        check_out_date: preFillDates?.check_out_date || destination?.departure_date || '',
         booking_reference: '',
         booking_url: '',
         total_cost: '',
         currency: 'USD',
         is_paid: false,
-        amenities: [],
-        rating: '',
         description: '',
       });
     }
     setErrors({});
-  }, [accommodation, isOpen]);
+  }, [accommodation, isOpen, destination, preFillDates]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -116,21 +144,23 @@ const AccommodationFormModal = ({
       }
     }
 
-    if (formData.rating && (formData.rating < 1 || formData.rating > 5)) {
-      newErrors.rating = 'Rating must be between 1 and 5';
+    // Validate dates are within destination range
+    if (destination && formData.check_in_date && formData.check_out_date) {
+      const checkIn = new Date(formData.check_in_date);
+      const checkOut = new Date(formData.check_out_date);
+      const destArrival = new Date(destination.arrival_date);
+      const destDeparture = new Date(destination.departure_date);
+
+      if (checkIn < destArrival) {
+        newErrors.check_in_date = 'Check-in cannot be before destination arrival';
+      }
+      if (checkOut > destDeparture) {
+        newErrors.check_out_date = 'Check-out cannot be after destination departure';
+      }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  const handleAmenityToggle = (amenity) => {
-    setFormData((prev) => ({
-      ...prev,
-      amenities: prev.amenities.includes(amenity)
-        ? prev.amenities.filter((a) => a !== amenity)
-        : [...prev.amenities, amenity],
-    }));
   };
 
   // Handle location selection from autocomplete
@@ -153,7 +183,6 @@ const AccommodationFormModal = ({
         ...formData,
         destination_id: destinationId,
         total_cost: formData.total_cost ? parseFloat(formData.total_cost) : null,
-        rating: formData.rating ? parseFloat(formData.rating) : null,
         latitude: formData.latitude,
         longitude: formData.longitude,
       };
@@ -235,7 +264,7 @@ const AccommodationFormModal = ({
             />
           </div>
 
-          {/* Dates */}
+          {/* Dates - Using DateRangePicker with min/max constraints */}
           <DateRangePicker
             startDate={formData.check_in_date}
             endDate={formData.check_out_date}
@@ -245,9 +274,19 @@ const AccommodationFormModal = ({
             endLabel="Check-out"
             startError={errors.check_in_date}
             endError={errors.check_out_date}
+            minDate={destination?.arrival_date}
+            maxDate={destination?.departure_date}
             required
             showDuration
           />
+
+          {/* Night coverage indicator */}
+          {nightCoverage.display && (
+            <div className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-3 py-2 rounded-lg text-sm flex items-center">
+              <Calendar className="w-4 h-4 mr-2" />
+              <span>{nightCoverage.display}</span>
+            </div>
+          )}
 
           {/* Booking Info */}
           <div className="grid grid-cols-2 gap-4">
@@ -274,76 +313,42 @@ const AccommodationFormModal = ({
           </div>
 
           {/* Cost & Payment */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Total Cost</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.total_cost}
-                onChange={(e) => setFormData({ ...formData, total_cost: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
+              <div className="flex">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.total_cost}
+                  onChange={(e) => setFormData({ ...formData, total_cost: e.target.value })}
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-l-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+                <select
+                  value={formData.currency}
+                  onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                  className="px-2 py-2 border border-l-0 border-gray-300 dark:border-gray-600 rounded-r-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                >
+                  {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Currency</label>
-              <select
-                value={formData.currency}
-                onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Status</label>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, is_paid: !formData.is_paid })}
+                className={`w-full px-3 py-2 rounded-lg border transition-colors flex items-center justify-center space-x-2 ${
+                  formData.is_paid
+                    ? 'bg-green-50 dark:bg-green-900/30 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300'
+                    : 'bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300'
+                }`}
               >
-                {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+                <span className={`w-3 h-3 rounded-full ${formData.is_paid ? 'bg-green-500' : 'bg-amber-500'}`} />
+                <span>{formData.is_paid ? 'Paid' : 'Not Paid'}</span>
+              </button>
             </div>
-            <div className="flex items-end">
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.is_paid}
-                  onChange={(e) => setFormData({ ...formData, is_paid: e.target.checked })}
-                  className="w-4 h-4 text-indigo-600 rounded"
-                />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Paid</span>
-              </label>
-            </div>
-          </div>
-
-          {/* Amenities */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Amenities</label>
-            <div className="flex flex-wrap gap-2">
-              {amenityOptions.map((amenity) => (
-                <button
-                  key={amenity}
-                  type="button"
-                  onClick={() => handleAmenityToggle(amenity)}
-                  className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                    formData.amenities.includes(amenity)
-                      ? 'bg-indigo-100 dark:bg-indigo-900/30 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300'
-                      : 'bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  {amenity}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Rating */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rating (1-5)</label>
-            <input
-              type="number"
-              min="1"
-              max="5"
-              step="0.1"
-              value={formData.rating}
-              onChange={(e) => setFormData({ ...formData, rating: e.target.value })}
-              className={`w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${errors.rating ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-              placeholder="4.5"
-            />
-            {errors.rating && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.rating}</p>}
           </div>
 
           {/* Description */}

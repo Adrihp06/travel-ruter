@@ -1,4 +1,5 @@
 from typing import List
+from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +10,60 @@ from app.models import Accommodation, Destination
 from app.schemas import AccommodationCreate, AccommodationUpdate, AccommodationResponse
 
 router = APIRouter()
+
+
+def validate_accommodation_dates(
+    check_in: date,
+    check_out: date,
+    dest_arrival: date,
+    dest_departure: date
+) -> List[str]:
+    """
+    Validate accommodation dates against destination dates.
+    Returns list of error messages.
+    """
+    errors = []
+
+    if check_in < dest_arrival:
+        errors.append(f"Check-in date ({check_in}) is before destination arrival ({dest_arrival})")
+
+    if check_out > dest_departure:
+        errors.append(f"Check-out date ({check_out}) is after destination departure ({dest_departure})")
+
+    return errors
+
+
+def check_overlap(
+    check_in: date,
+    check_out: date,
+    existing_accommodations: List[dict],
+    exclude_id: int = None
+) -> List[dict]:
+    """
+    Check if new accommodation dates overlap with existing ones.
+    Returns list of overlapping accommodations.
+    """
+    overlaps = []
+
+    for acc in existing_accommodations:
+        if exclude_id and acc['id'] == exclude_id:
+            continue
+
+        acc_check_in = acc['check_in_date']
+        acc_check_out = acc['check_out_date']
+
+        # Check for overlap: intervals overlap if start1 < end2 and start2 < end1
+        if check_in < acc_check_out and acc_check_in < check_out:
+            overlap_start = max(check_in, acc_check_in)
+            overlap_end = min(check_out, acc_check_out)
+            overlaps.append({
+                'accommodation_id': acc['id'],
+                'accommodation_name': acc['name'],
+                'overlap_start': str(overlap_start),
+                'overlap_end': str(overlap_end)
+            })
+
+    return overlaps
 
 
 def accommodation_to_response(acc: Accommodation, latitude: float | None = None, longitude: float | None = None) -> dict:
@@ -53,6 +108,48 @@ async def create_accommodation(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Destination with id {accommodation.destination_id} not found"
+        )
+
+    # Validate dates are within destination range
+    date_errors = validate_accommodation_dates(
+        accommodation.check_in_date,
+        accommodation.check_out_date,
+        destination.arrival_date,
+        destination.departure_date
+    )
+
+    if date_errors:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                'message': 'Accommodation dates are outside destination stay',
+                'errors': date_errors
+            }
+        )
+
+    # Check for overlaps with existing accommodations
+    existing_result = await db.execute(
+        select(Accommodation)
+        .where(Accommodation.destination_id == accommodation.destination_id)
+    )
+    existing_accommodations = [
+        {'id': a.id, 'name': a.name, 'check_in_date': a.check_in_date, 'check_out_date': a.check_out_date}
+        for a in existing_result.scalars().all()
+    ]
+
+    overlaps = check_overlap(
+        accommodation.check_in_date,
+        accommodation.check_out_date,
+        existing_accommodations
+    )
+
+    if overlaps:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                'message': 'Accommodation dates overlap with existing bookings',
+                'overlaps': overlaps
+            }
         )
 
     # Create accommodation
@@ -161,6 +258,10 @@ async def update_accommodation(
             detail=f"Accommodation with id {id} not found"
         )
 
+    # Get the destination for validation
+    dest_result = await db.execute(select(Destination).where(Destination.id == db_accommodation.destination_id))
+    destination = dest_result.scalar_one_or_none()
+
     # Update fields
     update_data = accommodation_update.model_dump(exclude_unset=True)
 
@@ -176,6 +277,50 @@ async def update_accommodation(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="check_out_date must be after check_in_date"
         )
+
+    # Validate dates are within destination range
+    if destination:
+        date_errors = validate_accommodation_dates(
+            check_in,
+            check_out,
+            destination.arrival_date,
+            destination.departure_date
+        )
+
+        if date_errors:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    'message': 'Accommodation dates are outside destination stay',
+                    'errors': date_errors
+                }
+            )
+
+        # Check for overlaps with existing accommodations (excluding self)
+        existing_result = await db.execute(
+            select(Accommodation)
+            .where(Accommodation.destination_id == db_accommodation.destination_id)
+        )
+        existing_accommodations = [
+            {'id': a.id, 'name': a.name, 'check_in_date': a.check_in_date, 'check_out_date': a.check_out_date}
+            for a in existing_result.scalars().all()
+        ]
+
+        overlaps = check_overlap(
+            check_in,
+            check_out,
+            existing_accommodations,
+            exclude_id=id
+        )
+
+        if overlaps:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    'message': 'Accommodation dates overlap with existing bookings',
+                    'overlaps': overlaps
+                }
+            )
 
     for field, value in update_data.items():
         setattr(db_accommodation, field, value)

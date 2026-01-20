@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { X, Plus, Pencil, Trash2, Calendar, List } from 'lucide-react';
+import { X, Plus, Pencil, Trash2 } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import usePOIStore from '../stores/usePOIStore';
 import useDocumentStore from '../stores/useDocumentStore';
 import useDestinationStore from '../stores/useDestinationStore';
 import useAccommodationStore from '../stores/useAccommodationStore';
 import { DestinationFormModal } from '../components/Destination';
-import { AccommodationFormModal, AccommodationList } from '../components/Accommodation';
+import { AccommodationFormModal, AccommodationList, AccommodationTimeline } from '../components/Accommodation';
 
 // Layout components
 import { ItineraryUIProvider, useItineraryUI } from '../contexts/ItineraryUIContext';
@@ -22,7 +22,6 @@ import Timeline from '../components/Timeline/Timeline';
 import { TripMap } from '../components/Map';
 
 // Level 2 components
-import { DayBasedAgenda } from '../components/Agenda';
 import DailyItinerary from '../components/Itinerary/DailyItinerary';
 import { MicroMap } from '../components/Map';
 
@@ -618,7 +617,6 @@ const DetailViewContent = () => {
   const [showAddPOIModal, setShowAddPOIModal] = useState(false);
   const [pendingPOILocation, setPendingPOILocation] = useState(null);
   const [clearPendingTrigger, setClearPendingTrigger] = useState(0);
-  const [showDailyItinerary, setShowDailyItinerary] = useState(true); // Toggle for itinerary view
 
   // Destination modal state
   const [showDestinationModal, setShowDestinationModal] = useState(false);
@@ -631,6 +629,7 @@ const DetailViewContent = () => {
   // Accommodation modal state
   const [showAccommodationModal, setShowAccommodationModal] = useState(false);
   const [editingAccommodation, setEditingAccommodation] = useState(null);
+  const [accommodationPreFillDates, setAccommodationPreFillDates] = useState(null);
 
   // POI edit modal state
   const [showEditPOIModal, setShowEditPOIModal] = useState(false);
@@ -714,6 +713,14 @@ const DetailViewContent = () => {
   const handleCenterMapOnPOI = useCallback((poi) => {
     setCenterOnPOI(poi);
     setTimeout(() => setCenterOnPOI(null), 100);
+  }, []);
+
+  // Center map on accommodation
+  const handleCenterOnAccommodation = useCallback((acc) => {
+    if (acc.latitude && acc.longitude) {
+      setCenterOnPOI({ latitude: acc.latitude, longitude: acc.longitude, name: acc.name });
+      setTimeout(() => setCenterOnPOI(null), 100);
+    }
   }, []);
 
   const handleAddPOI = useCallback((location) => {
@@ -820,6 +827,20 @@ const DetailViewContent = () => {
     }
   }, [deleteAccommodation]);
 
+  // Handler for adding accommodation from timeline gap
+  const handleAddAccommodationForGap = useCallback((startDate, endDate) => {
+    setAccommodationPreFillDates({ check_in_date: startDate, check_out_date: endDate });
+    setEditingAccommodation(null);
+    setShowAccommodationModal(true);
+  }, []);
+
+  // Handler for accommodation modal close
+  const handleAccommodationModalClose = useCallback(() => {
+    setShowAccommodationModal(false);
+    setEditingAccommodation(null);
+    setAccommodationPreFillDates(null);
+  }, []);
+
   // Effects
   useEffect(() => {
     if (id) fetchTripDetails(id);
@@ -876,7 +897,7 @@ const DetailViewContent = () => {
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left Panel */}
-        <div className={`${viewLevel === 2 && showDailyItinerary ? 'w-96' : 'w-80'} flex-shrink-0 border-r border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-200`}>
+        <div className={`${viewLevel === 2 ? 'w-96' : 'w-80'} flex-shrink-0 border-r border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-200`}>
           {viewLevel === 1 ? (
             <Timeline
               destinations={selectedTrip.destinations || []}
@@ -909,22 +930,23 @@ const DetailViewContent = () => {
                 />
               </div>
 
-              {/* Accommodation Section */}
-              <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
-                <AccommodationList
+              {/* Accommodation Section with Timeline */}
+              <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
+                <AccommodationTimeline
+                  destination={selectedDestination}
                   accommodations={accommodations}
-                  onAdd={() => {
-                    setEditingAccommodation(null);
-                    setShowAccommodationModal(true);
-                  }}
-                  onEdit={(acc) => {
+                  onAddForGap={handleAddAccommodationForGap}
+                  onEditAccommodation={(acc) => {
                     setEditingAccommodation(acc);
+                    setAccommodationPreFillDates(null);
                     setShowAccommodationModal(true);
                   }}
-                  onDelete={handleDeleteAccommodation}
-                  isCompact={true}
-                  title="Accommodation"
-                  emptyMessage="No accommodation added"
+                  onCenterOnAccommodation={handleCenterOnAccommodation}
+                  onAddAccommodation={() => {
+                    setEditingAccommodation(null);
+                    setAccommodationPreFillDates(null);
+                    setShowAccommodationModal(true);
+                  }}
                 />
               </div>
             </div>
@@ -1029,12 +1051,11 @@ const DetailViewContent = () => {
       {/* Accommodation Form Modal */}
       <AccommodationFormModal
         isOpen={showAccommodationModal}
-        onClose={() => {
-          setShowAccommodationModal(false);
-          setEditingAccommodation(null);
-        }}
+        onClose={handleAccommodationModalClose}
         destinationId={selectedDestinationId}
+        destination={selectedDestination}
         accommodation={editingAccommodation}
+        preFillDates={accommodationPreFillDates}
         onSuccess={() => fetchAccommodations(selectedDestinationId)}
       />
 
