@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState, useEffect } from 'react';
+import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import Map, {
   NavigationControl,
   ScaleControl,
@@ -13,6 +13,7 @@ import { MapPin, Plus, Car, Footprints, Bike, Train, Plane, Ship, Bus, ExternalL
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
 import useRouteStore from '../../stores/useRouteStore';
+import SegmentNavigator from './SegmentNavigator';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 /**
@@ -170,14 +171,28 @@ const TRANSPORT_MODE_STYLES = {
   ferry: { color: '#06B6D4', dasharray: [6, 3] }, // cyan (dashed)
 };
 
-// Get route layer style for a specific segment
-const getSegmentLayerStyle = (segmentId, transportMode) => {
+// Get route layer style for a specific segment with optional highlighting
+const getSegmentLayerStyle = (segmentId, transportMode, isSelected = false, hasSelection = false) => {
   const style = TRANSPORT_MODE_STYLES[transportMode] || TRANSPORT_MODE_STYLES.car;
+
+  // Determine opacity and width based on selection state
+  let opacity = 0.85;
+  let width = 4;
+
+  if (hasSelection) {
+    if (isSelected) {
+      opacity = 1;
+      width = 6;
+    } else {
+      opacity = 0.4;
+      width = 3;
+    }
+  }
 
   const paint = {
     'line-color': style.color,
-    'line-width': 4,
-    'line-opacity': 0.85,
+    'line-width': width,
+    'line-opacity': opacity,
   };
 
   if (style.dasharray) {
@@ -195,20 +210,35 @@ const getSegmentLayerStyle = (segmentId, transportMode) => {
   };
 };
 
-// Route outline layer style for a specific segment
-const getSegmentOutlineStyle = (segmentId) => ({
-  id: `route-segment-outline-${segmentId}`,
-  type: 'line',
-  layout: {
-    'line-join': 'round',
-    'line-cap': 'round',
-  },
-  paint: {
-    'line-color': '#ffffff',
-    'line-width': 6,
-    'line-opacity': 0.5,
-  },
-});
+// Route outline layer style for a specific segment with optional highlighting
+const getSegmentOutlineStyle = (segmentId, isSelected = false, hasSelection = false) => {
+  let width = 6;
+  let opacity = 0.5;
+
+  if (hasSelection) {
+    if (isSelected) {
+      width = 10;
+      opacity = 0.7;
+    } else {
+      width = 5;
+      opacity = 0.3;
+    }
+  }
+
+  return {
+    id: `route-segment-outline-${segmentId}`,
+    type: 'line',
+    layout: {
+      'line-join': 'round',
+      'line-cap': 'round',
+    },
+    paint: {
+      'line-color': '#ffffff',
+      'line-width': width,
+      'line-opacity': opacity,
+    },
+  };
+};
 
 // Transport mode icons mapping
 const TRANSPORT_MODE_ICONS = {
@@ -258,8 +288,10 @@ const TripMap = ({
   // Can only add POI if there are destinations to attach them to
   const canAddPOI = enableAddPOI && destinations.length > 0;
   const { mapboxAccessToken } = useMapboxToken();
+  const mapRef = useRef(null);
   const [hoveredDestinationId, setHoveredDestinationId] = useState(null);
   const [isAddMode, setIsAddMode] = useState(false);
+  const [selectedSegmentId, setSelectedSegmentId] = useState(null);
   const [viewState, setViewState] = useState({
     longitude: 10.7522,
     latitude: 59.9139,
@@ -446,6 +478,43 @@ const TripMap = ({
     await exportToGoogleMaps(origin, destination, waypoints, 'driving');
   }, [sortedDestinations, exportToGoogleMaps]);
 
+  // Handle segment click - center map on segment and highlight it
+  const handleSegmentClick = useCallback((segment) => {
+    // Toggle selection if clicking the same segment
+    if (selectedSegmentId === segment.id) {
+      setSelectedSegmentId(null);
+      return;
+    }
+
+    setSelectedSegmentId(segment.id);
+
+    // Find the segment's geometry to calculate bounds
+    const segmentData = segmentGeoJSONs.find(s => s.id === segment.id);
+    if (!segmentData?.geojson?.geometry?.coordinates) return;
+
+    const coordinates = segmentData.geojson.geometry.coordinates;
+    if (coordinates.length < 2) return;
+
+    // Calculate bounds from segment coordinates
+    const lngs = coordinates.map(c => c[0]);
+    const lats = coordinates.map(c => c[1]);
+    const minLng = Math.min(...lngs);
+    const maxLng = Math.max(...lngs);
+    const minLat = Math.min(...lats);
+    const maxLat = Math.max(...lats);
+
+    // Fit map to segment bounds with padding
+    if (mapRef.current) {
+      mapRef.current.fitBounds(
+        [[minLng, minLat], [maxLng, maxLat]],
+        {
+          padding: { top: 80, bottom: 120, left: 60, right: 60 },
+          duration: 800,
+        }
+      );
+    }
+  }, [selectedSegmentId, segmentGeoJSONs]);
+
   const handleMarkerClick = useCallback(
     (destination, e) => {
       e.originalEvent.stopPropagation();
@@ -521,6 +590,7 @@ const TripMap = ({
       style={{ height }}
     >
       <Map
+        ref={mapRef}
         {...viewState}
         onMove={(evt) => setViewState(evt.viewState)}
         onClick={handleMapClick}
@@ -534,26 +604,31 @@ const TripMap = ({
         <FullscreenControl position="top-right" />
 
         {/* Route segments - each with its own color based on transport mode */}
-        {segmentGeoJSONs.map((segmentData) => (
-          <React.Fragment key={`segment-${segmentData.id}`}>
-            {/* Segment outline for visibility */}
-            <Source
-              id={`route-segment-outline-${segmentData.id}`}
-              type="geojson"
-              data={segmentData.geojson}
-            >
-              <Layer {...getSegmentOutlineStyle(segmentData.id)} />
-            </Source>
-            {/* Segment line with transport mode color */}
-            <Source
-              id={`route-segment-${segmentData.id}`}
-              type="geojson"
-              data={segmentData.geojson}
-            >
-              <Layer {...getSegmentLayerStyle(segmentData.id, segmentData.travel_mode)} />
-            </Source>
-          </React.Fragment>
-        ))}
+        {segmentGeoJSONs.map((segmentData) => {
+          const isSelected = selectedSegmentId === segmentData.id;
+          const hasSelection = selectedSegmentId !== null;
+
+          return (
+            <React.Fragment key={`segment-${segmentData.id}`}>
+              {/* Segment outline for visibility */}
+              <Source
+                id={`route-segment-outline-${segmentData.id}`}
+                type="geojson"
+                data={segmentData.geojson}
+              >
+                <Layer {...getSegmentOutlineStyle(segmentData.id, isSelected, hasSelection)} />
+              </Source>
+              {/* Segment line with transport mode color */}
+              <Source
+                id={`route-segment-${segmentData.id}`}
+                type="geojson"
+                data={segmentData.geojson}
+              >
+                <Layer {...getSegmentLayerStyle(segmentData.id, segmentData.travel_mode, isSelected, hasSelection)} />
+              </Source>
+            </React.Fragment>
+          );
+        })}
 
         <GeolocateControl position="top-right" />
 
@@ -627,12 +702,15 @@ const TripMap = ({
       </Map>
 
       {/* Add POI button - only show if enabled and there are destinations */}
+      {/* Position adjusts based on whether route info bar is showing below */}
       {enableAddPOI && (
         <>
           {canAddPOI ? (
             <button
               onClick={toggleAddMode}
-              className={`absolute bottom-20 left-4 px-4 py-2 rounded-lg shadow-lg font-medium transition-all flex items-center space-x-2 z-10 ${
+              className={`absolute left-4 px-4 py-2 rounded-lg shadow-lg font-medium transition-all flex items-center space-x-2 z-10 ${
+                showRouteControls && sortedDestinations.length >= 2 ? 'bottom-24' : 'bottom-4'
+              } ${
                 isAddMode
                   ? 'bg-red-500 text-white hover:bg-red-600'
                   : 'bg-indigo-600 text-white hover:bg-indigo-700'
@@ -642,7 +720,9 @@ const TripMap = ({
               <span>{isAddMode ? 'Cancel' : 'Add POI'}</span>
             </button>
           ) : (
-            <div className="absolute bottom-20 left-4 px-4 py-2 rounded-lg shadow-lg bg-gray-400 text-white font-medium flex items-center space-x-2 cursor-not-allowed z-10">
+            <div className={`absolute left-4 px-4 py-2 rounded-lg shadow-lg bg-gray-400 text-white font-medium flex items-center space-x-2 cursor-not-allowed z-10 ${
+              showRouteControls && sortedDestinations.length >= 2 ? 'bottom-24' : 'bottom-4'
+            }`}>
               <Plus className="w-4 h-4" />
               <span>Add POI</span>
             </div>
@@ -657,16 +737,29 @@ const TripMap = ({
 
           {/* Hint when no destinations */}
           {!canAddPOI && (
-            <div className="absolute bottom-32 left-4 bg-amber-100 text-amber-800 px-3 py-2 rounded-lg text-xs max-w-[200px] z-10">
+            <div className={`absolute left-4 bg-amber-100 text-amber-800 px-3 py-2 rounded-lg text-xs max-w-[200px] z-10 ${
+              showRouteControls && sortedDestinations.length >= 2 ? 'bottom-36' : 'bottom-16'
+            }`}>
               Add a destination first to create POIs
             </div>
           )}
         </>
       )}
 
-      {/* Route Info Bar - Bottom */}
+      {/* Google Maps Floating Action Button - Bottom Right */}
       {showRouteControls && sortedDestinations.length >= 2 && (
-        <div className="absolute bottom-4 left-4 right-4 z-10">
+        <button
+          onClick={handleExportToGoogleMaps}
+          className="absolute bottom-7 right-4 z-10 flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg shadow-lg hover:bg-indigo-700 transition-colors"
+        >
+          <ExternalLink className="w-4 h-4" />
+          <span className="hidden sm:inline">Google Maps</span>
+        </button>
+      )}
+
+      {/* Route Info Bar - Bottom Left, under Add POI button */}
+      {showRouteControls && sortedDestinations.length >= 2 && (
+        <div className="absolute bottom-4 left-4 z-10 max-w-lg">
           {/* Fallback Warning - auto-hides after 4 seconds */}
           {routeTotals?.has_fallback && showFallbackWarning && (
             <div className="bg-red-50 border border-red-200 rounded-lg shadow-lg p-3 mb-2 transition-opacity duration-300">
@@ -680,65 +773,40 @@ const TripMap = ({
             </div>
           )}
           <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                {/* Route Stats from travel segments */}
-                {routeTotals && (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-900">
-                        {formatDistance(routeTotals.distance_km)}
-                      </span>
-                    </div>
-                    <div className="h-4 w-px bg-gray-200" />
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-900">
-                        {formatDuration(routeTotals.duration_minutes)}
-                      </span>
-                    </div>
-                    <div className="h-4 w-px bg-gray-200" />
-                    <div className="flex items-center gap-1">
-                      {/* Show transport mode icons for each valid segment */}
-                      {validSegments.slice(0, 5).map((seg, idx) => {
-                        const Icon = TRANSPORT_MODE_ICONS[seg.travel_mode] || Car;
-                        const style = TRANSPORT_MODE_STYLES[seg.travel_mode] || TRANSPORT_MODE_STYLES.car;
-                        return (
-                          <div
-                            key={seg.id}
-                            className={`p-1 rounded ${seg.is_fallback ? 'bg-red-100' : ''}`}
-                            style={{ color: seg.is_fallback ? '#dc2626' : style.color }}
-                            title={seg.is_fallback ? `${seg.travel_mode} (fallback - car route)` : seg.travel_mode}
-                          >
-                            <Icon className="w-4 h-4" />
-                          </div>
-                        );
-                      })}
-                      {validSegments.length > 5 && (
-                        <span className="text-xs text-gray-400 ml-1">+{validSegments.length - 5}</span>
-                      )}
-                    </div>
-                  </>
-                )}
-                {isSegmentsLoading && (
-                  <span className="text-sm text-gray-500">Loading routes...</span>
-                )}
-                {!routeTotals && !isSegmentsLoading && (
-                  <span className="text-sm text-gray-500">
-                    {sortedDestinations.length} stops
-                  </span>
-                )}
-              </div>
-
-              {/* Export to Google Maps Button */}
-              <button
-                onClick={handleExportToGoogleMaps}
-                className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
-              >
-                <ExternalLink className="w-4 h-4" />
-                <span className="hidden sm:inline">Open in Google Maps</span>
-                <span className="sm:hidden">Navigate</span>
-              </button>
+            <div className="flex items-center gap-4">
+              {/* Route Stats from travel segments */}
+              {routeTotals && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm font-medium text-gray-900">
+                      {formatDistance(routeTotals.distance_km)}
+                    </span>
+                  </div>
+                  <div className="h-4 w-px bg-gray-200" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-900">
+                      {formatDuration(routeTotals.duration_minutes)}
+                    </span>
+                  </div>
+                  <div className="h-4 w-px bg-gray-200" />
+                  {/* Segment Navigator with pagination, hover cards, and click-to-center */}
+                  <SegmentNavigator
+                    segments={validSegments}
+                    destinations={sortedDestinations}
+                    selectedSegmentId={selectedSegmentId}
+                    onSegmentClick={handleSegmentClick}
+                  />
+                </>
+              )}
+              {isSegmentsLoading && (
+                <span className="text-sm text-gray-500">Loading routes...</span>
+              )}
+              {!routeTotals && !isSegmentsLoading && (
+                <span className="text-sm text-gray-500">
+                  {sortedDestinations.length} stops
+                </span>
+              )}
             </div>
           </div>
         </div>
