@@ -896,63 +896,17 @@ const DetailViewContent = () => {
             />
           ) : (
             <div className="flex flex-col h-full">
-              {/* View Toggle */}
-              <div className="flex items-center justify-between p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
-                <span className="text-xs text-gray-500 dark:text-gray-400">View:</span>
-                <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                  <button
-                    onClick={() => setShowDailyItinerary(true)}
-                    className={`px-3 py-1.5 text-xs flex items-center space-x-1 transition-colors ${
-                      showDailyItinerary
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                    title="Daily Itinerary (drag & drop)"
-                  >
-                    <Calendar className="w-3 h-3" />
-                    <span>Daily</span>
-                  </button>
-                  <button
-                    onClick={() => setShowDailyItinerary(false)}
-                    className={`px-3 py-1.5 text-xs flex items-center space-x-1 transition-colors ${
-                      !showDailyItinerary
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                    title="Category List"
-                  >
-                    <List className="w-3 h-3" />
-                    <span>List</span>
-                  </button>
-                </div>
-              </div>
-
               <div className="flex-1 overflow-hidden">
-                {showDailyItinerary ? (
-                  <DailyItinerary
-                    destination={selectedDestination}
-                    pois={pois}
-                    onScheduleChange={handleScheduleChange}
-                    onBack={handleBackToLevel1}
-                    onEditPOI={handleEditPOI}
-                    onDeletePOI={handleDeletePOI}
-                    onVotePOI={handleVotePOI}
-                    className="h-full"
-                  />
-                ) : (
-                  <DayBasedAgenda
-                    destination={selectedDestination}
-                    pois={pois}
-                    selectedPOIs={selectedPOIs}
-                    onSelectPOI={handleSelectPOI}
-                    onCenterMapOnPOI={handleCenterMapOnPOI}
-                    onBack={handleBackToLevel1}
-                    onEditPOI={handleEditPOI}
-                    onDeletePOI={handleDeletePOI}
-                    onVotePOI={handleVotePOI}
-                    className="h-full"
-                  />
-                )}
+                <DailyItinerary
+                  destination={selectedDestination}
+                  pois={pois}
+                  onScheduleChange={handleScheduleChange}
+                  onBack={handleBackToLevel1}
+                  onEditPOI={handleEditPOI}
+                  onDeletePOI={handleDeletePOI}
+                  onVotePOI={handleVotePOI}
+                  className="h-full"
+                />
               </div>
 
               {/* Accommodation Section */}

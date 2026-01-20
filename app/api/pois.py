@@ -1,12 +1,17 @@
 from typing import List
+from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from geoalchemy2.functions import ST_SetSRID, ST_MakePoint, ST_X, ST_Y
 
 from app.core.database import get_db
-from app.models import POI, Destination
-from app.schemas.poi import POICreate, POIUpdate, POIResponse, POIsByCategory, POIVote, POIBulkScheduleUpdate
+from app.models import POI, Destination, Accommodation
+from app.schemas.poi import (
+    POICreate, POIUpdate, POIResponse, POIsByCategory, POIVote,
+    POIBulkScheduleUpdate, POIOptimizationRequest, POIOptimizationResponse, OptimizedPOI
+)
+from app.services.poi_optimization_service import get_poi_optimization_service, POIOptimizationError
 
 router = APIRouter()
 
@@ -324,3 +329,252 @@ async def bulk_update_poi_schedule(
     rows = result.all()
 
     return [poi_to_response(row[0], row[1], row[2]) for row in rows]
+
+
+@router.post("/destinations/{destination_id}/pois/optimize-day", response_model=POIOptimizationResponse)
+async def optimize_day_route(
+    destination_id: int,
+    request: POIOptimizationRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Optimize the order of POIs for a specific day to minimize travel time.
+
+    Uses ORS Optimization API when available, falls back to TSP algorithm.
+    The route starts from the provided start_location (typically accommodation).
+    """
+    # Verify destination exists
+    dest_result = await db.execute(select(Destination).where(Destination.id == destination_id))
+    destination = dest_result.scalar_one_or_none()
+
+    if not destination:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Destination with id {destination_id} not found"
+        )
+
+    # Calculate the target date based on day_number
+    if not destination.arrival_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Destination has no arrival date set"
+        )
+
+    target_date = destination.arrival_date + timedelta(days=request.day_number - 1)
+
+    # Get POIs scheduled for this day
+    result = await db.execute(
+        select(
+            POI,
+            ST_Y(POI.coordinates).label('latitude'),
+            ST_X(POI.coordinates).label('longitude')
+        )
+        .where(POI.destination_id == destination_id)
+        .where(POI.scheduled_date == target_date)
+        .order_by(POI.day_order.nulls_last())
+    )
+    rows = result.all()
+
+    if not rows:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No POIs scheduled for day {request.day_number}"
+        )
+
+    # Build POI data for optimization
+    pois_data = []
+    original_order = []
+    for row in rows:
+        poi, lat, lng = row
+        if lat is None or lng is None:
+            continue  # Skip POIs without coordinates
+        pois_data.append({
+            'id': poi.id,
+            'latitude': lat,
+            'longitude': lng,
+            'dwell_time': poi.dwell_time or 30,  # Default 30 minutes
+        })
+        original_order.append(poi.id)
+
+    if not pois_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No POIs with valid coordinates found for this day"
+        )
+
+    # Prepare start location
+    start_location = {
+        'lat': request.start_location.lat,
+        'lon': request.start_location.lon
+    }
+
+    # Optimize route
+    service = get_poi_optimization_service()
+    try:
+        result = await service.optimize_route(
+            pois=pois_data,
+            start_location=start_location,
+            profile="foot-walking"
+        )
+    except POIOptimizationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Route optimization failed: {str(e)}"
+        )
+
+    # Build POI responses in optimized order
+    poi_map = {row[0].id: (row[0], row[1], row[2]) for row in rows}
+    optimized_pois = []
+    for poi_id in result.optimized_order:
+        if poi_id in poi_map:
+            poi, lat, lng = poi_map[poi_id]
+            optimized_pois.append(poi_to_response(poi, lat, lng))
+
+    # Calculate estimated visit times
+    schedule = []
+    start_time = request.start_time
+    # Parse start time
+    hours, minutes = map(int, start_time.split(':'))
+    current_minutes = hours * 60 + minutes
+
+    # Calculate travel time per POI (distribute total travel time across segments)
+    num_pois = len(result.optimized_order)
+    if num_pois > 1:
+        travel_time_per_segment = result.total_duration_minutes / num_pois
+    else:
+        travel_time_per_segment = 0
+
+    for i, poi_id in enumerate(result.optimized_order):
+        if poi_id not in poi_map:
+            continue
+
+        poi, lat, lng = poi_map[poi_id]
+        dwell_time = poi.dwell_time or 30  # Default 30 minutes
+
+        # Add travel time (except for first POI)
+        if i > 0:
+            current_minutes += int(travel_time_per_segment)
+
+        arrival_hours = int(current_minutes // 60) % 24
+        arrival_mins = int(current_minutes % 60)
+        arrival_time = f"{arrival_hours:02d}:{arrival_mins:02d}"
+
+        # Add dwell time
+        current_minutes += dwell_time
+
+        departure_hours = int(current_minutes // 60) % 24
+        departure_mins = int(current_minutes % 60)
+        departure_time = f"{departure_hours:02d}:{departure_mins:02d}"
+
+        schedule.append(OptimizedPOI(
+            id=poi.id,
+            name=poi.name,
+            category=poi.category,
+            latitude=lat,
+            longitude=lng,
+            dwell_time=dwell_time,
+            estimated_arrival=arrival_time,
+            estimated_departure=departure_time
+        ))
+
+    return POIOptimizationResponse(
+        optimized_order=result.optimized_order,
+        total_distance_km=result.total_distance_km,
+        total_duration_minutes=result.total_duration_minutes,
+        route_geometry=result.route_geometry,
+        original_order=original_order,
+        pois=optimized_pois,
+        schedule=schedule,
+        start_time=start_time
+    )
+
+
+@router.get("/destinations/{destination_id}/accommodation-for-day")
+async def get_accommodation_for_day(
+    destination_id: int,
+    day_number: int,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get the accommodation for a specific day of a destination.
+
+    Returns the accommodation where the traveler stays the night before this day.
+    If no accommodation is found, returns the destination center coordinates.
+    """
+    # Verify destination exists
+    dest_result = await db.execute(
+        select(
+            Destination,
+            ST_Y(Destination.coordinates).label('dest_lat'),
+            ST_X(Destination.coordinates).label('dest_lon')
+        )
+        .where(Destination.id == destination_id)
+    )
+    dest_row = dest_result.one_or_none()
+
+    if not dest_row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Destination with id {destination_id} not found"
+        )
+
+    destination, dest_lat, dest_lon = dest_row
+
+    if not destination.arrival_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Destination has no arrival date set"
+        )
+
+    # Calculate the night before this day (for day 1, it's arrival night)
+    target_night = destination.arrival_date + timedelta(days=day_number - 1)
+
+    # Find accommodation that covers this night
+    # (check_in_date <= target_night < check_out_date)
+    acc_result = await db.execute(
+        select(
+            Accommodation,
+            ST_Y(Accommodation.coordinates).label('acc_lat'),
+            ST_X(Accommodation.coordinates).label('acc_lon')
+        )
+        .where(Accommodation.destination_id == destination_id)
+        .where(Accommodation.check_in_date <= target_night)
+        .where(Accommodation.check_out_date > target_night)
+    )
+    acc_row = acc_result.first()
+
+    if acc_row:
+        accommodation, acc_lat, acc_lon = acc_row
+        return {
+            "has_accommodation": True,
+            "accommodation": {
+                "id": accommodation.id,
+                "name": accommodation.name,
+                "type": accommodation.type,
+                "address": accommodation.address,
+            },
+            "start_location": {
+                "lat": acc_lat,
+                "lon": acc_lon
+            }
+        }
+
+    # No accommodation found, use destination center or coordinates
+    lat = dest_lat or destination.latitude
+    lon = dest_lon or destination.longitude
+
+    if lat is None or lon is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No accommodation found and destination has no coordinates"
+        )
+
+    return {
+        "has_accommodation": False,
+        "accommodation": None,
+        "start_location": {
+            "lat": lat,
+            "lon": lon
+        },
+        "warning": "No accommodation set for this day. Using destination center as start point."
+    }

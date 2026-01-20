@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   ArrowLeft,
   ChevronDown,
@@ -18,7 +18,12 @@ import {
   ThumbsDown,
   Filter,
   X,
+  Route,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
+import OptimizationPreview from './OptimizationPreview';
+import usePOIStore from '../../stores/usePOIStore';
 
 // Category icon components mapping
 const categoryIcons = {
@@ -59,37 +64,57 @@ const flattenPOIs = (poisByCategory) => {
 
 // Calculate nights count
 const calculateNights = (arrivalDate, departureDate) => {
-  const arrival = new Date(arrivalDate);
-  const departure = new Date(departureDate);
+  const arrival = parseDateString(arrivalDate);
+  const departure = parseDateString(departureDate);
+  if (!arrival || !departure) return 0;
   return Math.ceil((departure - arrival) / (1000 * 60 * 60 * 24));
+};
+
+// Parse date string (YYYY-MM-DD) without timezone issues
+const parseDateString = (dateStr) => {
+  if (!dateStr) return null;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+// Format date to YYYY-MM-DD for comparison with scheduled_date
+const formatDateString = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 // Organize POIs by day
 const organizeByDay = (pois, arrivalDate, nights) => {
   const days = [];
 
-  for (let i = 0; i < nights; i++) {
-    const dayDate = new Date(arrivalDate);
-    dayDate.setDate(dayDate.getDate() + i);
+  // Parse arrival date properly to avoid timezone issues
+  const startDate = parseDateString(arrivalDate);
+  if (!startDate) return { days: [], unassigned: pois };
 
-    // Filter POIs assigned to this day
-    // Note: POIs need assignedDay field (1-indexed)
-    const dayPOIs = pois.filter((poi) => poi.assignedDay === i + 1);
-    const scheduled = dayPOIs
-      .filter((p) => p.timeSlot)
-      .sort((a, b) => a.timeSlot.localeCompare(b.timeSlot));
-    const unscheduled = dayPOIs.filter((p) => !p.timeSlot);
+  for (let i = 0; i < nights; i++) {
+    const dayDate = new Date(startDate);
+    dayDate.setDate(dayDate.getDate() + i);
+    const dayDateStr = formatDateString(dayDate);
+
+    // Filter POIs scheduled for this day using scheduled_date field
+    const dayPOIs = pois.filter((poi) => poi.scheduled_date === dayDateStr);
+
+    // Sort by day_order (all POIs on a day are considered "scheduled")
+    const sortedPOIs = [...dayPOIs].sort((a, b) => (a.day_order || 0) - (b.day_order || 0));
 
     days.push({
       dayNumber: i + 1,
       date: dayDate,
-      scheduled,
-      unscheduled,
+      dateStr: dayDateStr,
+      scheduled: sortedPOIs, // All POIs assigned to the day
+      unscheduled: [], // No longer using timeSlot distinction
     });
   }
 
-  // POIs without assignedDay
-  const unassigned = pois.filter((poi) => !poi.assignedDay);
+  // POIs without scheduled_date
+  const unassigned = pois.filter((poi) => !poi.scheduled_date);
 
   return { days, unassigned };
 };
@@ -101,7 +126,7 @@ const formatDayHeader = (dayNumber, date) => {
 };
 
 // POI Item sub-component
-const POIItem = ({ poi, isSelected, onSelect, onCenter, onEdit, onDelete, onVote, showTime }) => {
+const POIItem = ({ poi, isSelected, onSelect, onCenter, onEdit, onDelete, onVote, orderIndex }) => {
   const [isHovered, setIsHovered] = useState(false);
   // Get the icon component from the mapping (not creating component during render)
   const CategoryIcon = categoryIcons[poi.category] || MapPin;
@@ -140,6 +165,12 @@ const POIItem = ({ poi, isSelected, onSelect, onCenter, onEdit, onDelete, onVote
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
+      {/* Order number badge */}
+      {orderIndex && (
+        <div className="w-5 h-5 flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-bold mr-2 flex-shrink-0">
+          {orderIndex}
+        </div>
+      )}
       <input
         type="checkbox"
         checked={isSelected}
@@ -149,9 +180,6 @@ const POIItem = ({ poi, isSelected, onSelect, onCenter, onEdit, onDelete, onVote
       <div className="flex-1 min-w-0" onClick={handleItemClick}>
         <div className="flex items-center justify-between">
           <div className="flex items-center min-w-0 flex-1">
-            {showTime && poi.timeSlot && (
-              <span className="text-xs text-gray-500 dark:text-gray-400 mr-2 font-medium">{poi.timeSlot}</span>
-            )}
             <span className="text-sm font-medium text-gray-900 dark:text-white truncate">{poi.name}</span>
           </div>
           {/* Action buttons - visible on hover */}
@@ -231,6 +259,24 @@ const DayBasedAgenda = ({
   const [categoryFilter, setCategoryFilter] = useState(null);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
 
+  // Optimization state
+  const [showOptimizationPreview, setShowOptimizationPreview] = useState(false);
+  const [optimizingDay, setOptimizingDay] = useState(null);
+  const [isApplyingOptimization, setIsApplyingOptimization] = useState(false);
+  const [startLocationInfo, setStartLocationInfo] = useState(null);
+  const [optimizationError, setOptimizationError] = useState(null);
+  const [startTime, setStartTime] = useState('08:00');
+
+  // Store actions
+  const {
+    optimizationResult,
+    isOptimizing,
+    getAccommodationForDay,
+    optimizeDayRoute,
+    applyOptimizedOrder,
+    clearOptimizationResult,
+  } = usePOIStore();
+
   const allPOIs = useMemo(() => flattenPOIs(pois), [pois]);
 
   // Get unique categories for filter menu
@@ -290,6 +336,92 @@ const DayBasedAgenda = ({
   const isPOISelected = (poiId) => {
     return selectedPOIs.includes(poiId);
   };
+
+  // Optimization handlers
+  const handleOptimizeDay = useCallback(async (dayNumber, totalPOIs) => {
+    if (totalPOIs < 2) {
+      setOptimizationError('Need at least 2 POIs to optimize');
+      setTimeout(() => setOptimizationError(null), 3000);
+      return;
+    }
+
+    setOptimizingDay(dayNumber);
+    setOptimizationError(null);
+
+    try {
+      // First, get the accommodation/start location for this day
+      const locationInfo = await getAccommodationForDay(destination.id, dayNumber);
+      setStartLocationInfo(locationInfo);
+
+      // Then optimize the route with start time
+      await optimizeDayRoute(
+        destination.id,
+        dayNumber,
+        locationInfo.start_location,
+        startTime
+      );
+
+      // Show preview modal
+      setShowOptimizationPreview(true);
+    } catch (error) {
+      setOptimizationError(error.message);
+      setTimeout(() => setOptimizationError(null), 5000);
+    } finally {
+      setOptimizingDay(null);
+    }
+  }, [destination?.id, getAccommodationForDay, optimizeDayRoute, startTime]);
+
+  // Re-optimize when start time changes (if preview is open)
+  const handleStartTimeChange = useCallback(async (newTime) => {
+    setStartTime(newTime);
+    if (showOptimizationPreview && startLocationInfo && optimizingDay) {
+      try {
+        await optimizeDayRoute(
+          destination.id,
+          optimizingDay,
+          startLocationInfo.start_location,
+          newTime
+        );
+      } catch (error) {
+        setOptimizationError(error.message);
+      }
+    }
+  }, [showOptimizationPreview, startLocationInfo, optimizingDay, destination?.id, optimizeDayRoute]);
+
+  const handleApplyOptimization = useCallback(async () => {
+    if (!optimizationResult || !destination || optimizingDay === null) return;
+
+    setIsApplyingOptimization(true);
+
+    try {
+      // Calculate the target date for the day using proper date parsing
+      const startDate = parseDateString(destination.arrival_date);
+      if (!startDate) {
+        throw new Error('Invalid arrival date');
+      }
+      startDate.setDate(startDate.getDate() + (optimizingDay || 1) - 1);
+      const dateStr = formatDateString(startDate);
+
+      await applyOptimizedOrder(
+        destination.id,
+        optimizationResult.optimized_order,
+        dateStr
+      );
+
+      setShowOptimizationPreview(false);
+      setOptimizingDay(null);
+    } catch (error) {
+      setOptimizationError(error.message);
+    } finally {
+      setIsApplyingOptimization(false);
+    }
+  }, [destination, optimizingDay, optimizationResult, applyOptimizedOrder]);
+
+  const handleCloseOptimizationPreview = useCallback(() => {
+    setShowOptimizationPreview(false);
+    setOptimizingDay(null);
+    clearOptimizationResult();
+  }, [clearOptimizationResult]);
 
   // Format dates for display
   const formatDate = (dateStr) => {
@@ -389,78 +521,81 @@ const DayBasedAgenda = ({
         </div>
       </div>
 
+      {/* Optimization Error Toast */}
+      {optimizationError && (
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-3 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg shadow-lg">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span className="text-sm">{optimizationError}</span>
+        </div>
+      )}
+
       {/* Day Sections */}
       <div className="flex-1 overflow-y-auto p-2 space-y-2">
         {days.map(({ dayNumber, date, scheduled, unscheduled }) => {
           const isExpanded = expandedDays[dayNumber] !== false;
           const totalPOIs = scheduled.length + unscheduled.length;
+          const isOptimizingThisDay = optimizingDay === dayNumber && isOptimizing;
 
           return (
             <div key={dayNumber} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
               {/* Day Header */}
-              <button
-                onClick={() => toggleDay(dayNumber)}
-                className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <div className="flex items-center">
+              <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50">
+                <button
+                  onClick={() => toggleDay(dayNumber)}
+                  className="flex items-center flex-1 hover:bg-gray-100 dark:hover:bg-gray-700 -m-1 p-1 rounded transition-colors"
+                >
                   <span className="font-medium text-sm text-gray-900 dark:text-white">
                     {formatDayHeader(dayNumber, date)}
                   </span>
                   {totalPOIs > 0 && (
                     <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">({totalPOIs})</span>
                   )}
-                </div>
-                {isExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                  {isExpanded ? (
+                    <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400 ml-auto" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400 ml-auto" />
+                  )}
+                </button>
+                {/* Optimize Route Button - shows when 2+ POIs are assigned to this day */}
+                {totalPOIs >= 2 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOptimizeDay(dayNumber, totalPOIs);
+                    }}
+                    disabled={isOptimizingThisDay}
+                    className="ml-2 flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded transition-colors disabled:opacity-50"
+                    title="Optimize route order"
+                  >
+                    {isOptimizingThisDay ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Route className="w-3 h-3" />
+                    )}
+                    <span className="hidden sm:inline">Optimize</span>
+                  </button>
                 )}
-              </button>
+              </div>
 
               {/* Day POIs */}
               {isExpanded && (
                 <div className="p-2 space-y-1">
-                  {scheduled.length === 0 && unscheduled.length === 0 ? (
+                  {totalPOIs === 0 ? (
                     <p className="text-xs text-gray-400 dark:text-gray-500 italic p-2">No activities planned</p>
                   ) : (
-                    <>
-                      {/* Scheduled POIs */}
-                      {scheduled.map((poi) => (
-                        <POIItem
-                          key={poi.id}
-                          poi={poi}
-                          isSelected={isPOISelected(poi.id)}
-                          onSelect={() => handlePOISelect(poi.id)}
-                          onCenter={() => handleCenterMap(poi)}
-                          onEdit={onEditPOI}
-                          onDelete={onDeletePOI}
-                          onVote={onVotePOI}
-                          showTime={true}
-                        />
-                      ))}
-
-                      {/* Unscheduled POIs */}
-                      {unscheduled.length > 0 && (
-                        <>
-                          {scheduled.length > 0 && (
-                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 mb-1 px-2">Unscheduled:</p>
-                          )}
-                          {unscheduled.map((poi) => (
-                            <POIItem
-                              key={poi.id}
-                              poi={poi}
-                              isSelected={isPOISelected(poi.id)}
-                              onSelect={() => handlePOISelect(poi.id)}
-                              onCenter={() => handleCenterMap(poi)}
-                              onEdit={onEditPOI}
-                              onDelete={onDeletePOI}
-                              onVote={onVotePOI}
-                              showTime={false}
-                            />
-                          ))}
-                        </>
-                      )}
-                    </>
+                    scheduled.map((poi, index) => (
+                      <POIItem
+                        key={poi.id}
+                        poi={poi}
+                        isSelected={isPOISelected(poi.id)}
+                        onSelect={() => handlePOISelect(poi.id)}
+                        onCenter={() => handleCenterMap(poi)}
+                        onEdit={onEditPOI}
+                        onDelete={onDeletePOI}
+                        onVote={onVotePOI}
+                        orderIndex={index + 1}
+                      />
+                    ))
                   )}
                 </div>
               )}
@@ -483,7 +618,6 @@ const DayBasedAgenda = ({
                   onEdit={onEditPOI}
                   onDelete={onDeletePOI}
                   onVote={onVotePOI}
-                  showTime={false}
                 />
               ))}
             </div>
@@ -500,6 +634,22 @@ const DayBasedAgenda = ({
           </p>
         </div>
       )}
+
+      {/* Optimization Preview Modal */}
+      <OptimizationPreview
+        isOpen={showOptimizationPreview}
+        onClose={handleCloseOptimizationPreview}
+        onApply={handleApplyOptimization}
+        optimizationResult={optimizationResult}
+        isApplying={isApplyingOptimization}
+        dayNumber={optimizingDay}
+        startLocationName={
+          startLocationInfo?.accommodation?.name ||
+          (startLocationInfo?.warning ? 'City center (no accommodation set)' : null)
+        }
+        startTime={startTime}
+        onStartTimeChange={handleStartTimeChange}
+      />
     </div>
   );
 };

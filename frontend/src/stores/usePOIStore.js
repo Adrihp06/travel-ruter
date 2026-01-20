@@ -7,6 +7,10 @@ const usePOIStore = create((set, get) => ({
   selectedPOI: null,
   isLoading: false,
   error: null,
+  // Optimization state
+  optimizationResult: null,
+  isOptimizing: false,
+  optimizationError: null,
 
   setPOIs: (pois) => set({ pois }),
 
@@ -296,6 +300,73 @@ const usePOIStore = create((set, get) => ({
       set({ error: error.message });
       throw error;
     }
+  },
+
+  // Get accommodation/start location for a day
+  getAccommodationForDay: async (destinationId, dayNumber) => {
+    const response = await fetch(
+      `${API_BASE_URL}/destinations/${destinationId}/accommodation-for-day?day_number=${dayNumber}`
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to get accommodation');
+    }
+
+    return await response.json();
+  },
+
+  // Optimize POI route for a specific day
+  optimizeDayRoute: async (destinationId, dayNumber, startLocation, startTime = '08:00') => {
+    set({ isOptimizing: true, optimizationError: null, optimizationResult: null });
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/destinations/${destinationId}/pois/optimize-day`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            day_number: dayNumber,
+            start_location: startLocation,
+            start_time: startTime,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to optimize route');
+      }
+
+      const result = await response.json();
+      set({ optimizationResult: result, isOptimizing: false });
+      return result;
+    } catch (error) {
+      set({ optimizationError: error.message, isOptimizing: false });
+      throw error;
+    }
+  },
+
+  // Apply optimized order to POIs
+  applyOptimizedOrder: async (destinationId, optimizedOrder, targetDate) => {
+    // Build schedule updates with new day_order
+    const updates = optimizedOrder.map((poiId, index) => ({
+      id: poiId,
+      scheduled_date: targetDate,
+      day_order: index,
+    }));
+
+    // Use existing bulk update method
+    await get().updatePOISchedules(destinationId, updates);
+
+    // Clear optimization state
+    set({ optimizationResult: null });
+  },
+
+  // Clear optimization state (for cancel action)
+  clearOptimizationResult: () => {
+    set({ optimizationResult: null, optimizationError: null });
   },
 }));
 

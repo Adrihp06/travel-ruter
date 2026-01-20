@@ -80,3 +80,40 @@ class POIScheduleItem(BaseModel):
 class POIBulkScheduleUpdate(BaseModel):
     """Bulk update for POI schedules"""
     updates: List[POIScheduleItem] = Field(..., description="List of POI schedule updates")
+
+
+class StartLocation(BaseModel):
+    """Start location for route optimization"""
+    lat: float = Field(..., description="Latitude of start location")
+    lon: float = Field(..., description="Longitude of start location")
+
+
+class POIOptimizationRequest(BaseModel):
+    """Request for POI route optimization"""
+    day_number: int = Field(..., ge=1, description="Day number to optimize (1-indexed)")
+    start_location: StartLocation = Field(..., description="Starting location (accommodation)")
+    start_time: str = Field(default="08:00", pattern=r"^\d{2}:\d{2}$", description="Start time in HH:MM format (default 08:00)")
+
+
+class OptimizedPOI(BaseModel):
+    """POI with computed visit time"""
+    id: int
+    name: str
+    category: str
+    latitude: Optional[float]
+    longitude: Optional[float]
+    dwell_time: Optional[int]
+    estimated_arrival: str = Field(..., description="Estimated arrival time in HH:MM format")
+    estimated_departure: str = Field(..., description="Estimated departure time in HH:MM format")
+
+
+class POIOptimizationResponse(BaseModel):
+    """Response from POI route optimization"""
+    optimized_order: List[int] = Field(..., description="POI IDs in optimal visiting order")
+    total_distance_km: float = Field(..., description="Total route distance in kilometers")
+    total_duration_minutes: int = Field(..., description="Total travel time in minutes (excluding dwell time)")
+    route_geometry: Optional[dict] = Field(None, description="GeoJSON geometry of the optimized route")
+    original_order: List[int] = Field(..., description="Original POI order for comparison")
+    pois: List[POIResponse] = Field(..., description="POIs in optimized order with full details")
+    schedule: List[OptimizedPOI] = Field(..., description="POIs with estimated visit times")
+    start_time: str = Field(..., description="Day start time in HH:MM format")

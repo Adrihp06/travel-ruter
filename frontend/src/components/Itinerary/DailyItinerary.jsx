@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -40,8 +40,13 @@ import {
   Bike,
   Car,
   ArrowDown,
+  Route,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
+import usePOIStore from '../../stores/usePOIStore';
+import OptimizationPreview from '../Agenda/OptimizationPreview';
 
 // Category icon mapping
 const categoryIcons = {
@@ -310,14 +315,16 @@ const DayColumn = ({
   onDelete,
   onVote,
   totalDwellTime,
+  onOptimize,
+  isOptimizing,
 }) => {
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-      >
-        <div className="flex items-center">
+      <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50">
+        <button
+          onClick={onToggle}
+          className="flex items-center flex-1 hover:bg-gray-100 dark:hover:bg-gray-700 -m-1 p-1 rounded transition-colors"
+        >
           <Calendar className="w-4 h-4 mr-2 text-indigo-500 dark:text-indigo-400" />
           <span className="font-medium text-sm text-gray-900 dark:text-white">
             Day {day.dayNumber}
@@ -330,21 +337,42 @@ const DayColumn = ({
               {pois.length}
             </span>
           )}
-        </div>
-        <div className="flex items-center space-x-3">
+        </button>
+        <div className="flex items-center space-x-2">
+          {/* Optimize Route Button */}
+          {pois.length >= 2 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOptimize?.(day.dayNumber);
+              }}
+              disabled={isOptimizing}
+              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded transition-colors disabled:opacity-50"
+              title="Optimize route order"
+            >
+              {isOptimizing ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Route className="w-3 h-3" />
+              )}
+              <span>Optimize</span>
+            </button>
+          )}
           {totalDwellTime > 0 && (
             <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
               <Clock className="w-3 h-3 mr-1" />
               {formatDwellTime(totalDwellTime)}
             </span>
           )}
-          {isExpanded ? (
-            <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-          ) : (
-            <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-          )}
+          <button onClick={onToggle} className="p-1">
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            )}
+          </button>
         </div>
-      </button>
+      </div>
 
       {isExpanded && (
         <DroppableContainer id={day.date} className="p-2 min-h-[60px] transition-all">
@@ -451,6 +479,24 @@ const DailyItinerary = ({
   const [expandedDays, setExpandedDays] = useState({});
   const [unscheduledExpanded, setUnscheduledExpanded] = useState(true);
   const [activePOI, setActivePOI] = useState(null);
+
+  // Optimization state
+  const [showOptimizationPreview, setShowOptimizationPreview] = useState(false);
+  const [optimizingDay, setOptimizingDay] = useState(null);
+  const [isApplyingOptimization, setIsApplyingOptimization] = useState(false);
+  const [startLocationInfo, setStartLocationInfo] = useState(null);
+  const [optimizationError, setOptimizationError] = useState(null);
+  const [startTime, setStartTime] = useState('08:00');
+
+  // Store actions for optimization
+  const {
+    optimizationResult,
+    isOptimizing,
+    getAccommodationForDay,
+    optimizeDayRoute,
+    applyOptimizedOrder,
+    clearOptimizationResult,
+  } = usePOIStore();
 
   // Flatten POIs from category groups
   const allPOIs = useMemo(() => {
@@ -698,6 +744,91 @@ const DailyItinerary = ({
     return `${arrDate.toLocaleDateString('en-US', options)} - ${depDate.toLocaleDateString('en-US', options)}`;
   };
 
+  // Optimization handlers
+  const handleOptimizeDay = useCallback(async (dayNumber) => {
+    const day = days.find(d => d.dayNumber === dayNumber);
+    if (!day) return;
+
+    const dayPOIs = scheduledByDay[day.date] || [];
+    if (dayPOIs.length < 2) {
+      setOptimizationError('Need at least 2 POIs to optimize');
+      setTimeout(() => setOptimizationError(null), 3000);
+      return;
+    }
+
+    setOptimizingDay(dayNumber);
+    setOptimizationError(null);
+
+    try {
+      // First, get the accommodation/start location for this day
+      const locationInfo = await getAccommodationForDay(destination.id, dayNumber);
+      setStartLocationInfo(locationInfo);
+
+      // Then optimize the route with start time
+      await optimizeDayRoute(
+        destination.id,
+        dayNumber,
+        locationInfo.start_location,
+        startTime
+      );
+
+      // Show preview modal
+      setShowOptimizationPreview(true);
+    } catch (error) {
+      setOptimizationError(error.message);
+      setTimeout(() => setOptimizationError(null), 5000);
+    }
+  }, [destination?.id, days, scheduledByDay, getAccommodationForDay, optimizeDayRoute, startTime]);
+
+  const handleApplyOptimization = useCallback(async () => {
+    if (!optimizationResult || !destination || optimizingDay === null) return;
+
+    setIsApplyingOptimization(true);
+
+    try {
+      // Find the date for this day number
+      const day = days.find(d => d.dayNumber === optimizingDay);
+      if (!day) {
+        throw new Error('Day not found');
+      }
+
+      await applyOptimizedOrder(
+        destination.id,
+        optimizationResult.optimized_order,
+        day.date
+      );
+
+      setShowOptimizationPreview(false);
+      setOptimizingDay(null);
+    } catch (error) {
+      setOptimizationError(error.message);
+    } finally {
+      setIsApplyingOptimization(false);
+    }
+  }, [destination, optimizingDay, optimizationResult, days, applyOptimizedOrder]);
+
+  const handleCloseOptimizationPreview = useCallback(() => {
+    setShowOptimizationPreview(false);
+    setOptimizingDay(null);
+    clearOptimizationResult();
+  }, [clearOptimizationResult]);
+
+  const handleStartTimeChange = useCallback(async (newTime) => {
+    setStartTime(newTime);
+    if (showOptimizationPreview && startLocationInfo && optimizingDay) {
+      try {
+        await optimizeDayRoute(
+          destination.id,
+          optimizingDay,
+          startLocationInfo.start_location,
+          newTime
+        );
+      } catch (error) {
+        setOptimizationError(error.message);
+      }
+    }
+  }, [showOptimizationPreview, startLocationInfo, optimizingDay, destination?.id, optimizeDayRoute]);
+
   if (!destination) {
     return (
       <div className={`flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 w-80 ${className}`}>
@@ -758,6 +889,8 @@ const DailyItinerary = ({
               onDelete={onDeletePOI}
               onVote={onVotePOI}
               totalDwellTime={dwellTimeByDay[day.date] || 0}
+              onOptimize={handleOptimizeDay}
+              isOptimizing={optimizingDay === day.dayNumber && isOptimizing}
             />
           ))}
 
@@ -791,6 +924,30 @@ const DailyItinerary = ({
           </span>
         </div>
       </div>
+
+      {/* Optimization Error Toast */}
+      {optimizationError && (
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-3 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg shadow-lg">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span className="text-sm">{optimizationError}</span>
+        </div>
+      )}
+
+      {/* Optimization Preview Modal */}
+      <OptimizationPreview
+        isOpen={showOptimizationPreview}
+        onClose={handleCloseOptimizationPreview}
+        onApply={handleApplyOptimization}
+        optimizationResult={optimizationResult}
+        isApplying={isApplyingOptimization}
+        dayNumber={optimizingDay}
+        startLocationName={
+          startLocationInfo?.accommodation?.name ||
+          (startLocationInfo?.warning ? 'City center (no accommodation set)' : null)
+        }
+        startTime={startTime}
+        onStartTimeChange={handleStartTimeChange}
+      />
     </div>
   );
 };
