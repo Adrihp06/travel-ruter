@@ -606,7 +606,7 @@ const DetailViewContent = () => {
   const { selectedTrip, fetchTripDetails, isLoading, setSelectedTripDestinations } = useTripStore();
   const { pois, fetchPOIsByDestination, createPOI, updatePOI, deletePOI, votePOI, updatePOISchedules } = usePOIStore();
   const { documents } = useDocumentStore();
-  const { deleteDestination, reorderDestinations } = useDestinationStore();
+  const { deleteDestination, reorderDestinations, setSelectedDestination, resetSelectedDestination, selectedDestination: storeSelectedDestination } = useDestinationStore();
   const { accommodations, fetchAccommodations, deleteAccommodation } = useAccommodationStore();
   const { isSidebarVisible, isVaultVisible, toggleSidebar, toggleVault } = useItineraryUI();
 
@@ -697,12 +697,18 @@ const DetailViewContent = () => {
     setSelectedDestinationId(destId);
     setSelectedPOIs([]);
     setCenterOnPOI(null);
-  }, []);
+    // Sync with store for breadcrumb display
+    const dest = selectedTrip?.destinations?.find(d => d.id === destId);
+    if (dest) {
+      setSelectedDestination(dest);
+    }
+  }, [selectedTrip?.destinations, setSelectedDestination]);
 
   const handleBackToLevel1 = useCallback(() => {
     setSelectedDestinationId(null);
     setSelectedPOIs([]);
-  }, []);
+    resetSelectedDestination();
+  }, [resetSelectedDestination]);
 
   const handleSelectPOI = useCallback((poiId) => {
     setSelectedPOIs(prev =>
@@ -854,6 +860,14 @@ const DetailViewContent = () => {
       fetchAccommodations(selectedDestinationId);
     }
   }, [selectedDestinationId, fetchPOIsByDestination, fetchAccommodations]);
+
+  // Sync local state with store (for breadcrumb navigation back to trip level)
+  useEffect(() => {
+    if (storeSelectedDestination === null && selectedDestinationId !== null) {
+      setSelectedDestinationId(null);
+      setSelectedPOIs([]);
+    }
+  }, [storeSelectedDestination, selectedDestinationId]);
 
   // Loading state
   if (isLoading) {

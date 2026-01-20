@@ -14,6 +14,8 @@ const useDestinationStore = create((set, get) => ({
     selectedDestination: state.destinations.find((d) => d.id === destinationId) || null
   })),
 
+  setSelectedDestination: (destination) => set({ selectedDestination: destination }),
+
   resetSelectedDestination: () => set({ selectedDestination: null }),
 
   fetchDestinations: async (tripId) => {
