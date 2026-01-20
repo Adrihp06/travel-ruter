@@ -163,7 +163,7 @@ const AccommodationTimeline = ({
         <div className="px-3 pb-2 space-y-2">
           {/* Timeline Bar */}
           <div className="relative">
-            <div className="flex h-5 rounded overflow-hidden bg-gray-100 dark:bg-gray-700/50">
+            <div className="flex h-5 rounded overflow-hidden bg-gray-100 dark:bg-gray-700/50 gap-0">
               {nights.map((night, index) => {
                 const accommodation = nightCoverage[night.date];
                 const isGap = !accommodation;
@@ -182,11 +182,9 @@ const AccommodationTimeline = ({
                   <div
                     key={night.date}
                     className={`
-                      flex-1 relative transition-all flex items-center justify-center
+                      flex-1 relative transition-all flex items-center justify-center min-w-0
                       ${bgColor}
                       ${isGap ? 'cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900/50 bg-transparent' : 'cursor-pointer hover:opacity-80'}
-                      ${isStart ? 'rounded-l ml-0.5' : ''}
-                      ${isEnd ? 'rounded-r mr-0.5' : ''}
                     `}
                     onClick={() => {
                       if (isGap && onAddForGap) {
