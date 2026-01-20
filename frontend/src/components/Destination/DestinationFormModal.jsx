@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, MapPin, Calendar } from 'lucide-react';
+import { X, MapPin } from 'lucide-react';
 import useDestinationStore from '../../stores/useDestinationStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
+import DateRangePicker from '../common/DateRangePicker';
 
 const DestinationFormModal = ({
   isOpen,
@@ -25,17 +26,6 @@ const DestinationFormModal = ({
   });
 
   const [errors, setErrors] = useState({});
-
-  // Calculate nights automatically
-  const calculateNights = () => {
-    if (formData.arrival_date && formData.departure_date) {
-      const arrival = new Date(formData.arrival_date);
-      const departure = new Date(formData.departure_date);
-      const diff = Math.ceil((departure - arrival) / (1000 * 60 * 60 * 24));
-      return diff > 0 ? diff : 0;
-    }
-    return 0;
-  };
 
   // Infer country from trip location or existing destinations
   const inferCountry = () => {
@@ -188,8 +178,6 @@ const DestinationFormModal = ({
 
   if (!isOpen) return null;
 
-  const nights = calculateNights();
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto text-gray-900">
@@ -251,52 +239,20 @@ const DestinationFormModal = ({
           </div>
 
           {/* Dates */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Arrival Date *
-              </label>
-              <input
-                type="date"
-                value={formData.arrival_date}
-                onChange={(e) => setFormData({ ...formData, arrival_date: e.target.value })}
-                min={trip?.start_date}
-                max={trip?.end_date}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 ${
-                  errors.arrival_date ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.arrival_date && (
-                <p className="text-red-500 text-xs mt-1">{errors.arrival_date}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Departure Date *
-              </label>
-              <input
-                type="date"
-                value={formData.departure_date}
-                onChange={(e) => setFormData({ ...formData, departure_date: e.target.value })}
-                min={trip?.start_date}
-                max={trip?.end_date}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 ${
-                  errors.departure_date ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.departure_date && (
-                <p className="text-red-500 text-xs mt-1">{errors.departure_date}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Nights indicator */}
-          {nights > 0 && (
-            <div className="bg-indigo-50 text-indigo-700 px-3 py-2 rounded-lg text-sm flex items-center">
-              <Calendar className="w-4 h-4 mr-2" />
-              {nights} night{nights !== 1 ? 's' : ''}
-            </div>
-          )}
+          <DateRangePicker
+            startDate={formData.arrival_date}
+            endDate={formData.departure_date}
+            onStartChange={(date) => setFormData({ ...formData, arrival_date: date })}
+            onEndChange={(date) => setFormData({ ...formData, departure_date: date })}
+            startLabel="Arrival Date"
+            endLabel="Departure Date"
+            minDate={trip?.start_date}
+            maxDate={trip?.end_date}
+            startError={errors.arrival_date}
+            endError={errors.departure_date}
+            required
+            showDuration
+          />
 
           {/* Notes */}
           <div>

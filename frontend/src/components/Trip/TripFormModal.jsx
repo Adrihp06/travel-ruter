@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { X, Plane, Image, Upload, Calendar, Tag as TagIcon, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Plane, Image, Upload, Tag as TagIcon } from 'lucide-react';
 import useTripStore from '../../stores/useTripStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import LocationMapPreview from '../Location/LocationMapPreview';
+import DateRangePicker from '../common/DateRangePicker';
 
 const AVAILABLE_TAGS = [
   { id: 'business', label: 'Business', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
@@ -39,20 +40,6 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-
-  // Calculate trip duration
-  const tripDuration = useMemo(() => {
-    if (formData.start_date && formData.end_date) {
-      const start = new Date(formData.start_date);
-      const end = new Date(formData.end_date);
-      if (end >= start) {
-        const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-        const nights = days - 1;
-        return { days, nights };
-      }
-    }
-    return null;
-  }, [formData.start_date, formData.end_date]);
 
   // Populate form for edit mode
   useEffect(() => {
@@ -426,55 +413,18 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           </div>
 
           {/* Dates */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Start Date *
-              </label>
-              <input
-                type="date"
-                value={formData.start_date}
-                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ${
-                  errors.start_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                }`}
-              />
-              {errors.start_date && (
-                <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.start_date}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                End Date *
-              </label>
-              <input
-                type="date"
-                value={formData.end_date}
-                onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ${
-                  errors.end_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                }`}
-              />
-              {errors.end_date && (
-                <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.end_date}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Trip Duration Preview */}
-          {tripDuration && (
-            <div className="flex items-center space-x-2 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
-              <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-              <span className="text-sm text-indigo-700 dark:text-indigo-300">
-                <span className="font-medium">{tripDuration.days} day{tripDuration.days !== 1 ? 's' : ''}</span>
-                {tripDuration.nights > 0 && (
-                  <span className="text-indigo-600 dark:text-indigo-400">
-                    {' '}({tripDuration.nights} night{tripDuration.nights !== 1 ? 's' : ''})
-                  </span>
-                )}
-              </span>
-            </div>
-          )}
+          <DateRangePicker
+            startDate={formData.start_date}
+            endDate={formData.end_date}
+            onStartChange={(date) => setFormData({ ...formData, start_date: date })}
+            onEndChange={(date) => setFormData({ ...formData, end_date: date })}
+            startLabel="Start Date"
+            endLabel="End Date"
+            startError={errors.start_date}
+            endError={errors.end_date}
+            required
+            showDuration
+          />
 
           {/* Tags / Categories */}
           <div>

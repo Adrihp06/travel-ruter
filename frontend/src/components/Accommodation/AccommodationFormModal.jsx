@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Bed, Calendar } from 'lucide-react';
+import { X, Bed } from 'lucide-react';
 import useAccommodationStore from '../../stores/useAccommodationStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
+import DateRangePicker from '../common/DateRangePicker';
 
 const AccommodationFormModal = ({
   isOpen,
@@ -51,17 +52,6 @@ const AccommodationFormModal = ({
   ];
 
   const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'NOK', 'SEK', 'DKK'];
-
-  // Calculate nights automatically
-  const calculateNights = () => {
-    if (formData.check_in_date && formData.check_out_date) {
-      const checkIn = new Date(formData.check_in_date);
-      const checkOut = new Date(formData.check_out_date);
-      const diff = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-      return diff > 0 ? diff : 0;
-    }
-    return 0;
-  };
 
   // Populate form for edit mode
   useEffect(() => {
@@ -184,8 +174,6 @@ const AccommodationFormModal = ({
 
   if (!isOpen) return null;
 
-  const nights = calculateNights();
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
@@ -248,36 +236,18 @@ const AccommodationFormModal = ({
           </div>
 
           {/* Dates */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-in *</label>
-              <input
-                type="date"
-                value={formData.check_in_date}
-                onChange={(e) => setFormData({ ...formData, check_in_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${errors.check_in_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-              />
-              {errors.check_in_date && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.check_in_date}</p>}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Check-out *</label>
-              <input
-                type="date"
-                value={formData.check_out_date}
-                onChange={(e) => setFormData({ ...formData, check_out_date: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${errors.check_out_date ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-              />
-              {errors.check_out_date && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.check_out_date}</p>}
-            </div>
-          </div>
-
-          {/* Nights indicator */}
-          {nights > 0 && (
-            <div className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-3 py-2 rounded-lg text-sm flex items-center">
-              <Calendar className="w-4 h-4 mr-2" />
-              {nights} night{nights !== 1 ? 's' : ''}
-            </div>
-          )}
+          <DateRangePicker
+            startDate={formData.check_in_date}
+            endDate={formData.check_out_date}
+            onStartChange={(date) => setFormData({ ...formData, check_in_date: date })}
+            onEndChange={(date) => setFormData({ ...formData, check_out_date: date })}
+            startLabel="Check-in"
+            endLabel="Check-out"
+            startError={errors.check_in_date}
+            endError={errors.check_out_date}
+            required
+            showDuration
+          />
 
           {/* Booking Info */}
           <div className="grid grid-cols-2 gap-4">
