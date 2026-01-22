@@ -8,6 +8,7 @@ import logging
 
 from app.models.travel_segment import TravelSegment
 from app.models.destination import Destination
+from app.models.route_waypoint import RouteWaypoint
 from app.schemas.travel_segment import TravelMode, TravelSegmentCreate
 from app.schemas.routing_preferences import RoutingPreference
 from app.services.mapbox_service import MapboxService, MapboxServiceError, MapboxRoutingProfile
@@ -571,3 +572,188 @@ class TravelSegmentService:
             segments.append(segment)
 
         return segments
+
+    @classmethod
+    async def _fetch_route_with_waypoints(
+        cls,
+        origin_lat: float, origin_lon: float,
+        dest_lat: float, dest_lon: float,
+        waypoints: list[RouteWaypoint],
+        mode: TravelMode
+    ) -> tuple[Optional[dict], Optional[float], Optional[int], bool]:
+        """
+        Fetch route geometry through waypoints from routing services.
+
+        Args:
+            origin_lat, origin_lon: Origin coordinates
+            dest_lat, dest_lon: Destination coordinates
+            waypoints: List of RouteWaypoint objects in order
+            mode: Travel mode
+
+        Returns:
+            tuple: (geometry_dict, distance_km, duration_minutes, is_fallback)
+        """
+        # For flights and ferries, waypoints don't make sense
+        if mode in (TravelMode.PLANE, TravelMode.FERRY):
+            logger.debug(f"Mode {mode} does not support waypoint routing")
+            return None, None, None, False
+
+        # Build waypoint coordinates list: [(lon, lat), ...]
+        waypoint_coords = [(wp.longitude, wp.latitude) for wp in waypoints]
+
+        # Try Mapbox first for car, walking, biking
+        mapbox_profile = cls._map_mode_to_mapbox_profile(mode)
+        if mapbox_profile:
+            try:
+                service = MapboxService()
+                if service.is_available():
+                    logger.debug(f"Attempting Mapbox routing with {len(waypoint_coords)} waypoints")
+                    result = await service.get_route(
+                        origin=(origin_lon, origin_lat),
+                        destination=(dest_lon, dest_lat),
+                        profile=mapbox_profile,
+                        waypoints=waypoint_coords if waypoint_coords else None,
+                    )
+                    distance_km = round(result.distance_meters / 1000, 2)
+                    duration_min = int(round(result.duration_seconds / 60))
+                    logger.info(f"Mapbox waypoint routing successful: {distance_km}km, {duration_min}min")
+                    return result.geometry, distance_km, duration_min, False
+            except MapboxServiceError as e:
+                logger.warning(f"Mapbox waypoint routing failed: {e}")
+
+        # Try OpenRouteService as fallback
+        ors_profile = cls._map_mode_to_ors_profile(mode)
+        if ors_profile:
+            try:
+                service = OpenRouteServiceService()
+                if service.is_available():
+                    logger.debug(f"Attempting ORS routing with {len(waypoint_coords)} waypoints")
+                    result = await service.get_route(
+                        origin=(origin_lon, origin_lat),
+                        destination=(dest_lon, dest_lat),
+                        profile=ors_profile,
+                        waypoints=waypoint_coords if waypoint_coords else None,
+                    )
+                    distance_km = round(result.distance_meters / 1000, 2)
+                    duration_min = int(round(result.duration_seconds / 60))
+
+                    # Adjust for train/bus speed differences
+                    is_fallback = cls._is_public_transport(mode)
+                    if mode == TravelMode.TRAIN:
+                        duration_min = int(round(duration_min * 0.75))
+                        duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.TRAIN, 30)
+                    elif mode == TravelMode.BUS:
+                        duration_min = int(round(duration_min * 1.2))
+                        duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.BUS, 20)
+
+                    logger.info(f"ORS waypoint routing successful: {distance_km}km, {duration_min}min")
+                    return result.geometry, distance_km, duration_min, is_fallback
+            except ORSServiceError as e:
+                logger.warning(f"ORS waypoint routing failed: {e}")
+
+        logger.warning("All waypoint routing services failed")
+        return None, None, None, cls._is_public_transport(mode)
+
+    @classmethod
+    async def recalculate_segment_with_waypoints(
+        cls,
+        db: AsyncSession,
+        segment_id: int
+    ) -> Optional[TravelSegment]:
+        """
+        Recalculate a segment's route including its waypoints.
+
+        This should be called when waypoints are added, updated, reordered, or deleted.
+        """
+        # Get the segment
+        segment = await cls.get_segment_by_id(db, segment_id)
+        if not segment:
+            logger.warning(f"Segment {segment_id} not found for waypoint recalculation")
+            return None
+
+        # Get destination coordinates
+        from_dest_result = await db.execute(
+            select(Destination).where(Destination.id == segment.from_destination_id)
+        )
+        from_dest = from_dest_result.scalar_one_or_none()
+
+        to_dest_result = await db.execute(
+            select(Destination).where(Destination.id == segment.to_destination_id)
+        )
+        to_dest = to_dest_result.scalar_one_or_none()
+
+        if not from_dest or not to_dest:
+            logger.warning(f"Destinations not found for segment {segment_id}")
+            return None
+
+        if (from_dest.latitude is None or from_dest.longitude is None or
+                to_dest.latitude is None or to_dest.longitude is None):
+            logger.warning(f"Missing coordinates for segment {segment_id}")
+            return None
+
+        # Get waypoints in order
+        waypoint_result = await db.execute(
+            select(RouteWaypoint)
+            .where(RouteWaypoint.travel_segment_id == segment_id)
+            .order_by(RouteWaypoint.order_index)
+        )
+        waypoints = list(waypoint_result.scalars().all())
+
+        mode = TravelMode(segment.travel_mode)
+
+        if waypoints:
+            # Fetch route with waypoints
+            route_geometry, distance_km, duration_min, is_fallback = await cls._fetch_route_with_waypoints(
+                from_dest.latitude, from_dest.longitude,
+                to_dest.latitude, to_dest.longitude,
+                waypoints,
+                mode
+            )
+        else:
+            # No waypoints - use standard routing
+            route_geometry, distance_km, duration_min, is_fallback = await cls._fetch_route_geometry(
+                from_dest.latitude, from_dest.longitude,
+                to_dest.latitude, to_dest.longitude,
+                mode
+            )
+
+        # Update segment with new route
+        if route_geometry and distance_km is not None and duration_min is not None:
+            if route_geometry.get("type") == "LineString":
+                coords = route_geometry.get("coordinates", [])
+                wkt_coords = ", ".join(f"{c[0]} {c[1]}" for c in coords)
+                geometry_wkt = f"LINESTRING({wkt_coords})"
+            else:
+                geometry_wkt = f"LINESTRING({from_dest.longitude} {from_dest.latitude}, {to_dest.longitude} {to_dest.latitude})"
+
+            segment.distance_km = distance_km
+            segment.duration_minutes = duration_min
+            segment.geometry = geometry_wkt
+            segment.is_fallback = is_fallback
+        else:
+            # Fallback to heuristic calculation
+            distance_km, duration_minutes = cls.calculate_travel_time(
+                from_dest.latitude, from_dest.longitude,
+                to_dest.latitude, to_dest.longitude,
+                mode
+            )
+
+            # Build geometry through waypoints as straight line segments
+            coords = [(from_dest.longitude, from_dest.latitude)]
+            for wp in waypoints:
+                coords.append((wp.longitude, wp.latitude))
+            coords.append((to_dest.longitude, to_dest.latitude))
+
+            wkt_coords = ", ".join(f"{c[0]} {c[1]}" for c in coords)
+            geometry_wkt = f"LINESTRING({wkt_coords})"
+
+            segment.distance_km = distance_km
+            segment.duration_minutes = duration_minutes
+            segment.geometry = geometry_wkt
+            segment.is_fallback = is_fallback if is_fallback else cls._is_public_transport(mode)
+
+        await db.flush()
+        await db.refresh(segment)
+
+        logger.info(f"Recalculated segment {segment_id} with {len(waypoints)} waypoints")
+        return segment

@@ -13,6 +13,7 @@ import { MapPin, Plus, Car, Footprints, Bike, Train, Plane, Ship, Bus, ExternalL
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
 import useRouteStore from '../../stores/useRouteStore';
+import useWaypointStore from '../../stores/useWaypointStore';
 import SegmentNavigator from './SegmentNavigator';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -284,6 +285,7 @@ const TripMap = ({
   enableAddPOI = false, // Enable click-to-add-POI mode
   onAddPOI = null, // Callback when clicking on map to add POI: ({ latitude, longitude }) => void
   tripId = null, // Trip ID for fetching travel segments
+  onSegmentRouteUpdated = null, // Callback when a segment route is updated (after waypoint changes)
 }) => {
   // Can only add POI if there are destinations to attach them to
   const canAddPOI = enableAddPOI && destinations.length > 0;
@@ -304,6 +306,18 @@ const TripMap = ({
 
   // Route store for Google Maps export only
   const { exportToGoogleMaps } = useRouteStore();
+
+  // Waypoint store for adding waypoints via map clicks
+  const {
+    addingWaypointMode,
+    createWaypoint,
+    exitAddWaypointMode,
+    getWaypoints,
+    fetchSegmentWaypoints,
+  } = useWaypointStore();
+
+  // Track waypoints for all segments
+  const [segmentWaypoints, setSegmentWaypoints] = useState({});
 
   // Sort destinations chronologically
   const sortedDestinations = useMemo(() => {
@@ -331,6 +345,26 @@ const TripMap = ({
       fetchTripSegments(tripId);
     }
   }, [tripId, destinationOrderKey, fetchTripSegments]);
+
+  // Fetch waypoints for all segments
+  useEffect(() => {
+    const fetchAllWaypoints = async () => {
+      if (!segments || segments.length === 0) return;
+
+      const waypointsMap = {};
+      for (const segment of segments) {
+        try {
+          const waypoints = await fetchSegmentWaypoints(segment.id);
+          waypointsMap[segment.id] = waypoints || [];
+        } catch {
+          waypointsMap[segment.id] = [];
+        }
+      }
+      setSegmentWaypoints(waypointsMap);
+    };
+
+    fetchAllWaypoints();
+  }, [segments, fetchSegmentWaypoints]);
 
   // Calculate initial view to fit all destinations or show trip location
   useEffect(() => {
@@ -525,12 +559,40 @@ const TripMap = ({
     [onSelectDestination]
   );
 
-  // Handle map click for adding POI
+  // Handle map click for adding POI or waypoint
   const handleMapClick = useCallback(
-    (event) => {
+    async (event) => {
+      const { lngLat } = event;
+
+      // Check if we're in waypoint adding mode
+      if (addingWaypointMode) {
+        const waypointData = {
+          latitude: lngLat.lat,
+          longitude: lngLat.lng,
+        };
+
+        try {
+          await createWaypoint(addingWaypointMode, waypointData);
+          exitAddWaypointMode();
+
+          // Refresh segments to get updated route geometry
+          if (tripId) {
+            await fetchTripSegments(tripId);
+          }
+
+          // Notify parent about route update
+          if (onSegmentRouteUpdated) {
+            onSegmentRouteUpdated(addingWaypointMode);
+          }
+        } catch (err) {
+          console.error('Failed to create waypoint:', err);
+        }
+        return;
+      }
+
+      // Handle POI adding mode
       if (!isAddMode) return;
 
-      const { lngLat } = event;
       const location = {
         latitude: lngLat.lat,
         longitude: lngLat.lng,
@@ -544,7 +606,7 @@ const TripMap = ({
         onAddPOI(location);
       }
     },
-    [isAddMode, onAddPOI]
+    [isAddMode, onAddPOI, addingWaypointMode, createWaypoint, exitAddWaypointMode, tripId, fetchTripSegments, onSegmentRouteUpdated]
   );
 
   // Toggle add mode
@@ -597,7 +659,7 @@ const TripMap = ({
         mapboxAccessToken={mapboxAccessToken}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/streets-v12"
-        cursor={isAddMode ? 'crosshair' : 'grab'}
+        cursor={isAddMode || addingWaypointMode ? 'crosshair' : 'grab'}
       >
         <NavigationControl position="top-right" />
         <ScaleControl position="bottom-left" />
@@ -699,7 +761,31 @@ const TripMap = ({
           );
         })}
 
+        {/* Waypoint markers */}
+        {Object.entries(segmentWaypoints).map(([segmentId, waypoints]) =>
+          waypoints.map((waypoint) => (
+            <Marker
+              key={`waypoint-${waypoint.id}`}
+              longitude={waypoint.longitude}
+              latitude={waypoint.latitude}
+              anchor="center"
+            >
+              <div
+                className="w-3 h-3 bg-blue-500 border-2 border-white rounded-full shadow-sm cursor-pointer hover:scale-125 transition-transform"
+                title={waypoint.name || `Waypoint ${waypoint.order_index + 1}`}
+              />
+            </Marker>
+          ))
+        )}
+
       </Map>
+
+      {/* Waypoint adding mode hint */}
+      {addingWaypointMode && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm z-20 shadow-lg">
+          Click on the map to add a waypoint
+        </div>
+      )}
 
       {/* Add POI button - only show if enabled and there are destinations */}
       {/* Position adjusts based on whether route info bar is showing below */}

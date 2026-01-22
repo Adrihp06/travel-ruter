@@ -30,6 +30,13 @@ from app.schemas.travel_segment import (
     TravelSegmentWithDestinations,
     TripTravelSegmentsResponse,
 )
+from app.schemas.route_waypoint import (
+    RouteWaypointCreate,
+    RouteWaypointUpdate,
+    RouteWaypointResponse,
+    RouteWaypointReorderRequest,
+    SegmentWaypointsResponse,
+)
 
 __all__ = [
     "DestinationCreate",
@@ -54,4 +61,9 @@ __all__ = [
     "TravelSegmentCalculateRequest",
     "TravelSegmentWithDestinations",
     "TripTravelSegmentsResponse",
+    "RouteWaypointCreate",
+    "RouteWaypointUpdate",
+    "RouteWaypointResponse",
+    "RouteWaypointReorderRequest",
+    "SegmentWaypointsResponse",
 ]

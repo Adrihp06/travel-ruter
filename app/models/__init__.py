@@ -6,6 +6,7 @@ from app.models.poi import POI
 from app.models.accommodation import Accommodation
 from app.models.document import Document, DocumentType
 from app.models.travel_segment import TravelSegment
+from app.models.route_waypoint import RouteWaypoint
 
 __all__ = [
     "BaseModel",
@@ -17,4 +18,5 @@ __all__ = [
     "Document",
     "DocumentType",
     "TravelSegment",
+    "RouteWaypoint",
 ]
