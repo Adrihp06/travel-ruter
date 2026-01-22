@@ -15,6 +15,8 @@ import {
   Shield,
   Stamp,
   Utensils,
+  MapPin,
+  Calendar,
 } from 'lucide-react';
 
 const DOCUMENT_TYPE_ICONS = {
@@ -50,6 +52,8 @@ const DocumentList = ({
   onDelete,
   isLoading,
   emptyMessage = 'No documents uploaded yet',
+  compact = false,
+  destinations = [],
 }) => {
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -66,16 +70,21 @@ const DocumentList = ({
     });
   };
 
-  const getFileIcon = (mimeType) => {
+  const getFileIcon = (mimeType, size = 5) => {
     if (mimeType?.startsWith('image/')) {
-      return <Image className="w-5 h-5 text-indigo-500" />;
+      return <Image className={`w-${size} h-${size} text-indigo-500`} />;
     }
-    return <FileText className="w-5 h-5 text-red-500" />;
+    return <FileText className={`w-${size} h-${size} text-red-500`} />;
   };
 
   const getTypeIcon = (documentType) => {
     const IconComponent = DOCUMENT_TYPE_ICONS[documentType] || File;
     return <IconComponent className="w-3 h-3" />;
+  };
+
+  const getDestinationName = (destinationId) => {
+    const dest = destinations.find(d => d.id === destinationId);
+    return dest ? dest.city_name : null;
   };
 
   if (isLoading) {
@@ -88,29 +97,29 @@ const DocumentList = ({
 
   if (!documents || documents.length === 0) {
     return (
-      <div className="text-center py-6 text-gray-500 text-sm">
-        <FileText className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+      <div className={`text-center ${compact ? 'py-3' : 'py-6'} text-gray-500 text-sm`}>
+        {!compact && <FileText className="w-8 h-8 mx-auto mb-2 text-gray-300" />}
         <p>{emptyMessage}</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
+    <div className={compact ? 'space-y-1.5' : 'space-y-2'}>
       {documents.map((doc) => (
         <div
           key={doc.id}
-          className="group flex items-center p-3 bg-white border border-gray-200 rounded-lg hover:border-indigo-200 hover:shadow-sm transition-all duration-200"
+          className={`group flex items-center ${compact ? 'p-2' : 'p-3'} bg-white border border-gray-200 rounded-lg hover:border-indigo-200 hover:shadow-sm transition-all duration-200`}
         >
           {/* File Icon */}
-          <div className="flex-shrink-0 mr-3">
-            {getFileIcon(doc.mime_type)}
+          <div className={`flex-shrink-0 ${compact ? 'mr-2' : 'mr-3'}`}>
+            {getFileIcon(doc.mime_type, compact ? 4 : 5)}
           </div>
 
           {/* Document Info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-2">
-              <h4 className="text-sm font-medium text-gray-900 truncate">
+            <div className="flex items-center flex-wrap gap-1">
+              <h4 className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-gray-900 truncate`}>
                 {doc.title || doc.original_filename}
               </h4>
               <span
@@ -123,38 +132,57 @@ const DocumentList = ({
                 <span className="capitalize">{doc.document_type}</span>
               </span>
             </div>
-            <div className="flex items-center space-x-2 text-xs text-gray-500 mt-0.5">
+
+            {/* Location badges (destination and day) */}
+            {(doc.destination_id || doc.day_number) && (
+              <div className="flex items-center flex-wrap gap-1 mt-1">
+                {doc.destination_id && (
+                  <span className="inline-flex items-center text-xs text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                    <MapPin className="w-3 h-3 mr-0.5" />
+                    {getDestinationName(doc.destination_id) || `Dest #${doc.destination_id}`}
+                  </span>
+                )}
+                {doc.day_number && (
+                  <span className="inline-flex items-center text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                    <Calendar className="w-3 h-3 mr-0.5" />
+                    Day {doc.day_number}
+                  </span>
+                )}
+              </div>
+            )}
+
+            <div className={`flex items-center space-x-2 ${compact ? 'text-xs' : 'text-xs'} text-gray-500 mt-0.5`}>
               <span>{formatFileSize(doc.file_size)}</span>
               <span>-</span>
               <span>{formatDate(doc.created_at)}</span>
             </div>
-            {doc.description && (
+            {!compact && doc.description && (
               <p className="text-xs text-gray-500 mt-1 truncate">{doc.description}</p>
             )}
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className={`flex items-center ${compact ? 'space-x-0.5 ml-1' : 'space-x-1 ml-2'} opacity-0 group-hover:opacity-100 transition-opacity`}>
             <button
               onClick={() => onView(doc.id)}
-              className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+              className={`${compact ? 'p-1' : 'p-1.5'} text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors`}
               title="View"
             >
-              <Eye className="w-4 h-4" />
+              <Eye className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
             </button>
             <button
               onClick={() => onDownload(doc.id)}
-              className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+              className={`${compact ? 'p-1' : 'p-1.5'} text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors`}
               title="Download"
             >
-              <Download className="w-4 h-4" />
+              <Download className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
             </button>
             <button
               onClick={() => onDelete(doc.id)}
-              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+              className={`${compact ? 'p-1' : 'p-1.5'} text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors`}
               title="Delete"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
             </button>
           </div>
         </div>

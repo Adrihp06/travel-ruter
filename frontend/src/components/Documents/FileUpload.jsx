@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { Upload, X, FileText, Image, AlertCircle, CheckCircle } from 'lucide-react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
+import { Upload, X, FileText, Image, AlertCircle, CheckCircle, MapPin, Calendar } from 'lucide-react';
 
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -17,15 +17,33 @@ const DOCUMENT_TYPES = [
   { value: 'other', label: 'Other' },
 ];
 
-const FileUpload = ({ onUpload, isUploading, error }) => {
+const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [documentType, setDocumentType] = useState('other');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [selectedDestination, setSelectedDestination] = useState('');
+  const [selectedDay, setSelectedDay] = useState('');
   const [validationError, setValidationError] = useState(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const fileInputRef = useRef(null);
+
+  // Calculate number of days for selected destination
+  const availableDays = useMemo(() => {
+    if (!selectedDestination) return [];
+    const dest = destinations.find(d => d.id === parseInt(selectedDestination));
+    if (!dest || !dest.arrival_date || !dest.departure_date) return [];
+
+    const arrival = new Date(dest.arrival_date);
+    const departure = new Date(dest.departure_date);
+    const numDays = Math.ceil((departure - arrival) / (1000 * 60 * 60 * 24));
+
+    return Array.from({ length: numDays }, (_, i) => ({
+      value: i + 1,
+      label: `Day ${i + 1}`,
+    }));
+  }, [selectedDestination, destinations]);
 
   const validateFile = (file) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -97,21 +115,39 @@ const FileUpload = ({ onUpload, isUploading, error }) => {
     }
   };
 
+  const handleDestinationChange = (e) => {
+    setSelectedDestination(e.target.value);
+    // Reset day selection when destination changes
+    setSelectedDay('');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedFile || isUploading) return;
 
     try {
-      await onUpload(selectedFile, {
+      const metadata = {
         document_type: documentType,
         title: title || null,
         description: description || null,
-      });
+      };
+
+      // Add destination and day if selected
+      if (selectedDestination) {
+        metadata.destination_id = parseInt(selectedDestination);
+        if (selectedDay) {
+          metadata.day_number = parseInt(selectedDay);
+        }
+      }
+
+      await onUpload(selectedFile, metadata);
       setUploadSuccess(true);
       setSelectedFile(null);
       setTitle('');
       setDescription('');
       setDocumentType('other');
+      setSelectedDestination('');
+      setSelectedDay('');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -233,6 +269,54 @@ const FileUpload = ({ onUpload, isUploading, error }) => {
               ))}
             </select>
           </div>
+
+          {/* Destination Selector */}
+          {destinations.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <span className="flex items-center">
+                  <MapPin className="w-4 h-4 mr-1 text-gray-400" />
+                  Destination (optional)
+                </span>
+              </label>
+              <select
+                value={selectedDestination}
+                onChange={handleDestinationChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+              >
+                <option value="">Trip-level document</option>
+                {destinations.map((dest) => (
+                  <option key={dest.id} value={dest.id}>
+                    {dest.city_name}{dest.country ? `, ${dest.country}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Day Selector (only shown when destination is selected) */}
+          {selectedDestination && availableDays.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <span className="flex items-center">
+                  <Calendar className="w-4 h-4 mr-1 text-gray-400" />
+                  Day (optional)
+                </span>
+              </label>
+              <select
+                value={selectedDay}
+                onChange={(e) => setSelectedDay(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+              >
+                <option value="">General (all days)</option>
+                {availableDays.map((day) => (
+                  <option key={day.value} value={day.value}>
+                    {day.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Title */}
           <div>

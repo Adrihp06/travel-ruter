@@ -1,5 +1,5 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, Text, BigInteger, Index, Enum
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, String, Integer, ForeignKey, Text, BigInteger, Index, CheckConstraint
+from sqlalchemy.orm import relationship, validates
 import enum
 from app.models.base import BaseModel
 
@@ -32,9 +32,45 @@ class Document(BaseModel):
     poi_id = Column(Integer, ForeignKey("pois.id", ondelete="CASCADE"), nullable=True, index=True)
     trip_id = Column(Integer, ForeignKey("trips.id", ondelete="CASCADE"), nullable=True, index=True)
 
+    # Destination and day organization
+    destination_id = Column(
+        Integer,
+        ForeignKey("destinations.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Destination this document belongs to"
+    )
+    day_number = Column(
+        Integer,
+        nullable=True,
+        comment="Day number within destination (1-indexed)"
+    )
+
     # Relationships
     poi = relationship("POI", backref="documents")
     trip = relationship("Trip", backref="documents")
+    destination = relationship("Destination", backref="documents")
+
+    # Constraints
+    __table_args__ = (
+        # If day_number is set, destination_id must also be set
+        CheckConstraint(
+            "(day_number IS NULL) OR (destination_id IS NOT NULL)",
+            name="day_requires_destination"
+        ),
+        # day_number must be positive
+        CheckConstraint(
+            "(day_number IS NULL) OR (day_number > 0)",
+            name="day_number_positive"
+        ),
+        Index('ix_documents_destination_day', 'destination_id', 'day_number'),
+    )
+
+    @validates('day_number')
+    def validate_day_number(self, key, value):
+        if value is not None and value < 1:
+            raise ValueError("day_number must be 1 or greater")
+        return value
 
 
     def __repr__(self):
