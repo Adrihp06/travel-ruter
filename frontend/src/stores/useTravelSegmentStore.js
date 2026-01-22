@@ -14,6 +14,8 @@ export const TRAVEL_MODES = {
 
 const useTravelSegmentStore = create((set, get) => ({
   segments: [],
+  originSegment: null, // Origin → First destination segment
+  returnSegment: null, // Last destination → Return point segment
   isLoading: false,
   hasFetchedInitial: false, // Track if initial fetch has completed
   error: null,
@@ -36,7 +38,7 @@ const useTravelSegmentStore = create((set, get) => ({
   // Fetch all travel segments for a trip
   fetchTripSegments: async (tripId) => {
     // Clear old segments first to prevent stale data from showing
-    set({ isLoading: true, error: null, segments: [] });
+    set({ isLoading: true, error: null, segments: [], originSegment: null, returnSegment: null });
     try {
       const response = await fetch(`${API_BASE_URL}/trips/${tripId}/travel-segments`);
 
@@ -45,8 +47,14 @@ const useTravelSegmentStore = create((set, get) => ({
       }
 
       const data = await response.json();
-      set({ segments: data.segments, isLoading: false, hasFetchedInitial: true });
-      return data.segments;
+      set({
+        segments: data.segments,
+        originSegment: data.origin_segment || null,
+        returnSegment: data.return_segment || null,
+        isLoading: false,
+        hasFetchedInitial: true
+      });
+      return data;
     } catch (error) {
       set({ error: error.message, isLoading: false, hasFetchedInitial: true });
       throw error;
@@ -158,7 +166,14 @@ const useTravelSegmentStore = create((set, get) => ({
   clearError: () => set({ error: null }),
 
   // Clear segments when changing trips
-  clearSegments: () => set({ segments: [], error: null, calculatingSegments: {}, hasFetchedInitial: false }),
+  clearSegments: () => set({
+    segments: [],
+    originSegment: null,
+    returnSegment: null,
+    error: null,
+    calculatingSegments: {},
+    hasFetchedInitial: false
+  }),
 }));
 
 export default useTravelSegmentStore;

@@ -9,7 +9,7 @@ import Map, {
   Layer,
   Popup,
 } from 'react-map-gl';
-import { MapPin, Plus, Car, Footprints, Bike, Train, Plane, Ship, Bus, ExternalLink, AlertTriangle } from 'lucide-react';
+import { MapPin, Plus, Car, Footprints, Bike, Train, Plane, Ship, Bus, ExternalLink, AlertTriangle, Home } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
 import useRouteStore from '../../stores/useRouteStore';
@@ -241,6 +241,47 @@ const getSegmentOutlineStyle = (segmentId, isSelected = false, hasSelection = fa
   };
 };
 
+// Origin/Return segment styles - always dotted
+const ORIGIN_RETURN_STYLES = {
+  origin: { color: '#10B981', dasharray: [2, 4] }, // green dotted
+  return: { color: '#EF4444', dasharray: [2, 4] }, // red dotted
+};
+
+// Get route layer style for origin/return segments (always dotted)
+const getOriginReturnLayerStyle = (segmentId, segmentType) => {
+  const style = ORIGIN_RETURN_STYLES[segmentType] || ORIGIN_RETURN_STYLES.origin;
+
+  return {
+    id: `route-${segmentId}`,
+    type: 'line',
+    layout: {
+      'line-join': 'round',
+      'line-cap': 'round',
+    },
+    paint: {
+      'line-color': style.color,
+      'line-width': 3,
+      'line-opacity': 0.7,
+      'line-dasharray': style.dasharray,
+    },
+  };
+};
+
+// Origin/Return segment outline style
+const getOriginReturnOutlineStyle = (segmentId) => ({
+  id: `route-${segmentId}-outline`,
+  type: 'line',
+  layout: {
+    'line-join': 'round',
+    'line-cap': 'round',
+  },
+  paint: {
+    'line-color': '#ffffff',
+    'line-width': 5,
+    'line-opacity': 0.4,
+  },
+});
+
 // Transport mode icons mapping
 const TRANSPORT_MODE_ICONS = {
   car: Car,
@@ -286,6 +327,9 @@ const TripMap = ({
   onAddPOI = null, // Callback when clicking on map to add POI: ({ latitude, longitude }) => void
   tripId = null, // Trip ID for fetching travel segments
   onSegmentRouteUpdated = null, // Callback when a segment route is updated (after waypoint changes)
+  // Origin and return point data from trip
+  originPoint = null, // { name, latitude, longitude }
+  returnPoint = null, // { name, latitude, longitude }
 }) => {
   // Can only add POI if there are destinations to attach them to
   const canAddPOI = enableAddPOI && destinations.length > 0;
@@ -302,7 +346,7 @@ const TripMap = ({
   const [showFallbackWarning, setShowFallbackWarning] = useState(true);
 
   // Travel segments store for segment-based routing
-  const { segments, fetchTripSegments, clearSegments, isLoading: isSegmentsLoading } = useTravelSegmentStore();
+  const { segments, originSegment, returnSegment, fetchTripSegments, clearSegments, isLoading: isSegmentsLoading } = useTravelSegmentStore();
 
   // Route store for Google Maps export only
   const { exportToGoogleMaps } = useRouteStore();
@@ -366,9 +410,22 @@ const TripMap = ({
     fetchAllWaypoints();
   }, [segments, fetchSegmentWaypoints]);
 
-  // Calculate initial view to fit all destinations or show trip location
+  // Calculate initial view to fit all destinations, origin, and return points
   useEffect(() => {
-    const bounds = calculateBounds(sortedDestinations);
+    // Include origin and return points in bounds calculation
+    const allPoints = [...sortedDestinations];
+
+    // Add origin point as a pseudo-destination for bounds calculation
+    if (originPoint?.latitude && originPoint?.longitude) {
+      allPoints.push({ latitude: originPoint.latitude, longitude: originPoint.longitude });
+    }
+
+    // Add return point if different from origin
+    if (returnPoint?.latitude && returnPoint?.longitude) {
+      allPoints.push({ latitude: returnPoint.latitude, longitude: returnPoint.longitude });
+    }
+
+    const bounds = calculateBounds(allPoints);
     if (bounds) {
       const centerLng = (bounds.minLng + bounds.maxLng) / 2;
       const centerLat = (bounds.minLat + bounds.maxLat) / 2;
@@ -400,7 +457,7 @@ const TripMap = ({
         zoom,
       });
     }
-  }, [sortedDestinations, tripLocation]);
+  }, [sortedDestinations, tripLocation, originPoint, returnPoint]);
 
   // Build valid consecutive destination pairs
   const validSegmentPairs = useMemo(() => {
@@ -465,6 +522,57 @@ const TripMap = ({
       }).filter(Boolean);
   }, [showRoute, segments, sortedDestinations, validSegmentPairs]);
 
+  // Build GeoJSON for origin and return segments (dotted line style)
+  const originReturnGeoJSONs = useMemo(() => {
+    if (!showRoute) return [];
+
+    const results = [];
+
+    // Origin segment: origin point → first destination
+    if (originSegment?.route_geometry) {
+      results.push({
+        id: 'origin-segment',
+        segment_type: 'origin',
+        travel_mode: originSegment.travel_mode,
+        distance_km: originSegment.distance_km,
+        duration_minutes: originSegment.duration_minutes,
+        is_fallback: originSegment.is_fallback,
+        geojson: {
+          type: 'Feature',
+          properties: {
+            id: 'origin-segment',
+            segment_type: 'origin',
+            travel_mode: originSegment.travel_mode,
+          },
+          geometry: originSegment.route_geometry,
+        },
+      });
+    }
+
+    // Return segment: last destination → return point
+    if (returnSegment?.route_geometry) {
+      results.push({
+        id: 'return-segment',
+        segment_type: 'return',
+        travel_mode: returnSegment.travel_mode,
+        distance_km: returnSegment.distance_km,
+        duration_minutes: returnSegment.duration_minutes,
+        is_fallback: returnSegment.is_fallback,
+        geojson: {
+          type: 'Feature',
+          properties: {
+            id: 'return-segment',
+            segment_type: 'return',
+            travel_mode: returnSegment.travel_mode,
+          },
+          geometry: returnSegment.route_geometry,
+        },
+      });
+    }
+
+    return results;
+  }, [showRoute, originSegment, returnSegment]);
+
   // Filter segments to only valid pairs for calculations
   const validSegments = useMemo(() => {
     if (!segments || segments.length === 0) return [];
@@ -474,22 +582,45 @@ const TripMap = ({
     });
   }, [segments, validSegmentPairs]);
 
-  // Calculate total distance and duration from valid segments only
+  // Calculate total distance and duration from valid segments plus origin/return
   const routeTotals = useMemo(() => {
-    if (!validSegments || validSegments.length === 0) return null;
+    const hasDestinationSegments = validSegments && validSegments.length > 0;
+    const hasOriginReturn = originSegment || returnSegment;
 
-    const totalDistance = validSegments.reduce((sum, s) => sum + (s.distance_km || 0), 0);
-    const totalDuration = validSegments.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    if (!hasDestinationSegments && !hasOriginReturn) return null;
+
+    let totalDistance = validSegments.reduce((sum, s) => sum + (s.distance_km || 0), 0);
+    let totalDuration = validSegments.reduce((sum, s) => sum + (s.duration_minutes || 0), 0);
+    let segmentCount = validSegments.length;
     const fallbackSegments = validSegments.filter(s => s.is_fallback);
+    let fallbackCount = fallbackSegments.length;
+
+    // Add origin segment
+    if (originSegment) {
+      totalDistance += originSegment.distance_km || 0;
+      totalDuration += originSegment.duration_minutes || 0;
+      segmentCount += 1;
+      if (originSegment.is_fallback) fallbackCount += 1;
+    }
+
+    // Add return segment
+    if (returnSegment) {
+      totalDistance += returnSegment.distance_km || 0;
+      totalDuration += returnSegment.duration_minutes || 0;
+      segmentCount += 1;
+      if (returnSegment.is_fallback) fallbackCount += 1;
+    }
 
     return {
       distance_km: totalDistance,
       duration_minutes: totalDuration,
-      segment_count: validSegments.length,
-      has_fallback: fallbackSegments.length > 0,
-      fallback_count: fallbackSegments.length,
+      segment_count: segmentCount,
+      has_fallback: fallbackCount > 0,
+      fallback_count: fallbackCount,
+      has_origin: !!originSegment,
+      has_return: !!returnSegment,
     };
-  }, [validSegments]);
+  }, [validSegments, originSegment, returnSegment]);
 
   // Auto-hide fallback warning after 4 seconds
   useEffect(() => {
@@ -634,8 +765,9 @@ const TripMap = ({
 
   // Check if we have a trip location to center on when no destinations
   const hasTripLocation = tripLocation?.latitude && tripLocation?.longitude;
+  const hasOriginPoint = originPoint?.latitude && originPoint?.longitude;
 
-  if (sortedDestinations.length === 0 && !hasTripLocation) {
+  if (sortedDestinations.length === 0 && !hasTripLocation && !hasOriginPoint) {
     return (
       <div
         className={`flex items-center justify-center bg-gray-100 rounded-xl ${className}`}
@@ -691,6 +823,28 @@ const TripMap = ({
             </React.Fragment>
           );
         })}
+
+        {/* Origin/Return route segments - dotted lines */}
+        {originReturnGeoJSONs.map((segmentData) => (
+          <React.Fragment key={`or-segment-${segmentData.id}`}>
+            {/* Segment outline for visibility */}
+            <Source
+              id={`${segmentData.id}-outline-source`}
+              type="geojson"
+              data={segmentData.geojson}
+            >
+              <Layer {...getOriginReturnOutlineStyle(segmentData.id)} />
+            </Source>
+            {/* Segment line with origin/return color (dotted) */}
+            <Source
+              id={`${segmentData.id}-source`}
+              type="geojson"
+              data={segmentData.geojson}
+            >
+              <Layer {...getOriginReturnLayerStyle(segmentData.id, segmentData.segment_type)} />
+            </Source>
+          </React.Fragment>
+        ))}
 
         <GeolocateControl position="top-right" />
 
@@ -776,6 +930,38 @@ const TripMap = ({
               />
             </Marker>
           ))
+        )}
+
+        {/* Origin marker - Green with plane/home icon */}
+        {originPoint?.latitude && originPoint?.longitude && (
+          <Marker
+            longitude={originPoint.longitude}
+            latitude={originPoint.latitude}
+            anchor="bottom"
+          >
+            <div className="flex items-center justify-center">
+              <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-green-500 text-white border-2 border-white shadow-lg">
+                <Plane className="w-5 h-5" />
+              </div>
+            </div>
+          </Marker>
+        )}
+
+        {/* Return marker - Red with plane icon (only if different from origin) */}
+        {returnPoint?.latitude && returnPoint?.longitude &&
+          (originPoint?.latitude !== returnPoint?.latitude ||
+           originPoint?.longitude !== returnPoint?.longitude) && (
+          <Marker
+            longitude={returnPoint.longitude}
+            latitude={returnPoint.latitude}
+            anchor="bottom"
+          >
+            <div className="flex items-center justify-center">
+              <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-red-500 text-white border-2 border-white shadow-lg">
+                <Home className="w-5 h-5" />
+              </div>
+            </div>
+          </Marker>
         )}
 
       </Map>

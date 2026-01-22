@@ -55,3 +55,26 @@ class TravelSegmentWithDestinations(TravelSegmentResponse):
 class TripTravelSegmentsResponse(BaseModel):
     """Response containing all travel segments for a trip"""
     segments: list[TravelSegmentResponse]
+
+
+class OriginReturnSegment(BaseModel):
+    """Calculated segment for origin or return routes (not stored in DB)"""
+    segment_type: str = Field(..., description="Type of segment: 'origin' or 'return'")
+    from_name: str = Field(..., description="Origin location name")
+    from_latitude: float = Field(..., description="Origin latitude")
+    from_longitude: float = Field(..., description="Origin longitude")
+    to_name: str = Field(..., description="Destination location name")
+    to_latitude: float = Field(..., description="Destination latitude")
+    to_longitude: float = Field(..., description="Destination longitude")
+    travel_mode: TravelMode = Field(default=TravelMode.PLANE, description="Mode of transportation")
+    distance_km: Optional[float] = Field(None, description="Distance in kilometers")
+    duration_minutes: Optional[int] = Field(None, description="Duration in minutes")
+    route_geometry: Optional[dict[str, Any]] = Field(None, description="GeoJSON LineString geometry")
+    is_fallback: bool = Field(False, description="True if route is from fallback service")
+
+
+class TripTravelSegmentsWithOriginReturnResponse(BaseModel):
+    """Response containing all travel segments for a trip including origin/return segments"""
+    segments: list[TravelSegmentResponse] = Field(default_factory=list, description="Segments between destinations")
+    origin_segment: Optional[OriginReturnSegment] = Field(None, description="Segment from origin to first destination")
+    return_segment: Optional[OriginReturnSegment] = Field(None, description="Segment from last destination to return point")

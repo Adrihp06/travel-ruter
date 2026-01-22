@@ -988,6 +988,30 @@ const DetailViewContent = () => {
               }
               enableAddPOI={true}
               onAddPOI={handleAddPOIFromTripMap}
+              originPoint={
+                selectedTrip.origin_name && selectedTrip.origin_latitude && selectedTrip.origin_longitude
+                  ? {
+                      name: selectedTrip.origin_name,
+                      latitude: selectedTrip.origin_latitude,
+                      longitude: selectedTrip.origin_longitude,
+                    }
+                  : null
+              }
+              returnPoint={
+                selectedTrip.return_name && selectedTrip.return_latitude && selectedTrip.return_longitude
+                  ? {
+                      name: selectedTrip.return_name,
+                      latitude: selectedTrip.return_latitude,
+                      longitude: selectedTrip.return_longitude,
+                    }
+                  : selectedTrip.origin_name && selectedTrip.origin_latitude && selectedTrip.origin_longitude
+                    ? {
+                        name: selectedTrip.origin_name,
+                        latitude: selectedTrip.origin_latitude,
+                        longitude: selectedTrip.origin_longitude,
+                      }
+                    : null
+              }
             />
           ) : (
             <MicroMap

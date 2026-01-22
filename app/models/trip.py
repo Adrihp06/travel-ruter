@@ -21,6 +21,16 @@ class Trip(BaseModel):
     status = Column(String(50), nullable=False, default="planning", index=True)
     tags = Column(ARRAY(String(50)), nullable=True, default=[])
 
+    # Origin point (departure airport/location)
+    origin_name = Column(String(255), nullable=True)
+    origin_latitude = Column(Float, nullable=True)
+    origin_longitude = Column(Float, nullable=True)
+
+    # Return point (arrival airport/location) - defaults to origin if not specified
+    return_name = Column(String(255), nullable=True)
+    return_latitude = Column(Float, nullable=True)
+    return_longitude = Column(Float, nullable=True)
+
     # Relationships
     destinations = relationship("Destination", back_populates="trip", cascade="all, delete-orphan")
 

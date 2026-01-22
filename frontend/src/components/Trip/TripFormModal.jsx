@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plane, Image, Upload, Tag as TagIcon } from 'lucide-react';
+import { X, Plane, Image, Upload, Tag as TagIcon, Home, MapPin } from 'lucide-react';
 import useTripStore from '../../stores/useTripStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import LocationMapPreview from '../Location/LocationMapPreview';
@@ -33,7 +33,15 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
     currency: 'USD',
     status: 'planning',
     tags: [],
+    // Origin and return points
+    origin_name: '',
+    origin_latitude: null,
+    origin_longitude: null,
+    return_name: '',
+    return_latitude: null,
+    return_longitude: null,
   });
+  const [returnSameAsOrigin, setReturnSameAsOrigin] = useState(true);
 
   const [errors, setErrors] = useState({});
   const [imageUploadMode, setImageUploadMode] = useState('url'); // 'url' or 'file'
@@ -57,7 +65,17 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
         currency: trip.currency || 'USD',
         status: trip.status || 'planning',
         tags: trip.tags || [],
+        // Origin and return points
+        origin_name: trip.origin_name || '',
+        origin_latitude: trip.origin_latitude || null,
+        origin_longitude: trip.origin_longitude || null,
+        return_name: trip.return_name || '',
+        return_latitude: trip.return_latitude || null,
+        return_longitude: trip.return_longitude || null,
       });
+      // Determine if return is same as origin
+      const hasReturnDifferentFromOrigin = trip.return_name && trip.return_name !== trip.origin_name;
+      setReturnSameAsOrigin(!hasReturnDifferentFromOrigin);
       // Reset image upload state
       setImageUploadMode('url');
       setImageFile(null);
@@ -77,7 +95,15 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
         currency: 'USD',
         status: 'planning',
         tags: [],
+        // Origin and return points
+        origin_name: '',
+        origin_latitude: null,
+        origin_longitude: null,
+        return_name: '',
+        return_latitude: null,
+        return_longitude: null,
       });
+      setReturnSameAsOrigin(true);
       setImageUploadMode('url');
       setImageFile(null);
       setImagePreview(null);
@@ -177,10 +203,19 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
         coverImageUrl = uploadResult.url;
       }
 
+      // If return is same as origin, copy origin values to return
+      const returnName = returnSameAsOrigin ? formData.origin_name : formData.return_name;
+      const returnLat = returnSameAsOrigin ? formData.origin_latitude : formData.return_latitude;
+      const returnLng = returnSameAsOrigin ? formData.origin_longitude : formData.return_longitude;
+
       const tripData = {
         ...formData,
         total_budget: formData.total_budget ? Number(formData.total_budget) : null,
         cover_image: coverImageUrl,
+        // Set return to same as origin if checkbox is checked
+        return_name: returnName || null,
+        return_latitude: returnLat,
+        return_longitude: returnLng,
       };
 
       let result;
@@ -276,6 +311,107 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                   height={120}
                 />
               </div>
+            )}
+          </div>
+
+          {/* Departure Point (Origin) */}
+          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <span className="flex items-center">
+                <Home className="w-4 h-4 mr-1.5 text-green-600 dark:text-green-400" />
+                Departure Point
+              </span>
+            </label>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+              Where does your trip start? (e.g., home airport)
+            </p>
+            <LocationAutocomplete
+              value={formData.origin_name}
+              latitude={formData.origin_latitude}
+              longitude={formData.origin_longitude}
+              onChange={(location, lat, lng) => {
+                setFormData({
+                  ...formData,
+                  origin_name: location,
+                  origin_latitude: lat,
+                  origin_longitude: lng,
+                });
+              }}
+              placeholder="Search for departure airport or location..."
+            />
+            {formData.origin_latitude && formData.origin_longitude && (
+              <div className="mt-2">
+                <LocationMapPreview
+                  latitude={formData.origin_latitude}
+                  longitude={formData.origin_longitude}
+                  height={100}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Return Point */}
+          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <span className="flex items-center">
+                <MapPin className="w-4 h-4 mr-1.5 text-red-600 dark:text-red-400" />
+                Return Point
+              </span>
+            </label>
+
+            {/* Checkbox for same location */}
+            <label className="flex items-center space-x-2 mb-2">
+              <input
+                type="checkbox"
+                checked={returnSameAsOrigin}
+                onChange={(e) => {
+                  setReturnSameAsOrigin(e.target.checked);
+                  if (e.target.checked) {
+                    // Clear return fields when checking "same as origin"
+                    setFormData({
+                      ...formData,
+                      return_name: '',
+                      return_latitude: null,
+                      return_longitude: null,
+                    });
+                  }
+                }}
+                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Return to same location as departure
+              </span>
+            </label>
+
+            {!returnSameAsOrigin && (
+              <>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  Where does your trip end?
+                </p>
+                <LocationAutocomplete
+                  value={formData.return_name}
+                  latitude={formData.return_latitude}
+                  longitude={formData.return_longitude}
+                  onChange={(location, lat, lng) => {
+                    setFormData({
+                      ...formData,
+                      return_name: location,
+                      return_latitude: lat,
+                      return_longitude: lng,
+                    });
+                  }}
+                  placeholder="Search for return airport or location..."
+                />
+                {formData.return_latitude && formData.return_longitude && (
+                  <div className="mt-2">
+                    <LocationMapPreview
+                      latitude={formData.return_latitude}
+                      longitude={formData.return_longitude}
+                      height={100}
+                    />
+                  </div>
+                )}
+              </>
             )}
           </div>
 

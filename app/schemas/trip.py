@@ -21,6 +21,16 @@ class TripBase(BaseModel):
     status: str = Field(default="planning", max_length=50, description="Trip status (planning, booked, completed, cancelled)")
     tags: Optional[List[str]] = Field(default_factory=list, description="Trip tags/categories")
 
+    # Origin point (departure airport/location)
+    origin_name: Optional[str] = Field(None, max_length=255, description="Origin location name (e.g., home airport)")
+    origin_latitude: Optional[float] = Field(None, ge=-90, le=90, description="Origin latitude")
+    origin_longitude: Optional[float] = Field(None, ge=-180, le=180, description="Origin longitude")
+
+    # Return point (arrival airport/location) - defaults to origin if not specified
+    return_name: Optional[str] = Field(None, max_length=255, description="Return location name (defaults to origin if not set)")
+    return_latitude: Optional[float] = Field(None, ge=-90, le=90, description="Return latitude")
+    return_longitude: Optional[float] = Field(None, ge=-180, le=180, description="Return longitude")
+
     @field_validator("end_date")
     @classmethod
     def validate_end_date(cls, v: date, info) -> date:
@@ -49,6 +59,16 @@ class TripUpdate(BaseModel):
     currency: Optional[str] = Field(None, min_length=3, max_length=3, description="Currency code (ISO 4217)")
     status: Optional[str] = Field(None, max_length=50, description="Trip status")
     tags: Optional[List[str]] = Field(None, description="Trip tags/categories")
+
+    # Origin point (departure airport/location)
+    origin_name: Optional[str] = Field(None, max_length=255, description="Origin location name")
+    origin_latitude: Optional[float] = Field(None, ge=-90, le=90, description="Origin latitude")
+    origin_longitude: Optional[float] = Field(None, ge=-180, le=180, description="Origin longitude")
+
+    # Return point (arrival airport/location)
+    return_name: Optional[str] = Field(None, max_length=255, description="Return location name")
+    return_latitude: Optional[float] = Field(None, ge=-90, le=90, description="Return latitude")
+    return_longitude: Optional[float] = Field(None, ge=-180, le=180, description="Return longitude")
 
     @field_validator("end_date")
     @classmethod

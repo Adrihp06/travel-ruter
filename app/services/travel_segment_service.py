@@ -9,7 +9,8 @@ import logging
 from app.models.travel_segment import TravelSegment
 from app.models.destination import Destination
 from app.models.route_waypoint import RouteWaypoint
-from app.schemas.travel_segment import TravelMode, TravelSegmentCreate
+from app.models.trip import Trip
+from app.schemas.travel_segment import TravelMode, TravelSegmentCreate, OriginReturnSegment
 from app.schemas.routing_preferences import RoutingPreference
 from app.services.mapbox_service import MapboxService, MapboxServiceError, MapboxRoutingProfile
 from app.services.openrouteservice import OpenRouteServiceService, ORSServiceError, ORSRoutingProfile
@@ -757,3 +758,136 @@ class TravelSegmentService:
 
         logger.info(f"Recalculated segment {segment_id} with {len(waypoints)} waypoints")
         return segment
+
+    @classmethod
+    async def calculate_origin_return_segments(
+        cls,
+        db: AsyncSession,
+        trip_id: int,
+        travel_mode: TravelMode = TravelMode.PLANE
+    ) -> tuple[Optional[OriginReturnSegment], Optional[OriginReturnSegment]]:
+        """
+        Calculate origin and return segments for a trip.
+
+        These segments connect:
+        - Origin point → First destination
+        - Last destination → Return point
+
+        Returns:
+            tuple: (origin_segment, return_segment) - either can be None if not applicable
+        """
+        # Get the trip with origin/return info
+        trip_result = await db.execute(
+            select(Trip).where(Trip.id == trip_id)
+        )
+        trip = trip_result.scalar_one_or_none()
+
+        if not trip:
+            return None, None
+
+        # Check if trip has origin defined
+        if not trip.origin_name or trip.origin_latitude is None or trip.origin_longitude is None:
+            return None, None
+
+        # Get destinations in order
+        dest_result = await db.execute(
+            select(Destination)
+            .where(Destination.trip_id == trip_id)
+            .order_by(Destination.order_index.asc(), Destination.arrival_date.asc())
+        )
+        destinations = list(dest_result.scalars().all())
+
+        if not destinations:
+            return None, None
+
+        origin_segment = None
+        return_segment = None
+
+        # Calculate origin → first destination segment
+        first_dest = destinations[0]
+        if first_dest.latitude is not None and first_dest.longitude is not None:
+            origin_segment = await cls._calculate_point_to_point_segment(
+                from_name=trip.origin_name,
+                from_lat=trip.origin_latitude,
+                from_lng=trip.origin_longitude,
+                to_name=first_dest.city_name,
+                to_lat=first_dest.latitude,
+                to_lng=first_dest.longitude,
+                travel_mode=travel_mode,
+                segment_type="origin"
+            )
+
+        # Calculate last destination → return segment
+        last_dest = destinations[-1]
+        if last_dest.latitude is not None and last_dest.longitude is not None:
+            # Use return point if defined, otherwise use origin
+            return_name = trip.return_name or trip.origin_name
+            return_lat = trip.return_latitude if trip.return_latitude is not None else trip.origin_latitude
+            return_lng = trip.return_longitude if trip.return_longitude is not None else trip.origin_longitude
+
+            return_segment = await cls._calculate_point_to_point_segment(
+                from_name=last_dest.city_name,
+                from_lat=last_dest.latitude,
+                from_lng=last_dest.longitude,
+                to_name=return_name,
+                to_lat=return_lat,
+                to_lng=return_lng,
+                travel_mode=travel_mode,
+                segment_type="return"
+            )
+
+        return origin_segment, return_segment
+
+    @classmethod
+    async def _calculate_point_to_point_segment(
+        cls,
+        from_name: str,
+        from_lat: float,
+        from_lng: float,
+        to_name: str,
+        to_lat: float,
+        to_lng: float,
+        travel_mode: TravelMode,
+        segment_type: str
+    ) -> OriginReturnSegment:
+        """
+        Calculate a segment between two arbitrary points (not DB destinations).
+        Used for origin and return segments.
+        """
+        # Try to fetch real route geometry
+        route_geometry, api_distance_km, api_duration_min, is_fallback = await cls._fetch_route_geometry(
+            from_lat, from_lng,
+            to_lat, to_lng,
+            travel_mode
+        )
+
+        if route_geometry and api_distance_km is not None and api_duration_min is not None:
+            distance_km = api_distance_km
+            duration_minutes = api_duration_min
+        else:
+            # Fallback to heuristic calculation
+            distance_km, duration_minutes = cls.calculate_travel_time(
+                from_lat, from_lng,
+                to_lat, to_lng,
+                travel_mode
+            )
+            # Create straight line geometry
+            route_geometry = {
+                "type": "LineString",
+                "coordinates": [[from_lng, from_lat], [to_lng, to_lat]]
+            }
+
+        return OriginReturnSegment(
+            segment_type=segment_type,
+            from_name=from_name,
+            from_latitude=from_lat,
+            from_longitude=from_lng,
+            to_name=to_name,
+            to_latitude=to_lat,
+            to_longitude=to_lng,
+            travel_mode=travel_mode,
+            distance_km=distance_km,
+            duration_minutes=duration_minutes,
+            route_geometry=route_geometry,
+            is_fallback=is_fallback
+        )

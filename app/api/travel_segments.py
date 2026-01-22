@@ -11,6 +11,7 @@ from app.schemas.travel_segment import (
     TravelSegmentResponse,
     TravelSegmentCalculateRequest,
     TripTravelSegmentsResponse,
+    TripTravelSegmentsWithOriginReturnResponse,
 )
 from app.services.travel_segment_service import TravelSegmentService
 
@@ -75,15 +76,36 @@ async def get_travel_segment(
 
 @router.get(
     "/trips/{trip_id}/travel-segments",
-    response_model=TripTravelSegmentsResponse
+    response_model=TripTravelSegmentsWithOriginReturnResponse
 )
 async def get_trip_travel_segments(
     trip_id: int,
+    include_origin_return: bool = True,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all travel segments for a trip"""
+    """
+    Get all travel segments for a trip.
+
+    Args:
+        trip_id: The trip ID
+        include_origin_return: If True, includes origin and return segments calculated
+                              from the trip's origin/return points (default: True)
+    """
     segments = await TravelSegmentService.get_trip_segments(db, trip_id)
-    return TripTravelSegmentsResponse(segments=segments)
+
+    origin_segment = None
+    return_segment = None
+
+    if include_origin_return:
+        origin_segment, return_segment = await TravelSegmentService.calculate_origin_return_segments(
+            db, trip_id
+        )
+
+    return TripTravelSegmentsWithOriginReturnResponse(
+        segments=segments,
+        origin_segment=origin_segment,
+        return_segment=return_segment
+    )
 
 
 @router.post(
