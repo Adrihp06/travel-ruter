@@ -133,16 +133,18 @@ const useDayRoutesStore = create((set, get) => ({
         ];
 
         try {
+          const requestBody = {
+            waypoints: waypoints.map(w => ({
+              lon: w.longitude,
+              lat: w.latitude,
+            })),
+            profile: mode === 'driving' ? 'driving' : mode,
+          };
+
           const response = await fetch(`${API_BASE_URL}/routes/mapbox/multi-waypoint`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              waypoints: waypoints.map(w => ({
-                lon: w.longitude,
-                lat: w.latitude,
-              })),
-              profile: mode === 'driving' ? 'driving' : mode,
-            }),
+            body: JSON.stringify(requestBody),
           });
 
           if (response.ok) {
@@ -163,6 +165,9 @@ const useDayRoutesStore = create((set, get) => ({
               allCoordinates.push(...data.geometry.coordinates);
             }
           } else {
+            // Log the error for debugging
+            const errorText = await response.text();
+            console.warn(`Route API error for segment ${fromPoi.name} -> ${toPoi.name}:`, response.status, errorText);
             // Fallback: use straight line with estimate
             const distance = calculateHaversineDistance(
               fromPoi.latitude, fromPoi.longitude,
@@ -191,8 +196,9 @@ const useDayRoutesStore = create((set, get) => ({
               [toPoi.longitude, toPoi.latitude]
             );
           }
-        } catch {
+        } catch (err) {
           // Fallback on error
+          console.warn(`Route API exception for segment:`, err);
           const distance = calculateHaversineDistance(
             fromPoi.latitude, fromPoi.longitude,
             toPoi.latitude, toPoi.longitude

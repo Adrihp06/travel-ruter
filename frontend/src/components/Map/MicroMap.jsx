@@ -8,6 +8,7 @@ import Map, {
   Source,
   Layer,
 } from 'react-map-gl';
+import useSupercluster from 'use-supercluster';
 import {
   MapPin,
   Bed,
@@ -30,6 +31,13 @@ import {
   Bike,
   ExternalLink,
   Route,
+  Calendar,
+  Eye,
+  EyeOff,
+  ChevronDown,
+  ChevronUp,
+  Layers,
+  GripVertical,
 } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
@@ -74,28 +82,28 @@ const getCategoryColor = (category) => {
   const normalizedCategory = category?.toLowerCase() || '';
 
   if (normalizedCategory.includes('accommodation') || normalizedCategory.includes('hotel') || normalizedCategory.includes('stay')) {
-    return { bg: 'bg-blue-500', hover: 'hover:bg-blue-600', text: 'text-blue-600' };
+    return { bg: 'bg-blue-500', hover: 'hover:bg-blue-600', text: 'text-blue-600', hex: '#3B82F6' };
   }
   if (normalizedCategory.includes('food') || normalizedCategory.includes('restaurant') || normalizedCategory.includes('dining') || normalizedCategory.includes('cafe')) {
-    return { bg: 'bg-orange-500', hover: 'hover:bg-orange-600', text: 'text-orange-600' };
+    return { bg: 'bg-orange-500', hover: 'hover:bg-orange-600', text: 'text-orange-600', hex: '#F97316' };
   }
   if (normalizedCategory.includes('sight') || normalizedCategory.includes('attraction') || normalizedCategory.includes('landmark') || normalizedCategory.includes('monument')) {
-    return { bg: 'bg-emerald-500', hover: 'hover:bg-emerald-600', text: 'text-emerald-600' };
+    return { bg: 'bg-emerald-500', hover: 'hover:bg-emerald-600', text: 'text-emerald-600', hex: '#10B981' };
   }
   if (normalizedCategory.includes('museum') || normalizedCategory.includes('gallery') || normalizedCategory.includes('historic')) {
-    return { bg: 'bg-purple-500', hover: 'hover:bg-purple-600', text: 'text-purple-600' };
+    return { bg: 'bg-purple-500', hover: 'hover:bg-purple-600', text: 'text-purple-600', hex: '#8B5CF6' };
   }
   if (normalizedCategory.includes('shop') || normalizedCategory.includes('market') || normalizedCategory.includes('store')) {
-    return { bg: 'bg-pink-500', hover: 'hover:bg-pink-600', text: 'text-pink-600' };
+    return { bg: 'bg-pink-500', hover: 'hover:bg-pink-600', text: 'text-pink-600', hex: '#EC4899' };
   }
   if (normalizedCategory.includes('entertainment') || normalizedCategory.includes('nightlife') || normalizedCategory.includes('bar')) {
-    return { bg: 'bg-violet-500', hover: 'hover:bg-violet-600', text: 'text-violet-600' };
+    return { bg: 'bg-violet-500', hover: 'hover:bg-violet-600', text: 'text-violet-600', hex: '#7C3AED' };
   }
   if (normalizedCategory.includes('sport') || normalizedCategory.includes('activity') || normalizedCategory.includes('outdoor')) {
-    return { bg: 'bg-teal-500', hover: 'hover:bg-teal-600', text: 'text-teal-600' };
+    return { bg: 'bg-teal-500', hover: 'hover:bg-teal-600', text: 'text-teal-600', hex: '#14B8A6' };
   }
 
-  return { bg: 'bg-amber-500', hover: 'hover:bg-amber-600', text: 'text-amber-600' };
+  return { bg: 'bg-amber-500', hover: 'hover:bg-amber-600', text: 'text-amber-600', hex: '#F59E0B' };
 };
 
 /**
@@ -134,13 +142,6 @@ const renderCategoryIcon = (category, className = "w-4 h-4") => {
   const Icon = getCategoryIconComponent(category);
   return <Icon className={className} />;
 };
-
-// Intra-city transport modes
-const INTRA_CITY_MODES = [
-  { id: 'walking', label: 'Walk', icon: Footprints, color: 'bg-green-100 text-green-600' },
-  { id: 'cycling', label: 'Bike', icon: Bike, color: 'bg-amber-100 text-amber-600' },
-  { id: 'driving', label: 'Drive', icon: Car, color: 'bg-indigo-100 text-indigo-600' },
-];
 
 // Day colors for route display
 const DAY_COLORS = [
@@ -201,17 +202,159 @@ const formatDistance = (km) => {
 };
 
 /**
- * POI Marker Component
+ * Cluster Marker Component - Shows cluster count
  */
-const POIMarker = ({ poi, isHovered, isSelected, onClick, onHover, onLeave }) => {
+const ClusterMarker = ({ cluster, pointCount, onClick, supercluster }) => {
+  // Get the leaves (POIs) in this cluster to determine dominant category
+  const leaves = supercluster.getLeaves(cluster.id, Infinity);
+  const categoryCount = {};
+  leaves.forEach(leaf => {
+    const cat = leaf.properties.category || 'other';
+    categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+  });
+
+  // Find dominant category
+  const dominantCategory = Object.entries(categoryCount)
+    .sort((a, b) => b[1] - a[1])[0]?.[0] || 'other';
+
+  const colors = getCategoryColor(dominantCategory);
+
+  // Size based on point count
+  const size = Math.min(40 + (pointCount / 5) * 4, 60);
+
+  return (
+    <Marker
+      longitude={cluster.geometry.coordinates[0]}
+      latitude={cluster.geometry.coordinates[1]}
+      anchor="center"
+      onClick={(e) => {
+        e.originalEvent.stopPropagation();
+        onClick(cluster);
+      }}
+    >
+      <div
+        className="cursor-pointer transition-all duration-200 hover:scale-110"
+        style={{ width: size, height: size }}
+      >
+        <div
+          className={`w-full h-full rounded-full flex items-center justify-center shadow-lg border-4 border-white`}
+          style={{ backgroundColor: colors.hex }}
+        >
+          <span className="text-white font-bold text-sm">{pointCount}</span>
+        </div>
+      </div>
+    </Marker>
+  );
+};
+
+/**
+ * POI Hover Preview Card - Shows quick info on hover
+ */
+const POIHoverPreview = ({ poi, position, onSchedule, onEdit }) => {
+  const colors = getCategoryColor(poi.category);
+
+  return (
+    <div
+      className="absolute z-20 pointer-events-none"
+      style={{
+        left: position.x,
+        top: position.y - 120,
+        transform: 'translateX(-50%)',
+      }}
+    >
+      <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-3 min-w-[180px] max-w-[220px] pointer-events-auto">
+        {/* Header with icon and name */}
+        <div className="flex items-start space-x-2 mb-2">
+          <div className={`${colors.bg} text-white p-1.5 rounded-full flex-shrink-0`}>
+            {renderCategoryIcon(poi.category, "w-3 h-3")}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-gray-900 text-sm leading-tight truncate">{poi.name}</h4>
+            <span className={`text-xs ${colors.text} font-medium`}>{poi.category}</span>
+          </div>
+        </div>
+
+        {/* Quick info */}
+        <div className="flex items-center text-xs text-gray-500 space-x-3 mb-2">
+          {poi.dwell_time && (
+            <span className="flex items-center">
+              <Clock className="w-3 h-3 mr-1" />
+              {poi.dwell_time}m
+            </span>
+          )}
+          {poi.scheduled_day && (
+            <span className="flex items-center text-indigo-600 font-medium">
+              <Calendar className="w-3 h-3 mr-1" />
+              Day {poi.scheduled_day}
+            </span>
+          )}
+        </div>
+
+        {/* Quick action buttons */}
+        <div className="flex items-center space-x-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onSchedule && onSchedule(poi);
+            }}
+            className="flex-1 flex items-center justify-center px-2 py-1 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded transition-colors"
+          >
+            <Calendar className="w-3 h-3 mr-1" />
+            Schedule
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit && onEdit(poi);
+            }}
+            className="flex items-center justify-center px-2 py-1 text-xs bg-gray-50 hover:bg-gray-100 text-gray-700 rounded transition-colors"
+          >
+            <Pencil className="w-3 h-3" />
+          </button>
+        </div>
+
+        {/* Arrow pointing down */}
+        <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full">
+          <div className="border-8 border-transparent border-t-white" />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * POI Marker Component with enhanced visuals
+ */
+const POIMarker = ({
+  poi,
+  isHovered,
+  isSelected,
+  onClick,
+  onHover,
+  onLeave,
+  onDragStart,
+  onDrag,
+  onDragEnd,
+  dayNumber,
+  orderInDay,
+  isDraggable = false,
+}) => {
   const colors = getCategoryColor(poi.category);
   const showHighlight = isHovered || isSelected;
+  const isScheduled = poi.scheduled_day || dayNumber;
+
+  // Different marker shape for scheduled vs unscheduled
+  const markerShape = isScheduled ? 'rounded-lg' : 'rounded-full';
 
   return (
     <Marker
       longitude={poi.lng}
       latitude={poi.lat}
       anchor="bottom"
+      draggable={isDraggable}
+      onDragStart={onDragStart}
+      onDrag={onDrag}
+      onDragEnd={onDragEnd}
       onClick={(e) => {
         e.originalEvent.stopPropagation();
         onClick(poi);
@@ -221,17 +364,33 @@ const POIMarker = ({ poi, isHovered, isSelected, onClick, onHover, onLeave }) =>
         className={`
           cursor-pointer transition-all duration-200
           ${showHighlight ? 'scale-125 z-10' : 'scale-100'}
+          ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}
         `}
         onMouseEnter={() => onHover(poi)}
         onMouseLeave={onLeave}
       >
         <div className={`
           ${colors.bg} ${colors.hover}
-          text-white p-2 rounded-full shadow-lg
-          transition-colors duration-200
+          text-white p-2 ${markerShape} shadow-lg
+          transition-colors duration-200 relative
           ${isSelected ? 'ring-4 ring-indigo-400 ring-opacity-75' : ''}
+          ${isScheduled ? 'border-2 border-white' : ''}
         `}>
+          {/* Day number badge for scheduled POIs */}
+          {dayNumber && (
+            <div className="absolute -top-2 -right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-md border border-gray-200">
+              <span className="text-xs font-bold text-gray-700">{dayNumber}</span>
+            </div>
+          )}
+
           {renderCategoryIcon(poi.category, "w-4 h-4")}
+
+          {/* Drag handle indicator when draggable */}
+          {isDraggable && (
+            <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 translate-y-full">
+              <GripVertical className="w-3 h-3 text-gray-400" />
+            </div>
+          )}
         </div>
       </div>
     </Marker>
@@ -364,27 +523,143 @@ const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
 };
 
 /**
- * Legend Component
+ * Context Menu for marker right-click
  */
-const MapLegend = ({ categories }) => {
-  if (!categories || categories.length === 0) return null;
+const MarkerContextMenu = ({ poi, position, onClose, onSchedule, onEdit, onDelete, onCenterMap }) => {
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
 
   return (
-    <div className="absolute bottom-8 left-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 max-w-[180px]">
-      <h5 className="text-xs font-semibold text-gray-700 mb-2">Legend</h5>
-      <div className="space-y-1.5">
-        {categories.map((category) => {
-          const colors = getCategoryColor(category);
-          return (
-            <div key={category} className="flex items-center space-x-2">
-              <div className={`${colors.bg} text-white p-1 rounded-full`}>
-                {renderCategoryIcon(category, "w-2.5 h-2.5")}
+    <div
+      ref={menuRef}
+      className="absolute z-30 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[160px]"
+      style={{ left: position.x, top: position.y }}
+    >
+      <button
+        onClick={() => { onCenterMap(poi); onClose(); }}
+        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center"
+      >
+        <MapPin className="w-4 h-4 mr-2 text-gray-400" />
+        Center on map
+      </button>
+      <button
+        onClick={() => { onSchedule(poi); onClose(); }}
+        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center"
+      >
+        <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+        Schedule
+      </button>
+      <button
+        onClick={() => { onEdit(poi); onClose(); }}
+        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center"
+      >
+        <Pencil className="w-4 h-4 mr-2 text-gray-400" />
+        Edit
+      </button>
+      <div className="border-t border-gray-100 my-1" />
+      <button
+        onClick={() => { onDelete(poi); onClose(); }}
+        className="w-full px-3 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center"
+      >
+        <Trash2 className="w-4 h-4 mr-2" />
+        Delete
+      </button>
+    </div>
+  );
+};
+
+/**
+ * Enhanced Legend Component with toggles and collapsibility
+ */
+const MapLegend = ({
+  categories,
+  accommodationCount = 0,
+  visibleCategories,
+  onToggleCategory,
+  showAccommodations,
+  onToggleAccommodations,
+}) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  if ((!categories || categories.length === 0) && accommodationCount === 0) return null;
+
+  return (
+    <div className="absolute bottom-8 left-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 overflow-hidden max-w-[200px]">
+      {/* Header */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full px-3 py-2 flex items-center justify-between hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center space-x-2">
+          <Layers className="w-4 h-4 text-gray-500" />
+          <span className="text-xs font-semibold text-gray-700">Legend</span>
+        </div>
+        {isExpanded ? (
+          <ChevronDown className="w-4 h-4 text-gray-400" />
+        ) : (
+          <ChevronUp className="w-4 h-4 text-gray-400" />
+        )}
+      </button>
+
+      {/* Content */}
+      {isExpanded && (
+        <div className="px-3 pb-3 space-y-1.5">
+          {/* Accommodation toggle */}
+          {accommodationCount > 0 && (
+            <button
+              onClick={() => onToggleAccommodations && onToggleAccommodations()}
+              className={`w-full flex items-center space-x-2 p-1.5 rounded transition-colors ${
+                showAccommodations ? 'bg-blue-50' : 'bg-gray-50 opacity-50'
+              }`}
+            >
+              <div className={`bg-blue-600 text-white p-1 rounded-full ${!showAccommodations && 'opacity-50'}`}>
+                <Bed className="w-2.5 h-2.5" />
               </div>
-              <span className="text-xs text-gray-600 truncate">{category}</span>
-            </div>
-          );
-        })}
-      </div>
+              <span className="text-xs text-gray-600 flex-1 text-left">Accommodation</span>
+              {showAccommodations ? (
+                <Eye className="w-3 h-3 text-blue-500" />
+              ) : (
+                <EyeOff className="w-3 h-3 text-gray-400" />
+              )}
+            </button>
+          )}
+
+          {/* Category toggles */}
+          {categories.map((category) => {
+            const colors = getCategoryColor(category);
+            const isVisible = !visibleCategories || visibleCategories.includes(category);
+
+            return (
+              <button
+                key={category}
+                onClick={() => onToggleCategory && onToggleCategory(category)}
+                className={`w-full flex items-center space-x-2 p-1.5 rounded transition-colors ${
+                  isVisible ? 'hover:bg-gray-50' : 'bg-gray-50 opacity-50'
+                }`}
+              >
+                <div className={`${colors.bg} text-white p-1 rounded-full ${!isVisible && 'opacity-50'}`}>
+                  {renderCategoryIcon(category, "w-2.5 h-2.5")}
+                </div>
+                <span className="text-xs text-gray-600 truncate flex-1 text-left">{category}</span>
+                {isVisible ? (
+                  <Eye className="w-3 h-3 text-gray-400" />
+                ) : (
+                  <EyeOff className="w-3 h-3 text-gray-400" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
@@ -416,8 +691,8 @@ const AccommodationMarker = ({ accommodation, isHovered, onClick, onHover, onLea
       >
         <div className={`
           bg-blue-600 hover:bg-blue-700
-          text-white p-2 rounded-full shadow-lg
-          transition-colors duration-200
+          text-white p-2 rounded-lg shadow-lg
+          transition-colors duration-200 border-2 border-white
           ${isHovered ? 'ring-4 ring-blue-400 ring-opacity-75' : ''}
         `}>
           <Bed className="w-4 h-4" />
@@ -532,10 +807,14 @@ const AccommodationPopupContent = ({ accommodation, onEdit, onDelete }) => {
  *
  * Features:
  * - Deep zoom on specific city
+ * - Marker clustering when zoomed out
  * - Custom icons per POI category (Bed, Fork, Camera, etc.)
- * - Popup on click with POI details
- * - Click to add new POI mode
- * - Accommodation markers with hotel icon
+ * - Hover preview cards with quick actions
+ * - Visual differentiation for scheduled vs unscheduled POIs
+ * - Numbered markers for day order
+ * - Collapsible legend with category toggles
+ * - Draggable markers for location updates
+ * - Right-click context menu
  */
 const MicroMap = ({
   destination,
@@ -546,11 +825,15 @@ const MicroMap = ({
   className = '',
   showLegend = true,
   enableAddPOI = true,
+  enableClustering = true,
+  enableDragging = false,
   onAddPOI = null,
   onPOIClick = null,
   onVotePOI = null,
   onEditPOI = null,
   onDeletePOI = null,
+  onSchedulePOI = null,
+  onUpdatePOILocation = null,
   onEditAccommodation = null,
   onDeleteAccommodation = null,
   centerOnPOI = null,
@@ -564,17 +847,23 @@ const MicroMap = ({
   const [popupInfo, setPopupInfo] = useState(null);
   const [popupType, setPopupType] = useState(null); // 'poi' or 'accommodation'
   const [hoveredPOI, setHoveredPOI] = useState(null);
+  const [hoverPosition, setHoverPosition] = useState(null);
   const [hoveredAccommodation, setHoveredAccommodation] = useState(null);
   const [isAddMode, setIsAddMode] = useState(false);
   const [pendingLocation, setPendingLocation] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [visibleCategories, setVisibleCategories] = useState(null); // null = show all
+  const [showAccommodations, setShowAccommodations] = useState(true);
+  const [viewState, setViewState] = useState(null);
+  const [bounds, setBounds] = useState(null);
   const mapRef = useRef(null);
+  const hoverTimeoutRef = useRef(null);
 
   // Day routes store integration
   const {
     dayRoutes,
     visibleDays,
     toggleDayVisibility,
-    calculateDayRoute,
     calculateAllDayRoutes,
     exportDayToGoogleMaps,
     isCalculating,
@@ -582,6 +871,16 @@ const MicroMap = ({
 
   // Get destination coordinates
   const destinationCoords = useMemo(() => getCoordinates(destination), [destination]);
+
+  // Initial view state
+  const initialViewState = useMemo(() => {
+    if (!destinationCoords) return null;
+    return {
+      longitude: destinationCoords.lng,
+      latitude: destinationCoords.lat,
+      zoom: zoom,
+    };
+  }, [destinationCoords, zoom]);
 
   // Effect to fly to destination when it changes
   useEffect(() => {
@@ -609,6 +908,7 @@ const MicroMap = ({
           ...centerOnPOI,
           ...coords,
         });
+        setPopupType('poi');
       }
     }
   }, [centerOnPOI]);
@@ -637,7 +937,8 @@ const MicroMap = ({
     return visibleDays
       .map((date, index) => {
         const route = dayRoutes[date];
-        if (!route?.geometry) return null;
+        // Check that route exists and has geometry with coordinates
+        if (!route?.geometry?.coordinates?.length) return null;
         const dayIndex = days.findIndex(d => d.date === date);
         return {
           date,
@@ -685,6 +986,58 @@ const MicroMap = ({
     return markers;
   }, [pois]);
 
+  // Build day order mapping for numbered markers
+  const poiDayInfo = useMemo(() => {
+    const info = {};
+    Object.entries(poisByDay).forEach(([date, dayPois]) => {
+      const day = days.find(d => d.date === date);
+      if (day && dayPois) {
+        dayPois.forEach((poi, index) => {
+          info[poi.id] = {
+            dayNumber: day.dayNumber,
+            orderInDay: index + 1,
+          };
+        });
+      }
+    });
+    return info;
+  }, [poisByDay, days]);
+
+  // Filter markers by visible categories
+  const filteredPoiMarkers = useMemo(() => {
+    if (!visibleCategories) return poiMarkers;
+    return poiMarkers.filter(poi => visibleCategories.includes(poi.category));
+  }, [poiMarkers, visibleCategories]);
+
+  // Convert POIs to GeoJSON for clustering
+  const geoJsonPoints = useMemo(() => {
+    return filteredPoiMarkers.map((poi) => ({
+      type: 'Feature',
+      properties: {
+        cluster: false,
+        poiId: poi.id,
+        category: poi.category,
+        name: poi.name,
+        ...poi,
+      },
+      geometry: {
+        type: 'Point',
+        coordinates: [poi.lng, poi.lat],
+      },
+    }));
+  }, [filteredPoiMarkers]);
+
+  // Use supercluster for marker clustering
+  const { clusters, supercluster } = useSupercluster({
+    points: enableClustering ? geoJsonPoints : [],
+    bounds: bounds || [-180, -90, 180, 90],
+    zoom: viewState?.zoom || zoom,
+    options: {
+      radius: 60,
+      maxZoom: 16,
+    },
+  });
+
   // Get unique categories for legend
   const categories = useMemo(() => {
     const cats = new Set();
@@ -698,10 +1051,27 @@ const MicroMap = ({
   const handleMarkerClick = useCallback((poi) => {
     setPopupInfo(poi);
     setPopupType('poi');
+    setHoveredPOI(null);
     if (onPOIClick) {
       onPOIClick(poi);
     }
   }, [onPOIClick]);
+
+  // Handle cluster click - zoom to expand
+  const handleClusterClick = useCallback((cluster) => {
+    if (!supercluster || !mapRef.current) return;
+
+    const expansionZoom = Math.min(
+      supercluster.getClusterExpansionZoom(cluster.id),
+      20
+    );
+
+    mapRef.current.flyTo({
+      center: cluster.geometry.coordinates,
+      zoom: expansionZoom,
+      duration: 500,
+    });
+  }, [supercluster]);
 
   // Handle accommodation marker click
   const handleAccommodationClick = useCallback((accommodation) => {
@@ -710,8 +1080,39 @@ const MicroMap = ({
     setPopupType('accommodation');
   }, []);
 
-  // Handle map click for adding POI
+  // Handle POI hover with delay for preview card
+  const handlePOIHover = useCallback((poi, event) => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+
+    hoverTimeoutRef.current = setTimeout(() => {
+      setHoveredPOI(poi);
+      if (event) {
+        setHoverPosition({ x: event.clientX, y: event.clientY });
+      }
+    }, 200);
+  }, []);
+
+  const handlePOILeave = useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+    }
+    setHoveredPOI(null);
+    setHoverPosition(null);
+  }, []);
+
+  // Handle map click for adding POI or closing popup
   const handleMapClick = useCallback((event) => {
+    // Close context menu on any click
+    setContextMenu(null);
+
+    // Close popup when clicking on the map (not on a marker)
+    if (popupInfo) {
+      setPopupInfo(null);
+      setPopupType(null);
+    }
+
     if (!isAddMode) return;
 
     const { lngLat } = event;
@@ -727,7 +1128,28 @@ const MicroMap = ({
         longitude: lngLat.lng,
       });
     }
-  }, [isAddMode, onAddPOI]);
+  }, [isAddMode, onAddPOI, popupInfo]);
+
+  // Handle marker drag end
+  const handleMarkerDragEnd = useCallback((poi, event) => {
+    if (onUpdatePOILocation) {
+      onUpdatePOILocation(poi.id, {
+        latitude: event.lngLat.lat,
+        longitude: event.lngLat.lng,
+      });
+    }
+  }, [onUpdatePOILocation]);
+
+  // Handle center map on POI
+  const handleCenterOnPOI = useCallback((poi) => {
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [poi.lng, poi.lat],
+        zoom: 16,
+        duration: 500,
+      });
+    }
+  }, []);
 
   // Toggle add POI mode
   const toggleAddMode = useCallback(() => {
@@ -735,6 +1157,51 @@ const MicroMap = ({
     setPendingLocation(null);
     setPopupInfo(null);
   }, []);
+
+  // Toggle category visibility
+  const handleToggleCategory = useCallback((category) => {
+    setVisibleCategories(prev => {
+      if (!prev) {
+        // First toggle - show all except this one
+        return categories.filter(c => c !== category);
+      }
+      if (prev.includes(category)) {
+        // Remove this category
+        const newVisible = prev.filter(c => c !== category);
+        return newVisible.length === 0 ? null : newVisible;
+      } else {
+        // Add this category
+        return [...prev, category];
+      }
+    });
+  }, [categories]);
+
+  // Update bounds from map for clustering
+  const updateBoundsFromMap = useCallback(() => {
+    if (mapRef.current) {
+      const map = mapRef.current.getMap();
+      if (map) {
+        const mapBounds = map.getBounds();
+        setBounds([
+          mapBounds.getWest(),
+          mapBounds.getSouth(),
+          mapBounds.getEast(),
+          mapBounds.getNorth(),
+        ]);
+      }
+    }
+  }, []);
+
+  // Handle view state change for clustering
+  const handleMoveEnd = useCallback((evt) => {
+    setViewState(evt.viewState);
+    updateBoundsFromMap();
+  }, [updateBoundsFromMap]);
+
+  // Handle map load to set initial bounds
+  const handleLoad = useCallback(() => {
+    updateBoundsFromMap();
+  }, [updateBoundsFromMap]);
 
   // Error states
   if (!mapboxAccessToken) {
@@ -780,11 +1247,9 @@ const MicroMap = ({
 
       <Map
         ref={mapRef}
-        initialViewState={{
-          longitude: destinationCoords.lng,
-          latitude: destinationCoords.lat,
-          zoom: zoom,
-        }}
+        initialViewState={initialViewState}
+        onMoveEnd={handleMoveEnd}
+        onLoad={handleLoad}
         mapboxAccessToken={mapboxAccessToken}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/streets-v12"
@@ -826,21 +1291,69 @@ const MicroMap = ({
           </React.Fragment>
         ))}
 
-        {/* POI markers */}
-        {poiMarkers.map((poi) => (
-          <POIMarker
-            key={poi.id}
-            poi={poi}
-            isHovered={hoveredPOI?.id === poi.id}
-            isSelected={selectedPOIs.includes(poi.id)}
-            onClick={handleMarkerClick}
-            onHover={setHoveredPOI}
-            onLeave={() => setHoveredPOI(null)}
-          />
-        ))}
+        {/* Render clusters or individual markers based on clustering mode */}
+        {enableClustering && clusters ? (
+          clusters.map((cluster) => {
+            const [longitude, latitude] = cluster.geometry.coordinates;
+            const { cluster: isCluster, point_count: pointCount } = cluster.properties;
+
+            if (isCluster) {
+              return (
+                <ClusterMarker
+                  key={`cluster-${cluster.id}`}
+                  cluster={cluster}
+                  pointCount={pointCount}
+                  onClick={handleClusterClick}
+                  supercluster={supercluster}
+                />
+              );
+            }
+
+            // Individual marker from cluster
+            const poi = cluster.properties;
+            const dayInfo = poiDayInfo[poi.poiId];
+
+            return (
+              <POIMarker
+                key={poi.poiId}
+                poi={{ ...poi, id: poi.poiId, lng: longitude, lat: latitude }}
+                isHovered={hoveredPOI?.id === poi.poiId}
+                isSelected={selectedPOIs.includes(poi.poiId)}
+                onClick={() => handleMarkerClick({ ...poi, id: poi.poiId, lng: longitude, lat: latitude })}
+                onHover={(p) => handlePOIHover(p)}
+                onLeave={handlePOILeave}
+                onDragEnd={(e) => handleMarkerDragEnd({ ...poi, id: poi.poiId }, e)}
+                dayNumber={dayInfo?.dayNumber}
+                orderInDay={dayInfo?.orderInDay}
+                isDraggable={enableDragging}
+              />
+            );
+          })
+        ) : (
+          // Non-clustered markers
+          filteredPoiMarkers.map((poi) => {
+            const dayInfo = poiDayInfo[poi.id];
+
+            return (
+              <POIMarker
+                key={poi.id}
+                poi={poi}
+                isHovered={hoveredPOI?.id === poi.id}
+                isSelected={selectedPOIs.includes(poi.id)}
+                onClick={handleMarkerClick}
+                onHover={(p) => handlePOIHover(p)}
+                onLeave={handlePOILeave}
+                onDragEnd={(e) => handleMarkerDragEnd(poi, e)}
+                dayNumber={dayInfo?.dayNumber}
+                orderInDay={dayInfo?.orderInDay}
+                isDraggable={enableDragging}
+              />
+            );
+          })
+        )}
 
         {/* Accommodation markers */}
-        {accommodations.map((accommodation) => (
+        {showAccommodations && accommodations.map((accommodation) => (
           <AccommodationMarker
             key={`acc-${accommodation.id}`}
             accommodation={accommodation}
@@ -908,8 +1421,40 @@ const MicroMap = ({
         )}
       </Map>
 
-      {/* Legend */}
-      {showLegend && <MapLegend categories={categories} />}
+      {/* Hover preview card (outside map for better positioning) */}
+      {hoveredPOI && hoverPosition && !popupInfo && (
+        <POIHoverPreview
+          poi={hoveredPOI}
+          position={hoverPosition}
+          onSchedule={onSchedulePOI}
+          onEdit={onEditPOI}
+        />
+      )}
+
+      {/* Context menu */}
+      {contextMenu && (
+        <MarkerContextMenu
+          poi={contextMenu.poi}
+          position={contextMenu.position}
+          onClose={() => setContextMenu(null)}
+          onSchedule={onSchedulePOI || (() => {})}
+          onEdit={onEditPOI || (() => {})}
+          onDelete={onDeletePOI || (() => {})}
+          onCenterMap={handleCenterOnPOI}
+        />
+      )}
+
+      {/* Enhanced Legend */}
+      {showLegend && (
+        <MapLegend
+          categories={categories}
+          accommodationCount={accommodations.length}
+          visibleCategories={visibleCategories}
+          onToggleCategory={handleToggleCategory}
+          showAccommodations={showAccommodations}
+          onToggleAccommodations={() => setShowAccommodations(prev => !prev)}
+        />
+      )}
 
       {/* Day Route Controls - shown when we have days with POIs */}
       {showRouteControls && days.length > 0 && (

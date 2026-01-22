@@ -937,6 +937,7 @@ const DetailViewContent = () => {
                   onEditPOI={handleEditPOI}
                   onDeletePOI={handleDeletePOI}
                   onVotePOI={handleVotePOI}
+                  onPOIClick={handleCenterMapOnPOI}
                   className="h-full"
                 />
               </div>

@@ -183,7 +183,7 @@ const generateDays = (arrivalDate, departureDate) => {
 };
 
 // Sortable POI Item
-const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote }) => {
+const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onClick }) => {
   const {
     attributes,
     listeners,
@@ -211,13 +211,15 @@ const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote }) =
         border border-gray-200 dark:border-gray-700
         ${isDragging ? 'shadow-lg ring-2 ring-indigo-500' : 'shadow-sm'}
         ${isOverlay ? 'shadow-xl' : ''}
-        transition-shadow
+        transition-shadow cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50
       `}
+      onClick={() => onClick && onClick(poi)}
     >
       <button
         className="p-1 mr-2 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
         {...attributes}
         {...listeners}
+        onClick={(e) => e.stopPropagation()}
       >
         <GripVertical className="w-4 h-4" />
       </button>
@@ -227,7 +229,7 @@ const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote }) =
           <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
             {poi.name}
           </span>
-          <div className="flex items-center space-x-1 ml-2">
+          <div className="flex items-center space-x-1 ml-2" onClick={(e) => e.stopPropagation()}>
             {onVote && (
               <>
                 <button
@@ -311,6 +313,7 @@ const DayColumn = ({
   onEdit,
   onDelete,
   onVote,
+  onPOIClick,
   totalDwellTime,
   onOptimize,
   isOptimizing,
@@ -389,6 +392,7 @@ const DayColumn = ({
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onVote={onVote}
+                    onClick={onPOIClick}
                   />
                   {/* Transport mode connector between POIs */}
                   {index < pois.length - 1 && (
@@ -408,7 +412,7 @@ const DayColumn = ({
 };
 
 // Unscheduled POIs Section
-const UnscheduledSection = ({ pois, isExpanded, onToggle, onEdit, onDelete, onVote }) => {
+const UnscheduledSection = ({ pois, isExpanded, onToggle, onEdit, onDelete, onVote, onPOIClick }) => {
   return (
     <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800/50">
       <button
@@ -451,6 +455,7 @@ const UnscheduledSection = ({ pois, isExpanded, onToggle, onEdit, onDelete, onVo
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onVote={onVote}
+                  onClick={onPOIClick}
                 />
               ))
             )}
@@ -470,6 +475,7 @@ const DailyItinerary = ({
   onEditPOI,
   onDeletePOI,
   onVotePOI,
+  onPOIClick,
   className = '',
   showHeader = true,
 }) => {
@@ -878,6 +884,7 @@ const DailyItinerary = ({
               onEdit={onEditPOI}
               onDelete={onDeletePOI}
               onVote={onVotePOI}
+              onPOIClick={onPOIClick}
               totalDwellTime={dwellTimeByDay[day.date] || 0}
               onOptimize={handleOptimizeDay}
               isOptimizing={optimizingDay === day.dayNumber && isOptimizing}
@@ -892,6 +899,7 @@ const DailyItinerary = ({
             onEdit={onEditPOI}
             onDelete={onDeletePOI}
             onVote={onVotePOI}
+            onPOIClick={onPOIClick}
           />
 
           {/* Drag Overlay */}
