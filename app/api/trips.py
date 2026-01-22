@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.config import settings
-from app.schemas.trip import TripCreate, TripUpdate, TripResponse, TripWithDestinationsResponse, BudgetSummary, CoverImageUploadResponse
+from app.schemas.trip import TripCreate, TripUpdate, TripResponse, TripWithDestinationsResponse, BudgetSummary, POIStats, CoverImageUploadResponse
 from app.services.trip_service import TripService
 
 router = APIRouter()
@@ -193,3 +193,25 @@ async def get_trip_budget(
             detail=f"Trip with id {trip_id} not found"
         )
     return budget
+
+
+@router.get(
+    "/{trip_id}/poi-stats",
+    response_model=POIStats,
+    summary="Get POI statistics for a trip",
+    description="Get the total and scheduled POI counts for a trip"
+)
+async def get_trip_poi_stats(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db)
+) -> POIStats:
+    """Get POI statistics for a trip"""
+    # Verify trip exists
+    trip = await TripService.get_trip(db, trip_id)
+    if not trip:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trip with id {trip_id} not found"
+        )
+    stats = await TripService.get_poi_stats(db, trip_id)
+    return POIStats(**stats)

@@ -108,6 +108,14 @@ class BudgetSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class POIStats(BaseModel):
+    """Schema for POI statistics response"""
+    total_pois: int = Field(..., description="Total number of POIs in the trip")
+    scheduled_pois: int = Field(..., description="Number of POIs that have been scheduled")
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class CoverImageUploadResponse(BaseModel):
     """Schema for cover image upload response"""
     url: str = Field(..., description="URL to access the uploaded cover image")

@@ -75,6 +75,24 @@ class TripService:
         return True
 
     @staticmethod
+    async def get_poi_stats(db: AsyncSession, trip_id: int) -> dict:
+        """Get POI statistics for a trip (total and scheduled counts)"""
+        result = await db.execute(
+            select(
+                func.count(POI.id).label('total_pois'),
+                func.count(POI.scheduled_date).label('scheduled_pois')
+            )
+            .select_from(POI)
+            .join(Destination, POI.destination_id == Destination.id)
+            .where(Destination.trip_id == trip_id)
+        )
+        row = result.one()
+        return {
+            'total_pois': row.total_pois,
+            'scheduled_pois': row.scheduled_pois
+        }
+
+    @staticmethod
     async def get_budget_summary(db: AsyncSession, trip_id: int) -> Optional[BudgetSummary]:
         """Calculate budget summary for a trip by aggregating POI costs"""
         # Get the trip first

@@ -40,7 +40,8 @@ const TripCard = ({
   onShare,
   onExport,
   destinationCount = 0,
-  completedDestinations = 0,
+  totalPOIs = 0,
+  scheduledPOIs = 0,
   budget = null
 }) => {
   const [showActions, setShowActions] = useState(false);
@@ -112,9 +113,9 @@ const TripCard = ({
     }
   }, [trip.start_date, trip.end_date]);
 
-  // Destination progress percentage
-  const progressPercent = destinationCount > 0
-    ? Math.round((completedDestinations / destinationCount) * 100)
+  // POI scheduling progress percentage
+  const progressPercent = totalPOIs > 0
+    ? Math.round((scheduledPOIs / totalPOIs) * 100)
     : 0;
 
   // Status badge styling
@@ -369,18 +370,27 @@ const TripCard = ({
           </div>
         )}
 
-        {/* Progress indicator */}
-        {destinationCount > 0 && (
+        {/* Progress indicator - shows POI scheduling progress */}
+        {totalPOIs > 0 && (
           <div className="mb-4">
             <div className="flex items-center justify-between text-sm mb-1.5">
-              <span className="text-gray-600 dark:text-gray-300">Destinations</span>
-              <span className="text-gray-900 dark:text-white font-medium">{completedDestinations}/{destinationCount}</span>
+              <span className="text-gray-600 dark:text-gray-300">POIs Scheduled</span>
+              <span className="text-gray-900 dark:text-white font-medium">{scheduledPOIs}/{totalPOIs}</span>
             </div>
             <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
                 style={{ width: `${progressPercent}%` }}
               />
+            </div>
+          </div>
+        )}
+        {/* Destination count - show when there are destinations but no POIs yet */}
+        {destinationCount > 0 && totalPOIs === 0 && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600 dark:text-gray-300">Destinations</span>
+              <span className="text-gray-900 dark:text-white font-medium">{destinationCount}</span>
             </div>
           </div>
         )}

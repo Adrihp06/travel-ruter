@@ -278,6 +278,68 @@ class TestTripsAPI:
 
         assert response.status_code == 404
 
+    @pytest.mark.asyncio
+    async def test_get_trip_poi_stats(
+        self,
+        client: AsyncClient,
+        db: AsyncSession,
+        created_trip: Trip,
+        created_destination: Destination
+    ):
+        """Test GET /api/v1/trips/{trip_id}/poi-stats - get POI statistics."""
+        from datetime import date as date_type
+        # Create POIs - some scheduled, some not
+        poi1 = POI(
+            destination_id=created_destination.id,
+            name="Scheduled Attraction",
+            category="Entertainment",
+            scheduled_date=date_type.today()
+        )
+        poi2 = POI(
+            destination_id=created_destination.id,
+            name="Unscheduled Meal",
+            category="Food",
+            scheduled_date=None
+        )
+        poi3 = POI(
+            destination_id=created_destination.id,
+            name="Another Scheduled",
+            category="Sightseeing",
+            scheduled_date=date_type.today()
+        )
+        db.add(poi1)
+        db.add(poi2)
+        db.add(poi3)
+        await db.flush()
+
+        response = await client.get(f"/api/v1/trips/{created_trip.id}/poi-stats")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_pois"] == 3
+        assert data["scheduled_pois"] == 2
+
+    @pytest.mark.asyncio
+    async def test_get_trip_poi_stats_no_pois(
+        self,
+        client: AsyncClient,
+        created_trip: Trip
+    ):
+        """Test POI stats with no POIs returns zeros."""
+        response = await client.get(f"/api/v1/trips/{created_trip.id}/poi-stats")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_pois"] == 0
+        assert data["scheduled_pois"] == 0
+
+    @pytest.mark.asyncio
+    async def test_get_trip_poi_stats_not_found(self, client: AsyncClient):
+        """Test POI stats endpoint returns 404 for non-existent trip."""
+        response = await client.get("/api/v1/trips/99999/poi-stats")
+
+        assert response.status_code == 404
+
 
 class TestTripsAPIValidation:
     """Tests for input validation on Trips API."""

@@ -174,6 +174,12 @@ const GlobalTripView = () => {
     return tripWithDests?.destinations?.length || 0;
   };
 
+  // Get POI stats for a trip
+  const getPOIStats = (tripId) => {
+    const tripWithDests = tripsWithDestinations.find(t => t.id === tripId);
+    return tripWithDests?.poiStats || { total_pois: 0, scheduled_pois: 0 };
+  };
+
   useEffect(() => {
     fetchTrips();
   }, [fetchTrips]);
@@ -273,19 +279,23 @@ const GlobalTripView = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {filteredTrips.map((trip) => (
-                  <TripCard
-                    key={trip.id}
-                    trip={trip}
-                    onEdit={handleEditTrip}
-                    onDelete={handleDeleteClick}
-                    onDuplicate={handleDuplicateTrip}
-                    onShare={handleShareTrip}
-                    onExport={handleExportTrip}
-                    destinationCount={getDestinationCount(trip.id)}
-                    completedDestinations={0}
-                  />
-                ))}
+                {filteredTrips.map((trip) => {
+                  const poiStats = getPOIStats(trip.id);
+                  return (
+                    <TripCard
+                      key={trip.id}
+                      trip={trip}
+                      onEdit={handleEditTrip}
+                      onDelete={handleDeleteClick}
+                      onDuplicate={handleDuplicateTrip}
+                      onShare={handleShareTrip}
+                      onExport={handleExportTrip}
+                      destinationCount={getDestinationCount(trip.id)}
+                      totalPOIs={poiStats.total_pois}
+                      scheduledPOIs={poiStats.scheduled_pois}
+                    />
+                  );
+                })}
               </div>
             )}
           </>

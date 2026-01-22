@@ -236,12 +236,16 @@ const useTripStore = create((set, get) => ({
       const tripsWithDests = await Promise.all(
         trips.map(async (trip) => {
           try {
-            const response = await fetch(`${API_BASE_URL}/trips/${trip.id}/destinations`);
-            if (!response.ok) return { ...trip, destinations: [] };
-            const destinations = await response.json();
-            return { ...trip, destinations };
+            // Fetch destinations and POI stats in parallel
+            const [destResponse, statsResponse] = await Promise.all([
+              fetch(`${API_BASE_URL}/trips/${trip.id}/destinations`),
+              fetch(`${API_BASE_URL}/trips/${trip.id}/poi-stats`)
+            ]);
+            const destinations = destResponse.ok ? await destResponse.json() : [];
+            const poiStats = statsResponse.ok ? await statsResponse.json() : { total_pois: 0, scheduled_pois: 0 };
+            return { ...trip, destinations, poiStats };
           } catch {
-            return { ...trip, destinations: [] };
+            return { ...trip, destinations: [], poiStats: { total_pois: 0, scheduled_pois: 0 } };
           }
         })
       );
@@ -250,7 +254,8 @@ const useTripStore = create((set, get) => ({
       // Fallback to mock destinations for demonstration
       const mockTripsWithDestinations = trips.map(trip => ({
         ...trip,
-        destinations: getMockDestinations(trip.id)
+        destinations: getMockDestinations(trip.id),
+        poiStats: { total_pois: 0, scheduled_pois: 0 }
       }));
       set({ tripsWithDestinations: mockTripsWithDestinations });
     }
