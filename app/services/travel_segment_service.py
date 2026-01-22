@@ -231,18 +231,19 @@ class TravelSegmentService:
         distance_km = None
         duration_min = None
 
-        # Determine if we should use Google Maps
-        # Always try Google Maps first for public transport (train/bus) since it's the only
-        # service that provides real transit routing. For other modes, check the preference.
+        # Determine if we should use Google Maps based on user preference
+        # DEFAULT = Use ORS for everything (train/bus uses car route approximation)
+        # GOOGLE_PUBLIC_TRANSPORT = Use Google Maps for train/bus only
+        # GOOGLE_EVERYTHING = Use Google Maps for all transport modes
         use_google = False
-        if cls._is_public_transport(mode):
-            # Always use Google Maps for train/bus - it's the only real transit routing
+        if routing_preference == RoutingPreference.GOOGLE_EVERYTHING:
             use_google = True
-            logger.info(f"Using Google Maps for public transport mode: {mode}")
-        elif routing_preference == RoutingPreference.GOOGLE_EVERYTHING:
+            logger.info(f"Using Google Maps for mode {mode} (preference: GOOGLE_EVERYTHING)")
+        elif routing_preference == RoutingPreference.GOOGLE_PUBLIC_TRANSPORT and cls._is_public_transport(mode):
             use_google = True
+            logger.info(f"Using Google Maps for public transport mode: {mode} (preference: GOOGLE_PUBLIC_TRANSPORT)")
 
-        # Try Google Maps first for public transport or if preference is set
+        # Try Google Maps only if user preference requires it
         if use_google:
             geometry, distance_km, duration_min = await cls._fetch_google_maps_route(
                 lat1, lon1, lat2, lon2, mode
