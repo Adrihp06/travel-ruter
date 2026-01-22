@@ -135,6 +135,14 @@ const GlobalTripView = () => {
     }
   };
 
+  const handleStatusChange = async (trip, newStatus) => {
+    try {
+      await useTripStore.getState().updateTrip(trip.id, { ...trip, status: newStatus });
+    } catch (error) {
+      alert('Failed to update trip status: ' + error.message);
+    }
+  };
+
   const handleShareTrip = (trip) => {
     // Copy trip link to clipboard
     const tripUrl = `${window.location.origin}/trips/${trip.id}`;
@@ -288,6 +296,7 @@ const GlobalTripView = () => {
                       onEdit={handleEditTrip}
                       onDelete={handleDeleteClick}
                       onDuplicate={handleDuplicateTrip}
+                      onStatusChange={handleStatusChange}
                       onShare={handleShareTrip}
                       onExport={handleExportTrip}
                       destinationCount={getDestinationCount(trip.id)}

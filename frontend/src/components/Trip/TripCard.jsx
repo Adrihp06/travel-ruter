@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
   MapPin,
@@ -16,7 +15,8 @@ import {
   CheckCircle2,
   Circle,
   Plane,
-  Tag
+  Tag,
+  Archive
 } from 'lucide-react';
 import { formatDateFull } from '../../utils/dateFormat';
 
@@ -37,6 +37,7 @@ const TripCard = ({
   onEdit,
   onDelete,
   onDuplicate,
+  onStatusChange,
   onShare,
   onExport,
   destinationCount = 0,
@@ -47,6 +48,8 @@ const TripCard = ({
   const [showActions, setShowActions] = useState(false);
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
+
+  const isCompleted = trip.status === 'completed';
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -203,7 +206,7 @@ const TripCard = ({
           {showActions && (
             <div
               ref={menuRef}
-              className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-700 rounded-lg shadow-2xl border border-gray-300 dark:border-gray-600 py-1 z-50"
+              className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-700 rounded-lg shadow-2xl border border-gray-300 dark:border-gray-600 py-1 z-50"
             >
                 <button
                   onClick={(e) => {
@@ -212,9 +215,12 @@ const TripCard = ({
                     onEdit?.(trip);
                     setShowActions(false);
                   }}
-                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
-                  <Pencil className="w-4 h-4 mr-2" /> Edit
+                  <div className="flex items-center">
+                    <Pencil className="w-4 h-4 mr-2" /> Edit
+                  </div>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">⌘E</span>
                 </button>
                 <button
                   onClick={(e) => {
@@ -223,10 +229,34 @@ const TripCard = ({
                     onDuplicate?.(trip);
                     setShowActions(false);
                   }}
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
+                >
+                  <div className="flex items-center">
+                    <Copy className="w-4 h-4 mr-2" /> Duplicate
+                  </div>
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">⌘D</span>
+                </button>
+                
+                <hr className="my-1 border-gray-100 dark:border-gray-600" />
+                
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onStatusChange?.(trip, isCompleted ? 'planning' : 'completed');
+                    setShowActions(false);
+                  }}
                   className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
-                  <Copy className="w-4 h-4 mr-2" /> Duplicate
+                  {isCompleted ? (
+                    <><Clock className="w-4 h-4 mr-2" /> Re-open Trip</>
+                  ) : (
+                    <><Archive className="w-4 h-4 mr-2" /> Complete Trip</>
+                  )}
                 </button>
+
+                <hr className="my-1 border-gray-100 dark:border-gray-600" />
+
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -236,7 +266,7 @@ const TripCard = ({
                   }}
                   className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
-                  <Share2 className="w-4 h-4 mr-2" /> Share
+                  <Share2 className="w-4 h-4 mr-2" /> Share Link
                 </button>
                 <button
                   onClick={(e) => {
@@ -247,9 +277,11 @@ const TripCard = ({
                   }}
                   className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
-                  <Download className="w-4 h-4 mr-2" /> Export
+                  <Download className="w-4 h-4 mr-2" /> Export Data
                 </button>
+                
                 <hr className="my-1 border-gray-100 dark:border-gray-600" />
+                
                 <button
                   onClick={(e) => {
                     e.preventDefault();
@@ -257,9 +289,12 @@ const TripCard = ({
                     onDelete?.(trip.id);
                     setShowActions(false);
                   }}
-                  className="w-full flex items-center px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                 >
-                  <Trash2 className="w-4 h-4 mr-2" /> Delete
+                  <div className="flex items-center">
+                    <Trash2 className="w-4 h-4 mr-2" /> Delete
+                  </div>
+                  <span className="text-[10px] text-red-400 dark:text-red-500/70 font-medium">⌫</span>
                 </button>
               </div>
           )}
