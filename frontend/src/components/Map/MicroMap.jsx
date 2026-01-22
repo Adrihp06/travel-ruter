@@ -587,13 +587,14 @@ const MapLegend = ({
   onToggleCategory,
   showAccommodations,
   onToggleAccommodations,
+  className = "bottom-8 left-3",
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   if ((!categories || categories.length === 0) && accommodationCount === 0) return null;
 
   return (
-    <div className="absolute bottom-8 left-3 z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 overflow-hidden max-w-[200px]">
+    <div className={`absolute z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 overflow-hidden max-w-[200px] ${className}`}>
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
@@ -1258,9 +1259,10 @@ const MicroMap = ({
       >
         <FullscreenControl position="top-right" />
         <NavigationControl position="top-right" showCompass={true} />
-        <ScaleControl position="bottom-right" />
+        <ScaleControl position="bottom-left" />
 
         {/* Day route layers - render each visible day's route with unique color */}
+
         {visibleRoutes.map((route) => (
           <React.Fragment key={route.date}>
             {/* Route outline for visibility */}
@@ -1453,6 +1455,7 @@ const MicroMap = ({
           onToggleCategory={handleToggleCategory}
           showAccommodations={showAccommodations}
           onToggleAccommodations={() => setShowAccommodations(prev => !prev)}
+          className={showRouteControls && visibleRoutes.length > 0 ? "bottom-24 left-3" : "bottom-8 left-3"}
         />
       )}
 
@@ -1527,11 +1530,11 @@ const MicroMap = ({
             </div>
           )}
 
-          {/* Route Summary Bar - Bottom (when routes visible) */}
+          {/* Route Summary Bar - Bottom Left (when routes visible) */}
           {visibleRoutes.length > 0 && (
-            <div className="absolute bottom-3 left-3 right-3 z-10">
-              <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-2.5">
-                <div className="flex items-center justify-between">
+            <>
+              <div className="absolute bottom-3 left-3 z-10">
+                <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-2.5">
                   <div className="flex items-center gap-3">
                     {/* Route summary */}
                     <div className="flex items-center gap-1.5">
@@ -1561,23 +1564,23 @@ const MicroMap = ({
                       <span className="text-xs text-gray-500 animate-pulse">Calculating...</span>
                     )}
                   </div>
-
-                  {/* Export buttons */}
-                  <div className="flex items-center gap-1">
-                    {visibleRoutes.length === 1 && (
-                      <button
-                        onClick={() => handleExportDayToGoogleMaps(visibleRoutes[0].date)}
-                        disabled={isCalculating}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Google Maps</span>
-                      </button>
-                    )}
-                  </div>
                 </div>
               </div>
-            </div>
+
+              {/* Google Maps Export Button - Bottom Right */}
+              <div className="absolute bottom-3 right-3 z-10">
+                {visibleRoutes.length === 1 && (
+                  <button
+                    onClick={() => handleExportDayToGoogleMaps(visibleRoutes[0].date)}
+                    disabled={isCalculating}
+                    className="flex items-center gap-1.5 px-3 py-2.5 bg-indigo-600 text-white text-xs font-medium rounded-lg shadow-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Google Maps</span>
+                  </button>
+                )}
+              </div>
+            </>
           )}
         </>
       )}
