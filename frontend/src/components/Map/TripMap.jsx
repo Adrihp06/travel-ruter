@@ -15,17 +15,9 @@ import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
 import useRouteStore from '../../stores/useRouteStore';
 import useWaypointStore from '../../stores/useWaypointStore';
 import SegmentNavigator from './SegmentNavigator';
+import { formatDateRangeShort } from '../../utils/dateFormat';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-/**
- * Format date range for display
- */
-const formatDateRange = (arrivalDate, departureDate) => {
-  const arrival = new Date(arrivalDate);
-  const departure = new Date(departureDate);
-  const options = { month: 'short', day: 'numeric' };
-  return `${arrival.toLocaleDateString('en-US', options)} - ${departure.toLocaleDateString('en-US', options)}`;
-};
 
 /**
  * Calculate number of nights between dates
@@ -898,7 +890,7 @@ const TripMap = ({
                     {destination.arrivalDate && destination.departureDate && (
                       <>
                         <p className="text-indigo-600 font-medium text-xs mt-1">
-                          {formatDateRange(destination.arrivalDate, destination.departureDate)}
+                          {formatDateRangeShort(destination.arrivalDate, destination.departureDate)}
                         </p>
                         <p className="text-gray-500 text-xs">
                           {calculateNights(destination.arrivalDate, destination.departureDate)} nights

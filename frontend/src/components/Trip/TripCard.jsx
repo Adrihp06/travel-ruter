@@ -18,6 +18,7 @@ import {
   Plane,
   Tag
 } from 'lucide-react';
+import { formatDateFull } from '../../utils/dateFormat';
 
 // Tag color mapping (matches TripFormModal)
 const TAG_COLORS = {
@@ -75,12 +76,6 @@ const TripCard = ({
     return 'Plan your adventure!';
   }, [trip.description, trip.location]);
 
-  // Format date for display
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
 
   // Calculate countdown
   const countdown = useMemo(() => {
@@ -349,8 +344,8 @@ const TripCard = ({
         <div className="flex items-center text-sm text-gray-600 dark:text-gray-300 mb-4">
           <Calendar className="w-4 h-4 mr-1.5 text-gray-400 dark:text-gray-500" />
           <span>
-            {formatDate(trip.start_date)}
-            {trip.end_date && ` - ${formatDate(trip.end_date)}`}
+            {formatDateFull(trip.start_date)}
+            {trip.end_date && ` - ${formatDateFull(trip.end_date)}`}
           </span>
         </div>
 

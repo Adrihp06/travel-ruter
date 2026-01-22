@@ -18,6 +18,7 @@ import {
   MapPin,
   Calendar,
 } from 'lucide-react';
+import { formatDateForDocument } from '../../utils/dateFormat';
 
 const DOCUMENT_TYPE_ICONS = {
   flight: Plane,
@@ -62,12 +63,7 @@ const DocumentList = ({
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    return formatDateForDocument(dateString);
   };
 
   const getFileIcon = (mimeType, size = 5) => {

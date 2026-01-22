@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Calendar, Moon, Plus } from 'lucide-react';
+import { formatDateShort } from '../../utils/dateFormat';
 import {
   DndContext,
   DragOverlay,
@@ -145,7 +146,7 @@ const Timeline = ({
         </p>
         {tripStart && tripEnd && (
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            {new Date(tripStart).toLocaleDateString()} - {new Date(tripEnd).toLocaleDateString()}
+            {formatDateShort(tripStart)} - {formatDateShort(tripEnd)}
           </p>
         )}
       </div>
@@ -154,7 +155,7 @@ const Timeline = ({
         {/* Start Marker */}
         <div className="flex items-center mb-2 text-xs text-gray-500 dark:text-gray-400">
           <span className="w-3 h-3 rounded-full border-2 border-green-500 mr-3"></span>
-          <span>Start: {tripStart && new Date(tripStart).toLocaleDateString()}</span>
+          <span>Start: {tripStart && formatDateShort(tripStart)}</span>
         </div>
 
         {/* Destinations with travel segments */}
@@ -224,7 +225,7 @@ const Timeline = ({
                 </h3>
                 <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1">
                   <Calendar className="w-3 h-3 mr-1" />
-                  <span>{new Date(activeDestination.arrival_date).toLocaleDateString()}</span>
+                  <span>{formatDateShort(activeDestination.arrival_date)}</span>
                 </div>
               </div>
             ) : null}
@@ -234,7 +235,7 @@ const Timeline = ({
         {/* End Marker */}
         <div className="flex items-center mt-2 text-xs text-gray-500 dark:text-gray-400">
           <span className="w-3 h-3 rounded-full border-2 border-red-500 mr-3"></span>
-          <span>End: {tripEnd && new Date(tripEnd).toLocaleDateString()}</span>
+          <span>End: {tripEnd && formatDateShort(tripEnd)}</span>
         </div>
 
         {/* Add Destination Button */}

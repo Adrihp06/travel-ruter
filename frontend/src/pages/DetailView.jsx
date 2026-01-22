@@ -8,6 +8,7 @@ import useDestinationStore from '../stores/useDestinationStore';
 import useAccommodationStore from '../stores/useAccommodationStore';
 import { DestinationFormModal } from '../components/Destination';
 import { AccommodationFormModal, AccommodationList, AccommodationTimeline } from '../components/Accommodation';
+import { formatDateWithWeekday } from '../utils/dateFormat';
 
 // Layout components
 import { ItineraryUIProvider, useItineraryUI } from '../contexts/ItineraryUIContext';
@@ -653,11 +654,7 @@ const DetailViewContent = () => {
       days.push({
         dayNumber,
         date: currentDate.toISOString().split('T')[0],
-        displayDate: currentDate.toLocaleDateString('en-US', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric'
-        }),
+        displayDate: formatDateWithWeekday(currentDate),
       });
       currentDate.setDate(currentDate.getDate() + 1);
       dayNumber++;

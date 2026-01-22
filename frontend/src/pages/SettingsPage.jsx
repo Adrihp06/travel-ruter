@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { User, Map, DollarSign, Sun, Moon, Monitor, Download, Upload, Save, Check, Route } from 'lucide-react';
+import { User, Map, DollarSign, Sun, Moon, Monitor, Download, Upload, Save, Check, Route, Calendar } from 'lucide-react';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { useTheme } from '../contexts/ThemeContext';
+import { dateLocales } from '../utils/dateFormat';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -22,6 +23,9 @@ const defaultSettings = {
   },
   currency: {
     default: 'USD',
+  },
+  dateFormat: {
+    locale: '', // Empty string means use browser default
   },
   theme: {
     mode: 'light',
@@ -139,6 +143,7 @@ const SettingsPage = () => {
     { id: 'map', name: 'Map Settings', icon: Map },
     { id: 'routing', name: 'Routing', icon: Route },
     { id: 'currency', name: 'Currency', icon: DollarSign },
+    { id: 'dateFormat', name: 'Date Format', icon: Calendar },
     { id: 'theme', name: 'Theme', icon: getThemeIcon() },
     { id: 'export', name: 'Export/Import', icon: Download },
   ];
@@ -420,6 +425,34 @@ const SettingsPage = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+            )}
+
+            {/* Date Format Settings */}
+            {activeSection === 'dateFormat' && (
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Date Format Settings</h2>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Date Locale
+                  </label>
+                  <select
+                    value={settings.dateFormat?.locale || ''}
+                    onChange={(e) => updateSetting('dateFormat', 'locale', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                  >
+                    <option value="">Auto (Browser Default)</option>
+                    {dateLocales.map((locale) => (
+                      <option key={locale.code} value={locale.code}>
+                        {locale.name} - {locale.example}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Choose how dates are displayed throughout the application.
+                    &quot;Auto&quot; uses your browser&apos;s language settings.
+                  </p>
                 </div>
               </div>
             )}

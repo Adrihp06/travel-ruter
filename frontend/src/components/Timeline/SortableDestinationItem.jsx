@@ -2,6 +2,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Calendar, Moon, Pencil, Trash2 } from 'lucide-react';
+import { formatDateShort } from '../../utils/dateFormat';
 
 const SortableDestinationItem = ({
   destination,
@@ -65,9 +66,9 @@ const SortableDestinationItem = ({
             </h3>
             <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1">
               <Calendar className="w-3 h-3 mr-1" />
-              <span>{new Date(destination.arrival_date).toLocaleDateString()}</span>
+              <span>{formatDateShort(destination.arrival_date)}</span>
               <span className="mx-1">-</span>
-              <span>{new Date(destination.departure_date).toLocaleDateString()}</span>
+              <span>{formatDateShort(destination.departure_date)}</span>
             </div>
             <div className="flex items-center text-xs font-medium text-indigo-600 dark:text-indigo-400 mt-1">
               <Moon className="w-3 h-3 mr-1" />

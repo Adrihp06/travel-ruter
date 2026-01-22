@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import OptimizationPreview from './OptimizationPreview';
 import usePOIStore from '../../stores/usePOIStore';
+import { formatDateWithLongWeekday, formatDateShort } from '../../utils/dateFormat';
 
 // Category icon components mapping
 const categoryIcons = {
@@ -121,8 +122,7 @@ const organizeByDay = (pois, arrivalDate, nights) => {
 
 // Format day header
 const formatDayHeader = (dayNumber, date) => {
-  const options = { weekday: 'long', month: 'short', day: 'numeric' };
-  return `Day ${dayNumber} - ${date.toLocaleDateString('en-US', options)}`;
+  return `Day ${dayNumber} - ${formatDateWithLongWeekday(date)}`;
 };
 
 // POI Item sub-component
@@ -423,13 +423,6 @@ const DayBasedAgenda = ({
     clearOptimizationResult();
   }, [clearOptimizationResult]);
 
-  // Format dates for display
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
   if (!destination) {
     return (
       <div className={`flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 w-80 ${className}`}>
@@ -453,7 +446,7 @@ const DayBasedAgenda = ({
           {destination.name || destination.city_name}
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          {formatDate(destination.arrival_date)} - {formatDate(destination.departure_date)}
+          {formatDateShort(destination.arrival_date)} - {formatDateShort(destination.departure_date)}
         </p>
         <div className="flex items-center justify-between mt-1">
           <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">

@@ -1,17 +1,12 @@
 import React from 'react';
 import { X, Trash2, AlertTriangle, MapPin, Calendar } from 'lucide-react';
+import { formatDateFull } from '../../utils/dateFormat';
 
 const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {
   if (!isOpen || !trip) return null;
 
   const tripName = trip.title || trip.name || 'Untitled Trip';
   const destinationCount = trip.destinations?.length || 0;
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
 
   const handleConfirm = () => {
     onConfirm();
@@ -60,8 +55,8 @@ const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {
               <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
                 <Calendar className="w-4 h-4" />
                 <span>
-                  {formatDate(trip.start_date)}
-                  {trip.end_date && ` - ${formatDate(trip.end_date)}`}
+                  {formatDateFull(trip.start_date)}
+                  {trip.end_date && ` - ${formatDateFull(trip.end_date)}`}
                 </span>
               </div>
             )}

@@ -47,6 +47,7 @@ import {
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import usePOIStore from '../../stores/usePOIStore';
 import OptimizationPreview from '../Agenda/OptimizationPreview';
+import { formatDateWithWeekday, formatDateRangeShort } from '../../utils/dateFormat';
 
 // Category icon mapping
 const categoryIcons = {
@@ -172,11 +173,7 @@ const generateDays = (arrivalDate, departureDate) => {
     days.push({
       dayNumber,
       date: currentDate.toISOString().split('T')[0],
-      displayDate: currentDate.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric'
-      }),
+      displayDate: formatDateWithWeekday(currentDate),
     });
     currentDate.setDate(currentDate.getDate() + 1);
     dayNumber++;
@@ -736,13 +733,6 @@ const DailyItinerary = ({
     }));
   };
 
-  const formatDateRange = (arrival, departure) => {
-    if (!arrival || !departure) return '';
-    const arrDate = new Date(arrival);
-    const depDate = new Date(departure);
-    const options = { month: 'short', day: 'numeric' };
-    return `${arrDate.toLocaleDateString('en-US', options)} - ${depDate.toLocaleDateString('en-US', options)}`;
-  };
 
   // Optimization handlers
   const handleOptimizeDay = useCallback(async (dayNumber) => {
@@ -855,7 +845,7 @@ const DailyItinerary = ({
             {destination.name || destination.city_name}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {formatDateRange(destination.arrival_date, destination.departure_date)}
+            {formatDateRangeShort(destination.arrival_date, destination.departure_date)}
           </p>
           <div className="flex items-center mt-1 space-x-3">
             <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Bed, Plus, AlertTriangle, ChevronDown, ChevronUp, Pencil, MapPin } from 'lucide-react';
+import { formatDateWithWeekday } from '../../utils/dateFormat';
 
 /**
  * AccommodationTimeline - Compact visual timeline showing accommodation coverage
@@ -51,7 +52,7 @@ const AccommodationTimeline = ({
       result.push({
         nightNumber: nightNum,
         date: current.toISOString().split('T')[0],
-        displayDate: current.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+        displayDate: formatDateWithWeekday(current),
       });
       current.setDate(current.getDate() + 1);
       nightNum++;

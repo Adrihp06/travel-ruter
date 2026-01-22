@@ -11,6 +11,7 @@ import {
   CheckCircle,
   Clock,
 } from 'lucide-react';
+import { formatDateWithWeekday } from '../../utils/dateFormat';
 
 const accommodationTypeIcons = {
   hotel: '🏨',
@@ -61,13 +62,6 @@ const AccommodationCard = ({
   const nights = calculateNights();
   const pricePerNight = nights > 0 && total_cost ? (total_cost / nights).toFixed(2) : null;
   const typeIcon = accommodationTypeIcons[type] || accommodationTypeIcons.other;
-
-  // Format date for display
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-  };
 
   if (isCompact) {
     return (
@@ -182,7 +176,7 @@ const AccommodationCard = ({
         <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Check-in</p>
-            <p className="font-medium text-gray-900 dark:text-white">{formatDate(check_in_date)}</p>
+            <p className="font-medium text-gray-900 dark:text-white">{formatDateWithWeekday(check_in_date)}</p>
           </div>
           <div className="flex flex-col items-center px-4">
             <div className="flex items-center text-indigo-600 dark:text-indigo-400">
@@ -193,7 +187,7 @@ const AccommodationCard = ({
           </div>
           <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Check-out</p>
-            <p className="font-medium text-gray-900 dark:text-white">{formatDate(check_out_date)}</p>
+            <p className="font-medium text-gray-900 dark:text-white">{formatDateWithWeekday(check_out_date)}</p>
           </div>
         </div>
 
