@@ -43,6 +43,7 @@ import {
   Route,
   Loader2,
   AlertCircle,
+  Plus,
 } from 'lucide-react';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import usePOIStore from '../../stores/usePOIStore';
@@ -297,9 +298,9 @@ const DroppableContainer = ({ id, children, className = '' }) => {
   return (
     <div
       ref={setNodeRef}
-      className={`${className} ${isOver ? 'ring-2 ring-indigo-500 ring-opacity-50' : ''}`}
+      className={`${className} ${isOver ? 'ring-2 ring-indigo-500 ring-opacity-50 bg-indigo-50 dark:bg-indigo-900/10' : ''}`}
     >
-      {children}
+      {typeof children === 'function' ? children(isOver) : children}
     </div>
   );
 };
@@ -376,35 +377,55 @@ const DayColumn = ({
 
       {isExpanded && (
         <DroppableContainer id={day.date} className="p-2 min-h-[60px] transition-all">
-          <SortableContext
-            items={pois.map(p => p.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {pois.length === 0 ? (
-              <div className="text-center py-4 text-xs text-gray-400 dark:text-gray-500 italic border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-                Drop POIs here
-              </div>
-            ) : (
-              pois.map((poi, index) => (
-                <React.Fragment key={poi.id}>
-                  <SortablePOIItem
-                    poi={poi}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    onVote={onVote}
-                    onClick={onPOIClick}
-                  />
-                  {/* Transport mode connector between POIs */}
-                  {index < pois.length - 1 && (
-                    <TransportModeConnector
-                      fromPoiId={poi.id}
-                      toPoiId={pois[index + 1].id}
+          {(isOver) => (
+            <SortableContext
+              items={pois.map(p => p.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {pois.length === 0 ? (
+                <div className={`
+                  flex flex-col items-center justify-center py-6 px-4
+                  border-2 border-dashed rounded-lg transition-colors duration-200
+                  ${isOver 
+                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' 
+                    : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600'
+                  }
+                `}>
+                  <div className={`
+                    p-2 rounded-full mb-2 transition-colors duration-200
+                    ${isOver ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}
+                  `}>
+                    <Plus className="w-5 h-5" />
+                  </div>
+                  <span className={`text-sm font-medium transition-colors duration-200 ${isOver ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-300'}`}>
+                    {isOver ? 'Drop to add to schedule' : 'Drop POIs here'}
+                  </span>
+                  <span className={`text-xs mt-1 transition-colors duration-200 ${isOver ? 'text-indigo-600/70 dark:text-indigo-400/70' : 'text-gray-400 dark:text-gray-500'}`}>
+                    Drag from unscheduled list
+                  </span>
+                </div>
+              ) : (
+                pois.map((poi, index) => (
+                  <React.Fragment key={poi.id}>
+                    <SortablePOIItem
+                      poi={poi}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      onVote={onVote}
+                      onClick={onPOIClick}
                     />
-                  )}
-                </React.Fragment>
-              ))
-            )}
-          </SortableContext>
+                    {/* Transport mode connector between POIs */}
+                    {index < pois.length - 1 && (
+                      <TransportModeConnector
+                        fromPoiId={poi.id}
+                        toPoiId={pois[index + 1].id}
+                      />
+                    )}
+                  </React.Fragment>
+                ))
+              )}
+            </SortableContext>
+          )}
         </DroppableContainer>
       )}
     </div>
