@@ -11,7 +11,13 @@ from app.schemas.poi import (
     POICreate, POIUpdate, POIResponse, POIsByCategory, POIVote,
     POIBulkScheduleUpdate, POIOptimizationRequest, POIOptimizationResponse, OptimizedPOI
 )
+from app.schemas.poi_suggestions import (
+    POISuggestionRequest, POISuggestionsResponse, POISuggestion,
+    POISuggestionMetadata, POISuggestionPhoto, BulkAddPOIsRequest
+)
 from app.services.poi_optimization_service import get_poi_optimization_service, POIOptimizationError
+from app.services.google_places_service import GooglePlacesService
+import math
 
 router = APIRouter()
 
@@ -578,3 +584,267 @@ async def get_accommodation_for_day(
         },
         "warning": "No accommodation set for this day. Using destination center as start point."
     }
+
+
+@router.get("/destinations/{destination_id}/pois/suggestions", response_model=POISuggestionsResponse)
+async def get_poi_suggestions(
+    destination_id: int,
+    radius: int = 5000,
+    category_filter: str | None = None,
+    trip_type: str | None = None,
+    max_results: int = 20,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get POI suggestions for a destination using Google Places API.
+
+    Suggestions are based on:
+    - Popular attractions near the destination
+    - User ratings and reviews
+    - Category variety (temples, food, nature, etc.)
+    - Optional trip type tags (romantic, adventure, family, etc.)
+    """
+    # Verify destination exists and get coordinates
+    dest_result = await db.execute(
+        select(
+            Destination,
+            ST_Y(Destination.coordinates).label('dest_lat'),
+            ST_X(Destination.coordinates).label('dest_lon')
+        )
+        .where(Destination.id == destination_id)
+    )
+    dest_row = dest_result.one_or_none()
+
+    if not dest_row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Destination with id {destination_id} not found"
+        )
+
+    destination, dest_lat, dest_lon = dest_row
+
+    # Use coordinates from PostGIS or fallback to latitude/longitude fields
+    latitude = dest_lat or destination.latitude
+    longitude = dest_lon or destination.longitude
+
+    if latitude is None or longitude is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Destination has no coordinates set"
+        )
+
+    # Fetch suggestions from Google Places API
+    try:
+        suggestions_data = await GooglePlacesService.get_suggestions_for_destination(
+            latitude=latitude,
+            longitude=longitude,
+            radius=radius,
+            category_filter=category_filter,
+            trip_type=trip_type,
+            max_results=max_results,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch suggestions: {str(e)}"
+        )
+
+    # Calculate distance for each suggestion
+    def calculate_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """Calculate haversine distance between two points in km"""
+        R = 6371  # Earth radius in km
+
+        lat1_rad = math.radians(lat1)
+        lat2_rad = math.radians(lat2)
+        delta_lat = math.radians(lat2 - lat1)
+        delta_lon = math.radians(lon2 - lon1)
+
+        a = (math.sin(delta_lat / 2) ** 2 +
+             math.cos(lat1_rad) * math.cos(lat2_rad) *
+             math.sin(delta_lon / 2) ** 2)
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        return R * c
+
+    # Estimate cost and dwell time based on category and price level
+    def estimate_cost(price_level: int | None) -> float | None:
+        if price_level is None:
+            return None
+        # Price level mapping: 0=Free, 1=$, 2=$$, 3=$$$, 4=$$$$
+        cost_map = {0: 0, 1: 10, 2: 25, 3: 50, 4: 100}
+        return cost_map.get(price_level, 25)
+
+    def estimate_dwell_time(category: str) -> int:
+        """Estimate visit duration in minutes based on category"""
+        dwell_map = {
+            "Museums": 120,
+            "Sights": 60,
+            "Food": 90,
+            "Nature": 90,
+            "Shopping": 60,
+            "Entertainment": 120,
+            "Viewpoints": 30,
+            "Activity": 90,
+            "Accommodation": 0,
+        }
+        return dwell_map.get(category, 60)  # Default 1 hour
+
+    # Transform to POISuggestion format
+    suggestions = []
+    for suggestion_data in suggestions_data:
+        metadata_json = suggestion_data.get("metadata_json", {})
+
+        # Calculate distance
+        distance = None
+        if suggestion_data.get("latitude") and suggestion_data.get("longitude"):
+            distance = calculate_distance_km(
+                latitude, longitude,
+                suggestion_data["latitude"], suggestion_data["longitude"]
+            )
+
+        # Transform photos
+        photos = [
+            POISuggestionPhoto(
+                photo_reference=photo["photo_reference"],
+                width=photo["width"],
+                height=photo["height"],
+                url=GooglePlacesService.get_photo_url(photo["photo_reference"], max_width=400)
+            )
+            for photo in metadata_json.get("photos", [])
+        ]
+
+        suggestion = POISuggestion(
+            name=suggestion_data["name"],
+            category=suggestion_data["category"],
+            address=suggestion_data.get("address"),
+            latitude=suggestion_data.get("latitude"),
+            longitude=suggestion_data.get("longitude"),
+            external_id=suggestion_data["external_id"],
+            external_source=suggestion_data["external_source"],
+            metadata=POISuggestionMetadata(
+                rating=metadata_json.get("rating"),
+                user_ratings_total=metadata_json.get("user_ratings_total"),
+                price_level=metadata_json.get("price_level"),
+                types=metadata_json.get("types", []),
+                photos=photos,
+                business_status=metadata_json.get("business_status"),
+                opening_hours=metadata_json.get("opening_hours"),
+            ),
+            distance_km=round(distance, 2) if distance else None,
+            estimated_cost=estimate_cost(metadata_json.get("price_level")),
+            suggested_dwell_time=estimate_dwell_time(suggestion_data["category"]),
+        )
+        suggestions.append(suggestion)
+
+    return POISuggestionsResponse(
+        destination_id=destination_id,
+        suggestions=suggestions,
+        total_count=len(suggestions),
+        filters_applied={
+            "radius": radius,
+            "category_filter": category_filter,
+            "trip_type": trip_type,
+        }
+    )
+
+
+@router.post("/destinations/{destination_id}/pois/suggestions/bulk-add", response_model=List[POIResponse])
+async def bulk_add_suggested_pois(
+    destination_id: int,
+    request: BulkAddPOIsRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Add multiple suggested POIs to a destination at once.
+
+    This is used for the "Add All" functionality.
+    """
+    # Verify destination exists
+    dest_result = await db.execute(select(Destination).where(Destination.id == destination_id))
+    destination = dest_result.scalar_one_or_none()
+
+    if not destination:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Destination with id {destination_id} not found"
+        )
+
+    # Fetch details for each place_id from Google Places API
+    created_pois = []
+    for place_id in request.place_ids:
+        try:
+            place_details = await GooglePlacesService.get_place_details(place_id)
+
+            # Extract coordinates
+            geometry = place_details.get("geometry", {})
+            location = geometry.get("location", {})
+            latitude = location.get("lat")
+            longitude = location.get("lng")
+
+            # Determine category
+            category = request.category_override or GooglePlacesService.get_category_from_types(
+                place_details.get("types", [])
+            )
+
+            # Create POI
+            poi_data = {
+                "destination_id": destination_id,
+                "name": place_details.get("name"),
+                "category": category,
+                "description": None,
+                "address": place_details.get("formatted_address"),
+                "external_id": place_id,
+                "external_source": "google_places",
+                "metadata_json": {
+                    "rating": place_details.get("rating"),
+                    "user_ratings_total": place_details.get("user_ratings_total"),
+                    "price_level": place_details.get("price_level"),
+                    "website": place_details.get("website"),
+                    "phone": place_details.get("formatted_phone_number"),
+                    "types": place_details.get("types", []),
+                    "url": place_details.get("url"),
+                },
+            }
+
+            db_poi = POI(**poi_data)
+
+            # Set coordinates
+            if latitude is not None and longitude is not None:
+                db_poi.coordinates = ST_SetSRID(
+                    ST_MakePoint(longitude, latitude),
+                    4326
+                )
+
+            db.add(db_poi)
+            await db.flush()
+
+            # Re-query to get coordinates
+            result = await db.execute(
+                select(
+                    POI,
+                    ST_Y(POI.coordinates).label('latitude'),
+                    ST_X(POI.coordinates).label('longitude')
+                )
+                .where(POI.id == db_poi.id)
+            )
+            row = result.one()
+            created_poi, lat, lng = row
+            created_pois.append(poi_to_response(created_poi, lat, lng))
+
+        except Exception as e:
+            # Log error but continue with other POIs
+            print(f"Error adding POI {place_id}: {e}")
+            continue
+
+    if not created_pois:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to add any POIs"
+        )
+
+    return created_pois

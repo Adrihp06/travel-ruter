@@ -44,10 +44,12 @@ import {
   Loader2,
   AlertCircle,
   Plus,
+  Sparkles,
 } from 'lucide-react';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import usePOIStore from '../../stores/usePOIStore';
 import OptimizationPreview from '../Agenda/OptimizationPreview';
+import POISuggestionsModal from '../POI/POISuggestionsModal';
 import { formatDateWithWeekday, formatDateRangeShort } from '../../utils/dateFormat';
 
 // Category icon mapping
@@ -512,6 +514,9 @@ const DailyItinerary = ({
   const [optimizationError, setOptimizationError] = useState(null);
   const [startTime, setStartTime] = useState('08:00');
 
+  // POI Suggestions state
+  const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
+
   // Store actions for optimization
   const {
     optimizationResult,
@@ -874,13 +879,22 @@ const DailyItinerary = ({
           <p className="text-sm text-gray-500 dark:text-gray-400">
             {formatDateRangeShort(destination.arrival_date, destination.departure_date)}
           </p>
-          <div className="flex items-center mt-1 space-x-3">
-            <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-              {days.length} {days.length === 1 ? 'day' : 'days'}
-            </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {allPOIs.length} POI{allPOIs.length !== 1 ? 's' : ''}
-            </span>
+          <div className="flex items-center mt-2 justify-between">
+            <div className="flex items-center space-x-3">
+              <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
+                {days.length} {days.length === 1 ? 'day' : 'days'}
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {allPOIs.length} POI{allPOIs.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <button
+              onClick={() => setShowSuggestionsModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-lg transition-all shadow-sm hover:shadow"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Discover POIs</span>
+            </button>
           </div>
         </div>
       )}
@@ -966,6 +980,14 @@ const DailyItinerary = ({
         }
         startTime={startTime}
         onStartTimeChange={handleStartTimeChange}
+      />
+
+      {/* POI Suggestions Modal */}
+      <POISuggestionsModal
+        isOpen={showSuggestionsModal}
+        onClose={() => setShowSuggestionsModal(false)}
+        destinationId={destination?.id}
+        destinationName={destination?.name || destination?.city_name}
       />
     </div>
   );

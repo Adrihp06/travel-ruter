@@ -11,6 +11,10 @@ const usePOIStore = create((set, get) => ({
   optimizationResult: null,
   isOptimizing: false,
   optimizationError: null,
+  // Suggestions state
+  suggestions: [],
+  isFetchingSuggestions: false,
+  suggestionsError: null,
 
   setPOIs: (pois) => set({ pois }),
 
@@ -367,6 +371,132 @@ const usePOIStore = create((set, get) => ({
   // Clear optimization state (for cancel action)
   clearOptimizationResult: () => {
     set({ optimizationResult: null, optimizationError: null });
+  },
+
+  // Fetch POI suggestions from Google Places API
+  fetchPOISuggestions: async (destinationId, params = {}) => {
+    set({ isFetchingSuggestions: true, suggestionsError: null, suggestions: [] });
+
+    try {
+      const queryParams = new URLSearchParams();
+      if (params.radius) queryParams.append('radius', params.radius);
+      if (params.category_filter) queryParams.append('category_filter', params.category_filter);
+      if (params.trip_type) queryParams.append('trip_type', params.trip_type);
+      if (params.max_results) queryParams.append('max_results', params.max_results);
+
+      const response = await fetch(
+        `${API_BASE_URL}/destinations/${destinationId}/pois/suggestions?${queryParams.toString()}`
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to fetch suggestions');
+      }
+
+      const data = await response.json();
+      set({ suggestions: data.suggestions, isFetchingSuggestions: false });
+      return data;
+    } catch (error) {
+      set({ suggestionsError: error.message, isFetchingSuggestions: false });
+      throw error;
+    }
+  },
+
+  // Add a single suggested POI to the destination
+  addSuggestedPOI: async (poiData) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/pois`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(poiData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add suggested POI');
+      }
+
+      const newPOI = await response.json();
+
+      // Add to the correct category group in local state
+      set((state) => {
+        const updatedPOIs = [...state.pois];
+        const categoryIndex = updatedPOIs.findIndex(
+          group => group.category === newPOI.category
+        );
+
+        if (categoryIndex >= 0) {
+          updatedPOIs[categoryIndex] = {
+            ...updatedPOIs[categoryIndex],
+            pois: [...updatedPOIs[categoryIndex].pois, newPOI]
+          };
+        } else {
+          updatedPOIs.push({
+            category: newPOI.category,
+            pois: [newPOI]
+          });
+        }
+
+        return { pois: updatedPOIs };
+      });
+
+      return newPOI;
+    } catch (error) {
+      set({ error: error.message });
+      throw error;
+    }
+  },
+
+  // Bulk add multiple suggested POIs
+  bulkAddSuggestedPOIs: async (destinationId, placeIds) => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/destinations/${destinationId}/pois/suggestions/bulk-add`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            destination_id: destinationId,
+            place_ids: placeIds,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to bulk add suggested POIs');
+      }
+
+      const newPOIs = await response.json();
+
+      // Add all new POIs to local state
+      set((state) => {
+        const updatedPOIs = [...state.pois];
+
+        newPOIs.forEach(newPOI => {
+          const categoryIndex = updatedPOIs.findIndex(
+            group => group.category === newPOI.category
+          );
+
+          if (categoryIndex >= 0) {
+            updatedPOIs[categoryIndex] = {
+              ...updatedPOIs[categoryIndex],
+              pois: [...updatedPOIs[categoryIndex].pois, newPOI]
+            };
+          } else {
+            updatedPOIs.push({
+              category: newPOI.category,
+              pois: [newPOI]
+            });
+          }
+        });
+
+        return { pois: updatedPOIs };
+      });
+
+      return newPOIs;
+    } catch (error) {
+      set({ error: error.message });
+      throw error;
+    }
   },
 }));
 
