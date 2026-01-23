@@ -39,9 +39,12 @@ import {
   Layers,
   GripVertical,
   Info,
+  Star,
+  Search,
 } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
+import QuickPOISearch from './QuickPOISearch';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 /**
@@ -337,7 +340,6 @@ const POIMarker = ({
   onDrag,
   onDragEnd,
   dayNumber,
-  orderInDay,
   isDraggable = false,
 }) => {
   const colors = getCategoryColor(poi.category);
@@ -858,6 +860,7 @@ const MicroMap = ({
   const [showAccommodations, setShowAccommodations] = useState(true);
   const [viewState, setViewState] = useState(null);
   const [bounds, setBounds] = useState(null);
+  const [searchedPlace, setSearchedPlace] = useState(null);
   const mapRef = useRef(null);
   const hoverTimeoutRef = useRef(null);
 
@@ -893,7 +896,7 @@ const MicroMap = ({
         duration: 1000,
       });
     }
-  }, [destination?.id, destinationCoords, zoom]);
+  }, [destination, destinationCoords, zoom]);
 
   // Effect to fly to POI when centerOnPOI changes
   useEffect(() => {
@@ -915,17 +918,80 @@ const MicroMap = ({
     }
   }, [centerOnPOI]);
 
+  // Clear searched place when POIs change (might have added it)
+  useEffect(() => {
+    if (searchedPlace !== null) {
+      setSearchedPlace(null);
+    }
+  }, [pois, searchedPlace]);
+
+  const handleQuickSearchSelect = useCallback((place) => {
+    setSearchedPlace(place);
+    setPopupInfo({
+      id: 'searched-place',
+      name: place.name,
+      lat: place.latitude,
+      lng: place.longitude,
+      ...place
+    });
+    setPopupType('searched');
+    
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [place.longitude, place.latitude],
+        zoom: 16,
+        duration: 800
+      });
+    }
+  }, []);
+
+  const mapGoogleTypeToCategory = (type) => {
+    if (!type) return 'Sights';
+    if (['restaurant', 'cafe', 'bar', 'bakery', 'meal_takeaway'].includes(type)) return 'Food';
+    if (['lodging', 'hotel'].includes(type)) return 'Accommodation';
+    if (['museum', 'art_gallery'].includes(type)) return 'Museum';
+    if (['shopping_mall', 'store', 'clothing_store'].includes(type)) return 'Shopping';
+    if (['amusement_park', 'aquarium', 'zoo', 'movie_theater'].includes(type)) return 'Entertainment';
+    if (['park', 'gym', 'stadium'].includes(type)) return 'Activity';
+    return 'Sights';
+  };
+
+  const handleAddToTrip = useCallback(() => {
+    if (onAddPOI && searchedPlace) {
+      onAddPOI({
+        latitude: searchedPlace.latitude,
+        longitude: searchedPlace.longitude,
+        name: searchedPlace.name,
+        address: searchedPlace.formatted_address,
+        rating: searchedPlace.rating,
+        google_place_id: searchedPlace.place_id,
+        category: searchedPlace.types?.[0] || 'Sights',
+        // Pass more data to pre-fill the modal
+        preFill: {
+          name: searchedPlace.name,
+          address: searchedPlace.formatted_address,
+          description: `Rating: ${searchedPlace.rating} (${searchedPlace.user_ratings_total} reviews)`,
+          category: mapGoogleTypeToCategory(searchedPlace.types?.[0])
+        }
+      });
+      setSearchedPlace(null);
+      setPopupInfo(null);
+    }
+  }, [onAddPOI, searchedPlace]);
+
   // Clear pending location when POIs change (i.e., new POI was added)
   useEffect(() => {
-    setPendingLocation(null);
-  }, [pois]);
+    if (pendingLocation !== null) {
+      setPendingLocation(null);
+    }
+  }, [pois, pendingLocation]);
 
   // Clear pending location when triggered externally (e.g., modal closed without creating POI)
   useEffect(() => {
-    if (clearPendingTrigger > 0) {
+    if (clearPendingTrigger > 0 && pendingLocation !== null) {
       setPendingLocation(null);
     }
-  }, [clearPendingTrigger]);
+  }, [clearPendingTrigger, pendingLocation]);
 
   // Calculate routes when poisByDay changes
   useEffect(() => {
@@ -994,10 +1060,9 @@ const MicroMap = ({
     Object.entries(poisByDay).forEach(([date, dayPois]) => {
       const day = days.find(d => d.date === date);
       if (day && dayPois) {
-        dayPois.forEach((poi, index) => {
+        dayPois.forEach((poi) => {
           info[poi.id] = {
             dayNumber: day.dayNumber,
-            orderInDay: index + 1,
           };
         });
       }
@@ -1233,6 +1298,17 @@ const MicroMap = ({
       className={`relative rounded-lg overflow-hidden border border-gray-200 ${className}`}
       style={{ height }}
     >
+      {/* Quick POI Search */}
+      <div className="absolute top-[52px] right-14 z-20 w-full max-w-[280px] sm:max-w-md pointer-events-none">
+        <div className="pointer-events-auto flex justify-end">
+          <QuickPOISearch 
+            location={destinationCoords}
+            onSelect={handleQuickSearchSelect}
+            initialMinimized={true}
+          />
+        </div>
+      </div>
+
       {/* Add POI Mode Overlay */}
       {isAddMode && <AddPOIModeOverlay onCancel={toggleAddMode} />}
 
@@ -1294,6 +1370,30 @@ const MicroMap = ({
           </React.Fragment>
         ))}
 
+        {/* Searched Place Marker */}
+        {searchedPlace && (
+          <Marker
+            longitude={searchedPlace.longitude}
+            latitude={searchedPlace.latitude}
+            anchor="bottom"
+            onClick={(e) => {
+              e.originalEvent.stopPropagation();
+              setPopupInfo({
+                ...searchedPlace,
+                lat: searchedPlace.latitude,
+                lng: searchedPlace.longitude
+              });
+              setPopupType('searched');
+            }}
+          >
+            <div className="flex flex-col items-center">
+              <div className="bg-indigo-600 text-white p-2.5 rounded-full shadow-2xl border-4 border-white animate-bounce">
+                <Search className="w-5 h-5" />
+              </div>
+            </div>
+          </Marker>
+        )}
+
         {/* Render clusters or individual markers based on clustering mode */}
         {enableClustering && clusters ? (
           clusters.map((cluster) => {
@@ -1327,7 +1427,6 @@ const MicroMap = ({
                 onLeave={handlePOILeave}
                 onDragEnd={(e) => handleMarkerDragEnd({ ...poi, id: poi.poiId }, e)}
                 dayNumber={dayInfo?.dayNumber}
-                orderInDay={dayInfo?.orderInDay}
                 isDraggable={enableDragging}
               />
             );
@@ -1348,7 +1447,6 @@ const MicroMap = ({
                 onLeave={handlePOILeave}
                 onDragEnd={(e) => handleMarkerDragEnd(poi, e)}
                 dayNumber={dayInfo?.dayNumber}
-                orderInDay={dayInfo?.orderInDay}
                 isDraggable={enableDragging}
               />
             );
@@ -1420,6 +1518,53 @@ const MicroMap = ({
               onEdit={onEditAccommodation}
               onDelete={onDeleteAccommodation}
             />
+          </Popup>
+        )}
+
+        {/* Searched Place Popup */}
+        {popupInfo && popupType === 'searched' && (
+          <Popup
+            longitude={popupInfo.lng}
+            latitude={popupInfo.lat}
+            anchor="bottom"
+            offset={[0, -45]}
+            onClose={() => { 
+              setPopupInfo(null); 
+              setPopupType(null);
+              setSearchedPlace(null);
+            }}
+            closeOnClick={false}
+            closeButton={true}
+            className="micro-map-popup"
+          >
+            <div className="p-3 min-w-[220px] max-w-[300px]">
+              <div className="mb-2">
+                <h4 className="font-bold text-gray-900 text-sm leading-tight">{popupInfo.name}</h4>
+                <p className="text-xs text-gray-500 mt-1">{popupInfo.formatted_address}</p>
+              </div>
+
+              <div className="flex items-center gap-3 mb-3">
+                {popupInfo.rating && (
+                  <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                    <Star className="w-2.5 h-2.5 fill-current" />
+                    {popupInfo.rating} ({popupInfo.user_ratings_total})
+                  </div>
+                )}
+                {popupInfo.price_level !== undefined && (
+                  <div className="text-gray-400 text-[10px] font-bold">
+                    {'$'.repeat(popupInfo.price_level)}
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={handleAddToTrip}
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add to Trip
+              </button>
+            </div>
           </Popup>
         )}
       </Map>

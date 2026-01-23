@@ -1,0 +1,23 @@
+[Feature] Quick POI search and add from map
+
+**Feature Request:**
+Add a search box on the map to quickly find and add POIs by name.
+
+**Implementation Details:**
+
+1. **Backend:**
+   - Added GooglePlacesService to handle Google Places Autocomplete and Details API requests.
+   - Added /google-places/autocomplete and /google-places/details/{place_id} endpoints.
+   - Defined schemas for Google Places results.
+
+2. **Frontend:**
+   - Created QuickPOISearch component with autocomplete, category filters, and search history.
+   - Integrated QuickPOISearch into MicroMap as a floating UI element.
+   - Added searched place markers and popups on the map.
+   - Implemented "Add to Trip" functionality with pre-filled data (name, address, rating, category).
+   - Updated AddPOIModal to support pre-filling from Google Places search results.
+
+3. **UX Improvements:**
+   - Category filters (Restaurants, Attractions, Hotels) for targeted searches.
+   - Ratings and review counts displayed in search results and map popups.
+   - Recent searches history stored in local storage for quick access.

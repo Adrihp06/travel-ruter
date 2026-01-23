@@ -56,6 +56,19 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location, isSaving }) => {
   // Reverse geocode when location changes
   useEffect(() => {
     if (location && isOpen) {
+      // If location already has pre-filled data, use it
+      if (location.preFill && formData.name === '') {
+        setFormData(prev => ({
+          ...prev,
+          name: location.preFill.name || prev.name,
+          address: location.preFill.address || prev.address,
+          description: location.preFill.description || prev.description,
+          category: location.preFill.category || prev.category,
+        }));
+        setIsLoadingLocation(false);
+        return;
+      }
+
       setIsLoadingLocation(true);
       fetch(`${API_BASE_URL}/geocoding/reverse?lat=${location.latitude}&lon=${location.longitude}`)
         .then(res => res.ok ? res.json() : null)
@@ -75,11 +88,11 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location, isSaving }) => {
 
   // Reset form when modal closes
   useEffect(() => {
-    if (!isOpen) {
+    if (!isOpen && (formData.name !== '' || formData.address !== '')) {
       setFormData({ name: '', description: '', category: 'Sights', estimated_cost: '', dwell_time: '30', address: '' });
       setLocationInfo(null);
     }
-  }, [isOpen]);
+  }, [isOpen, formData.name, formData.address]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
