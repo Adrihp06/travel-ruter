@@ -2,8 +2,10 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { Plus, Plane, SearchX } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import MacroMap from '../components/Map/MacroMap';
+import MapSkeleton from '../components/Map/MapSkeleton';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { TripFormModal, DeleteTripDialog, UndoToast, TripCard, TripSearchFilter } from '../components/Trip';
+import TripCardSkeleton from '../components/Trip/TripCardSkeleton';
 
 const UNDO_DURATION = 5000; // 5 seconds for undo
 
@@ -207,7 +209,34 @@ const GlobalTripView = () => {
   const hasNoFilterResults = trips.length > 0 && filteredTrips.length === 0;
 
   if (isLoading) {
-    return <div className="p-8 text-center text-gray-500 dark:text-gray-400">Loading trips...</div>;
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8 pt-24 relative overflow-y-auto transition-colors">
+        <div className="absolute top-6 left-6 z-50">
+          <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm px-4 py-2 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <Breadcrumbs className="mb-0" />
+          </div>
+        </div>
+
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">My Trips</h1>
+            <div className="w-32 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+          </div>
+
+          <div className="mb-10 h-[450px] rounded-2xl overflow-hidden shadow-md border border-gray-200 dark:border-gray-700">
+            <MapSkeleton height="100%" />
+          </div>
+
+          <div className="mb-8 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <TripCardSkeleton key={i} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

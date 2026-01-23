@@ -25,11 +25,16 @@ import { TripMap } from '../components/Map';
 // Level 2 components
 import DailyItinerary from '../components/Itinerary/DailyItinerary';
 import { MicroMap } from '../components/Map';
+import Skeleton from '../components/UI/Skeleton';
+import DestinationTimelineSkeleton from '../components/Itinerary/DestinationTimelineSkeleton';
+import MapSkeleton from '../components/Map/MapSkeleton';
+import DailyItinerarySkeleton from '../components/Itinerary/DailyItinerarySkeleton';
+import Spinner from '../components/UI/Spinner';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 // Add POI Modal Component (for MicroMap - Level 2)
-const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
+const AddPOIModal = ({ isOpen, onClose, onSubmit, location, isSaving }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -197,10 +202,11 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center space-x-2"
+              disabled={isSaving}
+              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
             >
-              <Plus className="w-4 h-4" />
-              <span>Add POI</span>
+              {isSaving ? <Spinner className="text-white" /> : <Plus className="w-4 h-4" />}
+              <span>{isSaving ? 'Adding...' : 'Add POI'}</span>
             </button>
           </div>
         </form>
@@ -210,7 +216,7 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location }) => {
 };
 
 // Edit POI Modal Component
-const EditPOIModal = ({ isOpen, onClose, onSubmit, poi }) => {
+const EditPOIModal = ({ isOpen, onClose, onSubmit, poi, isSaving }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -327,10 +333,11 @@ const EditPOIModal = ({ isOpen, onClose, onSubmit, poi }) => {
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center space-x-2"
+              disabled={isSaving}
+              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
             >
-              <Pencil className="w-4 h-4" />
-              <span>Save Changes</span>
+              {isSaving ? <Spinner className="text-white" /> : <Pencil className="w-4 h-4" />}
+              <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
             </button>
           </div>
         </form>
@@ -605,10 +612,10 @@ const TripMapPOIModal = ({ isOpen, onClose, onSubmit, location, destinations = [
 const DetailViewContent = () => {
   const { id } = useParams();
   const { selectedTrip, fetchTripDetails, isLoading, setSelectedTripDestinations } = useTripStore();
-  const { pois, fetchPOIsByDestination, createPOI, updatePOI, deletePOI, votePOI, updatePOISchedules } = usePOIStore();
+  const { pois, fetchPOIsByDestination, createPOI, updatePOI, deletePOI, votePOI, updatePOISchedules, isLoading: isPOIsLoading } = usePOIStore();
   const { documents } = useDocumentStore();
   const { deleteDestination, reorderDestinations, setSelectedDestination, resetSelectedDestination, selectedDestination: storeSelectedDestination } = useDestinationStore();
-  const { accommodations, fetchAccommodations, deleteAccommodation } = useAccommodationStore();
+  const { accommodations, fetchAccommodations, deleteAccommodation, isLoading: isAccLoading } = useAccommodationStore();
   const { isSidebarVisible, isVaultVisible, toggleSidebar, toggleVault } = useItineraryUI();
 
   // State
@@ -639,6 +646,8 @@ const DetailViewContent = () => {
   // Derived state
   const viewLevel = selectedDestinationId ? 2 : 1;
   const selectedDestination = selectedTrip?.destinations?.find(d => d.id === selectedDestinationId);
+
+  const isLevel2Loading = (isPOIsLoading && (!pois || pois.length === 0)) || (isAccLoading && (!accommodations || accommodations.length === 0));
 
   // Generate days for the selected destination
   const destinationDays = useMemo(() => {
@@ -868,7 +877,22 @@ const DetailViewContent = () => {
 
   // Loading state
   if (isLoading) {
-    return <div className="flex items-center justify-center h-screen text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900">Loading...</div>;
+    return (
+      <div className="relative h-screen overflow-hidden flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors">
+         {/* Navbar Skeleton */}
+         <div className="h-14 flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 z-30">
+             <Skeleton className="h-8 w-8 rounded-lg" />
+             <Skeleton className="h-8 w-64 rounded-lg" />
+             <Skeleton className="h-8 w-8 rounded-lg" />
+         </div>
+         <div className="flex flex-1 overflow-hidden">
+             <DestinationTimelineSkeleton />
+             <div className="flex-1 relative p-4">
+                <MapSkeleton className="h-full rounded-xl shadow-inner border border-gray-200 dark:border-gray-700" />
+             </div>
+         </div>
+      </div>
+    );
   }
 
   if (!selectedTrip) {
@@ -926,6 +950,8 @@ const DetailViewContent = () => {
               onDeleteDestination={handleDeleteDestination}
               onReorderDestinations={handleReorderDestinations}
             />
+          ) : isLevel2Loading ? (
+            <DailyItinerarySkeleton />
           ) : (
             <div className="flex flex-col h-full">
               <div className="flex-1 overflow-hidden">
@@ -1011,6 +1037,8 @@ const DetailViewContent = () => {
                     : null
               }
             />
+          ) : isLevel2Loading ? (
+            <MapSkeleton height="100%" />
           ) : (
             <MicroMap
               destination={selectedDestination}
@@ -1057,6 +1085,7 @@ const DetailViewContent = () => {
         }}
         onSubmit={handlePOISubmit}
         location={pendingPOILocation}
+        isSaving={isPOIsLoading}
       />
 
       {/* TripMap POI Modal (Level 1) */}
@@ -1104,6 +1133,7 @@ const DetailViewContent = () => {
         }}
         onSubmit={handleEditPOISubmit}
         poi={editingPOI}
+        isSaving={isPOIsLoading}
       />
     </div>
   );

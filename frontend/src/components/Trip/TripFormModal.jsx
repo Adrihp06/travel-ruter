@@ -4,6 +4,7 @@ import useTripStore from '../../stores/useTripStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import LocationMapPreview from '../Location/LocationMapPreview';
 import DateRangePicker from '../common/DateRangePicker';
+import Spinner from '../UI/Spinner';
 
 const AVAILABLE_TAGS = [
   { id: 'business', label: 'Business', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
@@ -662,9 +663,12 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
             <button
               type="submit"
               disabled={isLoading || isUploading}
-              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center space-x-2"
             >
-              {isUploading ? 'Uploading...' : isLoading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Trip'}
+              {(isLoading || isUploading) && <Spinner className="text-white" />}
+              <span>
+                {isUploading ? 'Uploading...' : isLoading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Trip'}
+              </span>
             </button>
           </div>
         </form>

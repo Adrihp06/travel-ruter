@@ -3,6 +3,7 @@ import { X, MapPin } from 'lucide-react';
 import useDestinationStore from '../../stores/useDestinationStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import DateRangePicker from '../common/DateRangePicker';
+import Spinner from '../UI/Spinner';
 
 const DestinationFormModal = ({
   isOpen,
@@ -287,9 +288,10 @@ const DestinationFormModal = ({
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center space-x-2"
             >
-              {isLoading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Add Destination'}
+              {isLoading && <Spinner className="text-white" />}
+              <span>{isLoading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Add Destination'}</span>
             </button>
           </div>
         </form>

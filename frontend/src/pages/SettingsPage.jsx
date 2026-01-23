@@ -3,6 +3,7 @@ import { User, Map, DollarSign, Sun, Moon, Monitor, Download, Upload, Save, Chec
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { useTheme } from '../contexts/ThemeContext';
 import { dateLocales } from '../utils/dateFormat';
+import Spinner from '../components/UI/Spinner';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -46,6 +47,7 @@ const currencies = [
 const SettingsPage = () => {
   const [settings, setSettings] = useState(defaultSettings);
   const [savedMessage, setSavedMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [activeSection, setActiveSection] = useState('profile');
   const { themeMode, setThemeMode, isDark } = useTheme();
 
@@ -64,15 +66,21 @@ const SettingsPage = () => {
 
   // Save settings to localStorage
   const saveSettings = () => {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    setIsSaving(true);
+    
+    // Simulate API call/processing time
+    setTimeout(() => {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 
-    // If mapbox token is set, also store it separately for the MapboxContext
-    if (settings.map.mapboxToken) {
-      localStorage.setItem('mapbox-access-token', settings.map.mapboxToken);
-    }
+      // If mapbox token is set, also store it separately for the MapboxContext
+      if (settings.map.mapboxToken) {
+        localStorage.setItem('mapbox-access-token', settings.map.mapboxToken);
+      }
 
-    setSavedMessage('Settings saved successfully!');
-    setTimeout(() => setSavedMessage(''), 3000);
+      setSavedMessage('Settings saved successfully!');
+      setIsSaving(false);
+      setTimeout(() => setSavedMessage(''), 3000);
+    }, 600);
   };
 
   // Update nested settings
@@ -161,10 +169,11 @@ const SettingsPage = () => {
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
           <button
             onClick={saveSettings}
-            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+            disabled={isSaving}
+            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            <Save className="w-5 h-5" />
-            <span>Save Settings</span>
+            {isSaving ? <Spinner className="text-white" /> : <Save className="w-5 h-5" />}
+            <span>{isSaving ? 'Saving...' : 'Save Settings'}</span>
           </button>
         </div>
 

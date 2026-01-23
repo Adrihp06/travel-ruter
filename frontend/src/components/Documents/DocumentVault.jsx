@@ -4,6 +4,7 @@ import FileUpload from './FileUpload';
 import DocumentList from './DocumentList';
 import useDocumentStore from '../../stores/useDocumentStore';
 import useDestinationStore from '../../stores/useDestinationStore';
+import DocumentVaultSkeleton from './DocumentVaultSkeleton';
 
 const CATEGORY_FILTERS = [
   { value: 'all', label: 'All Documents' },
@@ -184,6 +185,10 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
   };
 
   if (!isOpen) return null;
+
+  if (isLoading && documents.length === 0) {
+    return <DocumentVaultSkeleton isOpen={isOpen} onClose={onClose} />;
+  }
 
   // Render document list view (all documents flat)
   const renderAllView = () => (
