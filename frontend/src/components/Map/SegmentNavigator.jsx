@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Car, Footprints, Bike, Train, Plane, Ship, Bus } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, Car, Footprints, Bike, Train, Plane, Ship, Bus, AlertTriangle } from 'lucide-react';
 import SegmentHoverCard from './SegmentHoverCard';
 
 // Transport mode icons mapping
@@ -44,6 +44,16 @@ const SegmentNavigator = ({
   selectedSegmentId = null,
   onSegmentClick = null,
 }) => {
+  // Sort segments based on destination order
+  const sortedSegments = useMemo(() => {
+    if (!segments || !destinations) return [];
+    return [...segments].sort((a, b) => {
+      const indexA = destinations.findIndex(d => d.id === a.from_destination_id);
+      const indexB = destinations.findIndex(d => d.id === b.from_destination_id);
+      return indexA - indexB;
+    });
+  }, [segments, destinations]);
+
   // startIndex represents the first visible segment in the sliding window
   const [startIndex, setStartIndex] = useState(0);
   const [hoveredSegment, setHoveredSegment] = useState(null);
@@ -52,10 +62,10 @@ const SegmentNavigator = ({
   const hoverTimeoutRef = useRef(null);
   const containerRef = useRef(null);
 
-  const totalSegments = segments.length;
+  const totalSegments = sortedSegments.length;
   const maxStartIndex = Math.max(0, totalSegments - VISIBLE_COUNT);
   const endIndex = Math.min(startIndex + VISIBLE_COUNT, totalSegments);
-  const visibleSegments = segments.slice(startIndex, endIndex);
+  const visibleSegments = sortedSegments.slice(startIndex, endIndex);
 
   // Get destination name by ID
   const getDestinationName = useCallback((destinationId) => {
@@ -162,6 +172,10 @@ const SegmentNavigator = ({
               ? '#dc2626'
               : (TRANSPORT_MODE_COLORS[segment.travel_mode] || TRANSPORT_MODE_COLORS.car);
             const isSelected = selectedSegmentId === segment.id;
+            
+            // Calculate destination indices (1-based)
+            const fromIndex = destinations.findIndex(d => d.id === segment.from_destination_id) + 1;
+            const toIndex = destinations.findIndex(d => d.id === segment.to_destination_id) + 1;
 
             return (
               <button
@@ -178,9 +192,25 @@ const SegmentNavigator = ({
                   color,
                   ringColor: isSelected ? color : undefined,
                 }}
-                title={`${segment.travel_mode}${segment.is_fallback ? ' (fallback)' : ''}`}
+                title={segment.is_fallback 
+                  ? `Actual ${segment.travel_mode} route unavailable, showing estimated car route`
+                  : segment.travel_mode}
               >
-                <Icon className="w-4 h-4" />
+                <div className="relative flex flex-col items-center">
+                  <Icon className="w-4 h-4 mb-1" />
+                  {segment.is_fallback && (
+                    <AlertTriangle className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 text-red-600 bg-red-50 rounded-full" />
+                  )}
+                  <span 
+                    className="text-[8px] font-bold leading-none px-1.5 py-0.5 bg-white rounded-full shadow-sm border mt-0.5"
+                    style={{
+                      borderColor: color,
+                      color: color
+                    }}
+                  >
+                    {fromIndex > 0 && toIndex > 0 ? `${fromIndex}-${toIndex}` : ''}
+                  </span>
+                </div>
               </button>
             );
           })}
