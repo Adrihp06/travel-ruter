@@ -38,6 +38,7 @@ import {
   ChevronUp,
   Layers,
   GripVertical,
+  Info,
 } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
@@ -1465,13 +1466,24 @@ const MicroMap = ({
           {/* Day Route Toggle Buttons - Top Left */}
           <div className="absolute top-3 left-3 z-10">
             <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-2">
-              <div className="text-xs font-medium text-gray-500 mb-1.5">Show routes:</div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="text-xs font-medium text-gray-500">Show routes:</div>
+                <div className="group relative flex items-center">
+                  <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
+                  <div className="absolute bottom-full left-0 mb-2 w-48 px-2 py-1.5 bg-gray-900/90 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center backdrop-blur-sm">
+                    Schedule 2+ POIs to a day to generate an optimized walking/driving route
+                    <div className="absolute top-full left-3 border-4 border-transparent border-t-gray-900/90"></div>
+                  </div>
+                </div>
+              </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 {days.map((day, index) => {
                   const dayPois = poisByDay[day.date] || [];
                   const isVisible = visibleDays.includes(day.date);
                   const hasRoute = dayPois.length >= 2;
                   const color = DAY_COLORS[index % DAY_COLORS.length];
+                  const route = dayRoutes[day.date];
+                  const duration = route?.totalDuration;
 
                   return (
                     <button
@@ -1483,19 +1495,24 @@ const MicroMap = ({
                         flex items-center gap-1.5
                         ${hasRoute
                           ? isVisible
-                            ? 'text-white shadow-sm'
-                            : 'text-gray-600 hover:bg-gray-100 border border-gray-200'
-                          : 'text-gray-300 cursor-not-allowed'
+                            ? 'text-white shadow-sm ring-1 ring-black/5'
+                            : 'text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-sm'
+                          : 'text-gray-300 cursor-not-allowed border border-transparent'
                         }
                       `}
                       style={hasRoute && isVisible ? { backgroundColor: color.stroke } : {}}
-                      title={hasRoute ? `Day ${day.dayNumber}: ${dayPois.length} POIs` : 'No route (need 2+ POIs)'}
+                      title={hasRoute ? `Day ${day.dayNumber}: ${dayPois.length} POIs${duration ? ` • ${formatDuration(duration)}` : ''}` : 'Schedule POIs to see the optimized route'}
                     >
                       <span
                         className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: hasRoute ? color.stroke : '#D1D5DB' }}
+                        style={{ backgroundColor: hasRoute ? (isVisible ? 'white' : color.stroke) : '#D1D5DB' }}
                       />
                       Day {day.dayNumber}
+                      {hasRoute && duration > 0 && (
+                        <span className={`text-[10px] ml-0.5 ${isVisible ? 'text-white/90' : 'text-gray-500'}`}>
+                          ({formatDuration(duration)})
+                        </span>
+                      )}
                     </button>
                   );
                 })}
