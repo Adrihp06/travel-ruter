@@ -6,6 +6,7 @@ import usePOIStore from '../stores/usePOIStore';
 import useDocumentStore from '../stores/useDocumentStore';
 import useDestinationStore from '../stores/useDestinationStore';
 import useAccommodationStore from '../stores/useAccommodationStore';
+import useNoteStore from '../stores/useNoteStore';
 import { DestinationFormModal } from '../components/Destination';
 import { AccommodationFormModal, AccommodationList, AccommodationTimeline } from '../components/Accommodation';
 import { formatDateWithWeekday } from '../utils/dateFormat';
@@ -15,9 +16,11 @@ import { ItineraryUIProvider, useItineraryUI, calendarAnimationClasses } from '.
 import SidebarToggle from '../components/UI/SidebarToggle';
 import VaultToggle from '../components/UI/VaultToggle';
 import CalendarViewToggle from '../components/UI/CalendarViewToggle';
+import JournalToggle from '../components/UI/JournalToggle';
 import Sidebar from '../components/Layout/Sidebar';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { DocumentVault } from '../components/Documents';
+import { Journal, NoteFormModal } from '../components/Journal';
 
 // Level 1 components
 import Timeline from '../components/Timeline/Timeline';
@@ -618,7 +621,8 @@ const DetailViewContent = () => {
   const { documents } = useDocumentStore();
   const { deleteDestination, reorderDestinations, setSelectedDestination, resetSelectedDestination, selectedDestination: storeSelectedDestination } = useDestinationStore();
   const { accommodations, fetchAccommodations, deleteAccommodation, isLoading: isAccLoading } = useAccommodationStore();
-  const { isSidebarVisible, isVaultVisible, isCalendarVisible, toggleSidebar, toggleVault, toggleCalendar } = useItineraryUI();
+  const { noteStats, fetchNoteStats } = useNoteStore();
+  const { isSidebarVisible, isVaultVisible, isCalendarVisible, isJournalVisible, toggleSidebar, toggleVault, toggleCalendar, toggleJournal } = useItineraryUI();
 
   // State
   const [selectedDestinationId, setSelectedDestinationId] = useState(null); // null = Level 1
@@ -644,6 +648,10 @@ const DetailViewContent = () => {
   // POI edit modal state
   const [showEditPOIModal, setShowEditPOIModal] = useState(false);
   const [editingPOI, setEditingPOI] = useState(null);
+
+  // Note form modal state (for quick-add from daily schedule)
+  const [showNoteFormModal, setShowNoteFormModal] = useState(false);
+  const [noteFormPreFill, setNoteFormPreFill] = useState(null);
 
   // Derived state
   const viewLevel = selectedDestinationId ? 2 : 1;
@@ -855,10 +863,33 @@ const DetailViewContent = () => {
     setAccommodationPreFillDates(null);
   }, []);
 
+  // Handler for adding a day note from the daily schedule
+  const handleAddDayNoteFromSchedule = useCallback((dayNumber, date) => {
+    setNoteFormPreFill({
+      destination_id: selectedDestinationId,
+      day_number: dayNumber,
+      note_type: 'day',
+    });
+    setShowNoteFormModal(true);
+  }, [selectedDestinationId]);
+
+  // Handler for adding a POI note from the daily schedule
+  const handleAddPOINoteFromSchedule = useCallback((poi) => {
+    setNoteFormPreFill({
+      destination_id: selectedDestinationId,
+      poi_id: poi.id,
+      note_type: 'poi',
+    });
+    setShowNoteFormModal(true);
+  }, [selectedDestinationId]);
+
   // Effects
   useEffect(() => {
-    if (id) fetchTripDetails(id);
-  }, [id, fetchTripDetails]);
+    if (id) {
+      fetchTripDetails(id);
+      fetchNoteStats(id);
+    }
+  }, [id, fetchTripDetails, fetchNoteStats]);
 
   // NO auto-select first destination - removed intentionally for Level 1 view
 
@@ -917,9 +948,10 @@ const DetailViewContent = () => {
           </div>
         </div>
 
-        {/* Right: Calendar & Vault Toggles */}
+        {/* Right: Calendar, Journal & Vault Toggles */}
         <div className="flex items-center gap-2">
           <CalendarViewToggle onClick={toggleCalendar} isActive={isCalendarVisible} />
+          <JournalToggle onClick={toggleJournal} noteCount={noteStats?.total_notes || 0} />
           <VaultToggle onClick={toggleVault} documentCount={documents?.length || 0} />
         </div>
       </div>
@@ -967,6 +999,8 @@ const DetailViewContent = () => {
                   onDeletePOI={handleDeletePOI}
                   onVotePOI={handleVotePOI}
                   onPOIClick={handleCenterMapOnPOI}
+                  onAddDayNote={handleAddDayNoteFromSchedule}
+                  onAddPOINote={handleAddPOINoteFromSchedule}
                   className="h-full"
                 />
               </div>
@@ -1078,6 +1112,15 @@ const DetailViewContent = () => {
         onClose={toggleVault}
       />
 
+      {/* Journal Drawer */}
+      <Journal
+        tripId={Number(id)}
+        destinations={selectedTrip?.destinations || []}
+        pois={pois}
+        isOpen={isJournalVisible}
+        onClose={toggleJournal}
+      />
+
       {/* Calendar View Panel */}
       {isCalendarVisible && (
         <div className="fixed inset-0 z-50">
@@ -1159,6 +1202,29 @@ const DetailViewContent = () => {
         onSubmit={handleEditPOISubmit}
         poi={editingPOI}
         isSaving={isPOIsLoading}
+      />
+
+      {/* Note Form Modal (Quick-add from daily schedule) */}
+      <NoteFormModal
+        isOpen={showNoteFormModal}
+        onClose={() => {
+          setShowNoteFormModal(false);
+          setNoteFormPreFill(null);
+        }}
+        onSubmit={async (noteData) => {
+          const { createNote, fetchTripNotesGrouped } = useNoteStore.getState();
+          await createNote(Number(id), noteData);
+          setShowNoteFormModal(false);
+          setNoteFormPreFill(null);
+          // Refresh note stats
+          fetchNoteStats(Number(id));
+        }}
+        tripId={Number(id)}
+        destinations={selectedTrip?.destinations || []}
+        pois={pois}
+        preselectedDestinationId={noteFormPreFill?.destination_id}
+        preselectedDayNumber={noteFormPreFill?.day_number}
+        preselectedPoiId={noteFormPreFill?.poi_id}
       />
     </div>
   );

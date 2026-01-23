@@ -7,6 +7,7 @@ from app.models.accommodation import Accommodation
 from app.models.document import Document, DocumentType
 from app.models.travel_segment import TravelSegment
 from app.models.route_waypoint import RouteWaypoint
+from app.models.note import Note, NoteType
 
 __all__ = [
     "BaseModel",
@@ -19,4 +20,6 @@ __all__ = [
     "DocumentType",
     "TravelSegment",
     "RouteWaypoint",
+    "Note",
+    "NoteType",
 ]

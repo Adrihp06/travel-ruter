@@ -37,6 +37,20 @@ from app.schemas.route_waypoint import (
     RouteWaypointReorderRequest,
     SegmentWaypointsResponse,
 )
+from app.schemas.note import (
+    NoteTypeEnum,
+    NoteCreate,
+    NoteUpdate,
+    NoteResponse,
+    NoteListResponse,
+    NotesByDayResponse,
+    NotesByDestinationResponse,
+    GroupedNotesResponse,
+    NoteSearchRequest,
+    NoteSearchResponse,
+    NoteExportRequest,
+    NoteExportResponse,
+)
 
 __all__ = [
     "DestinationCreate",
@@ -66,4 +80,16 @@ __all__ = [
     "RouteWaypointResponse",
     "RouteWaypointReorderRequest",
     "SegmentWaypointsResponse",
+    "NoteTypeEnum",
+    "NoteCreate",
+    "NoteUpdate",
+    "NoteResponse",
+    "NoteListResponse",
+    "NotesByDayResponse",
+    "NotesByDestinationResponse",
+    "GroupedNotesResponse",
+    "NoteSearchRequest",
+    "NoteSearchResponse",
+    "NoteExportRequest",
+    "NoteExportResponse",
 ]

@@ -45,6 +45,7 @@ import {
   AlertCircle,
   Plus,
   Sparkles,
+  BookOpen,
 } from 'lucide-react';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import usePOIStore from '../../stores/usePOIStore';
@@ -186,7 +187,7 @@ const generateDays = (arrivalDate, departureDate) => {
 };
 
 // Sortable POI Item
-const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onClick }) => {
+const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onClick, onAddNote, noteCount = 0 }) => {
   const {
     attributes,
     listeners,
@@ -248,6 +249,20 @@ const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onC
                   <ThumbsDown className="w-3 h-3 text-red-600 dark:text-red-400" />
                 </button>
               </>
+            )}
+            {onAddNote && (
+              <button
+                onClick={() => onAddNote(poi)}
+                className="p-1 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded transition-colors relative"
+                title="Add note for this POI"
+              >
+                <BookOpen className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                {noteCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                    {noteCount > 9 ? '9+' : noteCount}
+                  </span>
+                )}
+              </button>
             )}
             {onEdit && (
               <button
@@ -320,6 +335,8 @@ const DayColumn = ({
   totalDwellTime,
   onOptimize,
   isOptimizing,
+  onAddDayNote,
+  onAddPOINote,
 }) => {
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
@@ -342,6 +359,19 @@ const DayColumn = ({
           )}
         </button>
         <div className="flex items-center space-x-2">
+          {/* Add Note Button */}
+          {onAddDayNote && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddDayNote(day.dayNumber, day.date);
+              }}
+              className="p-1 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded transition-colors"
+              title="Add note for this day"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+            </button>
+          )}
           {/* Optimize Route Button */}
           {pois.length >= 2 && (
             <button
@@ -415,6 +445,7 @@ const DayColumn = ({
                       onDelete={onDelete}
                       onVote={onVote}
                       onClick={onPOIClick}
+                      onAddNote={onAddPOINote ? () => onAddPOINote(poi) : null}
                     />
                     {/* Transport mode connector between POIs */}
                     {index < pois.length - 1 && (
@@ -435,7 +466,7 @@ const DayColumn = ({
 };
 
 // Unscheduled POIs Section
-const UnscheduledSection = ({ pois, isExpanded, onToggle, onEdit, onDelete, onVote, onPOIClick }) => {
+const UnscheduledSection = ({ pois, isExpanded, onToggle, onEdit, onDelete, onVote, onPOIClick, onAddPOINote }) => {
   return (
     <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800/50">
       <button
@@ -479,6 +510,7 @@ const UnscheduledSection = ({ pois, isExpanded, onToggle, onEdit, onDelete, onVo
                   onDelete={onDelete}
                   onVote={onVote}
                   onClick={onPOIClick}
+                  onAddNote={onAddPOINote ? () => onAddPOINote(poi) : null}
                 />
               ))
             )}
@@ -499,6 +531,8 @@ const DailyItinerary = ({
   onDeletePOI,
   onVotePOI,
   onPOIClick,
+  onAddDayNote,
+  onAddPOINote,
   className = '',
   showHeader = true,
 }) => {
@@ -923,6 +957,8 @@ const DailyItinerary = ({
               totalDwellTime={dwellTimeByDay[day.date] || 0}
               onOptimize={handleOptimizeDay}
               isOptimizing={optimizingDay === day.dayNumber && isOptimizing}
+              onAddDayNote={onAddDayNote}
+              onAddPOINote={onAddPOINote}
             />
           ))}
 
@@ -935,6 +971,7 @@ const DailyItinerary = ({
             onDelete={onDeletePOI}
             onVote={onVotePOI}
             onPOIClick={onPOIClick}
+            onAddPOINote={onAddPOINote}
           />
 
           {/* Drag Overlay */}
