@@ -11,9 +11,10 @@ import { AccommodationFormModal, AccommodationList, AccommodationTimeline } from
 import { formatDateWithWeekday } from '../utils/dateFormat';
 
 // Layout components
-import { ItineraryUIProvider, useItineraryUI } from '../contexts/ItineraryUIContext';
+import { ItineraryUIProvider, useItineraryUI, calendarAnimationClasses } from '../contexts/ItineraryUIContext';
 import SidebarToggle from '../components/UI/SidebarToggle';
 import VaultToggle from '../components/UI/VaultToggle';
+import CalendarViewToggle from '../components/UI/CalendarViewToggle';
 import Sidebar from '../components/Layout/Sidebar';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { DocumentVault } from '../components/Documents';
@@ -21,6 +22,7 @@ import { DocumentVault } from '../components/Documents';
 // Level 1 components
 import Timeline from '../components/Timeline/Timeline';
 import { TripMap } from '../components/Map';
+import CalendarView from '../components/Calendar/CalendarView';
 
 // Level 2 components
 import DailyItinerary from '../components/Itinerary/DailyItinerary';
@@ -616,7 +618,7 @@ const DetailViewContent = () => {
   const { documents } = useDocumentStore();
   const { deleteDestination, reorderDestinations, setSelectedDestination, resetSelectedDestination, selectedDestination: storeSelectedDestination } = useDestinationStore();
   const { accommodations, fetchAccommodations, deleteAccommodation, isLoading: isAccLoading } = useAccommodationStore();
-  const { isSidebarVisible, isVaultVisible, toggleSidebar, toggleVault } = useItineraryUI();
+  const { isSidebarVisible, isVaultVisible, isCalendarVisible, toggleSidebar, toggleVault, toggleCalendar } = useItineraryUI();
 
   // State
   const [selectedDestinationId, setSelectedDestinationId] = useState(null); // null = Level 1
@@ -915,8 +917,9 @@ const DetailViewContent = () => {
           </div>
         </div>
 
-        {/* Right: Vault Toggle */}
-        <div className="flex items-center">
+        {/* Right: Calendar & Vault Toggles */}
+        <div className="flex items-center gap-2">
+          <CalendarViewToggle onClick={toggleCalendar} isActive={isCalendarVisible} />
           <VaultToggle onClick={toggleVault} documentCount={documents?.length || 0} />
         </div>
       </div>
@@ -1074,6 +1077,28 @@ const DetailViewContent = () => {
         isOpen={isVaultVisible}
         onClose={toggleVault}
       />
+
+      {/* Calendar View Panel */}
+      {isCalendarVisible && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/50" onClick={toggleCalendar} />
+          <div
+            className={`
+              absolute right-0 top-0 h-full w-full md:w-4/5 lg:w-3/4 xl:w-2/3
+              bg-white dark:bg-gray-800 shadow-2xl
+              ${isCalendarVisible ? calendarAnimationClasses.visible : calendarAnimationClasses.hidden}
+              ${calendarAnimationClasses.transition}
+            `}
+          >
+            <CalendarView
+              trip={selectedTrip}
+              destinations={selectedTrip?.destinations || []}
+              pois={pois}
+              accommodations={accommodations}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Add POI Modal */}
       <AddPOIModal
