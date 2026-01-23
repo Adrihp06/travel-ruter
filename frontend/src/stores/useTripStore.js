@@ -472,34 +472,20 @@ const useTripStore = create((set, get) => ({
   // Clear pending delete without restoring
   clearPendingDelete: () => set({ pendingDelete: null }),
 
-  // Duplicate a trip
-  duplicateTrip: async (trip) => {
+  // Duplicate a trip with options
+  duplicateTrip: async (tripId, duplicateOptions) => {
     set({ isLoading: true, error: null });
     try {
-      // Create a copy with modified name
-      const tripData = {
-        name: `${trip.name || trip.title} (Copy)`,
-        location: trip.location,
-        latitude: trip.latitude,
-        longitude: trip.longitude,
-        description: trip.description,
-        cover_image: trip.cover_image,
-        start_date: trip.start_date,
-        end_date: trip.end_date,
-        total_budget: trip.total_budget,
-        currency: trip.currency || 'USD',
-        status: 'planning',
-        tags: trip.tags || [],
-      };
-
-      const response = await fetch(`${API_BASE_URL}/trips`, {
+      const response = await fetch(`${API_BASE_URL}/trips/${tripId}/duplicate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(tripData),
+        body: JSON.stringify(duplicateOptions),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to duplicate trip');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.detail || `Failed to duplicate trip (${response.status})`;
+        throw new Error(errorMessage);
       }
 
       const newTrip = await response.json();
@@ -514,8 +500,11 @@ const useTripStore = create((set, get) => ({
 
       return newTrip;
     } catch (error) {
-      set({ error: error.message, isLoading: false });
-      throw error;
+      const message = error.message === 'Failed to fetch'
+        ? 'Cannot connect to server. Please ensure the backend is running.'
+        : error.message;
+      set({ error: message, isLoading: false });
+      throw new Error(message);
     }
   },
 

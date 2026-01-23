@@ -6,6 +6,7 @@ import MapSkeleton from '../components/Map/MapSkeleton';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { TripFormModal, DeleteTripDialog, UndoToast, TripCard, TripSearchFilter } from '../components/Trip';
 import TripCardSkeleton from '../components/Trip/TripCardSkeleton';
+import TripDuplicateModal from '../components/Trip/TripDuplicateModal';
 
 const UNDO_DURATION = 5000; // 5 seconds for undo
 
@@ -35,6 +36,7 @@ const GlobalTripView = () => {
   const [showTripModal, setShowTripModal] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, trip: null });
+  const [duplicateDialog, setDuplicateDialog] = useState({ isOpen: false, trip: null });
   const [undoToast, setUndoToast] = useState({ isVisible: false, tripName: '', tripId: null });
   const [isDeleting, setIsDeleting] = useState(false);
   const undoTimeoutRef = useRef(null);
@@ -129,11 +131,20 @@ const GlobalTripView = () => {
     setShowTripModal(true);
   };
 
-  const handleDuplicateTrip = async (trip) => {
+  const handleDuplicateClick = (trip) => {
+    setDuplicateDialog({ isOpen: true, trip });
+  };
+
+  const handleDuplicateTrip = async (duplicateOptions) => {
+    const trip = duplicateDialog.trip;
+    if (!trip) return;
+
     try {
-      await duplicateTrip(trip);
+      await duplicateTrip(trip.id, duplicateOptions);
+      // Refresh trips to show the new duplicate
+      await fetchTrips();
     } catch (error) {
-      alert('Failed to duplicate trip: ' + error.message);
+      throw error; // Let the modal handle the error display
     }
   };
 
@@ -324,7 +335,7 @@ const GlobalTripView = () => {
                       trip={trip}
                       onEdit={handleEditTrip}
                       onDelete={handleDeleteClick}
-                      onDuplicate={handleDuplicateTrip}
+                      onDuplicate={handleDuplicateClick}
                       onStatusChange={handleStatusChange}
                       onShare={handleShareTrip}
                       onExport={handleExportTrip}
@@ -358,6 +369,13 @@ const GlobalTripView = () => {
         trip={deleteDialog.trip}
         onConfirm={handleConfirmDelete}
         isDeleting={isDeleting}
+      />
+
+      <TripDuplicateModal
+        isOpen={duplicateDialog.isOpen}
+        onClose={() => setDuplicateDialog({ isOpen: false, trip: null })}
+        trip={duplicateDialog.trip}
+        onDuplicate={handleDuplicateTrip}
       />
 
       {undoToast.isVisible && (

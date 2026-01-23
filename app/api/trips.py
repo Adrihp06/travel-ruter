@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.config import settings
-from app.schemas.trip import TripCreate, TripUpdate, TripResponse, TripWithDestinationsResponse, BudgetSummary, POIStats, CoverImageUploadResponse
+from app.schemas.trip import TripCreate, TripUpdate, TripResponse, TripWithDestinationsResponse, BudgetSummary, POIStats, CoverImageUploadResponse, TripDuplicateRequest
 from app.services.trip_service import TripService
 
 router = APIRouter()
@@ -154,6 +154,28 @@ async def update_trip(
             detail=f"Trip with id {trip_id} not found"
         )
     return TripResponse.model_validate(trip)
+
+
+@router.post(
+    "/{trip_id}/duplicate",
+    response_model=TripResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Duplicate a trip",
+    description="Create a copy of an existing trip with configurable options for what to include (destinations, POIs, accommodations, documents)"
+)
+async def duplicate_trip(
+    trip_id: int,
+    duplicate_request: TripDuplicateRequest,
+    db: AsyncSession = Depends(get_db)
+) -> TripResponse:
+    """Duplicate a trip with specified options"""
+    new_trip = await TripService.duplicate_trip(db, trip_id, duplicate_request)
+    if not new_trip:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Trip with id {trip_id} not found"
+        )
+    return TripResponse.model_validate(new_trip)
 
 
 @router.delete(

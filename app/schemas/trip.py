@@ -120,3 +120,22 @@ class CoverImageUploadResponse(BaseModel):
     """Schema for cover image upload response"""
     url: str = Field(..., description="URL to access the uploaded cover image")
     filename: str = Field(..., description="Unique filename of the uploaded image")
+
+
+class TripDuplicateRequest(BaseModel):
+    """Schema for trip duplication request with options"""
+    name: str = Field(..., min_length=1, max_length=255, description="Name for the duplicated trip")
+    start_date: date = Field(..., description="Start date for the duplicated trip")
+    end_date: date = Field(..., description="End date for the duplicated trip")
+    include_destinations: bool = Field(default=True, description="Include destinations in duplication")
+    include_pois: bool = Field(default=False, description="Include POIs in duplication")
+    include_accommodations: bool = Field(default=False, description="Include accommodations in duplication")
+    include_documents: bool = Field(default=False, description="Include documents in duplication")
+
+    @field_validator("end_date")
+    @classmethod
+    def validate_end_date(cls, v: date, info) -> date:
+        """Validate that end_date is not before start_date"""
+        if "start_date" in info.data and v < info.data["start_date"]:
+            raise ValueError("end_date must be on or after start_date")
+        return v
