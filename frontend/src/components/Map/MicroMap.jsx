@@ -1299,11 +1299,14 @@ const MicroMap = ({
       style={{ height }}
     >
       {/* Quick POI Search */}
-      <div className="absolute top-3 left-3 z-20 w-full max-w-[280px] sm:max-w-xs">
-        <QuickPOISearch 
-          location={destinationCoords}
-          onSelect={handleQuickSearchSelect}
-        />
+      <div className="absolute top-[52px] right-14 z-20 w-full max-w-[280px] sm:max-w-md pointer-events-none">
+        <div className="pointer-events-auto flex justify-end">
+          <QuickPOISearch 
+            location={destinationCoords}
+            onSelect={handleQuickSearchSelect}
+            initialMinimized={true}
+          />
+        </div>
       </div>
 
       {/* Add POI Mode Overlay */}

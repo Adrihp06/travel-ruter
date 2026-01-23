@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, MapPin, Star, X, Loader2, Utensils, Camera, Hotel } from 'lucide-react';
+import { Search, MapPin, Star, X, Loader2, Utensils, Camera, Hotel, ChevronUp } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -14,8 +14,10 @@ const QuickPOISearch = ({
   onSelect, 
   location = null, 
   radius = 5000,
-  className = "" 
+  className = "",
+  initialMinimized = true
 }) => {
+  const [isExpanded, setIsExpanded] = useState(!initialMinimized);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -126,33 +128,64 @@ const QuickPOISearch = ({
     setShowDropdown(false);
   };
 
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+    if (isExpanded) {
+      clearSearch();
+    }
+  };
+
+  if (!isExpanded) {
+    return (
+      <div className={`flex justify-end ${className}`}>
+        <button
+          onClick={toggleExpand}
+          className="p-2.5 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all group"
+          title="Quick POI Search"
+        >
+          <Search className="h-5 w-5 group-hover:text-indigo-500 transition-colors" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div ref={wrapperRef} className={`relative w-full max-w-md ${className}`}>
       <div className="flex flex-col gap-2">
-        <div className="relative group">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 text-indigo-500 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+        <div className="flex items-center gap-2">
+          <div className="relative group flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 text-indigo-500 animate-spin" />
+              ) : (
+                <Search className="h-4 w-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+              )}
+            </div>
+            <input
+              type="text"
+              autoFocus
+              value={query}
+              onChange={handleInputChange}
+              onFocus={() => setShowDropdown(true)}
+              placeholder="Search restaurants, attractions..."
+              className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-900 dark:text-white transition-all"
+            />
+            {query && (
+              <button
+                onClick={clearSearch}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
             )}
           </div>
-          <input
-            type="text"
-            value={query}
-            onChange={handleInputChange}
-            onFocus={() => setShowDropdown(true)}
-            placeholder="Search restaurants, attractions..."
-            className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-900 dark:text-white transition-all"
-          />
-          {query && (
-            <button
-              onClick={clearSearch}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
+          <button
+            onClick={toggleExpand}
+            className="p-2.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 transition-all"
+            title="Minimize"
+          >
+            <ChevronUp className="h-5 w-5" />
+          </button>
         </div>
 
         {/* Category Filters */}
