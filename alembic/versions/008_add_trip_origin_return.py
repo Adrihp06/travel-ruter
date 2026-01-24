@@ -1,7 +1,7 @@
 """Add origin and return point columns to trips
 
 Revision ID: 008_add_trip_origin_return
-Revises: 007_add_is_fallback
+Revises: 008_add_route_waypoints
 Create Date: 2026-01-18
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '008_add_trip_origin_return'
-down_revision = '007_add_is_fallback'
+down_revision = '008_add_route_waypoints'
 branch_labels = None
 depends_on = None
 

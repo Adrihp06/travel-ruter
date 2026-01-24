@@ -19,7 +19,8 @@ import {
 } from '@dnd-kit/sortable';
 import SortableDestinationItem from './SortableDestinationItem';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
-import { TravelSegmentCard } from '../TravelSegment';
+import useTravelStopStore from '../../stores/useTravelStopStore';
+import { TravelSegmentCard, TravelStopsList, AddTravelStopModal } from '../TravelSegment';
 
 const Timeline = ({
   destinations,
@@ -32,6 +33,7 @@ const Timeline = ({
   onReorderDestinations,
 }) => {
   const [activeId, setActiveId] = useState(null);
+  const [addStopModal, setAddStopModal] = useState({ isOpen: false, segmentId: null, existingStop: null });
 
   const {
     segments,
@@ -41,6 +43,8 @@ const Timeline = ({
     calculatingSegments,
     hasFetchedInitial,
   } = useTravelSegmentStore();
+
+  const { fetchStopsForSegments } = useTravelStopStore();
 
   // Configure sensors for pointer, touch, and keyboard interactions
   const sensors = useSensors(
@@ -111,6 +115,32 @@ const Timeline = ({
       fetchTripSegments(tripId);
     }
   }, [tripId, fetchTripSegments]);
+
+  // Fetch travel stops when segments are loaded
+  useEffect(() => {
+    if (segments.length > 0) {
+      const segmentIds = segments.map(s => s.id);
+      fetchStopsForSegments(segmentIds);
+    }
+  }, [segments, fetchStopsForSegments]);
+
+  // Handle opening the add stop modal
+  const handleAddStop = useCallback((segmentId, existingStop = null) => {
+    setAddStopModal({ isOpen: true, segmentId, existingStop });
+  }, []);
+
+  // Handle closing the add stop modal
+  const handleCloseStopModal = useCallback(() => {
+    setAddStopModal({ isOpen: false, segmentId: null, existingStop: null });
+  }, []);
+
+  // Handle when a stop is saved (created/updated) - refetch segments to get updated route
+  const handleStopSaved = useCallback(() => {
+    if (tripId) {
+      fetchTripSegments(tripId);
+    }
+    handleCloseStopModal();
+  }, [tripId, fetchTripSegments, handleCloseStopModal]);
 
   // Get travel segment to the next destination
   const getTravelToNext = useCallback((index) => {
@@ -208,6 +238,14 @@ const Timeline = ({
                             nextDest.latitude != null && nextDest.longitude != null
                           }
                         />
+                        {/* Travel Stops for this segment */}
+                        {segment && (
+                          <TravelStopsList
+                            segmentId={segment.id}
+                            onAddStop={(existingStop) => handleAddStop(segment.id, existingStop)}
+                            onStopChanged={() => tripId && fetchTripSegments(tripId)}
+                          />
+                        )}
                       </div>
                     )}
                   </div>
@@ -249,6 +287,15 @@ const Timeline = ({
           </button>
         )}
       </div>
+
+      {/* Add Travel Stop Modal */}
+      <AddTravelStopModal
+        isOpen={addStopModal.isOpen}
+        onClose={handleCloseStopModal}
+        onSaved={handleStopSaved}
+        segmentId={addStopModal.segmentId}
+        existingStop={addStopModal.existingStop}
+      />
     </div>
   );
 };

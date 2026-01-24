@@ -17,43 +17,43 @@ const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in">
+      <div className="bg-white dark:bg-stone-800 rounded-2xl shadow-2xl w-full max-w-md mx-4 animate-scale-fade border border-stone-200/50 dark:border-stone-700">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-2">
-            <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+        <div className="flex items-center justify-between p-5 border-b border-stone-200 dark:border-stone-700">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-red-100 dark:bg-red-900/30 rounded-xl">
               <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Delete Trip</h3>
+            <h3 className="text-lg font-bold text-stone-900 dark:text-stone-50">Delete Trip</h3>
           </div>
           <button
             onClick={handleClose}
             disabled={isDeleting}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors disabled:opacity-50"
+            className="p-2 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-xl transition-all disabled:opacity-50"
           >
-            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            <X className="w-5 h-5 text-stone-500 dark:text-stone-400" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4">
+        <div className="p-5 space-y-4">
           {/* Warning */}
-          <div className="flex items-start space-x-3 p-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+          <div className="flex items-start space-x-3 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl">
             <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-amber-800 dark:text-amber-300">
-              <p className="font-medium">This action can be undone</p>
-              <p className="mt-1">You will have 5 seconds to undo the deletion after confirming.</p>
+              <p className="font-semibold">This action can be undone</p>
+              <p className="mt-1 opacity-90">You will have 5 seconds to undo the deletion after confirming.</p>
             </div>
           </div>
 
           {/* Trip Info */}
-          <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg space-y-3">
-            <h4 className="font-semibold text-gray-900 dark:text-white text-lg">{tripName}</h4>
+          <div className="p-4 bg-stone-50 dark:bg-stone-700/50 rounded-xl space-y-3 border border-stone-100 dark:border-stone-600/30">
+            <h4 className="font-bold text-stone-900 dark:text-stone-50 text-lg">{tripName}</h4>
 
             {trip.start_date && (
-              <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
-                <Calendar className="w-4 h-4" />
+              <div className="flex items-center space-x-2 text-sm text-stone-600 dark:text-stone-300">
+                <Calendar className="w-4 h-4 text-stone-400" />
                 <span>
                   {formatDateFull(trip.start_date)}
                   {trip.end_date && ` - ${formatDateFull(trip.end_date)}`}
@@ -62,8 +62,8 @@ const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {
             )}
 
             {destinationCount > 0 && (
-              <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
-                <MapPin className="w-4 h-4" />
+              <div className="flex items-center space-x-2 text-sm text-stone-600 dark:text-stone-300">
+                <MapPin className="w-4 h-4 text-stone-400" />
                 <span>
                   {destinationCount} destination{destinationCount !== 1 ? 's' : ''} will be deleted
                 </span>
@@ -71,23 +71,23 @@ const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {
             )}
 
             {trip.description && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{trip.description}</p>
+              <p className="text-sm text-stone-500 dark:text-stone-400 line-clamp-2">{trip.description}</p>
             )}
           </div>
 
           {/* Confirmation Text */}
-          <p className="text-sm text-gray-600 dark:text-gray-300">
+          <p className="text-sm text-stone-600 dark:text-stone-300">
             Are you sure you want to delete this trip? All associated destinations and their data will be permanently removed.
           </p>
         </div>
 
         {/* Buttons */}
-        <div className="flex space-x-3 p-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex space-x-3 p-5 border-t border-stone-200 dark:border-stone-700">
           <button
             type="button"
             onClick={handleClose}
             disabled={isDeleting}
-            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors"
+            className="flex-1 px-4 py-2.5 border border-stone-300 dark:border-stone-600 text-stone-700 dark:text-stone-300 rounded-xl hover:bg-stone-50 dark:hover:bg-stone-700 disabled:opacity-50 transition-all font-medium"
           >
             Cancel
           </button>
@@ -95,7 +95,7 @@ const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {
             type="button"
             onClick={handleConfirm}
             disabled={isDeleting}
-            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center justify-center space-x-2"
+            className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all flex items-center justify-center space-x-2 font-medium shadow-sm hover:shadow-md press-effect"
           >
             {isDeleting ? (
               <>

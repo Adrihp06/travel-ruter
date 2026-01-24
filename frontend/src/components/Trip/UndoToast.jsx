@@ -45,29 +45,29 @@ const UndoToast = ({ message, onUndo, onDismiss, duration = 5000 }) => {
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
       }`}
     >
-      <div className="bg-gray-900 text-white rounded-lg shadow-lg overflow-hidden min-w-[320px]">
+      <div className="bg-stone-900 text-white rounded-xl shadow-2xl overflow-hidden min-w-[340px] border border-stone-700/50">
         <div className="flex items-center justify-between p-4">
-          <span className="text-sm">{message}</span>
+          <span className="text-sm font-medium">{message}</span>
           <div className="flex items-center space-x-2 ml-4">
             <button
               onClick={handleUndo}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-md transition-colors text-sm font-medium"
+              className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded-lg transition-all text-sm font-semibold shadow-sm press-effect"
             >
               <Undo2 className="w-4 h-4" />
               <span>Undo</span>
             </button>
             <button
               onClick={handleDismiss}
-              className="p-1.5 hover:bg-white/20 rounded-md transition-colors"
+              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
         {/* Progress bar */}
-        <div className="h-1 bg-gray-700">
+        <div className="h-1 bg-stone-700">
           <div
-            className="h-full bg-indigo-500 transition-all duration-100 ease-linear"
+            className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-100 ease-linear"
             style={{ width: `${progress}%` }}
           />
         </div>

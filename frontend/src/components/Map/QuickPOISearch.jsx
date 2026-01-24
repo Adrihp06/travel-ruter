@@ -31,6 +31,7 @@ const QuickPOISearch = ({
   const wrapperRef = useRef(null);
   const debounceRef = useRef(null);
 
+  // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -39,6 +40,15 @@ const QuickPOISearch = ({
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Cleanup debounce timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
   }, []);
 
   const searchPlaces = useCallback(async (searchQuery, categoryId) => {

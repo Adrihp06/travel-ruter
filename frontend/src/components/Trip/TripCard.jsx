@@ -20,15 +20,15 @@ import {
 } from 'lucide-react';
 import { formatDateFull } from '../../utils/dateFormat';
 
-// Tag color mapping (matches TripFormModal)
+// Tag color mapping - Warm Explorer theme colors
 const TAG_COLORS = {
-  business: 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300',
-  vacation: 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300',
+  business: 'bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300',
+  vacation: 'bg-lime-100 text-lime-700 dark:bg-lime-900/50 dark:text-lime-300',
   adventure: 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300',
-  romantic: 'bg-pink-100 text-pink-700 dark:bg-pink-900/50 dark:text-pink-300',
-  family: 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300',
-  solo: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-  cultural: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
+  romantic: 'bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300',
+  family: 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300',
+  solo: 'bg-stone-100 text-stone-600 dark:bg-stone-700 dark:text-stone-300',
+  cultural: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300',
   beach: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300',
 };
 
@@ -121,34 +121,34 @@ const TripCard = ({
     ? Math.round((scheduledPOIs / totalPOIs) * 100)
     : 0;
 
-  // Status badge styling
+  // Status badge styling - Warm Explorer theme
   const getStatusStyle = (status) => {
     switch (status) {
       case 'booked':
-        return 'bg-green-100 text-green-700 border-green-200';
+        return 'bg-lime-100 text-lime-700 border-lime-200 dark:bg-lime-900/30 dark:text-lime-300 dark:border-lime-700';
       case 'completed':
-        return 'bg-blue-100 text-blue-700 border-blue-200';
+        return 'bg-stone-100 text-stone-700 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-600';
       case 'cancelled':
-        return 'bg-red-100 text-red-700 border-red-200';
+        return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700';
       default: // planning
-        return 'bg-amber-100 text-amber-700 border-amber-200';
+        return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700';
     }
   };
 
-  // Countdown badge styling
+  // Countdown badge styling - Warm Explorer theme
   const getCountdownStyle = (type) => {
     switch (type) {
       case 'today':
       case 'tomorrow':
-        return 'bg-red-500 text-white';
+        return 'bg-red-500 text-white shadow-sm';
       case 'soon':
-        return 'bg-orange-500 text-white';
+        return 'bg-orange-500 text-white shadow-sm';
       case 'ongoing':
-        return 'bg-green-500 text-white';
+        return 'bg-lime-600 text-white shadow-sm';
       case 'past':
-        return 'bg-gray-400 text-white';
+        return 'bg-stone-400 text-white';
       default:
-        return 'bg-indigo-500 text-white';
+        return 'bg-amber-600 text-white shadow-sm';
     }
   };
 
@@ -187,7 +187,7 @@ const TripCard = ({
   const coverImage = trip.cover_image || getDefaultCoverImage();
 
   return (
-    <div className="trip-card group bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-xl dark:hover:shadow-2xl dark:hover:shadow-black/30 transition-all duration-300 hover:-translate-y-1 relative">
+    <div className="trip-card group bg-white dark:bg-stone-800 rounded-2xl shadow-sm border border-stone-200/80 dark:border-stone-700 hover:shadow-xl hover:shadow-amber-900/5 dark:hover:shadow-2xl dark:hover:shadow-black/30 transition-all duration-300 hover:-translate-y-1 relative">
       {/* Quick actions menu - positioned outside overflow-hidden */}
       <div className="absolute top-3 right-3 z-30">
         <div className="relative">
@@ -310,7 +310,8 @@ const TripCard = ({
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 transition-all duration-500 group-hover:from-indigo-600 group-hover:via-purple-600 group-hover:to-pink-600">
+          /* Warm Explorer gradient - amber to terracotta to olive */
+          <div className="w-full h-full bg-gradient-to-br from-amber-500 via-orange-500 to-lime-600 transition-all duration-500 group-hover:from-amber-600 group-hover:via-orange-600 group-hover:to-lime-700">
             <div className="absolute inset-0 flex items-center justify-center">
               <Plane className="w-16 h-16 text-white/30" />
             </div>
@@ -340,7 +341,7 @@ const TripCard = ({
       <div className="p-5">
         {/* Title and location */}
         <div className="mb-3">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors line-clamp-1">
             {title}
           </h3>
           {trip.location && (
@@ -412,9 +413,9 @@ const TripCard = ({
               <span className="text-gray-600 dark:text-gray-300">POIs Scheduled</span>
               <span className="text-gray-900 dark:text-white font-medium">{scheduledPOIs}/{totalPOIs}</span>
             </div>
-            <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-stone-100 dark:bg-stone-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500"
+                className="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-500"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
@@ -430,10 +431,10 @@ const TripCard = ({
           </div>
         )}
 
-        {/* View itinerary link */}
+        {/* View itinerary link - Warm Explorer theme */}
         <Link
           to={`/trips/${trip.id}`}
-          className="inline-flex items-center w-full justify-center px-4 py-2.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-semibold rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors group/link"
+          className="inline-flex items-center w-full justify-center px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 font-semibold rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-all group/link border border-amber-200/50 dark:border-amber-700/30"
         >
           View Itinerary
           <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover/link:translate-x-1" />

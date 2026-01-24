@@ -65,9 +65,9 @@ class Note(BaseModel):
     media_files = Column(JSON, nullable=True, default=[], comment="Array of media file paths and metadata")
 
     # Relationships
-    trip = relationship("Trip", backref="notes")
-    destination = relationship("Destination", backref="notes")
-    poi = relationship("POI", backref="notes")
+    trip = relationship("Trip", backref="trip_notes")
+    destination = relationship("Destination", backref="destination_notes")
+    poi = relationship("POI", backref="poi_notes")
 
     # Constraints
     __table_args__ = (

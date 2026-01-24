@@ -184,10 +184,15 @@ const useTripStore = create((set, get) => ({
     showCompleted: false,
   }),
 
-  // Get filtered and sorted trips
+  // Get filtered and sorted trips - prefers tripsWithDestinations for complete data
   getFilteredTrips: () => {
     const state = get();
-    return filterAndSortTrips(state.trips, {
+    // Use tripsWithDestinations if available (has more complete data),
+    // otherwise fall back to trips
+    const sourceTrips = state.tripsWithDestinations.length > 0
+      ? state.tripsWithDestinations
+      : state.trips;
+    return filterAndSortTrips(sourceTrips, {
       searchQuery: state.searchQuery,
       statusFilter: state.statusFilter,
       sortBy: state.sortBy,
@@ -205,9 +210,13 @@ const useTripStore = create((set, get) => ({
     if (state.showCompleted) count++;
     return count;
   },
-  selectTrip: (tripId) => set((state) => ({
-    selectedTrip: state.trips.find((t) => t.id === Number(tripId)) || null
-  })),
+  selectTrip: (tripId) => set((state) => {
+    const id = Number(tripId);
+    // Prefer tripsWithDestinations for complete data, fall back to trips
+    const tripWithDest = state.tripsWithDestinations.find((t) => t.id === id);
+    const trip = tripWithDest || state.trips.find((t) => t.id === id);
+    return { selectedTrip: trip || null };
+  }),
 
   fetchTrips: async () => {
     set({ isLoading: true });
@@ -215,7 +224,11 @@ const useTripStore = create((set, get) => ({
       const response = await fetch(`${API_BASE_URL}/trips`);
       if (!response.ok) throw new Error('Failed to fetch trips');
       const trips = await response.json();
-      set({ trips, isLoading: false });
+      // Deduplicate trips by ID to prevent race conditions
+      const uniqueTrips = trips.filter((trip, index, self) =>
+        index === self.findIndex(t => t.id === trip.id)
+      );
+      set({ trips: uniqueTrips, isLoading: false });
       // Fetch destinations for all trips for the macro map
       get().fetchTripsWithDestinations(trips);
     } catch (error) {
@@ -249,7 +262,11 @@ const useTripStore = create((set, get) => ({
           }
         })
       );
-      set({ tripsWithDestinations: tripsWithDests });
+      // Deduplicate by ID to prevent race conditions
+      const uniqueTripsWithDests = tripsWithDests.filter((trip, index, self) =>
+        index === self.findIndex(t => t.id === trip.id)
+      );
+      set({ tripsWithDestinations: uniqueTripsWithDests });
     } catch {
       // Fallback to mock destinations for demonstration
       const mockTripsWithDestinations = trips.map(trip => ({
@@ -345,8 +362,16 @@ const useTripStore = create((set, get) => ({
 
       const newTrip = await response.json();
 
+      // Add to both trips arrays to keep them in sync
+      const newTripWithDestinations = {
+        ...newTrip,
+        destinations: [],
+        poiStats: { total_pois: 0, scheduled_pois: 0 }
+      };
+
       set((state) => ({
         trips: [...state.trips, newTrip],
+        tripsWithDestinations: [...state.tripsWithDestinations, newTripWithDestinations],
         isLoading: false,
       }));
 
@@ -490,13 +515,32 @@ const useTripStore = create((set, get) => ({
 
       const newTrip = await response.json();
 
+      // Fetch destinations and stats for the new trip only
+      let destinations = [];
+      let poiStats = { total_pois: 0, scheduled_pois: 0 };
+      try {
+        const [destResponse, statsResponse] = await Promise.all([
+          fetch(`${API_BASE_URL}/trips/${newTrip.id}/destinations`),
+          fetch(`${API_BASE_URL}/trips/${newTrip.id}/poi-stats`)
+        ]);
+        destinations = destResponse.ok ? await destResponse.json() : [];
+        poiStats = statsResponse.ok ? await statsResponse.json() : { total_pois: 0, scheduled_pois: 0 };
+      } catch {
+        // Use empty defaults on error
+      }
+
+      const newTripWithDestinations = {
+        ...newTrip,
+        destinations,
+        poiStats
+      };
+
+      // Add to both arrays to keep them in sync
       set((state) => ({
         trips: [...state.trips, newTrip],
+        tripsWithDestinations: [...state.tripsWithDestinations, newTripWithDestinations],
         isLoading: false,
       }));
-
-      // Refetch trips with destinations to update the map
-      get().fetchTripsWithDestinations([...get().trips]);
 
       return newTrip;
     } catch (error) {

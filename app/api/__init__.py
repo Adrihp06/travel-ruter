@@ -9,6 +9,7 @@ from app.api.accommodations import router as accommodations_router
 from app.api.geocoding import router as geocoding_router
 from app.api.travel_segments import router as travel_segments_router
 from app.api.route_waypoints import router as route_waypoints_router
+from app.api.travel_stops import router as travel_stops_router
 from app.api.notes import router as notes_router
 from app.api.google_places import router as google_places_router
 
@@ -25,6 +26,7 @@ api_router.include_router(accommodations_router, tags=["accommodations"])
 api_router.include_router(geocoding_router, prefix="/geocoding", tags=["geocoding"])
 api_router.include_router(travel_segments_router, tags=["travel-segments"])
 api_router.include_router(route_waypoints_router, tags=["route-waypoints"])
+api_router.include_router(travel_stops_router, tags=["travel-stops"])
 api_router.include_router(notes_router, tags=["notes"])
 api_router.include_router(google_places_router, prefix="/google-places", tags=["google-places"])
 

@@ -1,7 +1,7 @@
 """Add destination_id and day_number to documents
 
 Revision ID: 010_add_document_destination_day
-Revises: 007_add_is_fallback
+Revises: 008_add_trip_origin_return
 Create Date: 2026-01-18
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '010_add_document_destination_day'
-down_revision = '007_add_is_fallback'
+down_revision = '008_add_trip_origin_return'
 branch_labels = None
 depends_on = None
 

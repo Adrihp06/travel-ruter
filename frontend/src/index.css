@@ -1,10 +1,11 @@
 @import "tailwindcss";
+@import "./styles/design-tokens.css";
 
 /* Dark mode configuration for Tailwind v4 */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: var(--font-body);
   line-height: 1.5;
   font-weight: 400;
 
@@ -23,15 +24,17 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
 }
 
 /* Dark mode transition for smooth theme switching */
 html {
-  transition: background-color 0.2s ease-in-out;
+  transition: background-color var(--transition-base), color var(--transition-base);
 }
 
 html.dark {
-  background-color: #111827;
+  background-color: var(--color-neutral-900);
 }
 
 /* Trip Card Animations */
@@ -50,12 +53,13 @@ html.dark {
   inset: 0;
   border-radius: inherit;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity var(--transition-slow);
+  /* Warm Explorer gradient - amber to terracotta to sage */
   background: linear-gradient(
     135deg,
-    rgba(99, 102, 241, 0.1) 0%,
-    rgba(139, 92, 246, 0.1) 50%,
-    rgba(236, 72, 153, 0.1) 100%
+    rgba(245, 158, 11, 0.08) 0%,
+    rgba(194, 65, 12, 0.08) 50%,
+    rgba(101, 163, 13, 0.08) 100%
   );
   pointer-events: none;
   z-index: 0;
@@ -183,34 +187,34 @@ html.dark {
 
 .react-datepicker__day--selected,
 .react-datepicker__day--keyboard-selected {
-  background-color: #4f46e5 !important;
+  background-color: var(--color-primary-600) !important;
   color: white !important;
   font-weight: 500;
 }
 
 .react-datepicker__day--in-range {
-  background-color: #e0e7ff;
-  color: #3730a3;
+  background-color: var(--color-primary-100);
+  color: var(--color-primary-800);
 }
 
 .dark .react-datepicker__day--in-range {
-  background-color: #312e81;
-  color: #c7d2fe;
+  background-color: var(--color-primary-900);
+  color: var(--color-primary-200);
 }
 
 .react-datepicker__day--in-selecting-range {
-  background-color: #c7d2fe !important;
-  color: #3730a3;
+  background-color: var(--color-primary-200) !important;
+  color: var(--color-primary-900);
 }
 
 .dark .react-datepicker__day--in-selecting-range {
-  background-color: #3730a3 !important;
-  color: #e0e7ff;
+  background-color: var(--color-primary-800) !important;
+  color: var(--color-primary-100);
 }
 
 .react-datepicker__day--range-start,
 .react-datepicker__day--range-end {
-  background-color: #4f46e5 !important;
+  background-color: var(--color-primary-600) !important;
   color: white !important;
 }
 
@@ -257,7 +261,7 @@ html.dark {
 }
 
 .react-datepicker__navigation:hover *::before {
-  border-color: #4f46e5;
+  border-color: var(--color-primary-600);
 }
 
 .react-datepicker__month-dropdown,
@@ -292,7 +296,7 @@ html.dark {
 
 .react-datepicker__month-option--selected,
 .react-datepicker__year-option--selected {
-  background-color: #4f46e5 !important;
+  background-color: var(--color-primary-600) !important;
   color: white;
 }
 
@@ -326,4 +330,196 @@ html.dark {
 
 .react-datepicker__triangle {
   display: none;
+}
+
+/* ===== WARM EXPLORER MICRO-INTERACTIONS ===== */
+
+/* Interactive element hover lift */
+.hover-lift {
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Button press effect */
+.press-effect {
+  transition: transform var(--transition-fast);
+}
+
+.press-effect:active {
+  transform: scale(0.97);
+}
+
+/* Subtle scale on hover */
+.hover-scale {
+  transition: transform var(--transition-base);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+/* Focus visible ring with warm color */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--surface-primary), 0 0 0 4px var(--color-primary-500);
+}
+
+/* Animated border gradient */
+.border-gradient-animated {
+  position: relative;
+  background: linear-gradient(var(--surface-primary), var(--surface-primary)) padding-box,
+    linear-gradient(135deg, var(--color-primary-500), var(--color-secondary-500), var(--color-accent-500)) border-box;
+  border: 2px solid transparent;
+}
+
+/* Shimmer loading animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-neutral-200) 0%,
+    var(--color-neutral-100) 50%,
+    var(--color-neutral-200) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-neutral-700) 0%,
+    var(--color-neutral-600) 50%,
+    var(--color-neutral-700) 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn var(--transition-base) ease-out;
+}
+
+/* Slide up animation */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp var(--transition-slow) ease-out;
+}
+
+/* Scale fade animation */
+@keyframes scaleFade {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-scale-fade {
+  animation: scaleFade var(--transition-base) ease-out;
+}
+
+/* Stagger children animation - only applies when reduced motion is not preferred */
+@media (prefers-reduced-motion: no-preference) {
+  .stagger-children > * {
+    opacity: 0;
+    animation: slideUp 300ms ease-out forwards;
+  }
+
+  .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+  .stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+  .stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+  .stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+  .stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+}
+
+/* Ensure children are visible when reduced motion is preferred */
+@media (prefers-reduced-motion: reduce) {
+  .stagger-children > * {
+    opacity: 1;
+  }
+}
+
+/* No scrollbar utility */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom scrollbar with warm theme */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--color-neutral-100);
+  border-radius: var(--radius-full);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--color-neutral-800);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-neutral-300);
+  border-radius: var(--radius-full);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--color-neutral-600);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary-400);
+}
+
+/* Text selection with warm color */
+::selection {
+  background-color: var(--color-primary-200);
+  color: var(--color-primary-900);
+}
+
+.dark ::selection {
+  background-color: var(--color-primary-800);
+  color: var(--color-primary-100);
 }

@@ -37,6 +37,13 @@ from app.schemas.route_waypoint import (
     RouteWaypointReorderRequest,
     SegmentWaypointsResponse,
 )
+from app.schemas.travel_stop import (
+    TravelStopCreate,
+    TravelStopUpdate,
+    TravelStopResponse,
+    TravelStopBulkCreate,
+    TravelStopReorderRequest,
+)
 from app.schemas.note import (
     NoteTypeEnum,
     NoteCreate,
@@ -80,6 +87,11 @@ __all__ = [
     "RouteWaypointResponse",
     "RouteWaypointReorderRequest",
     "SegmentWaypointsResponse",
+    "TravelStopCreate",
+    "TravelStopUpdate",
+    "TravelStopResponse",
+    "TravelStopBulkCreate",
+    "TravelStopReorderRequest",
     "NoteTypeEnum",
     "NoteCreate",
     "NoteUpdate",

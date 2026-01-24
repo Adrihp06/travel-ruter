@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -49,9 +49,11 @@ import {
 } from 'lucide-react';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import usePOIStore from '../../stores/usePOIStore';
-import OptimizationPreview from '../Agenda/OptimizationPreview';
-import POISuggestionsModal from '../POI/POISuggestionsModal';
 import { formatDateWithWeekday, formatDateRangeShort } from '../../utils/dateFormat';
+
+// Lazy load heavy modal components
+const OptimizationPreview = lazy(() => import('../Agenda/OptimizationPreview'));
+const POISuggestionsModal = lazy(() => import('../POI/POISuggestionsModal'));
 
 // Category icon mapping
 const categoryIcons = {
@@ -1003,29 +1005,37 @@ const DailyItinerary = ({
         </div>
       )}
 
-      {/* Optimization Preview Modal */}
-      <OptimizationPreview
-        isOpen={showOptimizationPreview}
-        onClose={handleCloseOptimizationPreview}
-        onApply={handleApplyOptimization}
-        optimizationResult={optimizationResult}
-        isApplying={isApplyingOptimization}
-        dayNumber={optimizingDay}
-        startLocationName={
-          startLocationInfo?.accommodation?.name ||
-          (startLocationInfo?.warning ? 'City center (no accommodation set)' : null)
-        }
-        startTime={startTime}
-        onStartTimeChange={handleStartTimeChange}
-      />
+      {/* Optimization Preview Modal - Lazy loaded */}
+      <Suspense fallback={null}>
+        {showOptimizationPreview && (
+          <OptimizationPreview
+            isOpen={showOptimizationPreview}
+            onClose={handleCloseOptimizationPreview}
+            onApply={handleApplyOptimization}
+            optimizationResult={optimizationResult}
+            isApplying={isApplyingOptimization}
+            dayNumber={optimizingDay}
+            startLocationName={
+              startLocationInfo?.accommodation?.name ||
+              (startLocationInfo?.warning ? 'City center (no accommodation set)' : null)
+            }
+            startTime={startTime}
+            onStartTimeChange={handleStartTimeChange}
+          />
+        )}
+      </Suspense>
 
-      {/* POI Suggestions Modal */}
-      <POISuggestionsModal
-        isOpen={showSuggestionsModal}
-        onClose={() => setShowSuggestionsModal(false)}
-        destinationId={destination?.id}
-        destinationName={destination?.name || destination?.city_name}
-      />
+      {/* POI Suggestions Modal - Lazy loaded */}
+      <Suspense fallback={null}>
+        {showSuggestionsModal && (
+          <POISuggestionsModal
+            isOpen={showSuggestionsModal}
+            onClose={() => setShowSuggestionsModal(false)}
+            destinationId={destination?.id}
+            destinationName={destination?.name || destination?.city_name}
+          />
+        )}
+      </Suspense>
     </div>
   );
 };

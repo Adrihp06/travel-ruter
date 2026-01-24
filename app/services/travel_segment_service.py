@@ -9,6 +9,7 @@ import logging
 from app.models.travel_segment import TravelSegment
 from app.models.destination import Destination
 from app.models.route_waypoint import RouteWaypoint
+from app.models.travel_stop import TravelStop
 from app.models.trip import Trip
 from app.schemas.travel_segment import TravelMode, TravelSegmentCreate, OriginReturnSegment
 from app.schemas.routing_preferences import RoutingPreference
@@ -580,7 +581,7 @@ class TravelSegmentService:
         cls,
         origin_lat: float, origin_lon: float,
         dest_lat: float, dest_lon: float,
-        waypoints: list[RouteWaypoint],
+        waypoint_coords: list[tuple[float, float]],
         mode: TravelMode
     ) -> tuple[Optional[dict], Optional[float], Optional[int], bool]:
         """
@@ -589,7 +590,7 @@ class TravelSegmentService:
         Args:
             origin_lat, origin_lon: Origin coordinates
             dest_lat, dest_lon: Destination coordinates
-            waypoints: List of RouteWaypoint objects in order
+            waypoint_coords: List of (longitude, latitude) tuples in order
             mode: Travel mode
 
         Returns:
@@ -599,9 +600,6 @@ class TravelSegmentService:
         if mode in (TravelMode.PLANE, TravelMode.FERRY):
             logger.debug(f"Mode {mode} does not support waypoint routing")
             return None, None, None, False
-
-        # Build waypoint coordinates list: [(lon, lat), ...]
-        waypoint_coords = [(wp.longitude, wp.latitude) for wp in waypoints]
 
         # Try Mapbox first for car, walking, biking
         mapbox_profile = cls._map_mode_to_mapbox_profile(mode)
@@ -663,9 +661,11 @@ class TravelSegmentService:
         segment_id: int
     ) -> Optional[TravelSegment]:
         """
-        Recalculate a segment's route including its waypoints.
+        Recalculate a segment's route including its waypoints and travel stops.
 
-        This should be called when waypoints are added, updated, reordered, or deleted.
+        This should be called when waypoints or travel stops are added, updated,
+        reordered, or deleted. Both RouteWaypoint and TravelStop records are
+        included in the route calculation.
         """
         # Get the segment
         segment = await cls.get_segment_by_id(db, segment_id)
@@ -693,22 +693,39 @@ class TravelSegmentService:
             logger.warning(f"Missing coordinates for segment {segment_id}")
             return None
 
-        # Get waypoints in order
+        # Get RouteWaypoints in order
         waypoint_result = await db.execute(
             select(RouteWaypoint)
             .where(RouteWaypoint.travel_segment_id == segment_id)
             .order_by(RouteWaypoint.order_index)
         )
-        waypoints = list(waypoint_result.scalars().all())
+        route_waypoints = list(waypoint_result.scalars().all())
+
+        # Get TravelStops in order
+        stop_result = await db.execute(
+            select(TravelStop)
+            .where(TravelStop.travel_segment_id == segment_id)
+            .order_by(TravelStop.order_index)
+        )
+        travel_stops = list(stop_result.scalars().all())
+
+        # Combine all waypoint coordinates (RouteWaypoints first, then TravelStops)
+        # Both are ordered by order_index; TravelStops come after RouteWaypoints
+        waypoint_coords: list[tuple[float, float]] = []
+        for wp in route_waypoints:
+            waypoint_coords.append((wp.longitude, wp.latitude))
+        for stop in travel_stops:
+            waypoint_coords.append((stop.longitude, stop.latitude))
 
         mode = TravelMode(segment.travel_mode)
+        total_waypoint_count = len(waypoint_coords)
 
-        if waypoints:
+        if waypoint_coords:
             # Fetch route with waypoints
             route_geometry, distance_km, duration_min, is_fallback = await cls._fetch_route_with_waypoints(
                 from_dest.latitude, from_dest.longitude,
                 to_dest.latitude, to_dest.longitude,
-                waypoints,
+                waypoint_coords,
                 mode
             )
         else:
@@ -728,8 +745,10 @@ class TravelSegmentService:
             else:
                 geometry_wkt = f"LINESTRING({from_dest.longitude} {from_dest.latitude}, {to_dest.longitude} {to_dest.latitude})"
 
+            # Add stop durations to total duration
+            total_stop_duration = sum(stop.duration_minutes or 0 for stop in travel_stops)
             segment.distance_km = distance_km
-            segment.duration_minutes = duration_min
+            segment.duration_minutes = duration_min + total_stop_duration
             segment.geometry = geometry_wkt
             segment.is_fallback = is_fallback
         else:
@@ -742,22 +761,23 @@ class TravelSegmentService:
 
             # Build geometry through waypoints as straight line segments
             coords = [(from_dest.longitude, from_dest.latitude)]
-            for wp in waypoints:
-                coords.append((wp.longitude, wp.latitude))
+            coords.extend(waypoint_coords)
             coords.append((to_dest.longitude, to_dest.latitude))
 
             wkt_coords = ", ".join(f"{c[0]} {c[1]}" for c in coords)
             geometry_wkt = f"LINESTRING({wkt_coords})"
 
+            # Add stop durations to total duration
+            total_stop_duration = sum(stop.duration_minutes or 0 for stop in travel_stops)
             segment.distance_km = distance_km
-            segment.duration_minutes = duration_minutes
+            segment.duration_minutes = duration_minutes + total_stop_duration
             segment.geometry = geometry_wkt
             segment.is_fallback = is_fallback if is_fallback else cls._is_public_transport(mode)
 
         await db.flush()
         await db.refresh(segment)
 
-        logger.info(f"Recalculated segment {segment_id} with {len(waypoints)} waypoints")
+        logger.info(f"Recalculated segment {segment_id} with {len(route_waypoints)} waypoints and {len(travel_stops)} stops")
         return segment
 
     @classmethod

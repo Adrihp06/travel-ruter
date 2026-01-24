@@ -80,34 +80,42 @@ const getCategoryIconComponent = (category) => {
 };
 
 /**
- * Get marker color for a POI category
+ * Get marker color for a POI category - Warm Explorer theme
  */
 const getCategoryColor = (category) => {
   const normalizedCategory = category?.toLowerCase() || '';
 
+  // Accommodation - warm blue
   if (normalizedCategory.includes('accommodation') || normalizedCategory.includes('hotel') || normalizedCategory.includes('stay')) {
-    return { bg: 'bg-blue-500', hover: 'hover:bg-blue-600', text: 'text-blue-600', hex: '#3B82F6' };
+    return { bg: 'bg-sky-600', hover: 'hover:bg-sky-700', text: 'text-sky-600', hex: '#0284C7' };
   }
+  // Food - terracotta/orange
   if (normalizedCategory.includes('food') || normalizedCategory.includes('restaurant') || normalizedCategory.includes('dining') || normalizedCategory.includes('cafe')) {
-    return { bg: 'bg-orange-500', hover: 'hover:bg-orange-600', text: 'text-orange-600', hex: '#F97316' };
+    return { bg: 'bg-orange-600', hover: 'hover:bg-orange-700', text: 'text-orange-600', hex: '#EA580C' };
   }
+  // Sights - sage/lime green
   if (normalizedCategory.includes('sight') || normalizedCategory.includes('attraction') || normalizedCategory.includes('landmark') || normalizedCategory.includes('monument')) {
-    return { bg: 'bg-emerald-500', hover: 'hover:bg-emerald-600', text: 'text-emerald-600', hex: '#10B981' };
+    return { bg: 'bg-lime-600', hover: 'hover:bg-lime-700', text: 'text-lime-600', hex: '#65A30D' };
   }
+  // Museums - warm purple/plum
   if (normalizedCategory.includes('museum') || normalizedCategory.includes('gallery') || normalizedCategory.includes('historic')) {
-    return { bg: 'bg-purple-500', hover: 'hover:bg-purple-600', text: 'text-purple-600', hex: '#8B5CF6' };
+    return { bg: 'bg-fuchsia-600', hover: 'hover:bg-fuchsia-700', text: 'text-fuchsia-600', hex: '#C026D3' };
   }
+  // Shopping - rose
   if (normalizedCategory.includes('shop') || normalizedCategory.includes('market') || normalizedCategory.includes('store')) {
-    return { bg: 'bg-pink-500', hover: 'hover:bg-pink-600', text: 'text-pink-600', hex: '#EC4899' };
+    return { bg: 'bg-rose-500', hover: 'hover:bg-rose-600', text: 'text-rose-600', hex: '#F43F5E' };
   }
+  // Entertainment - warm violet
   if (normalizedCategory.includes('entertainment') || normalizedCategory.includes('nightlife') || normalizedCategory.includes('bar')) {
-    return { bg: 'bg-violet-500', hover: 'hover:bg-violet-600', text: 'text-violet-600', hex: '#7C3AED' };
+    return { bg: 'bg-violet-600', hover: 'hover:bg-violet-700', text: 'text-violet-600', hex: '#7C3AED' };
   }
+  // Activities - teal (nature-inspired)
   if (normalizedCategory.includes('sport') || normalizedCategory.includes('activity') || normalizedCategory.includes('outdoor')) {
-    return { bg: 'bg-teal-500', hover: 'hover:bg-teal-600', text: 'text-teal-600', hex: '#14B8A6' };
+    return { bg: 'bg-teal-600', hover: 'hover:bg-teal-700', text: 'text-teal-600', hex: '#0D9488' };
   }
 
-  return { bg: 'bg-amber-500', hover: 'hover:bg-amber-600', text: 'text-amber-600', hex: '#F59E0B' };
+  // Default - warm amber (primary brand color)
+  return { bg: 'bg-amber-600', hover: 'hover:bg-amber-700', text: 'text-amber-700', hex: '#D97706' };
 };
 
 /**
@@ -147,15 +155,15 @@ const renderCategoryIcon = (category, className = "w-4 h-4") => {
   return <Icon className={className} />;
 };
 
-// Day colors for route display
+// Day colors for route display - Warm Explorer palette
 const DAY_COLORS = [
-  { stroke: '#4F46E5', name: 'Indigo' },   // Day 1
-  { stroke: '#10B981', name: 'Emerald' },  // Day 2
-  { stroke: '#F59E0B', name: 'Amber' },    // Day 3
-  { stroke: '#EF4444', name: 'Red' },      // Day 4
-  { stroke: '#8B5CF6', name: 'Violet' },   // Day 5
-  { stroke: '#06B6D4', name: 'Cyan' },     // Day 6
-  { stroke: '#EC4899', name: 'Pink' },     // Day 7
+  { stroke: '#D97706', name: 'Amber' },     // Day 1 - primary
+  { stroke: '#65A30D', name: 'Lime' },      // Day 2 - accent green
+  { stroke: '#EA580C', name: 'Orange' },    // Day 3 - terracotta
+  { stroke: '#0D9488', name: 'Teal' },      // Day 4 - nature
+  { stroke: '#C026D3', name: 'Fuchsia' },   // Day 5 - vibrant
+  { stroke: '#0284C7', name: 'Sky' },       // Day 6 - sky blue
+  { stroke: '#E11D48', name: 'Rose' },      // Day 7 - warm rose
 ];
 
 // Get route layer style for a specific day
@@ -301,7 +309,7 @@ const POIHoverPreview = ({ poi, position, onSchedule, onEdit }) => {
               e.stopPropagation();
               onSchedule && onSchedule(poi);
             }}
-            className="flex-1 flex items-center justify-center px-2 py-1 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded transition-colors"
+            className="flex-1 flex items-center justify-center px-2 py-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 rounded transition-colors"
           >
             <Calendar className="w-3 h-3 mr-1" />
             Schedule
@@ -311,7 +319,7 @@ const POIHoverPreview = ({ poi, position, onSchedule, onEdit }) => {
               e.stopPropagation();
               onEdit && onEdit(poi);
             }}
-            className="flex items-center justify-center px-2 py-1 text-xs bg-gray-50 hover:bg-gray-100 text-gray-700 rounded transition-colors"
+            className="flex items-center justify-center px-2 py-1 text-xs bg-stone-50 hover:bg-stone-100 text-stone-700 rounded transition-colors"
           >
             <Pencil className="w-3 h-3" />
           </button>
@@ -376,7 +384,7 @@ const POIMarker = ({
           ${colors.bg} ${colors.hover}
           text-white p-2 ${markerShape} shadow-lg
           transition-colors duration-200 relative
-          ${isSelected ? 'ring-4 ring-indigo-400 ring-opacity-75' : ''}
+          ${isSelected ? 'ring-4 ring-amber-400 ring-opacity-75' : ''}
           ${isScheduled ? 'border-2 border-white' : ''}
         `}>
           {/* Day number badge for scheduled POIs */}
@@ -401,15 +409,15 @@ const POIMarker = ({
 };
 
 /**
- * Add POI Mode Overlay
+ * Add POI Mode Overlay - Warm Explorer theme
  */
 const AddPOIModeOverlay = ({ onCancel }) => (
-  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-indigo-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center space-x-2">
+  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-amber-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center space-x-2">
     <Plus className="w-4 h-4" />
     <span className="text-sm font-medium">Click on the map to add a POI</span>
     <button
       onClick={onCancel}
-      className="ml-2 p-1 hover:bg-indigo-700 rounded-full transition-colors"
+      className="ml-2 p-1 hover:bg-amber-700 rounded-full transition-colors"
     >
       <X className="w-4 h-4" />
     </button>
@@ -919,11 +927,20 @@ const MicroMap = ({
   }, [centerOnPOI]);
 
   // Clear searched place when POIs change (might have added it)
+  // Clear searchedPlace when a new POI is added (pois array length changes)
+  // We track previous length to only clear when POIs are actually added
+  const prevPoisLengthRef = useRef(pois?.length || 0);
   useEffect(() => {
-    if (searchedPlace !== null) {
+    const currentLength = pois?.length || 0;
+    // Only clear if pois count increased (meaning a new POI was added)
+    if (currentLength > prevPoisLengthRef.current) {
       setSearchedPlace(null);
+      setPopupInfo(null);
+      setPopupType(null);
     }
-  }, [pois, searchedPlace]);
+    prevPoisLengthRef.current = currentLength;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pois?.length]);
 
   const handleQuickSearchSelect = useCallback((place) => {
     setSearchedPlace(place);
@@ -1370,7 +1387,7 @@ const MicroMap = ({
           </React.Fragment>
         ))}
 
-        {/* Searched Place Marker */}
+        {/* Searched Place Marker - Warm Explorer theme */}
         {searchedPlace && (
           <Marker
             longitude={searchedPlace.longitude}
@@ -1387,7 +1404,7 @@ const MicroMap = ({
             }}
           >
             <div className="flex flex-col items-center">
-              <div className="bg-indigo-600 text-white p-2.5 rounded-full shadow-2xl border-4 border-white animate-bounce">
+              <div className="bg-amber-600 text-white p-2.5 rounded-full shadow-2xl border-4 border-white animate-bounce">
                 <Search className="w-5 h-5" />
               </div>
             </div>
@@ -1559,7 +1576,7 @@ const MicroMap = ({
 
               <button
                 onClick={handleAddToTrip}
-                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
+                className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-md transition-all flex items-center justify-center gap-2"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add to Trip
@@ -1700,8 +1717,8 @@ const MicroMap = ({
                   <div className="flex items-center gap-3">
                     {/* Route summary */}
                     <div className="flex items-center gap-1.5">
-                      <Route className="w-4 h-4 text-indigo-600" />
-                      <span className="text-xs font-medium text-gray-600">
+                      <Route className="w-4 h-4 text-amber-600" />
+                      <span className="text-xs font-medium text-stone-600">
                         {visibleRoutes.length} {visibleRoutes.length === 1 ? 'day' : 'days'}
                       </span>
                     </div>
@@ -1735,7 +1752,7 @@ const MicroMap = ({
                   <button
                     onClick={() => handleExportDayToGoogleMaps(visibleRoutes[0].date)}
                     disabled={isCalculating}
-                    className="flex items-center gap-1.5 px-3 py-2.5 bg-indigo-600 text-white text-xs font-medium rounded-lg shadow-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-2.5 bg-amber-600 text-white text-xs font-medium rounded-lg shadow-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">Google Maps</span>

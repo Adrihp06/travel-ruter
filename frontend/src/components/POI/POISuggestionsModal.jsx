@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   X,
   Star,
@@ -173,22 +173,34 @@ const POISuggestionsModal = ({ isOpen, onClose, destinationId, destinationName }
   const [addedPOIs, setAddedPOIs] = useState(new Set());
   const [isAddingAll, setIsAddingAll] = useState(false);
 
-  // Fetch suggestions when modal opens
-  useEffect(() => {
-    if (isOpen && destinationId) {
-      loadSuggestions();
-    }
-  }, [isOpen, destinationId]);
+  // Memoized loadSuggestions function
+  const loadSuggestions = useCallback(async (overrideParams = {}) => {
+    if (!destinationId) return;
 
-  const loadSuggestions = async () => {
     const params = {
-      radius,
-      category_filter: categoryFilter !== 'all' ? categoryFilter : null,
-      trip_type: tripTypeFilter !== 'all' ? tripTypeFilter : null,
+      radius: overrideParams.radius ?? radius,
+      category_filter: (overrideParams.categoryFilter ?? categoryFilter) !== 'all'
+        ? (overrideParams.categoryFilter ?? categoryFilter)
+        : null,
+      trip_type: (overrideParams.tripTypeFilter ?? tripTypeFilter) !== 'all'
+        ? (overrideParams.tripTypeFilter ?? tripTypeFilter)
+        : null,
       max_results: 20,
     };
     await fetchPOISuggestions(destinationId, params);
-  };
+  }, [destinationId, radius, categoryFilter, tripTypeFilter, fetchPOISuggestions]);
+
+  // Fetch suggestions when modal opens and reset state
+  useEffect(() => {
+    if (isOpen && destinationId) {
+      // Reset state when modal opens with a new destination
+      setAddingPOIs(new Set());
+      setAddedPOIs(new Set());
+      setShowFilters(false);
+      // Load suggestions with current filter values
+      loadSuggestions();
+    }
+  }, [isOpen, destinationId, loadSuggestions]);
 
   const handleAddPOI = async (suggestion) => {
     if (addingPOIs.has(suggestion.external_id) || addedPOIs.has(suggestion.external_id)) {
@@ -259,7 +271,11 @@ const POISuggestionsModal = ({ isOpen, onClose, destinationId, destinationName }
   };
 
   const handleApplyFilters = () => {
-    loadSuggestions();
+    loadSuggestions({
+      radius,
+      categoryFilter,
+      tripTypeFilter,
+    });
     setShowFilters(false);
   };
 
