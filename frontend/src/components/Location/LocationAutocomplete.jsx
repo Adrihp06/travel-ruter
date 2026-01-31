@@ -2,6 +2,20 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MapPin, Loader2, X } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const SETTINGS_KEY = 'travel-ruter-settings';
+
+const getGeocodingProvider = () => {
+  try {
+    const stored = localStorage.getItem(SETTINGS_KEY);
+    if (stored) {
+      const settings = JSON.parse(stored);
+      return settings.geocoding?.provider || 'nominatim';
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return 'nominatim';
+};
 
 const LocationAutocomplete = ({
   value = '',
@@ -55,8 +69,9 @@ const LocationAutocomplete = ({
     setIsLoading(true);
     setSearchError(null);
     try {
+      const provider = getGeocodingProvider();
       const response = await fetch(
-        `${API_BASE_URL}/geocoding/search?q=${encodeURIComponent(query)}&limit=5`
+        `${API_BASE_URL}/geocoding/search?q=${encodeURIComponent(query)}&limit=5&provider=${provider}`
       );
       if (!response.ok) throw new Error('Search failed');
       const data = await response.json();

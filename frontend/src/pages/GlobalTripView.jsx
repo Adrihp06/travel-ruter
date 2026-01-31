@@ -17,7 +17,7 @@ const GlobalTripView = () => {
   const {
     trips,
     tripsWithDestinations,
-    fetchTrips,
+    fetchTripsSummary,
     softDeleteTrip,
     restoreTrip,
     confirmDeleteTrip,
@@ -216,8 +216,9 @@ const GlobalTripView = () => {
   }, [tripStatsMap]);
 
   useEffect(() => {
-    fetchTrips();
-  }, [fetchTrips]);
+    // Use optimized endpoint that fetches trips + destinations + POI stats in ONE call
+    fetchTripsSummary();
+  }, [fetchTripsSummary]);
 
   // Get filtered and sorted trips
   const filteredTrips = useMemo(
@@ -380,7 +381,7 @@ const GlobalTripView = () => {
             }}
             trip={editingTrip}
             onSuccess={() => {
-              fetchTrips();
+              fetchTripsSummary();
             }}
           />
         )}

@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # Enable "Routes API" in Google Cloud Console
     GOOGLE_MAPS_API_KEY: Optional[str] = None
 
+    # Geocoding Cache
+    GEOCODING_CACHE_TTL_HOURS: int = 24
+    GEOCODING_CACHE_MAX_SIZE: int = 1000
+
     class Config:
         env_file = ".env"
         case_sensitive = True

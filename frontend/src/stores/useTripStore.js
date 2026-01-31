@@ -244,6 +244,38 @@ const useTripStore = create((set, get) => ({
     }
   },
 
+  // Optimized: Fetch all trips with destinations and POI stats in ONE API call
+  // This eliminates the N+1 problem (2N+1 calls reduced to 1)
+  fetchTripsSummary: async () => {
+    set({ isLoading: true });
+    try {
+      const response = await fetch(`${API_BASE_URL}/trips/summary`);
+      if (!response.ok) throw new Error('Failed to fetch trips summary');
+      const data = await response.json();
+
+      // Transform the response to match the expected format
+      const tripsWithDestinations = data.trips.map(trip => ({
+        ...trip,
+        poiStats: trip.poi_stats || { total_pois: 0, scheduled_pois: 0 }
+      }));
+
+      // Deduplicate by ID to prevent any race conditions
+      const uniqueTrips = tripsWithDestinations.filter((trip, index, self) =>
+        index === self.findIndex(t => t.id === trip.id)
+      );
+
+      set({
+        trips: uniqueTrips,
+        tripsWithDestinations: uniqueTrips,
+        isLoading: false
+      });
+    } catch (error) {
+      console.error('fetchTripsSummary error:', error);
+      // Fallback to the old method if the new endpoint fails
+      get().fetchTrips();
+    }
+  },
+
   fetchTripsWithDestinations: async (trips) => {
     try {
       const tripsWithDests = await Promise.all(

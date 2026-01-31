@@ -50,6 +50,66 @@ class TripService:
         return list(result.scalars().all())
 
     @staticmethod
+    async def get_trips_with_summary(
+        db: AsyncSession, skip: int = 0, limit: int = 100
+    ) -> tuple[List[dict], int]:
+        """
+        Get all trips with destinations and POI stats in a single query.
+        Returns trips with eager-loaded destinations and batch-queried POI stats.
+        This eliminates the N+1 problem by fetching everything in 2 queries.
+        """
+        # Query 1: Get all trips with destinations eagerly loaded
+        trips_result = await db.execute(
+            select(Trip)
+            .options(selectinload(Trip.destinations))
+            .offset(skip)
+            .limit(limit)
+        )
+        trips = list(trips_result.scalars().all())
+
+        # Get total count
+        count_result = await db.execute(select(func.count(Trip.id)))
+        total_count = count_result.scalar()
+
+        if not trips:
+            return [], total_count
+
+        # Query 2: Batch query for POI stats of ALL trips at once
+        trip_ids = [trip.id for trip in trips]
+
+        poi_stats_result = await db.execute(
+            select(
+                Destination.trip_id,
+                func.count(POI.id).label('total_pois'),
+                func.count(POI.scheduled_date).label('scheduled_pois')
+            )
+            .select_from(Destination)
+            .outerjoin(POI, POI.destination_id == Destination.id)
+            .where(Destination.trip_id.in_(trip_ids))
+            .group_by(Destination.trip_id)
+        )
+
+        # Create a map of trip_id -> POI stats
+        poi_stats_map = {}
+        for row in poi_stats_result:
+            poi_stats_map[row.trip_id] = {
+                'total_pois': row.total_pois,
+                'scheduled_pois': row.scheduled_pois
+            }
+
+        # Combine trips with their POI stats
+        trips_with_summary = []
+        for trip in trips:
+            trip_dict = {
+                'trip': trip,
+                'destinations': trip.destinations,
+                'poi_stats': poi_stats_map.get(trip.id, {'total_pois': 0, 'scheduled_pois': 0})
+            }
+            trips_with_summary.append(trip_dict)
+
+        return trips_with_summary, total_count
+
+    @staticmethod
     async def update_trip(
         db: AsyncSession, trip_id: int, trip_data: TripUpdate
     ) -> Optional[Trip]:

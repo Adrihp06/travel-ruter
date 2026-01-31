@@ -670,7 +670,13 @@ const DetailViewContent = () => {
   const viewLevel = selectedDestinationId ? 2 : 1;
   const selectedDestination = selectedTrip?.destinations?.find(d => d.id === selectedDestinationId);
 
-  const isLevel2Loading = (isPOIsLoading && (!pois || pois.length === 0)) || (isAccLoading && (!accommodations || accommodations.length === 0));
+  // Separate loading states for progressive rendering:
+  // - isMapReady: Map can render with destination coordinates (immediate)
+  // - isDataOverlayLoading: Show overlay while POIs/accommodations load (non-blocking)
+  const isMapReady = selectedDestination?.latitude && selectedDestination?.longitude;
+  const isDataOverlayLoading = isPOIsLoading || isAccLoading;
+  // Only block left panel content when we have NO data yet
+  const isLeftPanelLoading = (isPOIsLoading && (!pois || pois.length === 0));
 
   // Generate days for the selected destination
   const destinationDays = useMemo(() => {
@@ -998,7 +1004,7 @@ const DetailViewContent = () => {
               onDeleteDestination={handleDeleteDestination}
               onReorderDestinations={handleReorderDestinations}
             />
-          ) : isLevel2Loading ? (
+          ) : isLeftPanelLoading ? (
             <DailyItinerarySkeleton />
           ) : (
             <div className="flex flex-col h-full">
@@ -1087,33 +1093,46 @@ const DetailViewContent = () => {
                     : null
               }
             />
-          ) : isLevel2Loading ? (
+          ) : !isMapReady ? (
+            // Only show skeleton if we don't have destination coordinates yet
             <MapSkeleton height="100%" />
           ) : (
-            <MicroMap
-              destination={selectedDestination}
-              pois={pois}
-              accommodations={accommodations}
-              height="100%"
-              zoom={14}
-              showLegend={true}
-              enableAddPOI={true}
-              onAddPOI={handleAddPOI}
-              selectedPOIs={selectedPOIs}
-              centerOnPOI={centerOnPOI}
-              onVotePOI={handleVotePOI}
-              onEditPOI={handleEditPOI}
-              onDeletePOI={handleDeletePOI}
-              onEditAccommodation={(acc) => {
-                setEditingAccommodation(acc);
-                setShowAccommodationModal(true);
-              }}
-              onDeleteAccommodation={handleDeleteAccommodation}
-              clearPendingTrigger={clearPendingTrigger}
-              showRouteControls={true}
-              days={destinationDays}
-              poisByDay={poisByDay}
-            />
+            // Map renders immediately, data loads progressively
+            <div className="relative h-full">
+              <MicroMap
+                destination={selectedDestination}
+                pois={pois}
+                accommodations={accommodations}
+                height="100%"
+                zoom={14}
+                showLegend={true}
+                enableAddPOI={true}
+                onAddPOI={handleAddPOI}
+                selectedPOIs={selectedPOIs}
+                centerOnPOI={centerOnPOI}
+                onVotePOI={handleVotePOI}
+                onEditPOI={handleEditPOI}
+                onDeletePOI={handleDeletePOI}
+                onEditAccommodation={(acc) => {
+                  setEditingAccommodation(acc);
+                  setShowAccommodationModal(true);
+                }}
+                onDeleteAccommodation={handleDeleteAccommodation}
+                clearPendingTrigger={clearPendingTrigger}
+                showRouteControls={true}
+                days={destinationDays}
+                poisByDay={poisByDay}
+              />
+              {/* Loading overlay for POIs/Accommodations - map stays visible */}
+              {isDataOverlayLoading && (
+                <div className="absolute inset-0 bg-white/30 dark:bg-gray-900/30 backdrop-blur-[1px] flex items-center justify-center pointer-events-none z-10 transition-opacity duration-300">
+                  <div className="bg-white dark:bg-gray-800 rounded-xl px-4 py-3 shadow-lg flex items-center gap-3">
+                    <Spinner className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Loading places...</span>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

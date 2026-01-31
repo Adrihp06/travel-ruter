@@ -880,6 +880,7 @@ const MicroMap = ({
     calculateAllDayRoutes,
     exportDayToGoogleMaps,
     isCalculating,
+    cancelPendingCalculations,
   } = useDayRoutesStore();
 
   // Get destination coordinates
@@ -1010,12 +1011,16 @@ const MicroMap = ({
     }
   }, [clearPendingTrigger, pendingLocation]);
 
-  // Calculate routes when poisByDay changes
+  // Calculate routes when poisByDay changes (debounced in store)
   useEffect(() => {
     if (Object.keys(poisByDay).length > 0) {
       calculateAllDayRoutes(poisByDay);
     }
-  }, [poisByDay, calculateAllDayRoutes]);
+    // Cleanup: cancel pending calculations on unmount
+    return () => {
+      cancelPendingCalculations();
+    };
+  }, [poisByDay, calculateAllDayRoutes, cancelPendingCalculations]);
 
   // Get visible routes for rendering
   const visibleRoutes = useMemo(() => {

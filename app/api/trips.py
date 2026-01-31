@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.config import settings
-from app.schemas.trip import TripCreate, TripUpdate, TripResponse, TripWithDestinationsResponse, BudgetSummary, POIStats, CoverImageUploadResponse, TripDuplicateRequest
+from app.schemas.trip import TripCreate, TripUpdate, TripResponse, TripWithDestinationsResponse, BudgetSummary, POIStats, CoverImageUploadResponse, TripDuplicateRequest, TripSummaryItem, TripsSummaryResponse
 from app.services.trip_service import TripService
 
 router = APIRouter()
@@ -113,6 +113,55 @@ async def get_trips(
     """Get all trips with pagination"""
     trips = await TripService.get_trips(db, skip=skip, limit=limit)
     return [TripResponse.model_validate(trip) for trip in trips]
+
+
+@router.get(
+    "/summary",
+    response_model=TripsSummaryResponse,
+    summary="Get all trips with destinations and POI stats",
+    description="Retrieve all trips with their destinations and POI statistics in a single optimized query. This endpoint eliminates N+1 queries by fetching trips, destinations, and POI stats in batch."
+)
+async def get_trips_summary(
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
+    db: AsyncSession = Depends(get_db)
+) -> TripsSummaryResponse:
+    """Get all trips with destinations and POI stats in one query"""
+    trips_with_summary, total_count = await TripService.get_trips_with_summary(db, skip=skip, limit=limit)
+
+    trip_items = []
+    for item in trips_with_summary:
+        trip = item['trip']
+        # Build the response with all trip fields + destinations + poi_stats
+        trip_item = TripSummaryItem(
+            id=trip.id,
+            name=trip.name,
+            location=trip.location,
+            latitude=trip.latitude,
+            longitude=trip.longitude,
+            description=trip.description,
+            cover_image=trip.cover_image,
+            start_date=trip.start_date,
+            end_date=trip.end_date,
+            total_budget=trip.total_budget,
+            currency=trip.currency,
+            status=trip.status,
+            tags=trip.tags or [],
+            origin_name=trip.origin_name,
+            origin_latitude=trip.origin_latitude,
+            origin_longitude=trip.origin_longitude,
+            return_name=trip.return_name,
+            return_latitude=trip.return_latitude,
+            return_longitude=trip.return_longitude,
+            nights=trip.nights,
+            created_at=trip.created_at,
+            updated_at=trip.updated_at,
+            destinations=[dest for dest in item['destinations']],
+            poi_stats=POIStats(**item['poi_stats'])
+        )
+        trip_items.append(trip_item)
+
+    return TripsSummaryResponse(trips=trip_items, total_count=total_count)
 
 
 @router.get(

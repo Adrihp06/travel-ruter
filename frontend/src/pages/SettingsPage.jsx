@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Map, DollarSign, Sun, Moon, Monitor, Download, Upload, Save, Check, Route, Calendar } from 'lucide-react';
+import { User, Map, DollarSign, Sun, Moon, Monitor, Download, Upload, Save, Check, Route, Calendar, Search } from 'lucide-react';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { useTheme } from '../contexts/ThemeContext';
 import { dateLocales } from '../utils/dateFormat';
@@ -21,6 +21,9 @@ const defaultSettings = {
   routing: {
     preference: 'default', // 'default', 'google_public_transport', 'google_everything'
     googleMapsApiKey: '',
+  },
+  geocoding: {
+    provider: 'nominatim', // 'nominatim' or 'mapbox'
   },
   currency: {
     default: 'USD',
@@ -150,6 +153,7 @@ const SettingsPage = () => {
     { id: 'profile', name: 'Profile', icon: User },
     { id: 'map', name: 'Map Settings', icon: Map },
     { id: 'routing', name: 'Routing', icon: Route },
+    { id: 'geocoding', name: 'Geocoding', icon: Search },
     { id: 'currency', name: 'Currency', icon: DollarSign },
     { id: 'dateFormat', name: 'Date Format', icon: Calendar },
     { id: 'theme', name: 'Theme', icon: getThemeIcon() },
@@ -412,6 +416,77 @@ const SettingsPage = () => {
                     </p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Geocoding Settings */}
+            {activeSection === 'geocoding' && (
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Geocoding Settings</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Configure which service to use for location search (autocomplete). This affects how fast search results appear.
+                </p>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+                    Geocoding Provider
+                  </label>
+                  <div className="space-y-3">
+                    <label className="flex items-start p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 border-gray-200 dark:border-gray-600">
+                      <input
+                        type="radio"
+                        name="geocodingProvider"
+                        value="nominatim"
+                        checked={settings.geocoding?.provider === 'nominatim'}
+                        onChange={(e) => updateSetting('geocoding', 'provider', e.target.value)}
+                        className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      />
+                      <div className="ml-3">
+                        <span className="block text-sm font-medium text-gray-900 dark:text-white">
+                          Nominatim (OpenStreetMap)
+                        </span>
+                        <span className="block text-sm text-gray-500 dark:text-gray-400">
+                          Free, open-source. Latency: ~400-600ms per search.
+                        </span>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 border-gray-200 dark:border-gray-600">
+                      <input
+                        type="radio"
+                        name="geocodingProvider"
+                        value="mapbox"
+                        checked={settings.geocoding?.provider === 'mapbox'}
+                        onChange={(e) => updateSetting('geocoding', 'provider', e.target.value)}
+                        className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                      />
+                      <div className="ml-3">
+                        <span className="block text-sm font-medium text-gray-900 dark:text-white">
+                          Mapbox Geocoding
+                        </span>
+                        <span className="block text-sm text-gray-500 dark:text-gray-400">
+                          Fast, reliable. Latency: ~50-150ms per search. Uses your Mapbox token from Map Settings.
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {settings.geocoding?.provider === 'mapbox' && !settings.map?.mapboxToken && (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                    <p className="text-sm text-amber-800 dark:text-amber-300">
+                      <strong>Warning:</strong> You have selected Mapbox Geocoding but haven&apos;t configured a Mapbox
+                      token in Map Settings. Searches will fall back to Nominatim.
+                    </p>
+                  </div>
+                )}
+
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-300">
+                    <strong>Note:</strong> Results are cached locally for 24 hours to improve performance.
+                    Repeated searches for the same location will be instant regardless of provider.
+                  </p>
+                </div>
               </div>
             )}
 

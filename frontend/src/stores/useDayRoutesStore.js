@@ -2,6 +2,25 @@ import { create } from 'zustand';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
+// Debounce configuration
+const ROUTE_CALCULATION_DEBOUNCE_MS = 500;
+
+// Debounce helper
+let debounceTimer = null;
+const debounce = (fn, ms) => {
+  return (...args) => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    return new Promise((resolve) => {
+      debounceTimer = setTimeout(async () => {
+        const result = await fn(...args);
+        resolve(result);
+      }, ms);
+    });
+  };
+};
+
 // Day colors for multi-day route display
 const DAY_COLORS = [
   { stroke: '#4F46E5', fill: 'rgba(79, 70, 229, 0.2)', name: 'Indigo' },   // Day 1
@@ -267,8 +286,26 @@ const useDayRoutesStore = create((set, get) => ({
     }
   },
 
-  // Calculate routes for all days
+  // Calculate routes for all days (debounced to prevent excessive API calls)
   calculateAllDayRoutes: async (poisByDay) => {
+    // Use internal debounced function
+    const debouncedCalculate = debounce(async (poisByDayData) => {
+      set({ isCalculating: true, error: null });
+
+      const dates = Object.keys(poisByDayData);
+
+      for (const date of dates) {
+        await get().calculateDayRoute(date, poisByDayData[date]);
+      }
+
+      set({ isCalculating: false });
+    }, ROUTE_CALCULATION_DEBOUNCE_MS);
+
+    return debouncedCalculate(poisByDay);
+  },
+
+  // Calculate routes immediately without debounce (for explicit user actions)
+  calculateAllDayRoutesImmediate: async (poisByDay) => {
     set({ isCalculating: true, error: null });
 
     const dates = Object.keys(poisByDay);
@@ -325,12 +362,26 @@ const useDayRoutesStore = create((set, get) => ({
 
   // Clear all routes
   clearRoutes: () => {
+    // Cancel any pending debounced calculations
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
     set({
       dayRoutes: {},
       visibleDays: [],
       segmentModes: {},
       error: null,
     });
+  },
+
+  // Cancel pending route calculations (useful for cleanup)
+  cancelPendingCalculations: () => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+    set({ isCalculating: false });
   },
 
   // Get visible routes for map display

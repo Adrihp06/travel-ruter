@@ -139,3 +139,17 @@ class TripDuplicateRequest(BaseModel):
         if "start_date" in info.data and v < info.data["start_date"]:
             raise ValueError("end_date must be on or after start_date")
         return v
+
+
+class TripSummaryItem(TripResponse):
+    """Schema for a single trip in the summary response - includes destinations and POI stats"""
+    destinations: List[DestinationResponse] = Field(default_factory=list, description="List of destinations in this trip")
+    poi_stats: POIStats = Field(..., description="POI statistics for this trip")
+
+
+class TripsSummaryResponse(BaseModel):
+    """Schema for trips summary response - all trips with destinations and POI stats in one call"""
+    trips: List[TripSummaryItem] = Field(default_factory=list, description="List of all trips with destinations and POI stats")
+    total_count: int = Field(..., description="Total number of trips")
+
+    model_config = ConfigDict(from_attributes=True)
