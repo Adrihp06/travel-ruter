@@ -141,6 +141,7 @@ async def delete_destination(
         )
 
     await db.delete(db_destination)
+    await db.flush()
 
     return None
 
