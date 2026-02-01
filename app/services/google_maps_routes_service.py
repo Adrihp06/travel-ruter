@@ -6,7 +6,7 @@ API Documentation: https://developers.google.com/maps/documentation/routes
 """
 from enum import Enum
 from typing import Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import httpx
 import base64
 import logging
@@ -18,6 +18,7 @@ from app.core.resilience import (
     with_circuit_breaker,
     google_maps_routes_circuit_breaker,
 )
+from app.core.cache import get_cached, set_cached, make_cache_key, TTL_ROUTE
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +128,22 @@ class GoogleMapsRoutesService:
             raise GoogleMapsRoutesError(
                 "Google Maps API key not configured. Set GOOGLE_MAPS_API_KEY in environment."
             )
+
+        # Round coordinates for cache key (to ~11m precision)
+        origin_rounded = (round(origin[0], 4), round(origin[1], 4))
+        dest_rounded = (round(destination[0], 4), round(destination[1], 4))
+        waypoints_rounded = None
+        if waypoints:
+            waypoints_rounded = [(round(wp[0], 4), round(wp[1], 4)) for wp in waypoints]
+
+        # Skip cache for transit with departure_time (time-sensitive)
+        use_cache = not (travel_mode == GoogleMapsRouteTravelMode.TRANSIT and departure_time)
+        cache_key = f"gmaps_route:{make_cache_key(origin_rounded, dest_rounded, travel_mode.value, waypoints_rounded)}"
+
+        if use_cache:
+            cached = await get_cached(cache_key)
+            if cached:
+                return GoogleMapsRouteResult(**cached)
 
         # Build request body
         body = {
@@ -249,13 +266,19 @@ class GoogleMapsRoutesService:
                     if steps_with_transit:
                         transit_details = {"steps": steps_with_transit}
 
-            return GoogleMapsRouteResult(
+            result = GoogleMapsRouteResult(
                 distance_meters=distance_meters,
                 duration_seconds=duration_seconds,
                 geometry=geometry,
                 polyline=encoded_polyline,
                 transit_details=transit_details,
             )
+
+            # Cache the result
+            if use_cache:
+                await set_cached(cache_key, asdict(result), ttl=TTL_ROUTE)
+
+            return result
 
         except httpx.TimeoutException:
             raise GoogleMapsRoutesError("Google Maps Routes API request timed out")

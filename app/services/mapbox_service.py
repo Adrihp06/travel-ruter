@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import httpx
 
 from app.core.config import settings
@@ -11,6 +11,7 @@ from app.core.resilience import (
     mapbox_circuit_breaker,
     CircuitBreakerOpen,
 )
+from app.core.cache import get_cached, set_cached, make_cache_key, TTL_ROUTE
 
 
 class MapboxRoutingProfile(str, Enum):
@@ -80,6 +81,21 @@ class MapboxService:
         if not self._has_access_token:
             raise MapboxServiceError("Mapbox access token is not configured")
 
+        # Round coordinates for cache key (to ~11m precision)
+        origin_rounded = (round(origin[0], 4), round(origin[1], 4))
+        dest_rounded = (round(destination[0], 4), round(destination[1], 4))
+        waypoints_rounded = None
+        if waypoints:
+            waypoints_rounded = [(round(wp[0], 4), round(wp[1], 4)) for wp in waypoints]
+
+        cache_key = f"mapbox_route:{make_cache_key(origin_rounded, dest_rounded, profile.value, waypoints_rounded)}"
+
+        # Check cache first (skip for driving-traffic as it's time-sensitive)
+        if profile != MapboxRoutingProfile.DRIVING_TRAFFIC:
+            cached = await get_cached(cache_key)
+            if cached:
+                return MapboxRouteResult(**cached)
+
         # Build coordinates string: origin;waypoints;destination
         coords = [f"{origin[0]},{origin[1]}"]
         if waypoints:
@@ -121,12 +137,18 @@ class MapboxService:
             # Return the first (best) route
             route = routes[0]
 
-            return MapboxRouteResult(
+            result = MapboxRouteResult(
                 distance_meters=route["distance"],
                 duration_seconds=route["duration"],
                 geometry=route["geometry"],
                 waypoints=data.get("waypoints", []),
             )
+
+            # Cache result (skip for traffic-aware routing)
+            if profile != MapboxRoutingProfile.DRIVING_TRAFFIC:
+                await set_cached(cache_key, asdict(result), ttl=TTL_ROUTE)
+
+            return result
 
         except httpx.TimeoutException:
             raise MapboxServiceError("Mapbox API request timed out")

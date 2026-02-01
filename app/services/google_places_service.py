@@ -19,6 +19,14 @@ from app.core.resilience import (
     with_circuit_breaker,
     google_places_circuit_breaker,
 )
+from app.core.cache import (
+    get_cached,
+    set_cached,
+    make_cache_key,
+    TTL_PLACE_DETAILS,
+    TTL_AUTOCOMPLETE,
+    TTL_NEARBY_SEARCH,
+)
 from app.schemas.google_maps_places import (
     GooglePlacesAutocompleteResult,
     GooglePlacesDetailResult
@@ -126,6 +134,12 @@ class GooglePlacesService:
         if not self._has_api_key:
             return []
 
+        # Check cache first
+        cache_key = f"autocomplete:{make_cache_key(query, location, radius, types)}"
+        cached = await get_cached(cache_key)
+        if cached:
+            return [GooglePlacesAutocompleteResult(**r) for r in cached]
+
         params = {
             "input": query,
             "key": self.api_key,
@@ -153,6 +167,13 @@ class GooglePlacesService:
                 secondary_text=prediction["structured_formatting"].get("secondary_text", ""),
                 types=prediction.get("types", [])
             ))
+
+        # Cache the results
+        await set_cached(
+            cache_key,
+            [r.model_dump() for r in results],
+            ttl=TTL_AUTOCOMPLETE
+        )
         return results
 
     @with_retry(max_attempts=3)
@@ -163,6 +184,12 @@ class GooglePlacesService:
         """
         if not self._has_api_key:
             return None
+
+        # Check cache first
+        cache_key = f"place_details:{place_id}"
+        cached = await get_cached(cache_key)
+        if cached:
+            return GooglePlacesDetailResult(**cached)
 
         params = {
             "place_id": place_id,
@@ -182,7 +209,7 @@ class GooglePlacesService:
 
         location = result.get("geometry", {}).get("location", {})
 
-        return GooglePlacesDetailResult(
+        detail_result = GooglePlacesDetailResult(
             place_id=place_id,
             name=result.get("name"),
             formatted_address=result.get("formatted_address"),
@@ -196,6 +223,10 @@ class GooglePlacesService:
             price_level=result.get("price_level"),
             business_status=result.get("business_status")
         )
+
+        # Cache the result - place details rarely change
+        await set_cached(cache_key, detail_result.model_dump(), ttl=TTL_PLACE_DETAILS)
+        return detail_result
 
     # ==================== POI Suggestions Methods (Static) ====================
 
@@ -246,6 +277,19 @@ class GooglePlacesService:
         if not settings.GOOGLE_MAPS_API_KEY:
             raise ValueError("Google Maps API key not configured")
 
+        # Round coordinates for cache key (to ~11m precision)
+        lat_rounded = round(latitude, 4)
+        lng_rounded = round(longitude, 4)
+        cache_key = f"nearby:{make_cache_key(lat_rounded, lng_rounded, radius, place_type, keyword)}"
+
+        cached = await get_cached(cache_key)
+        if cached:
+            # Apply post-fetch filters to cached results
+            results = cached
+            if min_rating is not None:
+                results = [r for r in results if r.get("metadata_json", {}).get("rating", 0) >= min_rating]
+            return results[:max_results]
+
         params = {
             "location": f"{latitude},{longitude}",
             "radius": min(radius, 50000),  # Google API max is 50km
@@ -273,14 +317,7 @@ class GooglePlacesService:
 
         results = data.get("results", [])
 
-        # Filter by minimum rating if specified
-        if min_rating is not None:
-            results = [r for r in results if r.get("rating", 0) >= min_rating]
-
-        # Limit results
-        results = results[:max_results]
-
-        # Transform to our POI format
+        # Transform to our POI format (before filtering for cache)
         pois = []
         for place in results:
             geometry = place.get("geometry", {})
@@ -317,7 +354,14 @@ class GooglePlacesService:
             }
             pois.append(poi_data)
 
-        return pois
+        # Cache the full results before filtering
+        await set_cached(cache_key, pois, ttl=TTL_NEARBY_SEARCH)
+
+        # Apply post-fetch filters
+        if min_rating is not None:
+            pois = [p for p in pois if p.get("metadata_json", {}).get("rating", 0) >= min_rating]
+
+        return pois[:max_results]
 
     @staticmethod
     @with_retry(max_attempts=3)
@@ -333,6 +377,12 @@ class GooglePlacesService:
         """
         if not settings.GOOGLE_MAPS_API_KEY:
             raise ValueError("Google Maps API key not configured")
+
+        # Check cache first
+        cache_key = f"poi_details:{place_id}"
+        cached = await get_cached(cache_key)
+        if cached:
+            return cached
 
         params = {
             "place_id": place_id,
@@ -354,7 +404,12 @@ class GooglePlacesService:
             error_msg = data.get("error_message", data.get("status"))
             raise Exception(f"Google Places API error: {error_msg}")
 
-        return data.get("result", {})
+        result = data.get("result", {})
+
+        # Cache the result - place details rarely change
+        await set_cached(cache_key, result, ttl=TTL_PLACE_DETAILS)
+
+        return result
 
     # Alias for backwards compatibility
     get_place_details = get_place_details_for_poi

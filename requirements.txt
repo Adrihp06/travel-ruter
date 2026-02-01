@@ -21,6 +21,9 @@ numpy==1.26.4
 httpx==0.26.0
 tenacity==8.2.3
 
+# Caching
+aiocache==0.12.2
+
 # Authentication
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
