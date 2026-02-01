@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
-import { Plus, Plane, SearchX, MapPin, Calendar, Compass, TrendingUp } from 'lucide-react';
+import { Plus, MapPin, Calendar, Compass, TrendingUp } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import MacroMap from '../components/Map/MacroMap';
 import MapSkeleton from '../components/Map/MapSkeleton';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { DeleteTripDialog, UndoToast, TripCard, TripSearchFilter } from '../components/Trip';
 import TripCardSkeleton from '../components/Trip/TripCardSkeleton';
+import EmptyState from '../components/UI/EmptyState';
 
 // Lazy load heavy modal components
 const TripFormModal = lazy(() => import('../components/Trip/TripFormModal'));
@@ -292,11 +293,11 @@ const GlobalTripView = () => {
         {/* Stats Cards - Skeleton */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 lg:pt-36 pb-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-            {[1, 2, 3, 4].map((i) => (
+            {[0, 1, 2, 3].map((i) => (
               <div key={i} className="bg-white dark:bg-stone-800 rounded-xl p-5 shadow-sm border border-stone-200/50 dark:border-stone-700/50">
-                <div className="h-10 w-10 bg-stone-200 dark:bg-stone-700 rounded-lg skeleton-shimmer mb-3" />
-                <div className="h-8 w-16 bg-stone-200 dark:bg-stone-700 rounded skeleton-shimmer mb-1" />
-                <div className="h-4 w-24 bg-stone-200 dark:bg-stone-700 rounded skeleton-shimmer" />
+                <div className="h-10 w-10 bg-stone-200 dark:bg-stone-700 rounded-lg skeleton-shimmer mb-3" style={{ animationDelay: `${i * 0.1}s` }} />
+                <div className="h-8 w-16 bg-stone-200 dark:bg-stone-700 rounded skeleton-shimmer mb-1" style={{ animationDelay: `${i * 0.1 + 0.05}s` }} />
+                <div className="h-4 w-24 bg-stone-200 dark:bg-stone-700 rounded skeleton-shimmer" style={{ animationDelay: `${i * 0.1 + 0.1}s` }} />
               </div>
             ))}
           </div>
@@ -313,8 +314,8 @@ const GlobalTripView = () => {
 
           {/* Trip Cards Grid - Skeleton */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <TripCardSkeleton key={i} />
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <TripCardSkeleton key={i} index={i} />
             ))}
           </div>
         </div>
@@ -420,24 +421,17 @@ const GlobalTripView = () => {
         )}
 
         {trips.length === 0 ? (
-          <div className="text-center py-20 animate-fade-in">
-            <div className="w-24 h-24 mx-auto mb-8 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 rounded-full flex items-center justify-center shadow-lg">
-              <Plane className="w-12 h-12 text-amber-600 dark:text-amber-400" />
-            </div>
-            <h2 className="text-2xl font-bold text-stone-800 dark:text-stone-100 mb-3">No trips yet</h2>
-            <p className="text-stone-500 dark:text-stone-400 mb-8 max-w-md mx-auto text-lg">
-              Create your first trip to start planning your next adventure!
-            </p>
-            <button
-              onClick={() => {
-                setEditingTrip(null);
-                setShowTripModal(true);
-              }}
-              className="px-8 py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl transition-all shadow-lg hover:shadow-xl press-effect font-semibold text-lg"
-            >
-              Create Your First Trip
-            </button>
-          </div>
+          <EmptyState
+            type="trips"
+            size="lg"
+            title="Your adventures await"
+            description="Every great journey begins with a single step. Create your first trip and start exploring the world!"
+            actionLabel="Plan Your First Trip"
+            onAction={() => {
+              setEditingTrip(null);
+              setShowTripModal(true);
+            }}
+          />
         ) : (
           <>
             {/* Search and Filter Controls */}
@@ -465,25 +459,20 @@ const GlobalTripView = () => {
 
             {/* No results state */}
             {hasNoFilterResults ? (
-              <div className="text-center py-20 animate-fade-in">
-                <div className="w-24 h-24 mx-auto mb-8 bg-stone-100 dark:bg-stone-800 rounded-full flex items-center justify-center shadow-inner">
-                  <SearchX className="w-12 h-12 text-stone-400 dark:text-stone-500" />
-                </div>
-                <h2 className="text-2xl font-bold text-stone-700 dark:text-stone-200 mb-3">No trips found</h2>
-                <p className="text-stone-500 dark:text-stone-400 mb-8 max-w-md mx-auto text-lg">
-                  {searchQuery
-                    ? `No trips match "${searchQuery}"`
+              <EmptyState
+                type="search"
+                size="lg"
+                title="No matching trips"
+                description={
+                  searchQuery
+                    ? `We couldn't find any trips matching "${searchQuery}". Try different keywords or clear your filters.`
                     : !showCompleted
                       ? 'All your trips are completed or in the past. Show completed trips to see them.'
-                      : 'No trips match your current filters'}
-                </p>
-                <button
-                  onClick={() => !showCompleted ? setShowCompleted(true) : clearFilters()}
-                  className="px-8 py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl transition-all shadow-lg hover:shadow-xl press-effect font-semibold text-lg"
-                >
-                  {!showCompleted && !searchQuery ? 'Show Completed Trips' : 'Clear Filters'}
-                </button>
-              </div>
+                      : 'No trips match your current filters. Adjust your selection or clear filters to see all trips.'
+                }
+                actionLabel={!showCompleted && !searchQuery ? 'Show Completed Trips' : 'Clear All Filters'}
+                onAction={() => !showCompleted && !searchQuery ? setShowCompleted(true) : clearFilters()}
+              />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8 stagger-children">
                 {filteredTrips.map((trip) => {

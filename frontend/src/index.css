@@ -407,6 +407,99 @@ html.dark {
   background-size: 200% 100%;
 }
 
+/* Enhanced skeleton animations */
+@keyframes skeleton-wave {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Smoother shimmer with gradient */
+.skeleton-shimmer {
+  background: linear-gradient(
+    110deg,
+    var(--color-neutral-200) 8%,
+    var(--color-neutral-100) 18%,
+    var(--color-neutral-100) 33%,
+    var(--color-neutral-200) 43%
+  );
+  background-size: 300% 100%;
+  animation: skeleton-wave 1.8s ease-in-out infinite;
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(
+    110deg,
+    var(--color-neutral-700) 8%,
+    var(--color-neutral-600) 18%,
+    var(--color-neutral-600) 33%,
+    var(--color-neutral-700) 43%
+  );
+  background-size: 300% 100%;
+}
+
+/* Slow pulse animation for map elements */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.02);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+/* Floating animation for map pins */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-float {
+  animation: float 2.5s ease-in-out infinite;
+}
+
+/* Slow spin for compass */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+/* Dashed line animation for routes */
+@keyframes dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.animate-dash {
+  animation: dash 1s linear infinite;
+}
+
+.animate-dash-slow {
+  animation: dash 2s linear infinite;
+}
+
 /* Fade in animation */
 @keyframes fadeIn {
   from {

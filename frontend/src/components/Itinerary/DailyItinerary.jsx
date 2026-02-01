@@ -418,25 +418,44 @@ const DayColumn = ({
             >
               {pois.length === 0 ? (
                 <div className={`
-                  flex flex-col items-center justify-center py-6 px-4
-                  border-2 border-dashed rounded-lg transition-colors duration-200
-                  ${isOver 
-                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20' 
-                    : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600'
+                  flex flex-col items-center justify-center py-8 px-4
+                  border-2 border-dashed rounded-xl transition-all duration-300 ease-out
+                  ${isOver
+                    ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20 scale-[1.02] shadow-inner'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-gray-50 dark:hover:bg-gray-800/50'
                   }
                 `}>
+                  {/* Animated icon container */}
                   <div className={`
-                    p-2 rounded-full mb-2 transition-colors duration-200
-                    ${isOver ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'}
+                    relative p-3 rounded-xl mb-3 transition-all duration-300
+                    ${isOver
+                      ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 shadow-md'
+                      : 'bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-700 dark:to-gray-800 text-gray-400 dark:text-gray-500'
+                    }
                   `}>
-                    <Plus className="w-5 h-5" />
+                    <Calendar className={`w-6 h-6 transition-transform duration-300 ${isOver ? 'scale-110' : ''}`} />
+                    {/* Decorative ring on hover/drag */}
+                    {isOver && (
+                      <div className="absolute inset-0 rounded-xl border-2 border-indigo-400/50 animate-ping" />
+                    )}
                   </div>
+
                   <span className={`text-sm font-medium transition-colors duration-200 ${isOver ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-300'}`}>
-                    {isOver ? 'Drop to add to schedule' : 'Drop POIs here'}
+                    {isOver ? 'Release to schedule' : 'Plan your day'}
                   </span>
-                  <span className={`text-xs mt-1 transition-colors duration-200 ${isOver ? 'text-indigo-600/70 dark:text-indigo-400/70' : 'text-gray-400 dark:text-gray-500'}`}>
-                    Drag from unscheduled list
+
+                  <span className={`text-xs mt-1.5 text-center transition-colors duration-200 max-w-[160px] ${isOver ? 'text-indigo-600/80 dark:text-indigo-400/80' : 'text-gray-400 dark:text-gray-500'}`}>
+                    {isOver ? 'Adding to this day\'s itinerary' : 'Drag places here to add them to this day'}
                   </span>
+
+                  {/* Visual hint arrows */}
+                  {!isOver && (
+                    <div className="mt-3 flex items-center space-x-1 text-gray-300 dark:text-gray-600">
+                      <ArrowDown className="w-3 h-3 animate-bounce" style={{ animationDelay: '0s' }} />
+                      <ArrowDown className="w-3 h-3 animate-bounce" style={{ animationDelay: '0.1s' }} />
+                      <ArrowDown className="w-3 h-3 animate-bounce" style={{ animationDelay: '0.2s' }} />
+                    </div>
+                  )}
                 </div>
               ) : (
                 pois.map((poi, index) => (
@@ -500,8 +519,16 @@ const UnscheduledSection = ({ pois, isExpanded, onToggle, onEdit, onDelete, onVo
             strategy={verticalListSortingStrategy}
           >
             {pois.length === 0 ? (
-              <div className="text-center py-4 text-xs text-gray-400 dark:text-gray-500 italic">
-                All POIs are scheduled
+              <div className="flex flex-col items-center justify-center py-8 px-4">
+                <div className="p-2.5 rounded-full bg-gradient-to-br from-green-100 to-emerald-50 dark:from-green-900/30 dark:to-emerald-800/20 mb-3">
+                  <Sparkles className="w-5 h-5 text-green-600 dark:text-green-400" />
+                </div>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
+                  All set!
+                </span>
+                <span className="text-xs text-gray-400 dark:text-gray-500 text-center">
+                  Every place has been scheduled
+                </span>
               </div>
             ) : (
               pois.map((poi) => (
