@@ -69,20 +69,32 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location, isSaving }) => {
         return;
       }
 
+      const controller = new AbortController();
       setIsLoadingLocation(true);
-      fetch(`${API_BASE_URL}/geocoding/reverse?lat=${location.latitude}&lon=${location.longitude}`)
-        .then(res => res.ok ? res.json() : null)
-        .then(data => {
+
+      const fetchGeocode = async () => {
+        try {
+          const res = await fetch(
+            `${API_BASE_URL}/geocoding/reverse?lat=${location.latitude}&lon=${location.longitude}`,
+            { signal: controller.signal }
+          );
+          const data = res.ok ? await res.json() : null;
           setLocationInfo(data);
           if (data?.display_name) {
             setFormData(prev => ({ ...prev, address: data.display_name }));
           }
           setIsLoadingLocation(false);
-        })
-        .catch(() => {
-          setLocationInfo(null);
-          setIsLoadingLocation(false);
-        });
+        } catch (err) {
+          if (err.name !== 'AbortError') {
+            setLocationInfo(null);
+            setIsLoadingLocation(false);
+          }
+        }
+      };
+
+      fetchGeocode();
+
+      return () => controller.abort();
     }
   }, [location, isOpen]);
 
@@ -385,17 +397,29 @@ const TripMapPOIModal = ({ isOpen, onClose, onSubmit, location, destinations = [
   // Reverse geocode when location changes
   useEffect(() => {
     if (location && isOpen) {
+      const controller = new AbortController();
       setIsLoadingLocation(true);
-      fetch(`${API_BASE_URL}/geocoding/reverse?lat=${location.latitude}&lon=${location.longitude}`)
-        .then(res => res.ok ? res.json() : null)
-        .then(data => {
+
+      const fetchGeocode = async () => {
+        try {
+          const res = await fetch(
+            `${API_BASE_URL}/geocoding/reverse?lat=${location.latitude}&lon=${location.longitude}`,
+            { signal: controller.signal }
+          );
+          const data = res.ok ? await res.json() : null;
           setLocationInfo(data);
           setIsLoadingLocation(false);
-        })
-        .catch(() => {
-          setLocationInfo(null);
-          setIsLoadingLocation(false);
-        });
+        } catch (err) {
+          if (err.name !== 'AbortError') {
+            setLocationInfo(null);
+            setIsLoadingLocation(false);
+          }
+        }
+      };
+
+      fetchGeocode();
+
+      return () => controller.abort();
     }
   }, [location, isOpen]);
 

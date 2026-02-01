@@ -21,6 +21,9 @@ const debounce = (fn, ms) => {
   };
 };
 
+// Global AbortController for route calculations
+let currentAbortController = null;
+
 // Day colors for multi-day route display
 const DAY_COLORS = [
   { stroke: '#4F46E5', fill: 'rgba(79, 70, 229, 0.2)', name: 'Indigo' },   // Day 1
@@ -99,7 +102,7 @@ const useDayRoutesStore = create((set, get) => ({
   },
 
   // Calculate route for a single day
-  calculateDayRoute: async (date, pois) => {
+  calculateDayRoute: async (date, pois, signal) => {
     if (!pois || pois.length < 2) {
       // Clear route for this day if not enough POIs
       set((state) => ({
@@ -141,6 +144,11 @@ const useDayRoutesStore = create((set, get) => ({
 
       // Calculate each segment
       for (let i = 0; i < pois.length - 1; i++) {
+        // Check if aborted before each segment
+        if (signal?.aborted) {
+          return;
+        }
+
         const fromPoi = pois[i];
         const toPoi = pois[i + 1];
         const mode = get().getSegmentMode(fromPoi.id, toPoi.id);
@@ -164,6 +172,7 @@ const useDayRoutesStore = create((set, get) => ({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody),
+            signal,
           });
 
           if (response.ok) {
@@ -216,6 +225,10 @@ const useDayRoutesStore = create((set, get) => ({
             );
           }
         } catch (err) {
+          // Don't log or fallback for abort errors
+          if (err.name === 'AbortError') {
+            return;
+          }
           // Fallback on error
           console.warn(`Route API exception for segment:`, err);
           const distance = calculateHaversineDistance(
@@ -247,6 +260,11 @@ const useDayRoutesStore = create((set, get) => ({
         }
       }
 
+      // Check if aborted before setting state
+      if (signal?.aborted) {
+        return;
+      }
+
       // Calculate total dwell time
       const totalDwellTime = pois.reduce((sum, p) => sum + (p.dwell_time || 0), 0);
 
@@ -273,6 +291,10 @@ const useDayRoutesStore = create((set, get) => ({
         },
       }));
     } catch (error) {
+      // Don't update state for abort errors
+      if (error.name === 'AbortError') {
+        return;
+      }
       set((state) => ({
         dayRoutes: {
           ...state.dayRoutes,
@@ -290,15 +312,27 @@ const useDayRoutesStore = create((set, get) => ({
   calculateAllDayRoutes: async (poisByDay) => {
     // Use internal debounced function
     const debouncedCalculate = debounce(async (poisByDayData) => {
+      // Abort any previous calculations
+      if (currentAbortController) {
+        currentAbortController.abort();
+      }
+      currentAbortController = new AbortController();
+      const signal = currentAbortController.signal;
+
       set({ isCalculating: true, error: null });
 
       const dates = Object.keys(poisByDayData);
 
       for (const date of dates) {
-        await get().calculateDayRoute(date, poisByDayData[date]);
+        if (signal.aborted) {
+          break;
+        }
+        await get().calculateDayRoute(date, poisByDayData[date], signal);
       }
 
-      set({ isCalculating: false });
+      if (!signal.aborted) {
+        set({ isCalculating: false });
+      }
     }, ROUTE_CALCULATION_DEBOUNCE_MS);
 
     return debouncedCalculate(poisByDay);
@@ -306,15 +340,27 @@ const useDayRoutesStore = create((set, get) => ({
 
   // Calculate routes immediately without debounce (for explicit user actions)
   calculateAllDayRoutesImmediate: async (poisByDay) => {
+    // Abort any previous calculations
+    if (currentAbortController) {
+      currentAbortController.abort();
+    }
+    currentAbortController = new AbortController();
+    const signal = currentAbortController.signal;
+
     set({ isCalculating: true, error: null });
 
     const dates = Object.keys(poisByDay);
 
     for (const date of dates) {
-      await get().calculateDayRoute(date, poisByDay[date]);
+      if (signal.aborted) {
+        break;
+      }
+      await get().calculateDayRoute(date, poisByDay[date], signal);
     }
 
-    set({ isCalculating: false });
+    if (!signal.aborted) {
+      set({ isCalculating: false });
+    }
   },
 
   // Recalculate a specific segment (when mode changes)
@@ -322,8 +368,14 @@ const useDayRoutesStore = create((set, get) => ({
     const dayRoute = get().dayRoutes[date];
     if (!dayRoute) return;
 
+    // Create a new AbortController for this recalculation
+    if (currentAbortController) {
+      currentAbortController.abort();
+    }
+    currentAbortController = new AbortController();
+
     // Recalculate the entire day route
-    await get().calculateDayRoute(date, dayRoute.pois);
+    await get().calculateDayRoute(date, dayRoute.pois, currentAbortController.signal);
   },
 
   // Export day route to Google Maps
@@ -367,6 +419,11 @@ const useDayRoutesStore = create((set, get) => ({
       clearTimeout(debounceTimer);
       debounceTimer = null;
     }
+    // Abort any in-flight requests
+    if (currentAbortController) {
+      currentAbortController.abort();
+      currentAbortController = null;
+    }
     set({
       dayRoutes: {},
       visibleDays: [],
@@ -380,6 +437,10 @@ const useDayRoutesStore = create((set, get) => ({
     if (debounceTimer) {
       clearTimeout(debounceTimer);
       debounceTimer = null;
+    }
+    if (currentAbortController) {
+      currentAbortController.abort();
+      currentAbortController = null;
     }
     set({ isCalculating: false });
   },

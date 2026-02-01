@@ -111,6 +111,19 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
     }
   }, [trip, isOpen]);
 
+  // Track active FileReader for cleanup
+  const fileReaderRef = React.useRef(null);
+
+  // Cleanup FileReader on unmount
+  useEffect(() => {
+    return () => {
+      if (fileReaderRef.current) {
+        fileReaderRef.current.abort();
+        fileReaderRef.current = null;
+      }
+    };
+  }, []);
+
   // Handle file selection for cover image
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
@@ -127,10 +140,17 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
       }
       setImageFile(file);
       setErrors({ ...errors, cover_image: undefined });
+      // Abort any previous reader
+      if (fileReaderRef.current) {
+        fileReaderRef.current.abort();
+      }
       // Create preview
       const reader = new FileReader();
+      fileReaderRef.current = reader;
       reader.onloadend = () => {
-        setImagePreview(reader.result);
+        if (fileReaderRef.current === reader) {
+          setImagePreview(reader.result);
+        }
       };
       reader.readAsDataURL(file);
     }
