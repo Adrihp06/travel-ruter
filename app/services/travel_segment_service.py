@@ -572,7 +572,12 @@ class TravelSegmentService:
             segment = await cls.calculate_and_save_segment(
                 db, from_dest.id, to_dest.id, mode
             )
-            segments.append(segment)
+
+            # Recalculate the segment with waypoints and stops to ensure the route
+            # passes through all intermediate points
+            segment = await cls.recalculate_segment_with_waypoints(db, segment.id)
+            if segment:
+                segments.append(segment)
 
         return segments
 
@@ -709,13 +714,19 @@ class TravelSegmentService:
         )
         travel_stops = list(stop_result.scalars().all())
 
-        # Combine all waypoint coordinates (RouteWaypoints first, then TravelStops)
-        # Both are ordered by order_index; TravelStops come after RouteWaypoints
-        waypoint_coords: list[tuple[float, float]] = []
+        # Combine all waypoint coordinates, interleaved by order_index
+        # Both RouteWaypoints and TravelStops use order_index to determine their position
+        # along the route. We merge them sorted by order_index so stops are visited
+        # in the correct order between destinations.
+        all_points: list[tuple[int, float, float]] = []
         for wp in route_waypoints:
-            waypoint_coords.append((wp.longitude, wp.latitude))
+            all_points.append((wp.order_index, wp.longitude, wp.latitude))
         for stop in travel_stops:
-            waypoint_coords.append((stop.longitude, stop.latitude))
+            all_points.append((stop.order_index, stop.longitude, stop.latitude))
+
+        # Sort by order_index and extract just the coordinates
+        all_points.sort(key=lambda x: x[0])
+        waypoint_coords: list[tuple[float, float]] = [(p[1], p[2]) for p in all_points]
 
         mode = TravelMode(segment.travel_mode)
         total_waypoint_count = len(waypoint_coords)
