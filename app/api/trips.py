@@ -14,6 +14,34 @@ router = APIRouter()
 # Allowed image types for cover upload
 ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
 MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5MB
+CHUNK_SIZE = 8192  # 8KB chunks for streaming
+
+
+async def validate_file_size(file: UploadFile, max_size: int) -> bytes:
+    """Stream file and validate size without loading entirely into memory."""
+    # Quick rejection using Content-Length header if available
+    if file.size and file.size > max_size:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File too large. Maximum size is {max_size // (1024 * 1024)}MB"
+        )
+
+    chunks = []
+    total_size = 0
+
+    while True:
+        chunk = await file.read(CHUNK_SIZE)
+        if not chunk:
+            break
+        total_size += len(chunk)
+        if total_size > max_size:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File too large. Maximum size is {max_size // (1024 * 1024)}MB"
+            )
+        chunks.append(chunk)
+
+    return b''.join(chunks)
 
 
 @router.post(
@@ -33,13 +61,8 @@ async def upload_cover_image(
             detail=f"File type {file.content_type} not allowed. Allowed types: JPEG, PNG, WebP"
         )
 
-    # Read and validate file size
-    content = await file.read()
-    if len(content) > MAX_IMAGE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File size exceeds maximum allowed size of {MAX_IMAGE_SIZE // (1024 * 1024)}MB"
-        )
+    # Stream and validate file size (rejects early without loading entire file)
+    content = await validate_file_size(file, MAX_IMAGE_SIZE)
 
     # Generate unique filename
     ext = os.path.splitext(file.filename)[1].lower() if file.filename else '.jpg'

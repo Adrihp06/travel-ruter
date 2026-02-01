@@ -24,6 +24,8 @@ from app.schemas.document import (
 
 router = APIRouter()
 
+CHUNK_SIZE = 8192  # 8KB chunks for streaming
+
 
 def validate_file(file: UploadFile) -> None:
     """Validate file type and size"""
@@ -36,6 +38,13 @@ def validate_file(file: UploadFile) -> None:
 
 async def save_file(file: UploadFile, poi_id: Optional[int] = None, trip_id: Optional[int] = None) -> tuple[str, str]:
     """Save uploaded file to disk and return (filename, file_path)"""
+    # Quick rejection using Content-Length header if available
+    if file.size and file.size > settings.MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File too large. Maximum size is {settings.MAX_FILE_SIZE // (1024 * 1024)}MB"
+        )
+
     # Generate unique filename
     ext = os.path.splitext(file.filename)[1].lower()
     unique_filename = f"{uuid.uuid4()}{ext}"
@@ -53,15 +62,23 @@ async def save_file(file: UploadFile, poi_id: Optional[int] = None, trip_id: Opt
 
     file_path = os.path.join(upload_dir, unique_filename)
 
-    # Save file asynchronously
+    # Stream file to disk while validating size (rejects early without loading entire file)
+    total_size = 0
     async with aiofiles.open(file_path, 'wb') as out_file:
-        content = await file.read()
-        if len(content) > settings.MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File size exceeds maximum allowed size of {settings.MAX_FILE_SIZE // (1024 * 1024)}MB"
-            )
-        await out_file.write(content)
+        while True:
+            chunk = await file.read(CHUNK_SIZE)
+            if not chunk:
+                break
+            total_size += len(chunk)
+            if total_size > settings.MAX_FILE_SIZE:
+                # Clean up partial file
+                await out_file.close()
+                os.remove(file_path)
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail=f"File too large. Maximum size is {settings.MAX_FILE_SIZE // (1024 * 1024)}MB"
+                )
+            await out_file.write(chunk)
 
     return unique_filename, file_path
 
