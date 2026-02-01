@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     # API Settings
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Travel Ruter API"
+    DEBUG: bool = False
 
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@db:5432/travel_ruter"
