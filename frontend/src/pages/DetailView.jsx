@@ -724,6 +724,51 @@ const DetailViewContent = () => {
     return byDay;
   }, [pois, destinationDays]);
 
+  // Memoize trip location objects to prevent unnecessary re-renders of TripMap
+  const tripLocation = useMemo(() => {
+    if (!selectedTrip?.latitude || !selectedTrip?.longitude) return null;
+    return {
+      latitude: selectedTrip.latitude,
+      longitude: selectedTrip.longitude,
+      name: selectedTrip.location,
+    };
+  }, [selectedTrip?.latitude, selectedTrip?.longitude, selectedTrip?.location]);
+
+  const originPoint = useMemo(() => {
+    if (!selectedTrip?.origin_name || !selectedTrip?.origin_latitude || !selectedTrip?.origin_longitude) return null;
+    return {
+      name: selectedTrip.origin_name,
+      latitude: selectedTrip.origin_latitude,
+      longitude: selectedTrip.origin_longitude,
+    };
+  }, [selectedTrip?.origin_name, selectedTrip?.origin_latitude, selectedTrip?.origin_longitude]);
+
+  const returnPoint = useMemo(() => {
+    if (selectedTrip?.return_name && selectedTrip?.return_latitude && selectedTrip?.return_longitude) {
+      return {
+        name: selectedTrip.return_name,
+        latitude: selectedTrip.return_latitude,
+        longitude: selectedTrip.return_longitude,
+      };
+    }
+    // Fall back to origin point if no return point specified
+    if (selectedTrip?.origin_name && selectedTrip?.origin_latitude && selectedTrip?.origin_longitude) {
+      return {
+        name: selectedTrip.origin_name,
+        latitude: selectedTrip.origin_latitude,
+        longitude: selectedTrip.origin_longitude,
+      };
+    }
+    return null;
+  }, [
+    selectedTrip?.return_name,
+    selectedTrip?.return_latitude,
+    selectedTrip?.return_longitude,
+    selectedTrip?.origin_name,
+    selectedTrip?.origin_latitude,
+    selectedTrip?.origin_longitude,
+  ]);
+
   // Handlers
   const handleSelectDestination = useCallback((destId) => {
     setSelectedDestinationId(destId);
@@ -1047,41 +1092,11 @@ const DetailViewContent = () => {
               showRoute={true}
               height="100%"
               tripId={Number(id)}
-              tripLocation={
-                selectedTrip.latitude && selectedTrip.longitude
-                  ? {
-                      latitude: selectedTrip.latitude,
-                      longitude: selectedTrip.longitude,
-                      name: selectedTrip.location,
-                    }
-                  : null
-              }
+              tripLocation={tripLocation}
               enableAddDestination={true}
               onAddDestination={handleAddDestinationFromMap}
-              originPoint={
-                selectedTrip.origin_name && selectedTrip.origin_latitude && selectedTrip.origin_longitude
-                  ? {
-                      name: selectedTrip.origin_name,
-                      latitude: selectedTrip.origin_latitude,
-                      longitude: selectedTrip.origin_longitude,
-                    }
-                  : null
-              }
-              returnPoint={
-                selectedTrip.return_name && selectedTrip.return_latitude && selectedTrip.return_longitude
-                  ? {
-                      name: selectedTrip.return_name,
-                      latitude: selectedTrip.return_latitude,
-                      longitude: selectedTrip.return_longitude,
-                    }
-                  : selectedTrip.origin_name && selectedTrip.origin_latitude && selectedTrip.origin_longitude
-                    ? {
-                        name: selectedTrip.origin_name,
-                        latitude: selectedTrip.origin_latitude,
-                        longitude: selectedTrip.origin_longitude,
-                      }
-                    : null
-              }
+              originPoint={originPoint}
+              returnPoint={returnPoint}
             />
           ) : !isMapReady ? (
             // Only show skeleton if we don't have destination coordinates yet
