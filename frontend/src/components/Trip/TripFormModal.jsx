@@ -266,49 +266,61 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/40 modal-backdrop flex items-center justify-center z-50 p-4">
+      <div className="modal-content bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-gray-200/50 dark:border-gray-700/50">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center space-x-2">
-            <Plane className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {isEditMode ? 'Edit Trip' : 'Create New Trip'}
-            </h3>
+        <div className="modal-header flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <div className="modal-icon-container primary">
+              <Plane className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                {isEditMode ? 'Edit Trip' : 'Create New Trip'}
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {isEditMode ? 'Update your trip details' : 'Plan your next adventure'}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+            className="modal-close-btn p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
-            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {/* Trip Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Trip Name *
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 ${
-                errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-              }`}
-              placeholder="e.g., Japan Adventure 2026"
-            />
-            {errors.name && (
-              <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.name}</p>
-            )}
-          </div>
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+          <div className="p-6 space-y-5">
+            {/* Trip Name */}
+            <div>
+              <label className="modal-label">
+                Trip Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className={`modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700 ${
+                  errors.name ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''
+                }`}
+                placeholder="e.g., Japan Adventure 2026"
+              />
+              {errors.name && (
+                <p className="text-red-500 dark:text-red-400 text-xs mt-1.5 flex items-center gap-1">
+                  <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                  {errors.name}
+                </p>
+              )}
+            </div>
 
           {/* Location */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Location
+            <label className="modal-label">
+              <MapPin className="w-4 h-4" />
+              Destination
             </label>
             <LocationAutocomplete
               value={formData.location}
@@ -336,14 +348,12 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           </div>
 
           {/* Departure Point (Origin) */}
-          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              <span className="flex items-center">
-                <Home className="w-4 h-4 mr-1.5 text-green-600 dark:text-green-400" />
-                Departure Point
-              </span>
+          <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50/50 dark:from-green-900/20 dark:to-emerald-900/10 rounded-xl border border-green-200/70 dark:border-green-800/50">
+            <label className="modal-label text-green-700 dark:text-green-400">
+              <Home className="w-4 h-4" />
+              Departure Point
             </label>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+            <p className="text-xs text-green-600/70 dark:text-green-400/60 mb-3">
               Where does your trip start? (e.g., home airport)
             </p>
             <LocationAutocomplete
@@ -372,16 +382,14 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           </div>
 
           {/* Return Point */}
-          <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              <span className="flex items-center">
-                <MapPin className="w-4 h-4 mr-1.5 text-red-600 dark:text-red-400" />
-                Return Point
-              </span>
+          <div className="p-4 bg-gradient-to-br from-rose-50 to-red-50/50 dark:from-red-900/20 dark:to-rose-900/10 rounded-xl border border-red-200/70 dark:border-red-800/50">
+            <label className="modal-label text-red-700 dark:text-red-400">
+              <MapPin className="w-4 h-4" />
+              Return Point
             </label>
 
             {/* Checkbox for same location */}
-            <label className="flex items-center space-x-2 mb-2">
+            <label className="flex items-center gap-2.5 mb-3 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={returnSameAsOrigin}
@@ -397,16 +405,16 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                     });
                   }
                 }}
-                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-0"
               />
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+              <span className="text-sm text-red-600/80 dark:text-red-400/70 group-hover:text-red-700 dark:group-hover:text-red-300 transition-colors">
                 Return to same location as departure
               </span>
             </label>
 
             {!returnSameAsOrigin && (
               <>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                <p className="text-xs text-red-600/60 dark:text-red-400/50 mb-3">
                   Where does your trip end?
                 </p>
                 <LocationAutocomplete
@@ -437,14 +445,14 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           </div>
 
           {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          <div className="modal-section">
+            <label className="modal-label">
               Description
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+              className="modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700 resize-none"
               rows={3}
               placeholder="Brief description of your trip..."
             />
@@ -452,21 +460,19 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
 
           {/* Cover Image */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              <span className="flex items-center">
-                <Image className="w-4 h-4 mr-1.5" />
-                Cover Image
-              </span>
+            <label className="modal-label">
+              <Image className="w-4 h-4" />
+              Cover Image
             </label>
 
             {/* Toggle between URL and File upload */}
-            <div className="flex space-x-2 mb-2">
+            <div className="flex gap-2 mb-3">
               <button
                 type="button"
                 onClick={() => setImageUploadMode('url')}
-                className={`flex-1 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                className={`flex-1 px-3 py-2 text-sm rounded-xl font-medium transition-all ${
                   imageUploadMode === 'url'
-                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300'
+                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 ring-2 ring-indigo-500/30'
                     : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
@@ -475,13 +481,13 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
               <button
                 type="button"
                 onClick={() => setImageUploadMode('file')}
-                className={`flex-1 px-3 py-1.5 text-sm rounded-lg transition-colors flex items-center justify-center ${
+                className={`flex-1 px-3 py-2 text-sm rounded-xl font-medium transition-all flex items-center justify-center gap-1.5 ${
                   imageUploadMode === 'file'
-                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300'
+                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 ring-2 ring-indigo-500/30'
                     : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
-                <Upload className="w-3.5 h-3.5 mr-1" />
+                <Upload className="w-3.5 h-3.5" />
                 Upload
               </button>
             </div>
@@ -492,11 +498,11 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                   type="url"
                   value={formData.cover_image}
                   onChange={(e) => setFormData({ ...formData, cover_image: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                  className="modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700"
                   placeholder="https://example.com/image.jpg"
                 />
                 {formData.cover_image && (
-                  <div className="mt-2 rounded-lg overflow-hidden h-24">
+                  <div className="mt-3 rounded-xl overflow-hidden h-28 ring-1 ring-gray-200 dark:ring-gray-700">
                     <img
                       src={formData.cover_image}
                       alt="Cover preview"
@@ -511,10 +517,10 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
             ) : (
               <>
                 <div
-                  className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+                  className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all hover:scale-[1.01] ${
                     imageFile
-                      ? 'border-indigo-300 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-900/20'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-indigo-400 dark:hover:border-indigo-500'
+                      ? 'border-indigo-300 bg-indigo-50/50 dark:border-indigo-700 dark:bg-indigo-900/20'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-gray-50 dark:hover:bg-gray-700/50'
                   }`}
                   onClick={() => document.getElementById('cover-image-input').click()}
                 >
@@ -526,13 +532,13 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                     className="hidden"
                   />
                   {imagePreview ? (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <img
                         src={imagePreview}
                         alt="Cover preview"
-                        className="mx-auto h-20 object-cover rounded"
+                        className="mx-auto h-24 object-cover rounded-lg ring-1 ring-gray-200 dark:ring-gray-700"
                       />
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <p className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-xs mx-auto">
                         {imageFile?.name}
                       </p>
                       <button
@@ -542,15 +548,17 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                           setImageFile(null);
                           setImagePreview(null);
                         }}
-                        className="text-xs text-red-500 hover:text-red-600"
+                        className="text-xs text-red-500 hover:text-red-600 font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                       >
                         Remove
                       </button>
                     </div>
                   ) : (
-                    <div className="space-y-1">
-                      <Upload className="w-8 h-8 mx-auto text-gray-400" />
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                    <div className="space-y-2">
+                      <div className="w-12 h-12 mx-auto bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center">
+                        <Upload className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
                         Click to upload an image
                       </p>
                       <p className="text-xs text-gray-400 dark:text-gray-500">
@@ -560,11 +568,11 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                   )}
                 </div>
                 {errors.cover_image && (
-                  <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.cover_image}</p>
+                  <p className="text-red-500 dark:text-red-400 text-xs mt-1.5">{errors.cover_image}</p>
                 )}
               </>
             )}
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="modal-helper">
               Optional: Add a cover image for your trip card
             </p>
           </div>
@@ -584,12 +592,10 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           />
 
           {/* Tags / Categories */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <span className="flex items-center">
-                <TagIcon className="w-4 h-4 mr-1.5" />
-                Trip Tags
-              </span>
+          <div className="modal-section">
+            <label className="modal-label">
+              <TagIcon className="w-4 h-4" />
+              Trip Tags
             </label>
             <div className="flex flex-wrap gap-2">
               {AVAILABLE_TAGS.map((tag) => (
@@ -597,17 +603,17 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                   key={tag.id}
                   type="button"
                   onClick={() => toggleTag(tag.id)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                  className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all ${
                     formData.tags.includes(tag.id)
-                      ? `${tag.color} ring-2 ring-offset-1 ring-indigo-500 dark:ring-offset-gray-800`
-                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      ? `${tag.color} ring-2 ring-offset-1 ring-indigo-500 dark:ring-offset-gray-800 scale-105`
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 hover:scale-105'
                   }`}
                 >
                   {tag.label}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+            <p className="modal-helper">
               Select tags to categorize your trip
             </p>
           </div>
@@ -615,7 +621,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           {/* Budget */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="modal-label">
                 Budget
               </label>
               <input
@@ -624,18 +630,18 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                 step="0.01"
                 value={formData.total_budget}
                 onChange={(e) => setFormData({ ...formData, total_budget: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                className="modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700"
                 placeholder="0.00"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="modal-label">
                 Currency
               </label>
               <select
                 value={formData.currency}
                 onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                className="modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700 cursor-pointer"
               >
                 {currencies.map((curr) => (
                   <option key={curr} value={curr}>{curr}</option>
@@ -647,13 +653,13 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           {/* Status (edit mode only) */}
           {isEditMode && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="modal-label">
                 Status
               </label>
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                className="modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700 cursor-pointer"
               >
                 {statuses.map((status) => (
                   <option key={status.value} value={status.value}>
@@ -666,26 +672,30 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
 
           {/* Error Message */}
           {errors.submit && (
-            <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm">
-              {errors.submit}
+            <div className="modal-error">
+              <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <span>{errors.submit}</span>
             </div>
           )}
+          </div>
 
-          {/* Buttons */}
-          <div className="flex space-x-3 pt-2">
+          {/* Footer with Buttons */}
+          <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+              className="modal-btn modal-btn-secondary flex-1"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading || isUploading}
-              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center space-x-2"
+              className="modal-btn modal-btn-primary flex-1"
             >
-              {(isLoading || isUploading) && <Spinner className="text-white" />}
+              {(isLoading || isUploading) && <span className="modal-spinner" />}
               <span>
                 {isUploading ? 'Uploading...' : isLoading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Trip'}
               </span>

@@ -114,77 +114,83 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 modal-backdrop bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="modal-content bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-gray-200/50 dark:border-gray-700/50">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800 z-10">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <Copy className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+        <div className="modal-header flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
+          <div className="flex items-center gap-3">
+            <div className="modal-icon-container primary">
+              <Copy className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
                 Duplicate Trip
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 Create a copy of "{trip?.name || trip?.title}"
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="modal-close-btn p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
-            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Trip Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Trip Name *
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white dark:border-gray-600 ${
-                errors.name ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="Enter trip name"
-            />
-            {errors.name && (
-              <p className="mt-1 text-sm text-red-500">{errors.name}</p>
-            )}
-          </div>
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+          <div className="p-6 space-y-5">
+            {/* Trip Name */}
+            <div>
+              <label className="modal-label">
+                Trip Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                className={`modal-input w-full px-4 py-2.5 rounded-xl dark:bg-gray-700 dark:text-white ${
+                  errors.name ? 'border-red-500 focus:border-red-500' : ''
+                }`}
+                placeholder="Enter trip name"
+              />
+              {errors.name && (
+                <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1">
+                  <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                  {errors.name}
+                </p>
+              )}
+            </div>
 
-          {/* Date Range */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Trip Dates *
-            </label>
-            <DateRangePicker
-              startDate={formData.start_date}
-              endDate={formData.end_date}
-              onChange={handleDateRangeChange}
-              error={errors.start_date || errors.end_date}
-            />
-            {(errors.start_date || errors.end_date) && (
-              <p className="mt-1 text-sm text-red-500">
-                {errors.start_date || errors.end_date}
-              </p>
-            )}
-          </div>
+            {/* Date Range */}
+            <div>
+              <label className="modal-label">
+                <Calendar className="w-4 h-4" />
+                Trip Dates <span className="text-red-500">*</span>
+              </label>
+              <DateRangePicker
+                startDate={formData.start_date}
+                endDate={formData.end_date}
+                onChange={handleDateRangeChange}
+                error={errors.start_date || errors.end_date}
+              />
+              {(errors.start_date || errors.end_date) && (
+                <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1">
+                  <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+                  {errors.start_date || errors.end_date}
+                </p>
+              )}
+            </div>
 
           {/* Duplication Options */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          <div className="modal-section space-y-4">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
               What to Include
             </h3>
 
-            <div className="space-y-3 bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
+            <div className="space-y-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 border border-gray-100 dark:border-gray-700/50">
               {/* Destinations */}
               <label className="flex items-start space-x-3 cursor-pointer group">
                 <div className="flex items-center h-5">
@@ -284,9 +290,14 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
               </label>
             </div>
 
-            <div className="text-xs text-gray-500 dark:text-gray-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
-              <p className="font-medium text-blue-900 dark:text-blue-300 mb-1">Note:</p>
-              <ul className="space-y-1 list-disc list-inside">
+            <div className="text-xs text-gray-500 dark:text-gray-400 bg-gradient-to-br from-blue-50 to-indigo-50/50 dark:from-blue-900/20 dark:to-indigo-900/10 rounded-xl p-4 border border-blue-200/70 dark:border-blue-800/50">
+              <p className="font-semibold text-blue-900 dark:text-blue-300 mb-2 flex items-center gap-1.5">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                Note
+              </p>
+              <ul className="space-y-1.5 list-disc list-inside text-blue-800 dark:text-blue-300/80">
                 <li>The new trip will always have status set to "Planning"</li>
                 <li>All dates will be automatically adjusted based on the new start date</li>
                 <li>POI engagement metrics (likes/vetoes) will be reset</li>
@@ -296,17 +307,21 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
 
           {/* Error Message */}
           {errors.submit && (
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-              <p className="text-sm text-red-600 dark:text-red-400">{errors.submit}</p>
+            <div className="modal-error">
+              <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <span>{errors.submit}</span>
             </div>
           )}
+          </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+              className="modal-btn modal-btn-secondary"
               disabled={isSubmitting}
             >
               Cancel
@@ -314,10 +329,19 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+              className="modal-btn modal-btn-primary"
             >
-              <Copy className="w-4 h-4" />
-              <span>{isSubmitting ? 'Duplicating...' : 'Duplicate Trip'}</span>
+              {isSubmitting ? (
+                <>
+                  <span className="modal-spinner" />
+                  <span>Duplicating...</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4" />
+                  <span>Duplicate Trip</span>
+                </>
+              )}
             </button>
           </div>
         </form>
