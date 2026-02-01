@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useShallow } from 'zustand/shallow';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -154,5 +155,27 @@ const useDestinationStore = create((set, get) => ({
     }
   },
 }));
+
+// Memoized selectors for performance optimization
+
+// Selector for destinations list
+export const useDestinations = () => useDestinationStore(
+  (state) => state.destinations,
+  useShallow
+);
+
+// Selector for loading state
+export const useDestinationsLoading = () => useDestinationStore((state) => state.isLoading);
+
+// Selector for error state
+export const useDestinationsError = () => useDestinationStore((state) => state.error);
+
+// Selector for selected destination
+export const useSelectedDestination = () => useDestinationStore((state) => state.selectedDestination);
+
+// Selector for destination by ID (O(1) via find, but could be optimized with a Map if needed)
+export const useDestinationById = (destinationId) => useDestinationStore(
+  (state) => state.destinations.find((d) => d.id === destinationId)
+);
 
 export default useDestinationStore;

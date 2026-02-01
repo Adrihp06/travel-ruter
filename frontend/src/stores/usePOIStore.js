@@ -1,9 +1,22 @@
 import { create } from 'zustand';
+import { useShallow } from 'zustand/shallow';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
+// Helper to build POI lookup map from category groups
+const buildPOIMap = (pois) => {
+  const map = new Map();
+  for (const group of pois) {
+    for (const poi of group.pois) {
+      map.set(poi.id, poi);
+    }
+  }
+  return map;
+};
+
 const usePOIStore = create((set, get) => ({
   pois: [], // List of POIsByCategory objects
+  poisById: new Map(), // O(1) lookup map for POIs by ID
   selectedPOI: null,
   isLoading: false,
   error: null,
@@ -16,7 +29,7 @@ const usePOIStore = create((set, get) => ({
   isFetchingSuggestions: false,
   suggestionsError: null,
 
-  setPOIs: (pois) => set({ pois }),
+  setPOIs: (pois) => set({ pois, poisById: buildPOIMap(pois) }),
 
   fetchPOIsByDestination: async (destinationId) => {
     set({ isLoading: true, error: null });
@@ -28,9 +41,9 @@ const usePOIStore = create((set, get) => ({
       }
 
       const pois = await response.json();
-      set({ pois, isLoading: false });
+      set({ pois, poisById: buildPOIMap(pois), isLoading: false });
     } catch (error) {
-      set({ error: error.message, isLoading: false, pois: [] });
+      set({ error: error.message, isLoading: false, pois: [], poisById: new Map() });
     }
   },
 
@@ -78,7 +91,11 @@ const usePOIStore = create((set, get) => ({
           });
         }
 
-        return { pois: updatedPOIs, isLoading: false };
+        // Update the lookup map
+        const newMap = new Map(state.poisById);
+        newMap.set(newPOI.id, newPOI);
+
+        return { pois: updatedPOIs, poisById: newMap, isLoading: false };
       });
 
       return newPOI;
@@ -88,14 +105,10 @@ const usePOIStore = create((set, get) => ({
     }
   },
 
+  // O(1) lookup using poisById map
   selectPOI: (poiId) => {
     const state = get();
-    let found = null;
-    for (const cat of state.pois) {
-      found = cat.pois.find(p => p.id === poiId);
-      if (found) break;
-    }
-    set({ selectedPOI: found || null });
+    set({ selectedPOI: state.poisById.get(poiId) || null });
   },
 
   votePOI: async (poiId, voteType) => {
@@ -114,7 +127,7 @@ const usePOIStore = create((set, get) => ({
           return poi;
         }),
       }));
-      return { pois: updatedPOIs };
+      return { pois: updatedPOIs, poisById: buildPOIMap(updatedPOIs) };
     });
 
     try {
@@ -138,7 +151,7 @@ const usePOIStore = create((set, get) => ({
             poi.id === poiId ? { ...poi, ...updatedPOI } : poi
           ),
         }));
-        return { pois: updatedPOIs };
+        return { pois: updatedPOIs, poisById: buildPOIMap(updatedPOIs) };
       });
     } catch (error) {
       // Revert optimistic update
@@ -156,7 +169,7 @@ const usePOIStore = create((set, get) => ({
             return poi;
           }),
         }));
-        return { pois: updatedPOIs, error: error.message };
+        return { pois: updatedPOIs, poisById: buildPOIMap(updatedPOIs), error: error.message };
       });
     }
   },
@@ -183,7 +196,7 @@ const usePOIStore = create((set, get) => ({
             poi.id === poiId ? { ...poi, ...updatedPOI } : poi
           ),
         }));
-        return { pois: updatedPOIs, isLoading: false };
+        return { pois: updatedPOIs, poisById: buildPOIMap(updatedPOIs), isLoading: false };
       });
 
       return updatedPOI;
@@ -204,13 +217,18 @@ const usePOIStore = create((set, get) => ({
         throw new Error('Failed to delete POI');
       }
 
-      set((state) => ({
-        pois: state.pois.map(group => ({
+      set((state) => {
+        const updatedPOIs = state.pois.map(group => ({
           ...group,
           pois: group.pois.filter(poi => poi.id !== poiId)
-        })).filter(group => group.pois.length > 0),
-        isLoading: false,
-      }));
+        })).filter(group => group.pois.length > 0);
+
+        // Update the lookup map
+        const newMap = new Map(state.poisById);
+        newMap.delete(poiId);
+
+        return { pois: updatedPOIs, poisById: newMap, isLoading: false };
+      });
     } catch (error) {
       set({ error: error.message, isLoading: false });
       throw error;
@@ -266,7 +284,7 @@ const usePOIStore = create((set, get) => ({
           return poi;
         }),
       }));
-      return { pois: updatedPOIs };
+      return { pois: updatedPOIs, poisById: buildPOIMap(updatedPOIs) };
     });
 
     try {
@@ -294,7 +312,7 @@ const usePOIStore = create((set, get) => ({
             return updated ? { ...poi, ...updated } : poi;
           }),
         }));
-        return { pois: newPOIs };
+        return { pois: newPOIs, poisById: buildPOIMap(newPOIs) };
       });
 
       return updatedPOIs;
@@ -436,7 +454,11 @@ const usePOIStore = create((set, get) => ({
           });
         }
 
-        return { pois: updatedPOIs };
+        // Update the lookup map
+        const newMap = new Map(state.poisById);
+        newMap.set(newPOI.id, newPOI);
+
+        return { pois: updatedPOIs, poisById: newMap };
       });
 
       return newPOI;
@@ -489,7 +511,7 @@ const usePOIStore = create((set, get) => ({
           }
         });
 
-        return { pois: updatedPOIs };
+        return { pois: updatedPOIs, poisById: buildPOIMap(updatedPOIs) };
       });
 
       return newPOIs;
@@ -499,5 +521,43 @@ const usePOIStore = create((set, get) => ({
     }
   },
 }));
+
+// Memoized selectors for performance optimization
+
+// Selector for loading state
+export const usePOIsLoading = () => usePOIStore((state) => state.isLoading);
+
+// Selector for error state
+export const usePOIsError = () => usePOIStore((state) => state.error);
+
+// Selector for selected POI
+export const useSelectedPOI = () => usePOIStore((state) => state.selectedPOI);
+
+// Selector for POIs by category (the main pois array)
+export const usePOIsByCategory = () => usePOIStore(
+  (state) => state.pois,
+  useShallow
+);
+
+// Selector for optimization state
+export const useOptimizationState = () => usePOIStore(
+  useShallow((state) => ({
+    optimizationResult: state.optimizationResult,
+    isOptimizing: state.isOptimizing,
+    optimizationError: state.optimizationError,
+  }))
+);
+
+// Selector for suggestions state
+export const useSuggestionsState = () => usePOIStore(
+  useShallow((state) => ({
+    suggestions: state.suggestions,
+    isFetchingSuggestions: state.isFetchingSuggestions,
+    suggestionsError: state.suggestionsError,
+  }))
+);
+
+// O(1) POI lookup by ID - returns the POI directly from the map
+export const usePOIById = (poiId) => usePOIStore((state) => state.poisById.get(poiId));
 
 export default usePOIStore;

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useShallow } from 'zustand/shallow';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -613,5 +614,50 @@ const useTripStore = create((set, get) => ({
     }
   },
 }));
+
+// Memoized selectors for performance optimization
+// These prevent unnecessary re-renders by using shallow equality comparison
+
+// Selector for filtered trips - uses shallow equality to prevent re-renders
+export const useFilteredTrips = () => useTripStore(
+  (state) => state.getFilteredTrips(),
+  useShallow
+);
+
+// Selector for loading state
+export const useTripsLoading = () => useTripStore((state) => state.isLoading);
+
+// Selector for error state
+export const useTripsError = () => useTripStore((state) => state.error);
+
+// Selector for active filters count
+export const useActiveFiltersCount = () => useTripStore((state) => state.getActiveFiltersCount());
+
+// Selector for filter state (grouped for components that need multiple filter values)
+export const useFilterState = () => useTripStore(
+  useShallow((state) => ({
+    searchQuery: state.searchQuery,
+    statusFilter: state.statusFilter,
+    sortBy: state.sortBy,
+    showCompleted: state.showCompleted,
+  }))
+);
+
+// Selector for selected trip
+export const useSelectedTrip = () => useTripStore((state) => state.selectedTrip);
+
+// Selector for budget state
+export const useTripBudget = () => useTripStore(
+  useShallow((state) => ({
+    budget: state.budget,
+    isBudgetLoading: state.isBudgetLoading,
+  }))
+);
+
+// Selector for trips with destinations (for map views)
+export const useTripsWithDestinations = () => useTripStore(
+  (state) => state.tripsWithDestinations,
+  useShallow
+);
 
 export default useTripStore;
