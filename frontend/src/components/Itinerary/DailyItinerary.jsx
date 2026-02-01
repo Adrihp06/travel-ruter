@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -103,8 +103,8 @@ const TRANSPORT_MODES = [
   { id: 'driving', label: 'Drive', icon: Car, color: 'text-indigo-600 bg-indigo-50' },
 ];
 
-// Transport Mode Connector between POIs
-const TransportModeConnector = ({ fromPoiId, toPoiId, segment }) => {
+// Transport Mode Connector between POIs - memoized to prevent re-renders
+const TransportModeConnector = React.memo(function TransportModeConnector({ fromPoiId, toPoiId, segment }) {
   const { getSegmentMode, setSegmentMode } = useDayRoutesStore();
   const currentMode = getSegmentMode(fromPoiId, toPoiId);
 
@@ -162,7 +162,7 @@ const TransportModeConnector = ({ fromPoiId, toPoiId, segment }) => {
       </div>
     </div>
   );
-};
+});
 
 // Generate days between arrival and departure
 const generateDays = (arrivalDate, departureDate) => {
@@ -324,8 +324,8 @@ const DroppableContainer = ({ id, children, className = '' }) => {
   );
 };
 
-// Droppable Day Column
-const DayColumn = ({
+// Droppable Day Column - memoized to prevent re-renders when other days change
+const DayColumn = React.memo(function DayColumn({
   day,
   pois,
   isExpanded,
@@ -339,7 +339,7 @@ const DayColumn = ({
   isOptimizing,
   onAddDayNote,
   onAddPOINote,
-}) => {
+}) {
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
       <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50">
@@ -484,10 +484,10 @@ const DayColumn = ({
       )}
     </div>
   );
-};
+});
 
-// Unscheduled POIs Section
-const UnscheduledSection = ({ pois, isExpanded, onToggle, onEdit, onDelete, onVote, onPOIClick, onAddPOINote }) => {
+// Unscheduled POIs Section - memoized to prevent re-renders when days change
+const UnscheduledSection = React.memo(function UnscheduledSection({ pois, isExpanded, onToggle, onEdit, onDelete, onVote, onPOIClick, onAddPOINote }) {
   return (
     <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800/50">
       <button
@@ -548,7 +548,7 @@ const UnscheduledSection = ({ pois, isExpanded, onToggle, onEdit, onDelete, onVo
       )}
     </div>
   );
-};
+});
 
 // Main Component
 const DailyItinerary = ({
@@ -602,8 +602,8 @@ const DailyItinerary = ({
     return generateDays(destination.arrival_date, destination.departure_date);
   }, [destination?.arrival_date, destination?.departure_date]);
 
-  // Initialize expanded state for all days
-  useMemo(() => {
+  // Initialize expanded state for all days - use useEffect for state updates
+  useEffect(() => {
     if (days.length > 0 && Object.keys(expandedDays).length === 0) {
       const initial = {};
       days.forEach((day) => {
@@ -611,6 +611,7 @@ const DailyItinerary = ({
       });
       setExpandedDays(initial);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
   // Organize POIs by scheduled date
@@ -659,8 +660,8 @@ const DailyItinerary = ({
     })
   );
 
-  // Find which container a POI belongs to
-  const findContainer = (poiId) => {
+  // Find which container a POI belongs to - memoized to avoid recreating on every render
+  const findContainer = useCallback((poiId) => {
     // Check unscheduled
     if (unscheduled.find(p => p.id === poiId)) {
       return 'unscheduled';
@@ -672,7 +673,7 @@ const DailyItinerary = ({
       }
     }
     return null;
-  };
+  }, [unscheduled, scheduledByDay]);
 
   // Handle drag start
   const handleDragStart = (event) => {

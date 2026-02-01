@@ -29,6 +29,37 @@ const TAG_COLORS = {
   beach: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300',
 };
 
+// Status badge styling - moved outside component to avoid recreation on each render
+const getStatusStyle = (status) => {
+  switch (status) {
+    case 'booked':
+      return 'bg-lime-100 text-lime-700 border-lime-200 dark:bg-lime-900/30 dark:text-lime-300 dark:border-lime-700';
+    case 'completed':
+      return 'bg-stone-100 text-stone-700 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-600';
+    case 'cancelled':
+      return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700';
+    default: // planning
+      return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700';
+  }
+};
+
+// Countdown badge styling - moved outside component to avoid recreation on each render
+const getCountdownStyle = (type) => {
+  switch (type) {
+    case 'today':
+    case 'tomorrow':
+      return 'bg-red-500 text-white shadow-sm';
+    case 'soon':
+      return 'bg-orange-500 text-white shadow-sm';
+    case 'ongoing':
+      return 'bg-lime-600 text-white shadow-sm';
+    case 'past':
+      return 'bg-stone-400 text-white';
+    default:
+      return 'bg-amber-600 text-white shadow-sm';
+  }
+};
+
 const TripCard = React.memo(function TripCard({
   trip,
   onEdit,
@@ -165,37 +196,6 @@ const TripCard = React.memo(function TripCard({
   const progressPercent = totalPOIs > 0
     ? Math.round((scheduledPOIs / totalPOIs) * 100)
     : 0;
-
-  // Status badge styling - Warm Explorer theme
-  const getStatusStyle = (status) => {
-    switch (status) {
-      case 'booked':
-        return 'bg-lime-100 text-lime-700 border-lime-200 dark:bg-lime-900/30 dark:text-lime-300 dark:border-lime-700';
-      case 'completed':
-        return 'bg-stone-100 text-stone-700 border-stone-200 dark:bg-stone-800 dark:text-stone-300 dark:border-stone-600';
-      case 'cancelled':
-        return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-700';
-      default: // planning
-        return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700';
-    }
-  };
-
-  // Countdown badge styling - Warm Explorer theme
-  const getCountdownStyle = (type) => {
-    switch (type) {
-      case 'today':
-      case 'tomorrow':
-        return 'bg-red-500 text-white shadow-sm';
-      case 'soon':
-        return 'bg-orange-500 text-white shadow-sm';
-      case 'ongoing':
-        return 'bg-lime-600 text-white shadow-sm';
-      case 'past':
-        return 'bg-stone-400 text-white';
-      default:
-        return 'bg-amber-600 text-white shadow-sm';
-    }
-  };
 
   // Memoize currency formatter to avoid creating new Intl.NumberFormat on every render
   const formatCurrency = useMemo(() => {
