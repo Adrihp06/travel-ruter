@@ -172,10 +172,10 @@ class GoogleMapsRoutesService:
         }
 
         try:
-            print(f"[GOOGLE MAPS] Request: mode={travel_mode.value}, origin={origin}, dest={destination}")
+            logger.debug(f"Google Maps request: mode={travel_mode.value}, origin={origin}, dest={destination}")
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(self.BASE_URL, headers=headers, json=body)
-                print(f"[GOOGLE MAPS] Response status: {response.status_code}, body: {response.text[:500]}")
+                logger.debug(f"Google Maps response: status={response.status_code}")
 
                 if response.status_code == 400:
                     error_data = response.json()

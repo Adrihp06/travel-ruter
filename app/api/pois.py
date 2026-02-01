@@ -1,3 +1,4 @@
+import logging
 from typing import List
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -6,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from geoalchemy2.functions import ST_SetSRID, ST_MakePoint, ST_X, ST_Y
 
 from app.core.database import get_db
+
+logger = logging.getLogger(__name__)
 from app.models import POI, Destination, Accommodation
 from app.schemas.poi import (
     POICreate, POIUpdate, POIResponse, POIsByCategory, POIVote,
@@ -838,7 +841,7 @@ async def bulk_add_suggested_pois(
 
         except Exception as e:
             # Log error but continue with other POIs
-            print(f"Error adding POI {place_id}: {e}")
+            logger.warning(f"Error adding POI {place_id}: {e}")
             continue
 
     if not created_pois:

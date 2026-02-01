@@ -6,7 +6,10 @@ restaurants, and other points of interest based on destination coordinates,
 as well as autocomplete search functionality.
 """
 
+import logging
 import httpx
+
+logger = logging.getLogger(__name__)
 from typing import List, Optional, Dict, Any
 from app.core.config import settings
 from app.schemas.google_maps_places import (
@@ -430,7 +433,7 @@ class GooglePlacesService:
                             all_suggestions.append(suggestion)
                 except Exception as e:
                     # Log error but continue with other types
-                    print(f"Error fetching suggestions for type {place_type}: {e}")
+                    logger.warning(f"Error fetching suggestions for type {place_type}: {e}")
                     continue
         else:
             # No specific type, get general tourist attractions
