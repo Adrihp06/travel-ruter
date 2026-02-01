@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { X, Plus, Pencil, Trash2 } from 'lucide-react';
+import { X, Plus, Pencil } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import usePOIStore from '../stores/usePOIStore';
 import useDocumentStore from '../stores/useDocumentStore';
