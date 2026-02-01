@@ -12,10 +12,7 @@ import {
   DollarSign,
   Clock,
   MoreVertical,
-  CheckCircle2,
-  Circle,
   Plane,
-  Tag,
   Archive
 } from 'lucide-react';
 import { formatDateFull } from '../../utils/dateFormat';
