@@ -1,6 +1,10 @@
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Create async engine with connection pool configuration
 engine = create_async_engine(
@@ -39,7 +43,8 @@ async def get_db() -> AsyncSession:
         try:
             yield session
             await session.commit()
-        except Exception:
+        except Exception as e:
+            logger.error(f"Database session error, rolling back: {e}", exc_info=True)
             await session.rollback()
             raise
         finally:

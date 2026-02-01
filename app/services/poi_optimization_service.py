@@ -4,12 +4,15 @@ POI Route Optimization Service.
 Optimizes the order of POIs for a given day to minimize travel time,
 starting from the accommodation location.
 """
+import logging
 import math
 from typing import Optional
 from dataclasses import dataclass
 import httpx
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -210,8 +213,8 @@ class POIOptimizationService:
                 features = data.get("features", [])
                 if features:
                     return features[0].get("geometry")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to fetch route geometry from ORS: {e}")
 
         return None
 

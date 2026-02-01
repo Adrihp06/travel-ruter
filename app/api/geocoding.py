@@ -3,11 +3,15 @@ Geocoding API endpoints for location search.
 Supports multiple providers (Nominatim, Mapbox) with caching.
 """
 
+import logging
+
 from fastapi import APIRouter, Query, HTTPException, Header
 from typing import Optional
 from pydantic import BaseModel
 
 from app.services.geocoding_service import GeocodingService, GeocodingResult
+
+logger = logging.getLogger(__name__)
 from app.services.mapbox_geocoding_service import MapboxGeocodingService
 from app.schemas.geocoding_preferences import GeocodingProvider
 
@@ -79,7 +83,7 @@ async def search_locations(
                     )
                     return GeocodingSearchResponse(results=results, provider="mapbox")
                 except Exception as e:
-                    # Fallback to Nominatim on Mapbox error
+                    logger.warning(f"Mapbox search failed, falling back to Nominatim: {e}")
                     used_provider = "nominatim"
             else:
                 # Mapbox not available, fallback
@@ -128,9 +132,8 @@ async def reverse_geocode(
                         lang=lang,
                     )
                     return result
-                except Exception:
-                    # Fallback to Nominatim on Mapbox error
-                    pass
+                except Exception as e:
+                    logger.warning(f"Mapbox reverse geocoding failed, falling back to Nominatim: {e}")
 
         # Use Nominatim (default or fallback)
         result = await GeocodingService.reverse_geocode(

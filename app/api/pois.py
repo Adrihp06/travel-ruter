@@ -847,8 +847,7 @@ async def bulk_add_suggested_pois(
             created_pois.append(poi_to_response(created_poi, lat, lng))
 
         except Exception as e:
-            # Log error but continue with other POIs
-            logger.warning(f"Error adding POI {place_id}: {e}")
+            logger.error(f"Failed to add POI {place_id}", exc_info=True)
             continue
 
     if not created_pois:

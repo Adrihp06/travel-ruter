@@ -1,8 +1,11 @@
+import logging
 from datetime import date, timedelta
 from typing import Optional
 import httpx
 
 from app.core.http_client import get_http_client
+
+logger = logging.getLogger(__name__)
 
 # In-memory cache for weather data
 # Key: (lat, lon, month) tuple, Value: (temperature, timestamp)
@@ -98,7 +101,10 @@ class WeatherService:
 
             return avg_temp
 
-        except (httpx.HTTPError, KeyError, ValueError):
+        except (httpx.HTTPError, KeyError, ValueError) as e:
+            logger.warning(
+                f"Failed to fetch weather data for ({latitude}, {longitude}) month {month}: {e}"
+            )
             return None
 
     @classmethod
