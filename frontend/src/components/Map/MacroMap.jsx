@@ -166,10 +166,11 @@ const MacroMap = ({
       style={style}
       mapStyle={mapStyle}
       onLoad={fitMapBounds}
+      attributionControl={false}
     >
-      <FullscreenControl position="top-left" />
-      <NavigationControl position="top-left" />
-      <ScaleControl />
+      <FullscreenControl position="top-right" />
+      <NavigationControl position="top-right" />
+      <ScaleControl position="bottom-right" />
 
       {/* Route polylines connecting destinations */}
       {routeGeoJSON.features.length > 0 && (

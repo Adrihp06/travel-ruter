@@ -49,17 +49,11 @@ const filterAndSortTrips = (trips, { searchQuery, statusFilter, sortBy, showComp
     filtered = filtered.filter(trip => trip.status === statusFilter);
   }
 
-  // Hide completed trips by default
+  // Hide completed/cancelled trips by default (only based on status, not date)
   if (!showCompleted) {
     filtered = filtered.filter(trip => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const endDate = trip.end_date ? new Date(trip.end_date) : null;
-      if (endDate) endDate.setHours(0, 0, 0, 0);
-
-      // Hide if status is completed OR if end date has passed
-      const isPastTrip = endDate && today > endDate;
-      return trip.status !== 'completed' && !isPastTrip;
+      // Only hide trips explicitly marked as completed or cancelled
+      return trip.status !== 'completed' && trip.status !== 'cancelled';
     });
   }
 

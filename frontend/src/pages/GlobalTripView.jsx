@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
-import { Plus, Plane, SearchX } from 'lucide-react';
+import { Plus, Plane, SearchX, MapPin, Calendar, Compass, TrendingUp } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import MacroMap from '../components/Map/MacroMap';
 import MapSkeleton from '../components/Map/MapSkeleton';
@@ -143,13 +143,10 @@ const GlobalTripView = () => {
     const trip = duplicateDialog.trip;
     if (!trip) return;
 
-    try {
-      // duplicateTrip already adds the new trip to state and fetches destinations
-      // No need to call fetchTrips() again - that causes duplicates
-      await duplicateTrip(trip.id, duplicateOptions);
-    } catch (error) {
-      throw error; // Let the modal handle the error display
-    }
+    // duplicateTrip already adds the new trip to state and fetches destinations
+    // No need to call fetchTrips() again - that causes duplicates
+    // Let any errors propagate to the modal for display
+    await duplicateTrip(trip.id, duplicateOptions);
   }, [duplicateDialog.trip, duplicateTrip]);
 
   const handleStatusChange = useCallback(async (trip, newStatus) => {
@@ -221,41 +218,101 @@ const GlobalTripView = () => {
   }, [fetchTripsSummary]);
 
   // Get filtered and sorted trips
+  // Dependencies include all state that affects filtering results
   const filteredTrips = useMemo(
     () => getFilteredTrips(),
-    [trips, searchQuery, statusFilter, sortBy, showCompleted, getFilteredTrips]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [trips, tripsWithDestinations, searchQuery, statusFilter, sortBy, showCompleted]
   );
 
   const activeFiltersCount = useMemo(
     () => getActiveFiltersCount(),
-    [searchQuery, statusFilter, sortBy, showCompleted, getActiveFiltersCount]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [searchQuery, statusFilter, sortBy, showCompleted]
   );
 
   // Check if there are no results due to filtering
   const hasNoFilterResults = trips.length > 0 && filteredTrips.length === 0;
 
+  // Calculate trip statistics for the summary cards
+  const tripStats = useMemo(() => {
+    const now = new Date();
+    const activeTrips = trips.filter(t => t.status === 'planning' || t.status === 'booked');
+    const upcomingTrips = trips.filter(t => {
+      if (!t.start_date) return false;
+      const startDate = new Date(t.start_date);
+      return startDate > now && (t.status === 'planning' || t.status === 'booked');
+    });
+    const totalDestinations = tripsWithDestinations.reduce((sum, t) => sum + (t.destinations?.length || 0), 0);
+    const totalPOIs = tripsWithDestinations.reduce((sum, t) => sum + (t.poiStats?.total_pois || 0), 0);
+
+    return {
+      totalTrips: trips.length,
+      activeTrips: activeTrips.length,
+      upcomingTrips: upcomingTrips.length,
+      totalDestinations,
+      totalPOIs,
+    };
+  }, [trips, tripsWithDestinations]);
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-stone-50 dark:bg-stone-900 p-8 pt-24 relative overflow-y-auto transition-colors">
+      <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50/30 to-stone-100 dark:from-stone-900 dark:via-stone-900 dark:to-stone-800 relative overflow-y-auto transition-colors">
+        {/* Breadcrumbs */}
         <div className="absolute top-6 left-6 z-50">
           <div className="bg-white/90 dark:bg-stone-800/90 backdrop-blur-sm px-4 py-2 rounded-xl shadow-sm border border-stone-200/80 dark:border-stone-700">
             <Breadcrumbs className="mb-0" />
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold text-stone-900 dark:text-stone-50">My Trips</h1>
-            <div className="w-32 h-10 bg-stone-200 dark:bg-stone-700 rounded-lg skeleton-shimmer" />
-          </div>
-
-          <div className="mb-10 h-[450px] rounded-2xl overflow-hidden shadow-md border border-stone-200 dark:border-stone-700">
+        {/* Hero Section with Map - Skeleton */}
+        <div className="relative">
+          <div className="h-[500px] lg:h-[550px] relative">
             <MapSkeleton height="100%" />
+            {/* Bottom gradient only - less intrusive */}
+            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-stone-50 dark:from-stone-900 to-transparent pointer-events-none" />
           </div>
 
-          <div className="mb-8 h-12 bg-stone-200 dark:bg-stone-700 rounded-lg skeleton-shimmer" />
+          {/* Floating Header Card - Skeleton */}
+          <div className="absolute bottom-0 left-0 right-0 transform translate-y-1/2 px-4 sm:px-6 lg:px-8 z-10">
+            <div className="max-w-7xl mx-auto">
+              <div className="bg-white/95 dark:bg-stone-800/95 backdrop-blur-md rounded-2xl shadow-xl border border-stone-200/50 dark:border-stone-700/50 p-6 lg:p-8">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                  <div>
+                    <div className="h-10 w-48 bg-stone-200 dark:bg-stone-700 rounded-lg skeleton-shimmer mb-2" />
+                    <div className="h-5 w-64 bg-stone-200 dark:bg-stone-700 rounded skeleton-shimmer" />
+                  </div>
+                  <div className="h-12 w-36 bg-stone-200 dark:bg-stone-700 rounded-xl skeleton-shimmer" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {/* Stats Cards - Skeleton */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 lg:pt-36 pb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-white dark:bg-stone-800 rounded-xl p-5 shadow-sm border border-stone-200/50 dark:border-stone-700/50">
+                <div className="h-10 w-10 bg-stone-200 dark:bg-stone-700 rounded-lg skeleton-shimmer mb-3" />
+                <div className="h-8 w-16 bg-stone-200 dark:bg-stone-700 rounded skeleton-shimmer mb-1" />
+                <div className="h-4 w-24 bg-stone-200 dark:bg-stone-700 rounded skeleton-shimmer" />
+              </div>
+            ))}
+          </div>
+
+          {/* Search Bar - Skeleton */}
+          <div className="mb-8 h-14 bg-white dark:bg-stone-800 rounded-xl skeleton-shimmer border border-stone-200/50 dark:border-stone-700/50" />
+
+          {/* Section Divider */}
+          <div className="flex items-center gap-4 mb-8">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-stone-300 dark:via-stone-600 to-transparent" />
+            <div className="h-5 w-24 bg-stone-200 dark:bg-stone-700 rounded skeleton-shimmer" />
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-stone-300 dark:via-stone-600 to-transparent" />
+          </div>
+
+          {/* Trip Cards Grid - Skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <TripCardSkeleton key={i} />
             ))}
@@ -266,45 +323,117 @@ const GlobalTripView = () => {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 dark:bg-stone-900 p-8 pt-24 relative overflow-y-auto transition-colors">
+    <div className="min-h-screen bg-gradient-to-br from-stone-50 via-amber-50/30 to-stone-100 dark:from-stone-900 dark:via-stone-900 dark:to-stone-800 relative overflow-y-auto transition-colors">
+      {/* Breadcrumbs */}
       <div className="absolute top-6 left-6 z-50">
         <div className="bg-white/90 dark:bg-stone-800/90 backdrop-blur-sm px-4 py-2 rounded-xl shadow-sm border border-stone-200/80 dark:border-stone-700">
           <Breadcrumbs className="mb-0" />
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-stone-900 dark:text-stone-50">My Trips</h1>
-          <button
-            onClick={() => {
-              setEditingTrip(null);
-              setShowTripModal(true);
-            }}
-            className="flex items-center space-x-2 px-4 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all shadow-md hover:shadow-lg press-effect font-medium"
-          >
-            <Plus className="w-5 h-5" />
-            <span>New Trip</span>
-          </button>
+      {/* Hero Section with Map */}
+      <div className="relative">
+        <div className="h-[500px] lg:h-[550px] relative z-0">
+          <MacroMap trips={tripsWithDestinations} />
+          {/* Bottom gradient only - less intrusive, allows map interaction */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-stone-50 dark:from-stone-900 to-transparent pointer-events-none z-10" />
+          {/* Subtle top gradient for breadcrumb visibility */}
+          <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-stone-50/70 dark:from-stone-900/70 to-transparent pointer-events-none z-10" />
         </div>
 
-        <div className="mb-10 h-[450px] rounded-2xl overflow-hidden shadow-lg border border-stone-200 dark:border-stone-700">
-          <MacroMap trips={tripsWithDestinations} />
+        {/* Floating Header Card */}
+        <div className="absolute bottom-0 left-0 right-0 transform translate-y-1/2 px-4 sm:px-6 lg:px-8 z-20">
+          <div className="max-w-7xl mx-auto">
+            <div className="bg-white/95 dark:bg-stone-800/95 backdrop-blur-md rounded-2xl shadow-xl border border-stone-200/50 dark:border-stone-700/50 p-6 lg:p-8">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div>
+                  <h1 className="text-3xl lg:text-4xl font-bold text-stone-900 dark:text-stone-50 mb-2">
+                    My Trips
+                  </h1>
+                  <p className="text-stone-600 dark:text-stone-400 text-lg">
+                    {trips.length === 0
+                      ? 'Start planning your next adventure'
+                      : `${tripStats.totalTrips} trip${tripStats.totalTrips !== 1 ? 's' : ''} across ${tripStats.totalDestinations} destination${tripStats.totalDestinations !== 1 ? 's' : ''}`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingTrip(null);
+                    setShowTripModal(true);
+                  }}
+                  className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl transition-all shadow-lg hover:shadow-xl press-effect font-semibold text-lg group"
+                >
+                  <Plus className="w-5 h-5 transition-transform group-hover:rotate-90" />
+                  <span>New Trip</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 lg:pt-36 pb-12">
+        {/* Stats Cards */}
+        {trips.length > 0 && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10 animate-fade-in">
+            <div className="bg-white dark:bg-stone-800 rounded-xl p-5 shadow-sm border border-stone-200/50 dark:border-stone-700/50 hover-lift group">
+              <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <Compass className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="text-2xl lg:text-3xl font-bold text-stone-900 dark:text-stone-50">
+                {tripStats.totalTrips}
+              </div>
+              <div className="text-sm text-stone-500 dark:text-stone-400">Total Trips</div>
+            </div>
+
+            <div className="bg-white dark:bg-stone-800 rounded-xl p-5 shadow-sm border border-stone-200/50 dark:border-stone-700/50 hover-lift group">
+              <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div className="text-2xl lg:text-3xl font-bold text-stone-900 dark:text-stone-50">
+                {tripStats.activeTrips}
+              </div>
+              <div className="text-sm text-stone-500 dark:text-stone-400">Active Trips</div>
+            </div>
+
+            <div className="bg-white dark:bg-stone-800 rounded-xl p-5 shadow-sm border border-stone-200/50 dark:border-stone-700/50 hover-lift group">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="text-2xl lg:text-3xl font-bold text-stone-900 dark:text-stone-50">
+                {tripStats.totalDestinations}
+              </div>
+              <div className="text-sm text-stone-500 dark:text-stone-400">Destinations</div>
+            </div>
+
+            <div className="bg-white dark:bg-stone-800 rounded-xl p-5 shadow-sm border border-stone-200/50 dark:border-stone-700/50 hover-lift group">
+              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <Calendar className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div className="text-2xl lg:text-3xl font-bold text-stone-900 dark:text-stone-50">
+                {tripStats.upcomingTrips}
+              </div>
+              <div className="text-sm text-stone-500 dark:text-stone-400">Upcoming</div>
+            </div>
+          </div>
+        )}
 
         {trips.length === 0 ? (
-          <div className="text-center py-16 animate-fade-in">
-            <div className="w-20 h-20 mx-auto mb-6 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center">
-              <Plane className="w-10 h-10 text-amber-600 dark:text-amber-400" />
+          <div className="text-center py-20 animate-fade-in">
+            <div className="w-24 h-24 mx-auto mb-8 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 rounded-full flex items-center justify-center shadow-lg">
+              <Plane className="w-12 h-12 text-amber-600 dark:text-amber-400" />
             </div>
-            <h2 className="text-xl font-semibold text-stone-700 dark:text-stone-200 mb-2">No trips yet</h2>
-            <p className="text-stone-500 dark:text-stone-400 mb-6 max-w-sm mx-auto">Create your first trip to start planning your next adventure!</p>
+            <h2 className="text-2xl font-bold text-stone-800 dark:text-stone-100 mb-3">No trips yet</h2>
+            <p className="text-stone-500 dark:text-stone-400 mb-8 max-w-md mx-auto text-lg">
+              Create your first trip to start planning your next adventure!
+            </p>
             <button
               onClick={() => {
                 setEditingTrip(null);
                 setShowTripModal(true);
               }}
-              className="px-6 py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all shadow-md hover:shadow-lg press-effect font-medium"
+              className="px-8 py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl transition-all shadow-lg hover:shadow-xl press-effect font-semibold text-lg"
             >
               Create Your First Trip
             </button>
@@ -325,27 +454,38 @@ const GlobalTripView = () => {
               onClearFilters={clearFilters}
             />
 
+            {/* Section Divider */}
+            <div className="flex items-center gap-4 my-8">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-stone-300 dark:via-stone-600 to-transparent" />
+              <span className="text-sm font-medium text-stone-500 dark:text-stone-400 px-3">
+                {filteredTrips.length} {filteredTrips.length === 1 ? 'trip' : 'trips'}
+              </span>
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-stone-300 dark:via-stone-600 to-transparent" />
+            </div>
+
             {/* No results state */}
             {hasNoFilterResults ? (
-              <div className="text-center py-16 animate-fade-in">
-                <div className="w-20 h-20 mx-auto mb-6 bg-stone-100 dark:bg-stone-800 rounded-full flex items-center justify-center">
-                  <SearchX className="w-10 h-10 text-stone-400 dark:text-stone-500" />
+              <div className="text-center py-20 animate-fade-in">
+                <div className="w-24 h-24 mx-auto mb-8 bg-stone-100 dark:bg-stone-800 rounded-full flex items-center justify-center shadow-inner">
+                  <SearchX className="w-12 h-12 text-stone-400 dark:text-stone-500" />
                 </div>
-                <h2 className="text-xl font-semibold text-stone-700 dark:text-stone-200 mb-2">No trips found</h2>
-                <p className="text-stone-500 dark:text-stone-400 mb-6 max-w-sm mx-auto">
+                <h2 className="text-2xl font-bold text-stone-700 dark:text-stone-200 mb-3">No trips found</h2>
+                <p className="text-stone-500 dark:text-stone-400 mb-8 max-w-md mx-auto text-lg">
                   {searchQuery
                     ? `No trips match "${searchQuery}"`
-                    : 'No trips match your current filters'}
+                    : !showCompleted
+                      ? 'All your trips are completed or in the past. Show completed trips to see them.'
+                      : 'No trips match your current filters'}
                 </p>
                 <button
-                  onClick={clearFilters}
-                  className="px-6 py-3 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all shadow-md hover:shadow-lg press-effect font-medium"
+                  onClick={() => !showCompleted ? setShowCompleted(true) : clearFilters()}
+                  className="px-8 py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl transition-all shadow-lg hover:shadow-xl press-effect font-semibold text-lg"
                 >
-                  Clear Filters
+                  {!showCompleted && !searchQuery ? 'Show Completed Trips' : 'Clear Filters'}
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8 stagger-children">
                 {filteredTrips.map((trip) => {
                   const poiStats = getPOIStats(trip.id);
                   return (
