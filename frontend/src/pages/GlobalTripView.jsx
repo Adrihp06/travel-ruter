@@ -16,7 +16,6 @@ const UNDO_DURATION = 5000; // 5 seconds for undo
 
 const GlobalTripView = () => {
   const {
-    trips,
     tripsWithDestinations,
     fetchTripsSummary,
     softDeleteTrip,
@@ -37,6 +36,9 @@ const GlobalTripView = () => {
     getFilteredTrips,
     getActiveFiltersCount,
   } = useTripStore();
+
+  // Use tripsWithDestinations as the single source of truth
+  const trips = tripsWithDestinations;
   const [showTripModal, setShowTripModal] = useState(false);
   const [editingTrip, setEditingTrip] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, trip: null });
@@ -47,14 +49,13 @@ const GlobalTripView = () => {
 
   // Open delete confirmation dialog - memoized
   const handleDeleteClick = useCallback((tripId) => {
-    // Find trip with destinations for showing destination count
-    const trip = trips.find(t => t.id === tripId);
-    const tripWithDest = tripsWithDestinations.find(t => t.id === tripId);
+    // Find trip from single source of truth (already has destinations)
+    const trip = tripsWithDestinations.find(t => t.id === tripId);
     setDeleteDialog({
       isOpen: true,
-      trip: tripWithDest || trip
+      trip
     });
-  }, [trips, tripsWithDestinations]);
+  }, [tripsWithDestinations]);
 
   // Handle delete confirmation
   const handleConfirmDelete = useCallback(async () => {

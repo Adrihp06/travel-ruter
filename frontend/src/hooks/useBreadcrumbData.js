@@ -21,8 +21,8 @@ const useBreadcrumbData = () => {
   const [tripName, setTripName] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Get existing store data
-  const { selectedTrip, trips } = useTripStore();
+  // Get existing store data - tripsWithDestinations is the single source of truth
+  const { selectedTrip, tripsWithDestinations: trips } = useTripStore();
   const { selectedDestination, resetSelectedDestination } = useDestinationStore();
 
   // Handler to go back to trip level (clear destination selection)

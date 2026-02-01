@@ -149,15 +149,21 @@ const getMockDestinations = (tripId) => {
   return mockData[tripId] || [];
 };
 
+// Helper to deduplicate trips by ID (keeps first occurrence)
+const deduplicateTrips = (trips) =>
+  trips.filter((trip, index, self) =>
+    index === self.findIndex(t => t.id === trip.id)
+  );
+
 const useTripStore = create((set, get) => ({
-  trips: [],
+  // Single source of truth for all trip data (includes destinations and poiStats)
   tripsWithDestinations: [],
   selectedTrip: null,
   budget: null,
   isLoading: false,
   isBudgetLoading: false,
   error: null,
-  pendingDelete: null, // { trip, tripsWithDestinations } for undo functionality
+  pendingDelete: null, // { trip } for undo functionality
 
   // Filter state
   searchQuery: '',
@@ -165,7 +171,15 @@ const useTripStore = create((set, get) => ({
   sortBy: 'default',
   showCompleted: false,
 
-  setTrips: (trips) => set({ trips }),
+  setTrips: (trips) => {
+    // Ensure trips have destination/poiStats structure
+    const enrichedTrips = trips.map(trip => ({
+      ...trip,
+      destinations: trip.destinations || [],
+      poiStats: trip.poiStats || { total_pois: 0, scheduled_pois: 0 }
+    }));
+    set({ tripsWithDestinations: deduplicateTrips(enrichedTrips) });
+  },
 
   // Filter actions
   setSearchQuery: (searchQuery) => set({ searchQuery }),
@@ -179,15 +193,10 @@ const useTripStore = create((set, get) => ({
     showCompleted: false,
   }),
 
-  // Get filtered and sorted trips - prefers tripsWithDestinations for complete data
+  // Get filtered and sorted trips from single source of truth
   getFilteredTrips: () => {
     const state = get();
-    // Use tripsWithDestinations if available (has more complete data),
-    // otherwise fall back to trips
-    const sourceTrips = state.tripsWithDestinations.length > 0
-      ? state.tripsWithDestinations
-      : state.trips;
-    return filterAndSortTrips(sourceTrips, {
+    return filterAndSortTrips(state.tripsWithDestinations, {
       searchQuery: state.searchQuery,
       statusFilter: state.statusFilter,
       sortBy: state.sortBy,
@@ -207,9 +216,7 @@ const useTripStore = create((set, get) => ({
   },
   selectTrip: (tripId) => set((state) => {
     const id = Number(tripId);
-    // Prefer tripsWithDestinations for complete data, fall back to trips
-    const tripWithDest = state.tripsWithDestinations.find((t) => t.id === id);
-    const trip = tripWithDest || state.trips.find((t) => t.id === id);
+    const trip = state.tripsWithDestinations.find((t) => t.id === id);
     return { selectedTrip: trip || null };
   }),
 
@@ -219,13 +226,9 @@ const useTripStore = create((set, get) => ({
       const response = await fetch(`${API_BASE_URL}/trips`);
       if (!response.ok) throw new Error('Failed to fetch trips');
       const trips = await response.json();
-      // Deduplicate trips by ID to prevent race conditions
-      const uniqueTrips = trips.filter((trip, index, self) =>
-        index === self.findIndex(t => t.id === trip.id)
-      );
-      set({ trips: uniqueTrips, isLoading: false });
-      // Fetch destinations for all trips for the macro map
-      get().fetchTripsWithDestinations(trips);
+      // Fetch destinations for all trips, then update single source of truth
+      await get().fetchTripsWithDestinations(trips);
+      set({ isLoading: false });
     } catch (error) {
       // Fallback to mock data if API unavailable
       const mockTrips = [
@@ -233,9 +236,9 @@ const useTripStore = create((set, get) => ({
         { id: 2, title: 'Winter Alps', date: 'Dec 2026', location: 'Switzerland' },
         { id: 3, title: 'Japan Cherry Blossom', date: 'Apr 2027', location: 'Japan' },
       ];
-      set({ trips: mockTrips, isLoading: false, error: error.message });
       // Fetch destinations for mock trips too
-      get().fetchTripsWithDestinations(mockTrips);
+      await get().fetchTripsWithDestinations(mockTrips);
+      set({ isLoading: false, error: error.message });
     }
   },
 
@@ -248,20 +251,15 @@ const useTripStore = create((set, get) => ({
       if (!response.ok) throw new Error('Failed to fetch trips summary');
       const data = await response.json();
 
-      // Transform the response to match the expected format
-      const tripsWithDestinations = data.trips.map(trip => ({
+      // Transform the response to match the expected format with destinations
+      const enrichedTrips = data.trips.map(trip => ({
         ...trip,
+        destinations: trip.destinations || [],
         poiStats: trip.poi_stats || { total_pois: 0, scheduled_pois: 0 }
       }));
 
-      // Deduplicate by ID to prevent any race conditions
-      const uniqueTrips = tripsWithDestinations.filter((trip, index, self) =>
-        index === self.findIndex(t => t.id === trip.id)
-      );
-
       set({
-        trips: uniqueTrips,
-        tripsWithDestinations: uniqueTrips,
+        tripsWithDestinations: deduplicateTrips(enrichedTrips),
         isLoading: false
       });
     } catch (error) {
@@ -289,11 +287,7 @@ const useTripStore = create((set, get) => ({
           }
         })
       );
-      // Deduplicate by ID to prevent race conditions
-      const uniqueTripsWithDests = tripsWithDests.filter((trip, index, self) =>
-        index === self.findIndex(t => t.id === trip.id)
-      );
-      set({ tripsWithDestinations: uniqueTripsWithDests });
+      set({ tripsWithDestinations: deduplicateTrips(tripsWithDests) });
     } catch {
       // Fallback to mock destinations for demonstration
       const mockTripsWithDestinations = trips.map(trip => ({
@@ -301,7 +295,7 @@ const useTripStore = create((set, get) => ({
         destinations: getMockDestinations(trip.id),
         poiStats: { total_pois: 0, scheduled_pois: 0 }
       }));
-      set({ tripsWithDestinations: mockTripsWithDestinations });
+      set({ tripsWithDestinations: deduplicateTrips(mockTripsWithDestinations) });
     }
   },
 
@@ -389,7 +383,7 @@ const useTripStore = create((set, get) => ({
 
       const newTrip = await response.json();
 
-      // Add to both trips arrays to keep them in sync
+      // Add to single source of truth with destination/poi structure
       const newTripWithDestinations = {
         ...newTrip,
         destinations: [],
@@ -397,8 +391,7 @@ const useTripStore = create((set, get) => ({
       };
 
       set((state) => ({
-        trips: [...state.trips, newTrip],
-        tripsWithDestinations: [...state.tripsWithDestinations, newTripWithDestinations],
+        tripsWithDestinations: deduplicateTrips([...state.tripsWithDestinations, newTripWithDestinations]),
         isLoading: false,
       }));
 
@@ -428,11 +421,14 @@ const useTripStore = create((set, get) => ({
       const updatedTrip = await response.json();
 
       set((state) => ({
-        trips: state.trips.map((t) => (t.id === tripId ? updatedTrip : t)),
         tripsWithDestinations: state.tripsWithDestinations.map((t) =>
-          t.id === tripId ? { ...updatedTrip, destinations: t.destinations } : t
+          t.id === tripId
+            ? { ...updatedTrip, destinations: t.destinations, poiStats: t.poiStats }
+            : t
         ),
-        selectedTrip: state.selectedTrip?.id === tripId ? updatedTrip : state.selectedTrip,
+        selectedTrip: state.selectedTrip?.id === tripId
+          ? { ...updatedTrip, destinations: state.selectedTrip.destinations }
+          : state.selectedTrip,
         isLoading: false,
       }));
 
@@ -455,7 +451,6 @@ const useTripStore = create((set, get) => ({
       }
 
       set((state) => ({
-        trips: state.trips.filter((t) => t.id !== tripId),
         tripsWithDestinations: state.tripsWithDestinations.filter((t) => t.id !== tripId),
         selectedTrip: state.selectedTrip?.id === tripId ? null : state.selectedTrip,
         isLoading: false,
@@ -469,16 +464,14 @@ const useTripStore = create((set, get) => ({
   // Soft delete: removes from UI but keeps data for undo
   softDeleteTrip: (tripId) => {
     const state = get();
-    const trip = state.trips.find((t) => t.id === tripId);
-    const tripWithDest = state.tripsWithDestinations.find((t) => t.id === tripId);
+    const trip = state.tripsWithDestinations.find((t) => t.id === tripId);
 
     if (!trip) return null;
 
     set({
-      trips: state.trips.filter((t) => t.id !== tripId),
       tripsWithDestinations: state.tripsWithDestinations.filter((t) => t.id !== tripId),
       selectedTrip: state.selectedTrip?.id === tripId ? null : state.selectedTrip,
-      pendingDelete: { trip, tripWithDest },
+      pendingDelete: { trip },
     });
 
     return trip;
@@ -489,13 +482,10 @@ const useTripStore = create((set, get) => ({
     const state = get();
     const pending = state.pendingDelete;
 
-    if (!pending) return;
+    if (!pending?.trip) return;
 
     set({
-      trips: [...state.trips, pending.trip],
-      tripsWithDestinations: pending.tripWithDest
-        ? [...state.tripsWithDestinations, pending.tripWithDest]
-        : state.tripsWithDestinations,
+      tripsWithDestinations: deduplicateTrips([...state.tripsWithDestinations, pending.trip]),
       pendingDelete: null,
     });
   },
@@ -562,10 +552,9 @@ const useTripStore = create((set, get) => ({
         poiStats
       };
 
-      // Add to both arrays to keep them in sync
+      // Add to single source of truth
       set((state) => ({
-        trips: [...state.trips, newTrip],
-        tripsWithDestinations: [...state.tripsWithDestinations, newTripWithDestinations],
+        tripsWithDestinations: deduplicateTrips([...state.tripsWithDestinations, newTripWithDestinations]),
         isLoading: false,
       }));
 
@@ -587,7 +576,7 @@ const useTripStore = create((set, get) => ({
 
   // Get budget info for a trip (from tripsWithDestinations or budget state)
   getTripBudgetInfo: (tripId) => {
-    const trip = get().trips.find(t => t.id === tripId);
+    const trip = get().tripsWithDestinations.find(t => t.id === tripId);
     if (get().selectedTrip?.id === tripId && get().budget) {
       return get().budget;
     }
