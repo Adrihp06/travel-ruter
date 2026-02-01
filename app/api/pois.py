@@ -777,12 +777,19 @@ async def bulk_add_suggested_pois(
             detail=f"Destination with id {destination_id} not found"
         )
 
-    # Fetch details for each place_id from Google Places API
-    created_pois = []
-    for place_id in request.place_ids:
-        try:
-            place_details = await GooglePlacesService.get_place_details(place_id)
+    # Fetch details for all place_ids in parallel (fixes N+1 query issue)
+    details_map = await GooglePlacesService.get_place_details_batch(request.place_ids)
 
+    if not details_map:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch details for any POIs from Google Places API"
+        )
+
+    # Create POIs from fetched details
+    created_pois = []
+    for place_id, place_details in details_map.items():
+        try:
             # Extract coordinates
             geometry = place_details.get("geometry", {})
             location = geometry.get("location", {})

@@ -6,6 +6,7 @@ restaurants, and other points of interest based on destination coordinates,
 as well as autocomplete search functionality.
 """
 
+import asyncio
 import logging
 import httpx
 
@@ -353,6 +354,50 @@ class GooglePlacesService:
             raise Exception(f"Google Places API error: {error_msg}")
 
         return data.get("result", {})
+
+    # Alias for backwards compatibility
+    get_place_details = get_place_details_for_poi
+
+    @staticmethod
+    async def get_place_details_batch(
+        place_ids: List[str],
+        max_concurrent: int = 5,
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Fetch details for multiple places in parallel using asyncio.gather.
+
+        This is significantly faster than sequential fetching for bulk operations.
+        Uses a semaphore to limit concurrent requests and prevent API quota exhaustion.
+
+        Args:
+            place_ids: List of Google Place IDs to fetch details for
+            max_concurrent: Maximum number of concurrent requests (default 5)
+
+        Returns:
+            Dictionary mapping place_id to place details. Failed requests are excluded.
+        """
+        if not place_ids:
+            return {}
+
+        semaphore = asyncio.Semaphore(max_concurrent)
+
+        async def fetch_with_semaphore(place_id: str) -> tuple[str, Dict[str, Any] | Exception]:
+            async with semaphore:
+                try:
+                    result = await GooglePlacesService.get_place_details_for_poi(place_id)
+                    return (place_id, result)
+                except Exception as e:
+                    logger.warning(f"Failed to fetch details for place {place_id}: {e}")
+                    return (place_id, e)
+
+        tasks = [fetch_with_semaphore(pid) for pid in place_ids]
+        results = await asyncio.gather(*tasks)
+
+        return {
+            place_id: details
+            for place_id, details in results
+            if not isinstance(details, Exception)
+        }
 
     @staticmethod
     def get_photo_url(
