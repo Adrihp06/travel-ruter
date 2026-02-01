@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { X, MapPin } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, MapPin, AlertTriangle } from 'lucide-react';
 import useDestinationStore from '../../stores/useDestinationStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import DateRangePicker from '../common/DateRangePicker';
 import Spinner from '../UI/Spinner';
+import { findDateCollisions, formatDateShort } from '../../utils/dateFormat';
 
 const DestinationFormModal = ({
   isOpen,
@@ -16,6 +17,10 @@ const DestinationFormModal = ({
   const { createDestination, updateDestination, isLoading } = useDestinationStore();
   const isEditMode = !!destination;
 
+  // Use destinations from the trip prop (from useTripStore) for collision detection
+  // This ensures we're checking against the same data that's displayed in the Timeline
+  const existingDestinations = trip?.destinations || [];
+
   const [formData, setFormData] = useState({
     city_name: '',
     country: '',
@@ -27,6 +32,34 @@ const DestinationFormModal = ({
   });
 
   const [errors, setErrors] = useState({});
+  const [collisionWarningAcknowledged, setCollisionWarningAcknowledged] = useState(false);
+  // Track dates to reset acknowledgment when they change
+  const [acknowledgedForDates, setAcknowledgedForDates] = useState({ arrival: '', departure: '' });
+
+  // Check for date collisions with existing destinations
+  const dateCollisions = useMemo(() => {
+    if (!formData.arrival_date || !formData.departure_date) return [];
+    return findDateCollisions(
+      formData.arrival_date,
+      formData.departure_date,
+      existingDestinations,
+      isEditMode ? destination?.id : null
+    );
+  }, [formData.arrival_date, formData.departure_date, existingDestinations, isEditMode, destination?.id]);
+
+  // Check if acknowledgment is valid for current dates
+  const isAcknowledgmentValid = collisionWarningAcknowledged &&
+    acknowledgedForDates.arrival === formData.arrival_date &&
+    acknowledgedForDates.departure === formData.departure_date;
+
+  // Handler to acknowledge warning for current dates
+  const handleAcknowledgeWarning = () => {
+    setCollisionWarningAcknowledged(true);
+    setAcknowledgedForDates({
+      arrival: formData.arrival_date,
+      departure: formData.departure_date
+    });
+  };
 
   // Infer country from trip location or existing destinations
   const inferCountry = () => {
@@ -96,6 +129,8 @@ const DestinationFormModal = ({
       });
     }
     setErrors({});
+    setCollisionWarningAcknowledged(false);
+    setAcknowledgedForDates({ arrival: '', departure: '' });
   }, [destination, isOpen, trip]);
 
   const validateForm = () => {
@@ -139,7 +174,16 @@ const DestinationFormModal = ({
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    // If there are validation errors, fail
+    if (Object.keys(newErrors).length > 0) return false;
+
+    // If there are date collisions and user hasn't acknowledged, require acknowledgment
+    if (dateCollisions.length > 0 && !isAcknowledgmentValid) {
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e) => {
@@ -254,6 +298,53 @@ const DestinationFormModal = ({
             required
             showDuration
           />
+
+          {/* Date Collision Warning */}
+          {dateCollisions.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-amber-800">
+                    Date overlap detected
+                  </p>
+                  <p className="text-sm text-amber-700 mt-1">
+                    These dates overlap with{' '}
+                    {dateCollisions.length === 1 ? (
+                      <>
+                        <strong>{dateCollisions[0]?.city_name || 'another destination'}</strong>{' '}
+                        ({formatDateShort(dateCollisions[0]?.arrival_date)} - {formatDateShort(dateCollisions[0]?.departure_date)})
+                      </>
+                    ) : (
+                      <>
+                        {dateCollisions.length} other destinations:{' '}
+                        {dateCollisions.map((d, i) => (
+                          <span key={d?.id || i}>
+                            {i > 0 && ', '}
+                            <strong>{d?.city_name || 'Unknown'}</strong>
+                          </span>
+                        ))}
+                      </>
+                    )}
+                  </p>
+                  {!isAcknowledgmentValid && (
+                    <button
+                      type="button"
+                      onClick={handleAcknowledgeWarning}
+                      className="mt-2 text-sm font-medium text-amber-800 hover:text-amber-900 underline"
+                    >
+                      I understand, proceed anyway
+                    </button>
+                  )}
+                  {isAcknowledgmentValid && (
+                    <p className="mt-2 text-xs text-amber-600 italic">
+                      ✓ Warning acknowledged
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Notes */}
           <div>

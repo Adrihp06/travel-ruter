@@ -207,3 +207,53 @@ export const formatDateForDocument = (dateStr, includeTime = false) => {
 
   return date.toLocaleDateString(locale, options);
 };
+
+/**
+ * Check if two date ranges overlap
+ * Note: Same-day arrival/departure is allowed (leaving one place, arriving at another)
+ * @param {string} start1 - Start date of first range (YYYY-MM-DD)
+ * @param {string} end1 - End date of first range (YYYY-MM-DD)
+ * @param {string} start2 - Start date of second range (YYYY-MM-DD)
+ * @param {string} end2 - End date of second range (YYYY-MM-DD)
+ * @returns {boolean} True if ranges overlap
+ */
+export const doDateRangesOverlap = (start1, end1, start2, end2) => {
+  if (!start1 || !end1 || !start2 || !end2) return false;
+
+  const s1 = new Date(start1);
+  const e1 = new Date(end1);
+  const s2 = new Date(start2);
+  const e2 = new Date(end2);
+
+  // Check for invalid dates
+  if ([s1, e1, s2, e2].some(d => isNaN(d.getTime()))) return false;
+
+  // Two ranges overlap if one starts before the other ends
+  // Allow same-day: arrival at new place can be on departure day from previous place
+  // So we use < instead of <= for the boundary check
+  return s1 < e2 && s2 < e1;
+};
+
+/**
+ * Find all destinations that have date collisions with a given date range
+ * @param {string} arrivalDate - Arrival date (YYYY-MM-DD)
+ * @param {string} departureDate - Departure date (YYYY-MM-DD)
+ * @param {Array} existingDestinations - Array of destination objects with arrival_date and departure_date
+ * @param {string|null} excludeId - Destination ID to exclude (for edit mode)
+ * @returns {Array} Array of destinations that have date collisions
+ */
+export const findDateCollisions = (arrivalDate, departureDate, existingDestinations, excludeId = null) => {
+  if (!arrivalDate || !departureDate || !existingDestinations?.length) return [];
+
+  return existingDestinations.filter(dest => {
+    // Skip the destination being edited
+    if (excludeId && dest.id === excludeId) return false;
+
+    return doDateRangesOverlap(
+      arrivalDate,
+      departureDate,
+      dest.arrival_date,
+      dest.departure_date
+    );
+  });
+};
