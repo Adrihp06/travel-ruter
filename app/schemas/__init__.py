@@ -58,6 +58,7 @@ from app.schemas.note import (
     NoteExportRequest,
     NoteExportResponse,
 )
+from app.schemas.pagination import PaginatedResponse
 
 __all__ = [
     "DestinationCreate",
@@ -104,4 +105,5 @@ __all__ = [
     "NoteSearchResponse",
     "NoteExportRequest",
     "NoteExportResponse",
+    "PaginatedResponse",
 ]

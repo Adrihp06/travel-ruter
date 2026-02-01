@@ -1,13 +1,14 @@
 from datetime import timedelta
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from geoalchemy2.functions import ST_SetSRID, ST_MakePoint
 
 from app.core.database import get_db
 from app.models import Destination, Trip
-from app.schemas import DestinationCreate, DestinationUpdate, DestinationResponse, DestinationReorderRequest
+from app.schemas import DestinationCreate, DestinationUpdate, DestinationResponse, DestinationReorderRequest, PaginatedResponse
+from app.api.deps import PaginationParams
 
 router = APIRouter()
 
@@ -45,12 +46,13 @@ async def create_destination(
     return db_destination
 
 
-@router.get("/trips/{trip_id}/destinations", response_model=List[DestinationResponse])
+@router.get("/trips/{trip_id}/destinations", response_model=PaginatedResponse[DestinationResponse])
 async def list_destinations_by_trip(
     trip_id: int,
+    pagination: PaginationParams = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all destinations for a specific trip"""
+    """Get all destinations for a specific trip with pagination"""
     # Verify that the trip exists
     trip_result = await db.execute(select(Trip).where(Trip.id == trip_id))
     trip = trip_result.scalar_one_or_none()
@@ -61,15 +63,28 @@ async def list_destinations_by_trip(
             detail=f"Trip with id {trip_id} not found"
         )
 
-    # Get destinations ordered by the 'order_index' field
+    # Get total count
+    count_result = await db.execute(
+        select(func.count()).select_from(Destination).where(Destination.trip_id == trip_id)
+    )
+    total = count_result.scalar()
+
+    # Get destinations ordered by the 'order_index' field with pagination
     result = await db.execute(
         select(Destination)
         .where(Destination.trip_id == trip_id)
         .order_by(Destination.order_index.asc(), Destination.created_at.asc())
+        .offset(pagination.skip)
+        .limit(pagination.limit)
     )
     destinations = result.scalars().all()
 
-    return destinations
+    return PaginatedResponse(
+        items=destinations,
+        total=total,
+        skip=pagination.skip,
+        limit=pagination.limit,
+    )
 
 
 @router.get("/destinations/{id}", response_model=DestinationResponse)

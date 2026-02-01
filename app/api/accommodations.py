@@ -1,13 +1,14 @@
 from typing import List
 from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from geoalchemy2.functions import ST_SetSRID, ST_MakePoint, ST_X, ST_Y
 
 from app.core.database import get_db
 from app.models import Accommodation, Destination
-from app.schemas import AccommodationCreate, AccommodationUpdate, AccommodationResponse
+from app.schemas import AccommodationCreate, AccommodationUpdate, AccommodationResponse, PaginatedResponse
+from app.api.deps import PaginationParams
 
 router = APIRouter()
 
@@ -185,12 +186,13 @@ async def create_accommodation(
     return accommodation_to_response(created_acc, lat, lng)
 
 
-@router.get("/destinations/{destination_id}/accommodations", response_model=List[AccommodationResponse])
+@router.get("/destinations/{destination_id}/accommodations", response_model=PaginatedResponse[AccommodationResponse])
 async def list_accommodations_by_destination(
     destination_id: int,
+    pagination: PaginationParams = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all accommodations for a specific destination"""
+    """Get accommodations for a specific destination with pagination"""
     # Verify that the destination exists
     dest_result = await db.execute(select(Destination).where(Destination.id == destination_id))
     destination = dest_result.scalar_one_or_none()
@@ -201,7 +203,13 @@ async def list_accommodations_by_destination(
             detail=f"Destination with id {destination_id} not found"
         )
 
-    # Get accommodations ordered by check-in date, with explicit lat/lng extraction
+    # Get total count
+    count_result = await db.execute(
+        select(func.count()).select_from(Accommodation).where(Accommodation.destination_id == destination_id)
+    )
+    total = count_result.scalar()
+
+    # Get accommodations ordered by check-in date, with explicit lat/lng extraction and pagination
     result = await db.execute(
         select(
             Accommodation,
@@ -210,10 +218,17 @@ async def list_accommodations_by_destination(
         )
         .where(Accommodation.destination_id == destination_id)
         .order_by(Accommodation.check_in_date.asc(), Accommodation.created_at.asc())
+        .offset(pagination.skip)
+        .limit(pagination.limit)
     )
     rows = result.all()
 
-    return [accommodation_to_response(row[0], row[1], row[2]) for row in rows]
+    return PaginatedResponse(
+        items=[accommodation_to_response(row[0], row[1], row[2]) for row in rows],
+        total=total,
+        skip=pagination.skip,
+        limit=pagination.limit,
+    )
 
 
 @router.get("/accommodations/{id}", response_model=AccommodationResponse)

@@ -70,6 +70,14 @@ class POIsByCategory(BaseModel):
     pois: List[POIResponse]
 
 
+class PaginatedPOIsByCategoryResponse(BaseModel):
+    """Paginated response for POIs grouped by category"""
+    items: List[POIsByCategory]
+    total: int
+    skip: int
+    limit: int
+
+
 class POIScheduleItem(BaseModel):
     """Single POI schedule update item"""
     id: int = Field(..., description="POI ID")

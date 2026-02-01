@@ -131,11 +131,16 @@ class TestDestinationsAPI:
 
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert len(data) >= 2
+        assert "items" in data
+        assert "total" in data
+        assert "skip" in data
+        assert "limit" in data
+        assert isinstance(data["items"], list)
+        assert len(data["items"]) >= 2
+        assert data["total"] >= 2
 
         # Check ordering by order_index
-        order_indices = [d["order_index"] for d in data]
+        order_indices = [d["order_index"] for d in data["items"]]
         assert order_indices == sorted(order_indices)
 
     @pytest.mark.asyncio
@@ -159,7 +164,10 @@ class TestDestinationsAPI:
 
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
+        assert "items" in data
+        assert isinstance(data["items"], list)
+        assert data["skip"] == 0
+        assert data["limit"] == 50  # default limit
 
     @pytest.mark.asyncio
     async def test_get_destination_by_id(
@@ -400,13 +408,46 @@ class TestDestinationsOrdering:
 
         assert response.status_code == 200
         data = response.json()
-        city_names = [d["city_name"] for d in data]
+        city_names = [d["city_name"] for d in data["items"]]
 
         # Verify order (First, Second, Third)
         first_idx = city_names.index("First")
         second_idx = city_names.index("Second")
         third_idx = city_names.index("Third")
         assert first_idx < second_idx < third_idx
+
+    @pytest.mark.asyncio
+    async def test_list_destinations_with_pagination(
+        self,
+        client: AsyncClient,
+        db: AsyncSession,
+        created_trip: Trip
+    ):
+        """Test pagination parameters on list destinations."""
+        # Create multiple destinations
+        for i in range(5):
+            dest = Destination(
+                trip_id=created_trip.id,
+                city_name=f"City{i}",
+                country="Test",
+                arrival_date=date.today() + timedelta(days=i*5),
+                departure_date=date.today() + timedelta(days=(i+1)*5),
+                order_index=i
+            )
+            db.add(dest)
+        await db.flush()
+
+        # Test with skip and limit
+        response = await client.get(
+            f"/api/v1/trips/{created_trip.id}/destinations?skip=1&limit=2"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["items"]) == 2
+        assert data["skip"] == 1
+        assert data["limit"] == 2
+        assert data["total"] >= 5
 
     @pytest.mark.asyncio
     async def test_update_destination_order(

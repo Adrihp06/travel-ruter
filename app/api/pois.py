@@ -2,17 +2,19 @@ import logging
 from typing import List
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from geoalchemy2.functions import ST_SetSRID, ST_MakePoint, ST_X, ST_Y
 
 from app.core.database import get_db
+from app.api.deps import PaginationParams
 
 logger = logging.getLogger(__name__)
 from app.models import POI, Destination, Accommodation
 from app.schemas.poi import (
     POICreate, POIUpdate, POIResponse, POIsByCategory, POIVote,
-    POIBulkScheduleUpdate, POIOptimizationRequest, POIOptimizationResponse, OptimizedPOI
+    POIBulkScheduleUpdate, POIOptimizationRequest, POIOptimizationResponse, OptimizedPOI,
+    PaginatedPOIsByCategoryResponse,
 )
 from app.schemas.poi_suggestions import (
     POISuggestionRequest, POISuggestionsResponse, POISuggestion,
@@ -103,12 +105,13 @@ async def create_poi(
     return poi_to_response(created_poi, lat, lng)
 
 
-@router.get("/destinations/{destination_id}/pois", response_model=List[POIsByCategory])
+@router.get("/destinations/{destination_id}/pois", response_model=PaginatedPOIsByCategoryResponse)
 async def list_pois_by_destination(
     destination_id: int,
+    pagination: PaginationParams = Depends(),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all POIs for a specific destination, grouped by category"""
+    """Get POIs for a specific destination, grouped by category, with pagination"""
     # Verify that the destination exists
     dest_result = await db.execute(select(Destination).where(Destination.id == destination_id))
     destination = dest_result.scalar_one_or_none()
@@ -119,7 +122,13 @@ async def list_pois_by_destination(
             detail=f"Destination with id {destination_id} not found"
         )
 
-    # Get POIs ordered by category and priority, with explicit lat/lng extraction
+    # Get total count
+    count_result = await db.execute(
+        select(func.count()).select_from(POI).where(POI.destination_id == destination_id)
+    )
+    total = count_result.scalar()
+
+    # Get POIs ordered by category and priority, with explicit lat/lng extraction and pagination
     result = await db.execute(
         select(
             POI,
@@ -128,6 +137,8 @@ async def list_pois_by_destination(
         )
         .where(POI.destination_id == destination_id)
         .order_by(POI.category.asc(), POI.priority.desc(), POI.created_at.asc())
+        .offset(pagination.skip)
+        .limit(pagination.limit)
     )
     rows = result.all()
 
@@ -151,7 +162,12 @@ async def list_pois_by_destination(
         for category, pois_list in categories_dict.items()
     ]
 
-    return grouped_pois
+    return PaginatedPOIsByCategoryResponse(
+        items=grouped_pois,
+        total=total,
+        skip=pagination.skip,
+        limit=pagination.limit,
+    )
 
 
 @router.get("/pois/{id}", response_model=POIResponse)

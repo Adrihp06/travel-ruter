@@ -156,15 +156,20 @@ class TestPOIsAPI:
 
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
+        assert "items" in data
+        assert "total" in data
+        assert "skip" in data
+        assert "limit" in data
+        assert isinstance(data["items"], list)
+        assert data["total"] >= 3
 
         # Check that results are grouped by category
-        categories = [item["category"] for item in data]
+        categories = [item["category"] for item in data["items"]]
         assert "Food" in categories
         assert "Culture" in categories
 
         # Check that each category has its POIs
-        for item in data:
+        for item in data["items"]:
             if item["category"] == "Food":
                 assert len(item["pois"]) >= 2
 
@@ -510,7 +515,7 @@ class TestPOIPriority:
 
         # Find SameCategory group
         same_category = None
-        for item in data:
+        for item in data["items"]:
             if item["category"] == "SameCategory":
                 same_category = item
                 break
@@ -519,3 +524,33 @@ class TestPOIPriority:
         # POIs should be ordered by priority descending
         priorities = [p["priority"] for p in same_category["pois"]]
         assert priorities == sorted(priorities, reverse=True)
+
+    @pytest.mark.asyncio
+    async def test_list_pois_with_pagination(
+        self,
+        client: AsyncClient,
+        db: AsyncSession,
+        created_destination: Destination
+    ):
+        """Test pagination parameters on list POIs."""
+        # Create multiple POIs
+        for i in range(10):
+            poi = POI(
+                destination_id=created_destination.id,
+                name=f"POI{i}",
+                category="TestCategory",
+                priority=i
+            )
+            db.add(poi)
+        await db.flush()
+
+        # Test with skip and limit
+        response = await client.get(
+            f"/api/v1/destinations/{created_destination.id}/pois?skip=2&limit=3"
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["skip"] == 2
+        assert data["limit"] == 3
+        assert data["total"] >= 10
