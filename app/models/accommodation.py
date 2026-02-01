@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, Date, Text, JSON, Boolean
+from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, Date, Text, JSON, Boolean, Index
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry
 from geoalchemy2.shape import to_shape
@@ -59,6 +59,11 @@ class Accommodation(BaseModel):
 
     # Relationships
     destination = relationship("Destination", back_populates="accommodations")
+
+    # Composite indexes for common query patterns
+    __table_args__ = (
+        Index('ix_accommodations_dest_dates', 'destination_id', 'check_in_date', 'check_out_date'),
+    )
 
     def __repr__(self):
         return f"<Accommodation(id={self.id}, name='{self.name}', type='{self.type}', check_in={self.check_in_date})>"

@@ -89,6 +89,7 @@ class Note(BaseModel):
         Index('ix_notes_trip_destination', 'trip_id', 'destination_id'),
         Index('ix_notes_destination_day', 'destination_id', 'day_number'),
         Index('ix_notes_trip_pinned', 'trip_id', 'is_pinned'),
+        Index('ix_notes_dest_poi', 'destination_id', 'poi_id'),
     )
 
     @validates('day_number')

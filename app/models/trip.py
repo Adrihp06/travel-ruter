@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Numeric, Date, Text, Float
+from sqlalchemy import Column, String, Numeric, Date, Text, Float, Index
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -33,6 +33,11 @@ class Trip(BaseModel):
 
     # Relationships
     destinations = relationship("Destination", back_populates="trip", cascade="all, delete-orphan")
+
+    # Composite indexes for common query patterns
+    __table_args__ = (
+        Index('ix_trips_status_date', 'status', 'start_date'),
+    )
 
     @hybrid_property
     def nights(self) -> int:

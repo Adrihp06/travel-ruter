@@ -51,7 +51,7 @@ class Document(BaseModel):
     trip = relationship("Trip", backref="documents")
     destination = relationship("Destination", backref="documents")
 
-    # Constraints
+    # Constraints and indexes
     __table_args__ = (
         # If day_number is set, destination_id must also be set
         CheckConstraint(
@@ -64,6 +64,8 @@ class Document(BaseModel):
             name="day_number_positive"
         ),
         Index('ix_documents_destination_day', 'destination_id', 'day_number'),
+        Index('ix_documents_poi_created', 'poi_id', 'created_at'),
+        Index('ix_documents_trip_dest', 'trip_id', 'destination_id'),
     )
 
     @validates('day_number')
