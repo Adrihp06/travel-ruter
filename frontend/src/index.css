@@ -616,3 +616,388 @@ html.dark {
   background-color: var(--color-primary-800);
   color: var(--color-primary-100);
 }
+
+/* ===== ENHANCED MICRO-INTERACTIONS ===== */
+
+/* Page transition animations */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes page-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+.page-transition-enter {
+  animation: page-enter 300ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.page-transition-exit {
+  animation: page-exit 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Toast entrance animation */
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(100%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-exit {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px) scale(0.95);
+  }
+}
+
+.toast-enter {
+  animation: toast-enter 350ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.toast-exit {
+  animation: toast-exit 250ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Button ripple effect */
+@keyframes ripple {
+  from {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.btn-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 60%);
+  transform: scale(0);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.btn-ripple:active::after {
+  animation: ripple 400ms ease-out;
+}
+
+/* Enhanced button states */
+.btn-interactive {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(0);
+}
+
+.btn-interactive:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-interactive:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Accordion smooth expand/collapse */
+.accordion-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.accordion-content.expanded {
+  grid-template-rows: 1fr;
+}
+
+.accordion-content > div {
+  overflow: hidden;
+}
+
+/* Chevron rotation animation */
+.chevron-animate {
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chevron-animate.rotated {
+  transform: rotate(180deg);
+}
+
+/* Icon micro-animations */
+.icon-hover-rotate {
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.icon-hover-rotate:hover {
+  transform: rotate(90deg);
+}
+
+.icon-hover-bounce {
+  transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.icon-hover-bounce:hover {
+  transform: scale(1.15);
+}
+
+.icon-hover-wiggle:hover {
+  animation: wiggle 500ms ease-in-out;
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}
+
+/* Enhanced drag-and-drop states */
+.draggable-item {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.draggable-item.is-dragging {
+  transform: scale(1.02) rotate(1deg);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 8px 16px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.drop-zone {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.drop-zone.drag-over {
+  background-color: var(--color-primary-50);
+  border-color: var(--color-primary-400);
+  transform: scale(1.01);
+}
+
+.dark .drop-zone.drag-over {
+  background-color: var(--color-primary-900);
+  border-color: var(--color-primary-500);
+}
+
+/* Skeleton pulse variations */
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.skeleton-pulse {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* Skeleton with warm glow */
+@keyframes skeleton-glow {
+  0% {
+    background-position: -200% 0;
+    box-shadow: 0 0 0 rgba(245, 158, 11, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.1);
+  }
+  100% {
+    background-position: 200% 0;
+    box-shadow: 0 0 0 rgba(245, 158, 11, 0);
+  }
+}
+
+.skeleton-warm {
+  background: linear-gradient(
+    110deg,
+    var(--color-neutral-200) 8%,
+    var(--color-primary-100) 18%,
+    var(--color-primary-100) 33%,
+    var(--color-neutral-200) 43%
+  );
+  background-size: 300% 100%;
+  animation: skeleton-glow 2s ease-in-out infinite;
+}
+
+.dark .skeleton-warm {
+  background: linear-gradient(
+    110deg,
+    var(--color-neutral-700) 8%,
+    var(--color-primary-900) 18%,
+    var(--color-primary-900) 33%,
+    var(--color-neutral-700) 43%
+  );
+  background-size: 300% 100%;
+}
+
+/* Staggered entrance with more children support */
+@media (prefers-reduced-motion: no-preference) {
+  .stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+  .stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+  .stagger-children > *:nth-child(9) { animation-delay: 400ms; }
+  .stagger-children > *:nth-child(10) { animation-delay: 450ms; }
+  .stagger-children > *:nth-child(11) { animation-delay: 500ms; }
+  .stagger-children > *:nth-child(12) { animation-delay: 550ms; }
+}
+
+/* Card entrance animation */
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-card-enter {
+  animation: card-enter 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Pop-in animation for modals/dialogs */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-pop-in {
+  animation: pop-in 200ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Backdrop fade */
+@keyframes backdrop-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-backdrop {
+  animation: backdrop-fade 200ms ease-out forwards;
+}
+
+/* Loading spinner with better easing */
+@keyframes spin-smooth {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-smooth {
+  animation: spin-smooth 1s cubic-bezier(0.4, 0.15, 0.6, 0.85) infinite;
+}
+
+/* Subtle bounce for CTAs */
+@keyframes subtle-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.animate-subtle-bounce {
+  animation: subtle-bounce 2s ease-in-out infinite;
+}
+
+/* Progress bar with shimmer */
+@keyframes progress-shine {
+  from {
+    left: -100%;
+  }
+  to {
+    left: 100%;
+  }
+}
+
+.progress-bar-animated {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-animated::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: progress-shine 2s ease-in-out infinite;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .page-transition-enter,
+  .page-transition-exit,
+  .toast-enter,
+  .toast-exit,
+  .btn-ripple::after,
+  .accordion-content,
+  .chevron-animate,
+  .icon-hover-rotate,
+  .icon-hover-bounce,
+  .icon-hover-wiggle,
+  .draggable-item,
+  .drop-zone,
+  .skeleton-pulse,
+  .skeleton-warm,
+  .animate-card-enter,
+  .animate-pop-in,
+  .animate-backdrop,
+  .animate-spin-smooth,
+  .animate-subtle-bounce,
+  .progress-bar-animated::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .accordion-content {
+    grid-template-rows: 0fr;
+  }
+
+  .accordion-content.expanded {
+    grid-template-rows: 1fr;
+  }
+}

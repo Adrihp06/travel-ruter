@@ -363,9 +363,9 @@ const GlobalTripView = () => {
                     setEditingTrip(null);
                     setShowTripModal(true);
                   }}
-                  className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl transition-all shadow-lg hover:shadow-xl press-effect font-semibold text-lg group"
+                  className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl shadow-lg btn-interactive btn-ripple font-semibold text-lg group"
                 >
-                  <Plus className="w-5 h-5 transition-transform group-hover:rotate-90" />
+                  <Plus className="w-5 h-5 icon-hover-rotate" />
                   <span>New Trip</span>
                 </button>
               </div>
@@ -381,7 +381,7 @@ const GlobalTripView = () => {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10 animate-fade-in">
             <div className="bg-white dark:bg-stone-800 rounded-xl p-5 shadow-sm border border-stone-200/50 dark:border-stone-700/50 hover-lift group">
               <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <Compass className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                <Compass className="w-5 h-5 text-amber-600 dark:text-amber-400 icon-hover-wiggle" />
               </div>
               <div className="text-2xl lg:text-3xl font-bold text-stone-900 dark:text-stone-50">
                 {tripStats.totalTrips}
@@ -391,7 +391,7 @@ const GlobalTripView = () => {
 
             <div className="bg-white dark:bg-stone-800 rounded-xl p-5 shadow-sm border border-stone-200/50 dark:border-stone-700/50 hover-lift group">
               <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400 icon-hover-bounce" />
               </div>
               <div className="text-2xl lg:text-3xl font-bold text-stone-900 dark:text-stone-50">
                 {tripStats.activeTrips}
@@ -401,7 +401,7 @@ const GlobalTripView = () => {
 
             <div className="bg-white dark:bg-stone-800 rounded-xl p-5 shadow-sm border border-stone-200/50 dark:border-stone-700/50 hover-lift group">
               <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <MapPin className="w-5 h-5 text-blue-600 dark:text-blue-400 icon-hover-bounce" />
               </div>
               <div className="text-2xl lg:text-3xl font-bold text-stone-900 dark:text-stone-50">
                 {tripStats.totalDestinations}
@@ -411,7 +411,7 @@ const GlobalTripView = () => {
 
             <div className="bg-white dark:bg-stone-800 rounded-xl p-5 shadow-sm border border-stone-200/50 dark:border-stone-700/50 hover-lift group">
               <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <Calendar className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                <Calendar className="w-5 h-5 text-purple-600 dark:text-purple-400 icon-hover-wiggle" />
               </div>
               <div className="text-2xl lg:text-3xl font-bold text-stone-900 dark:text-stone-50">
                 {tripStats.upcomingTrips}

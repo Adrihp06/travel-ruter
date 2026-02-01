@@ -204,15 +204,11 @@ const Agenda = ({
                           </span>
                         )}
                       </div>
-                      {isExpanded ? (
-                        <ChevronDown className="w-4 h-4 text-gray-400" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 text-gray-400" />
-                      )}
+                      <ChevronDown className={`w-4 h-4 text-gray-400 chevron-animate ${isExpanded ? 'rotated' : ''}`} />
                     </button>
 
                     {/* POI List */}
-                    {isExpanded && (
+                    <div className={`accordion-content ${isExpanded ? 'expanded' : ''}`}>
                       <div className="divide-y divide-gray-100">
                         {categoryGroup.pois.map((poi) => {
                           const selected = isPOISelected(poi.id);
@@ -287,7 +283,7 @@ const Agenda = ({
                           );
                         })}
                       </div>
-                    )}
+                    </div>
                   </div>
                 );
               })}

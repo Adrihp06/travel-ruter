@@ -4,6 +4,7 @@ const Skeleton = ({
   className = '',
   variant = 'default',
   animate = true,
+  animation = 'shimmer', // 'shimmer', 'pulse', 'warm'
   ...props
 }) => {
   const baseClasses = 'rounded transition-colors';
@@ -14,7 +15,13 @@ const Skeleton = ({
     accent: 'bg-amber-100 dark:bg-amber-900/30',
   };
 
-  const animationClass = animate ? 'skeleton-shimmer' : '';
+  const animationClasses = {
+    shimmer: 'skeleton-shimmer',
+    pulse: 'skeleton-pulse',
+    warm: 'skeleton-warm',
+  };
+
+  const animationClass = animate ? (animationClasses[animation] || animationClasses.shimmer) : '';
 
   return (
     <div

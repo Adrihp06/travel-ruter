@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import Sidebar from './Sidebar';
+import PageTransition from '../UI/PageTransition';
 
 const Layout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -39,7 +40,9 @@ const Layout = () => {
 
         {/* Page Content */}
         <main className={`flex-1 ${isItineraryView ? 'h-screen' : 'overflow-auto'}`}>
-          <Outlet />
+          <PageTransition>
+            <Outlet />
+          </PageTransition>
         </main>
       </div>
     </div>

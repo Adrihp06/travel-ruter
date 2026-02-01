@@ -23,16 +23,14 @@ const SortableDestinationItem = ({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 50 : 'auto',
+    transition: transition || 'transform 200ms cubic-bezier(0.4, 0, 0.2, 1)',
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="group"
+      className={`group draggable-item ${isDragging ? 'is-dragging' : ''}`}
     >
       {/* Destination Node */}
       <div
@@ -40,7 +38,7 @@ const SortableDestinationItem = ({
         className={`
           relative pl-6 py-3 pr-2 cursor-pointer transition-all duration-200
           ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 rounded-lg' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}
-          ${isDragging ? 'shadow-lg rounded-lg bg-white dark:bg-gray-800' : ''}
+          ${isDragging ? 'rounded-lg bg-white dark:bg-gray-800' : ''}
         `}
       >
         {/* Node marker */}

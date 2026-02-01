@@ -125,7 +125,7 @@ const TravelSegmentCard = ({
             </>
           )}
         </div>
-        <ChevronDown className="w-3 h-3 text-gray-300 dark:text-gray-600" />
+        <ChevronDown className="w-3 h-3 text-gray-300 dark:text-gray-600 chevron-animate" />
       </div>
     );
   }
@@ -145,7 +145,7 @@ const TravelSegmentCard = ({
           onClick={() => setIsExpanded(false)}
           className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
         >
-          <ChevronUp className="w-3 h-3 text-gray-400" />
+          <ChevronUp className="w-3 h-3 text-gray-400 chevron-animate rotated" />
         </button>
       </div>
 
