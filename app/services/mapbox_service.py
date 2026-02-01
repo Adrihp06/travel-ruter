@@ -4,6 +4,12 @@ from dataclasses import dataclass
 import httpx
 
 from app.core.config import settings
+from app.core.resilience import (
+    with_retry,
+    with_circuit_breaker,
+    mapbox_circuit_breaker,
+    CircuitBreakerOpen,
+)
 
 
 class MapboxRoutingProfile(str, Enum):
@@ -41,6 +47,8 @@ class MapboxService:
         """Check if the service is available (has access token configured)."""
         return self._has_access_token
 
+    @with_retry(max_attempts=3)
+    @with_circuit_breaker(mapbox_circuit_breaker)
     async def get_route(
         self,
         origin: tuple[float, float],

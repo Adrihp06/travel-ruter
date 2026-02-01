@@ -11,6 +11,11 @@ from dataclasses import dataclass
 import httpx
 
 from app.core.config import settings
+from app.core.resilience import (
+    with_retry,
+    with_circuit_breaker,
+    openrouteservice_circuit_breaker,
+)
 
 
 class ORSRoutingProfile(str, Enum):
@@ -51,6 +56,8 @@ class OpenRouteServiceService:
         # Allow service to work without API key - will use fallback
         self._has_api_key = bool(self.api_key)
 
+    @with_retry(max_attempts=3)
+    @with_circuit_breaker(openrouteservice_circuit_breaker)
     async def get_route(
         self,
         origin: tuple[float, float],

@@ -12,6 +12,11 @@ import httpx
 logger = logging.getLogger(__name__)
 from typing import List, Optional, Dict, Any
 from app.core.config import settings
+from app.core.resilience import (
+    with_retry,
+    with_circuit_breaker,
+    google_places_circuit_breaker,
+)
 from app.schemas.google_maps_places import (
     GooglePlacesAutocompleteResult,
     GooglePlacesDetailResult
@@ -104,6 +109,8 @@ class GooglePlacesService:
 
     # ==================== Quick Search / Autocomplete Methods ====================
 
+    @with_retry(max_attempts=3)
+    @with_circuit_breaker(google_places_circuit_breaker)
     async def autocomplete(
         self,
         query: str,
@@ -146,6 +153,8 @@ class GooglePlacesService:
                 ))
             return results
 
+    @with_retry(max_attempts=3)
+    @with_circuit_breaker(google_places_circuit_breaker)
     async def get_details(self, place_id: str) -> Optional[GooglePlacesDetailResult]:
         """
         Get detailed information for a specific place (for autocomplete results).
@@ -207,6 +216,7 @@ class GooglePlacesService:
         return GooglePlacesService.TRIP_TYPE_FILTERS.get(trip_type.lower())
 
     @staticmethod
+    @with_retry(max_attempts=3)
     async def search_nearby_places(
         latitude: float,
         longitude: float,
@@ -308,6 +318,7 @@ class GooglePlacesService:
         return pois
 
     @staticmethod
+    @with_retry(max_attempts=3)
     async def get_place_details_for_poi(place_id: str) -> Dict[str, Any]:
         """
         Get detailed information about a specific place for POI suggestions.

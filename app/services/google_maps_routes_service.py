@@ -12,6 +12,11 @@ import base64
 import logging
 
 from app.core.config import settings
+from app.core.resilience import (
+    with_retry,
+    with_circuit_breaker,
+    google_maps_routes_circuit_breaker,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +99,8 @@ class GoogleMapsRoutesService:
         self.api_key = api_key or getattr(settings, 'GOOGLE_MAPS_API_KEY', None)
         self._has_api_key = bool(self.api_key)
 
+    @with_retry(max_attempts=3)
+    @with_circuit_breaker(google_maps_routes_circuit_breaker)
     async def get_route(
         self,
         origin: tuple[float, float],

@@ -19,6 +19,7 @@ numpy==1.26.4
 
 # HTTP client
 httpx==0.26.0
+tenacity==8.2.3
 
 # Authentication
 python-jose[cryptography]==3.3.0
