@@ -43,7 +43,18 @@ import {
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import QuickPOISearch from './QuickPOISearch';
+import {
+  getCategoryColors,
+  getDayRouteColor,
+  getClusterSize,
+  BRAND_COLORS,
+  DAY_ROUTE_COLORS,
+  MARKER_STYLES,
+  ROUTE_STYLES,
+  LEGEND_STYLES,
+} from './mapStyles';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import './mapStyles.css';
 
 /**
  * Get icon component for a POI category
@@ -77,44 +88,7 @@ const getCategoryIconComponent = (category) => {
   return MapPin;
 };
 
-/**
- * Get marker color for a POI category - Warm Explorer theme
- */
-const getCategoryColor = (category) => {
-  const normalizedCategory = category?.toLowerCase() || '';
-
-  // Accommodation - warm blue
-  if (normalizedCategory.includes('accommodation') || normalizedCategory.includes('hotel') || normalizedCategory.includes('stay')) {
-    return { bg: 'bg-sky-600', hover: 'hover:bg-sky-700', text: 'text-sky-600', hex: '#0284C7' };
-  }
-  // Food - terracotta/orange
-  if (normalizedCategory.includes('food') || normalizedCategory.includes('restaurant') || normalizedCategory.includes('dining') || normalizedCategory.includes('cafe')) {
-    return { bg: 'bg-orange-600', hover: 'hover:bg-orange-700', text: 'text-orange-600', hex: '#EA580C' };
-  }
-  // Sights - sage/lime green
-  if (normalizedCategory.includes('sight') || normalizedCategory.includes('attraction') || normalizedCategory.includes('landmark') || normalizedCategory.includes('monument')) {
-    return { bg: 'bg-lime-600', hover: 'hover:bg-lime-700', text: 'text-lime-600', hex: '#65A30D' };
-  }
-  // Museums - warm purple/plum
-  if (normalizedCategory.includes('museum') || normalizedCategory.includes('gallery') || normalizedCategory.includes('historic')) {
-    return { bg: 'bg-fuchsia-600', hover: 'hover:bg-fuchsia-700', text: 'text-fuchsia-600', hex: '#C026D3' };
-  }
-  // Shopping - rose
-  if (normalizedCategory.includes('shop') || normalizedCategory.includes('market') || normalizedCategory.includes('store')) {
-    return { bg: 'bg-rose-500', hover: 'hover:bg-rose-600', text: 'text-rose-600', hex: '#F43F5E' };
-  }
-  // Entertainment - warm violet
-  if (normalizedCategory.includes('entertainment') || normalizedCategory.includes('nightlife') || normalizedCategory.includes('bar')) {
-    return { bg: 'bg-violet-600', hover: 'hover:bg-violet-700', text: 'text-violet-600', hex: '#7C3AED' };
-  }
-  // Activities - teal (nature-inspired)
-  if (normalizedCategory.includes('sport') || normalizedCategory.includes('activity') || normalizedCategory.includes('outdoor')) {
-    return { bg: 'bg-teal-600', hover: 'hover:bg-teal-700', text: 'text-teal-600', hex: '#0D9488' };
-  }
-
-  // Default - warm amber (primary brand color)
-  return { bg: 'bg-amber-600', hover: 'hover:bg-amber-700', text: 'text-amber-700', hex: '#D97706' };
-};
+// getCategoryColors is now imported from ./mapStyles.js
 
 /**
  * Extract coordinates from various POI/destination formats
@@ -153,16 +127,8 @@ const renderCategoryIcon = (category, className = "w-4 h-4") => {
   return <Icon className={className} />;
 };
 
-// Day colors for route display - Warm Explorer palette
-const DAY_COLORS = [
-  { stroke: '#D97706', name: 'Amber' },     // Day 1 - primary
-  { stroke: '#65A30D', name: 'Lime' },      // Day 2 - accent green
-  { stroke: '#EA580C', name: 'Orange' },    // Day 3 - terracotta
-  { stroke: '#0D9488', name: 'Teal' },      // Day 4 - nature
-  { stroke: '#C026D3', name: 'Fuchsia' },   // Day 5 - vibrant
-  { stroke: '#0284C7', name: 'Sky' },       // Day 6 - sky blue
-  { stroke: '#E11D48', name: 'Rose' },      // Day 7 - warm rose
-];
+// Use DAY_ROUTE_COLORS from mapStyles.js (imported above)
+const DAY_COLORS = DAY_ROUTE_COLORS;
 
 // Get route layer style for a specific day
 const getDayRouteLayerStyle = (dayIndex, layerId) => ({
@@ -212,7 +178,7 @@ const formatDistance = (km) => {
 };
 
 /**
- * Cluster Marker Component - Shows cluster count
+ * Cluster Marker Component - Enhanced visuals with gradient and glow effect
  */
 const ClusterMarker = ({ cluster, pointCount, onClick, supercluster }) => {
   // Get the leaves (POIs) in this cluster to determine dominant category
@@ -227,10 +193,17 @@ const ClusterMarker = ({ cluster, pointCount, onClick, supercluster }) => {
   const dominantCategory = Object.entries(categoryCount)
     .sort((a, b) => b[1] - a[1])[0]?.[0] || 'other';
 
-  const colors = getCategoryColor(dominantCategory);
+  const colors = getCategoryColors(dominantCategory);
 
-  // Size based on point count
-  const size = Math.min(40 + (pointCount / 5) * 4, 60);
+  // Size based on point count - using centralized config
+  const size = getClusterSize(pointCount);
+
+  // Determine size class for styling
+  const sizeClass = pointCount > 20
+    ? 'cluster-marker-large'
+    : pointCount > 8
+      ? 'cluster-marker-medium'
+      : 'cluster-marker-small';
 
   return (
     <Marker
@@ -243,73 +216,81 @@ const ClusterMarker = ({ cluster, pointCount, onClick, supercluster }) => {
       }}
     >
       <div
-        className="cursor-pointer transition-all duration-200 hover:scale-110"
-        style={{ width: size, height: size }}
+        className={`cluster-marker map-cluster ${sizeClass}`}
+        style={{
+          width: size,
+          height: size,
+          background: `linear-gradient(135deg, ${colors.hex} 0%, ${colors.hex}dd 100%)`,
+          boxShadow: `0 4px 16px ${colors.hex}40, 0 2px 6px rgba(0, 0, 0, 0.15)`,
+        }}
       >
-        <div
-          className={`w-full h-full rounded-full flex items-center justify-center shadow-lg border-4 border-white`}
-          style={{ backgroundColor: colors.hex }}
-        >
-          <span className="text-white font-bold text-sm">{pointCount}</span>
-        </div>
+        <span className="font-display">{pointCount}</span>
       </div>
     </Marker>
   );
 };
 
 /**
- * POI Hover Preview Card - Shows quick info on hover
+ * POI Hover Preview Card - Enhanced styling with better typography
  */
 const POIHoverPreview = ({ poi, position, onSchedule, onEdit }) => {
-  const colors = getCategoryColor(poi.category);
+  const colors = getCategoryColors(poi.category);
 
   return (
     <div
       className="absolute z-20 pointer-events-none"
       style={{
         left: position.x,
-        top: position.y - 120,
+        top: position.y - 130,
         transform: 'translateX(-50%)',
       }}
     >
-      <div className="bg-white rounded-lg shadow-xl border border-gray-200 p-3 min-w-[180px] max-w-[220px] pointer-events-auto">
+      <div className="poi-hover-preview pointer-events-auto">
         {/* Header with icon and name */}
-        <div className="flex items-start space-x-2 mb-2">
-          <div className={`${colors.bg} text-white p-1.5 rounded-full flex-shrink-0`}>
-            {renderCategoryIcon(poi.category, "w-3 h-3")}
+        <div className="poi-hover-preview-header">
+          <div
+            className="poi-hover-preview-icon text-white"
+            style={{ backgroundColor: colors.hex }}
+          >
+            {renderCategoryIcon(poi.category, "w-3.5 h-3.5")}
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="font-semibold text-gray-900 text-sm leading-tight truncate">{poi.name}</h4>
-            <span className={`text-xs ${colors.text} font-medium`}>{poi.category}</span>
+            <h4 className="poi-hover-preview-title truncate">{poi.name}</h4>
+            <span
+              className="poi-hover-preview-category"
+              style={{ color: colors.hex }}
+            >
+              {poi.category}
+            </span>
           </div>
         </div>
 
-        {/* Quick info */}
-        <div className="flex items-center text-xs text-gray-500 space-x-3 mb-2">
+        {/* Quick info with better spacing */}
+        <div className="poi-hover-preview-meta">
           {poi.dwell_time && (
-            <span className="flex items-center">
-              <Clock className="w-3 h-3 mr-1" />
+            <span className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
               {poi.dwell_time}m
             </span>
           )}
           {poi.scheduled_day && (
-            <span className="flex items-center text-indigo-600 font-medium">
-              <Calendar className="w-3 h-3 mr-1" />
+            <span className="flex items-center gap-1 text-amber-600 font-semibold">
+              <Calendar className="w-3 h-3" />
               Day {poi.scheduled_day}
             </span>
           )}
         </div>
 
-        {/* Quick action buttons */}
-        <div className="flex items-center space-x-1">
+        {/* Quick action buttons - improved styling */}
+        <div className="poi-hover-preview-actions">
           <button
             onClick={(e) => {
               e.stopPropagation();
               onSchedule && onSchedule(poi);
             }}
-            className="flex-1 flex items-center justify-center px-2 py-1 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 rounded transition-colors"
+            className="poi-hover-preview-btn poi-hover-preview-btn-primary"
           >
-            <Calendar className="w-3 h-3 mr-1" />
+            <Calendar className="w-3 h-3" />
             Schedule
           </button>
           <button
@@ -317,23 +298,21 @@ const POIHoverPreview = ({ poi, position, onSchedule, onEdit }) => {
               e.stopPropagation();
               onEdit && onEdit(poi);
             }}
-            className="flex items-center justify-center px-2 py-1 text-xs bg-stone-50 hover:bg-stone-100 text-stone-700 rounded transition-colors"
+            className="poi-hover-preview-btn poi-hover-preview-btn-secondary"
           >
             <Pencil className="w-3 h-3" />
           </button>
         </div>
 
         {/* Arrow pointing down */}
-        <div className="absolute left-1/2 bottom-0 transform -translate-x-1/2 translate-y-full">
-          <div className="border-8 border-transparent border-t-white" />
-        </div>
+        <div className="poi-hover-preview-arrow" />
       </div>
     </div>
   );
 };
 
 /**
- * POI Marker Component with enhanced visuals
+ * POI Marker Component with enhanced visuals and gradient effects
  */
 const POIMarker = ({
   poi,
@@ -348,12 +327,22 @@ const POIMarker = ({
   dayNumber,
   isDraggable = false,
 }) => {
-  const colors = getCategoryColor(poi.category);
+  const colors = getCategoryColors(poi.category);
   const showHighlight = isHovered || isSelected;
   const isScheduled = poi.scheduled_day || dayNumber;
 
   // Different marker shape for scheduled vs unscheduled
-  const markerShape = isScheduled ? 'rounded-lg' : 'rounded-full';
+  const markerShape = isScheduled
+    ? MARKER_STYLES.poi.scheduled.shape
+    : MARKER_STYLES.poi.unscheduled.shape;
+
+  const markerBorder = isScheduled
+    ? MARKER_STYLES.poi.scheduled.border
+    : MARKER_STYLES.poi.unscheduled.border;
+
+  const markerShadow = isScheduled
+    ? MARKER_STYLES.poi.scheduled.shadow
+    : MARKER_STYLES.poi.unscheduled.shadow;
 
   return (
     <Marker
@@ -371,24 +360,41 @@ const POIMarker = ({
     >
       <div
         className={`
-          cursor-pointer transition-all duration-200
+          cursor-pointer transition-all duration-200 map-marker poi-marker
+          ${isScheduled ? '' : 'poi-marker-unscheduled'}
           ${showHighlight ? 'scale-125 z-10' : 'scale-100'}
           ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}
         `}
         onMouseEnter={() => onHover(poi)}
         onMouseLeave={onLeave}
       >
-        <div className={`
-          ${colors.bg} ${colors.hover}
-          text-white p-2 ${markerShape} shadow-lg
-          transition-colors duration-200 relative
-          ${isSelected ? 'ring-4 ring-amber-400 ring-opacity-75' : ''}
-          ${isScheduled ? 'border-2 border-white' : ''}
-        `}>
-          {/* Day number badge for scheduled POIs */}
+        <div
+          className={`
+            poi-marker-icon
+            text-white p-2 ${markerShape} ${markerBorder} ${markerShadow}
+            transition-all duration-200 relative
+            ${isSelected ? 'ring-4 ring-amber-400/75 map-marker-selected' : ''}
+          `}
+          style={{
+            background: showHighlight
+              ? `linear-gradient(135deg, ${colors.hex} 0%, ${colors.hex}cc 100%)`
+              : colors.hex,
+            boxShadow: showHighlight
+              ? `0 6px 20px ${colors.hex}50, 0 3px 8px rgba(0, 0, 0, 0.15)`
+              : undefined,
+          }}
+        >
+          {/* Day number badge for scheduled POIs - enhanced styling */}
           {dayNumber && (
-            <div className="absolute -top-2 -right-2 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-md border border-gray-200">
-              <span className="text-xs font-bold text-gray-700">{dayNumber}</span>
+            <div className="poi-marker-day-badge">
+              <span>{dayNumber}</span>
+            </div>
+          )}
+
+          {/* Priority indicator */}
+          {poi.priority > 0 && (
+            <div className="poi-marker-priority">
+              <Star className="w-3 h-3 fill-current" />
             </div>
           )}
 
@@ -397,7 +403,7 @@ const POIMarker = ({
           {/* Drag handle indicator when draggable */}
           {isDraggable && (
             <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 translate-y-full">
-              <GripVertical className="w-3 h-3 text-gray-400" />
+              <GripVertical className="w-3 h-3 text-stone-400" />
             </div>
           )}
         </div>
@@ -407,132 +413,159 @@ const POIMarker = ({
 };
 
 /**
- * Add POI Mode Overlay - Warm Explorer theme
+ * Add POI Mode Overlay - Enhanced Warm Explorer theme
  */
 const AddPOIModeOverlay = ({ onCancel }) => (
-  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-amber-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center space-x-2">
-    <Plus className="w-4 h-4" />
-    <span className="text-sm font-medium">Click on the map to add a POI</span>
-    <button
-      onClick={onCancel}
-      className="ml-2 p-1 hover:bg-amber-700 rounded-full transition-colors"
-    >
-      <X className="w-4 h-4" />
-    </button>
+  <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
+    <div className="add-mode-overlay">
+      <Plus className="w-4 h-4" />
+      <span>Click on the map to add a POI</span>
+      <button
+        onClick={onCancel}
+        className="add-mode-overlay-close"
+      >
+        <X className="w-4 h-4" />
+      </button>
+    </div>
   </div>
 );
 
 /**
- * POI Popup Content
+ * POI Popup Content - Enhanced with better typography and spacing
  */
 const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
-  const colors = getCategoryColor(poi.category);
+  const colors = getCategoryColors(poi.category);
   const score = (poi.likes || 0) - (poi.vetoes || 0);
 
   return (
-    <div className="p-3 min-w-[200px] max-w-[280px]">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center space-x-2">
-          <div className={`${colors.bg} text-white p-1.5 rounded-full`}>
-            {renderCategoryIcon(poi.category, "w-3 h-3")}
+    <div className="p-4 min-w-[220px] max-w-[300px]">
+      {/* Header with category icon */}
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="flex items-start gap-3">
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-white"
+            style={{ backgroundColor: colors.hex }}
+          >
+            {renderCategoryIcon(poi.category, "w-4 h-4")}
           </div>
-          <div>
-            <h4 className="font-semibold text-gray-900 text-sm leading-tight">{poi.name}</h4>
-            <span className={`text-xs ${colors.text} font-medium`}>{poi.category}</span>
+          <div className="min-w-0">
+            <h4 className="font-display font-bold text-stone-900 text-sm leading-tight">
+              {poi.name}
+            </h4>
+            <span
+              className="text-xs font-semibold"
+              style={{ color: colors.hex }}
+            >
+              {poi.category}
+            </span>
           </div>
         </div>
-        {/* Score badge */}
-        <div className={`
-          px-2 py-0.5 rounded-full text-xs font-medium
-          ${score > 5 ? 'bg-green-100 text-green-800' :
-            score < 0 ? 'bg-red-100 text-red-800' :
-            'bg-gray-100 text-gray-800'}
-        `}>
+        {/* Score badge with improved styling */}
+        <div
+          className={`
+            px-2.5 py-1 rounded-lg text-xs font-bold flex-shrink-0
+            ${score > 5 ? 'bg-green-100 text-green-700' :
+              score < 0 ? 'bg-rose-100 text-rose-700' :
+              'bg-stone-100 text-stone-600'}
+          `}
+        >
           {score > 0 ? '+' : ''}{score}
         </div>
       </div>
 
-      {/* Description */}
-      {poi.description && (
-        <p className="text-xs text-gray-600 mb-3 line-clamp-2">{poi.description}</p>
+      {/* Priority indicator */}
+      {poi.priority > 0 && (
+        <div className="flex items-center gap-1.5 mb-3 px-2.5 py-1.5 bg-amber-50 rounded-lg w-fit">
+          <Star className="w-3.5 h-3.5 text-amber-500 fill-current" />
+          <span className="text-xs font-semibold text-amber-700">
+            Priority {poi.priority}
+          </span>
+        </div>
       )}
 
-      {/* Details */}
-      <div className="space-y-1.5 text-xs text-gray-500">
+      {/* Description */}
+      {poi.description && (
+        <p className="text-xs text-stone-600 mb-3 line-clamp-2 leading-relaxed">
+          {poi.description}
+        </p>
+      )}
+
+      {/* Details with improved icons */}
+      <div className="space-y-2 text-xs text-stone-500 mb-4">
         {poi.dwell_time && (
-          <div className="flex items-center">
-            <Clock className="w-3 h-3 mr-1.5" />
-            <span>{poi.dwell_time} min</span>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-md bg-stone-100 flex items-center justify-center">
+              <Clock className="w-3 h-3 text-stone-500" />
+            </div>
+            <span className="font-medium">{poi.dwell_time} min</span>
           </div>
         )}
         {(poi.estimated_cost || poi.actual_cost) && (
-          <div className="flex items-center">
-            <DollarSign className="w-3 h-3 mr-1.5" />
-            <span>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-md bg-stone-100 flex items-center justify-center">
+              <DollarSign className="w-3 h-3 text-stone-500" />
+            </div>
+            <span className="font-medium">
               {poi.actual_cost ? `${poi.actual_cost} ${poi.currency || 'USD'}` :
                poi.estimated_cost ? `~${poi.estimated_cost} ${poi.currency || 'USD'}` : null}
             </span>
           </div>
         )}
         {poi.address && (
-          <div className="flex items-start">
-            <MapPin className="w-3 h-3 mr-1.5 mt-0.5 flex-shrink-0" />
-            <span className="line-clamp-2">{poi.address}</span>
+          <div className="flex items-start gap-2">
+            <div className="w-5 h-5 rounded-md bg-stone-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <MapPin className="w-3 h-3 text-stone-500" />
+            </div>
+            <span className="line-clamp-2 leading-relaxed">{poi.address}</span>
           </div>
         )}
       </div>
 
-      {/* Action buttons */}
-      <div className="mt-3 pt-2 border-t border-gray-100 flex items-center justify-between">
+      {/* Action buttons with better styling */}
+      <div className="pt-3 border-t border-stone-100 flex items-center justify-between">
         {/* Voting buttons */}
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => onVote && onVote(poi.id, 'like')}
-            className="flex items-center px-2 py-1 text-xs bg-green-50 hover:bg-green-100 text-green-700 rounded transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold bg-green-50 hover:bg-green-100 text-green-700 rounded-lg transition-colors"
             title="Like this POI"
           >
-            <ThumbsUp className="w-3 h-3 mr-1" />
+            <ThumbsUp className="w-3 h-3" />
             {poi.likes || 0}
           </button>
           <button
             onClick={() => onVote && onVote(poi.id, 'veto')}
-            className="flex items-center px-2 py-1 text-xs bg-red-50 hover:bg-red-100 text-red-700 rounded transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition-colors"
             title="Veto this POI"
           >
-            <ThumbsDown className="w-3 h-3 mr-1" />
+            <ThumbsDown className="w-3 h-3" />
             {poi.vetoes || 0}
           </button>
         </div>
         {/* Edit/Delete buttons */}
-        <div className="flex items-center space-x-1">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => onEdit && onEdit(poi)}
-            className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+            className="p-2 hover:bg-stone-100 rounded-lg transition-colors"
             title="Edit POI"
           >
-            <Pencil className="w-3.5 h-3.5 text-gray-500" />
+            <Pencil className="w-3.5 h-3.5 text-stone-500" />
           </button>
           <button
             onClick={() => onDelete && onDelete(poi)}
-            className="p-1.5 hover:bg-red-50 rounded transition-colors"
+            className="p-2 hover:bg-rose-50 rounded-lg transition-colors"
             title="Delete POI"
           >
-            <Trash2 className="w-3.5 h-3.5 text-red-500" />
+            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
           </button>
         </div>
       </div>
-      {poi.priority > 0 && (
-        <div className="mt-2 text-xs text-amber-500 font-medium">
-          ★ Priority {poi.priority}
-        </div>
-      )}
     </div>
   );
 };
 
 /**
- * Context Menu for marker right-click
+ * Context Menu for marker right-click - Enhanced styling
  */
 const MarkerContextMenu = ({ poi, position, onClose, onSchedule, onEdit, onDelete, onCenterMap }) => {
   const menuRef = useRef(null);
@@ -550,44 +583,44 @@ const MarkerContextMenu = ({ poi, position, onClose, onSchedule, onEdit, onDelet
   return (
     <div
       ref={menuRef}
-      className="absolute z-30 bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[160px]"
-      style={{ left: position.x, top: position.y }}
+      className="map-context-menu"
+      style={{ left: position.x, top: position.y, position: 'absolute', zIndex: 30 }}
     >
       <button
         onClick={() => { onCenterMap(poi); onClose(); }}
-        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center"
+        className="map-context-menu-item"
       >
-        <MapPin className="w-4 h-4 mr-2 text-gray-400" />
-        Center on map
+        <MapPin className="map-context-menu-icon" />
+        <span>Center on map</span>
       </button>
       <button
         onClick={() => { onSchedule(poi); onClose(); }}
-        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center"
+        className="map-context-menu-item"
       >
-        <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-        Schedule
+        <Calendar className="map-context-menu-icon" />
+        <span>Schedule</span>
       </button>
       <button
         onClick={() => { onEdit(poi); onClose(); }}
-        className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center"
+        className="map-context-menu-item"
       >
-        <Pencil className="w-4 h-4 mr-2 text-gray-400" />
-        Edit
+        <Pencil className="map-context-menu-icon" />
+        <span>Edit</span>
       </button>
-      <div className="border-t border-gray-100 my-1" />
+      <div className="map-context-menu-divider" />
       <button
         onClick={() => { onDelete(poi); onClose(); }}
-        className="w-full px-3 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center"
+        className="map-context-menu-item danger"
       >
-        <Trash2 className="w-4 h-4 mr-2" />
-        Delete
+        <Trash2 className="map-context-menu-icon" />
+        <span>Delete</span>
       </button>
     </div>
   );
 };
 
 /**
- * Enhanced Legend Component with toggles and collapsibility
+ * Enhanced Legend Component with better styling and animations
  */
 const MapLegend = ({
   categories,
@@ -603,67 +636,76 @@ const MapLegend = ({
   if ((!categories || categories.length === 0) && accommodationCount === 0) return null;
 
   return (
-    <div className={`absolute z-10 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 overflow-hidden max-w-[200px] ${className}`}>
+    <div className={`absolute z-10 map-legend ${className}`}>
       {/* Header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-3 py-2 flex items-center justify-between hover:bg-gray-50 transition-colors"
+        className="map-legend-header w-full"
       >
-        <div className="flex items-center space-x-2">
-          <Layers className="w-4 h-4 text-gray-500" />
-          <span className="text-xs font-semibold text-gray-700">Legend</span>
+        <div className="map-legend-title">
+          <Layers className="w-4 h-4" />
+          <span>Legend</span>
         </div>
         {isExpanded ? (
-          <ChevronDown className="w-4 h-4 text-gray-400" />
+          <ChevronDown className="w-4 h-4 text-stone-400 transition-transform" />
         ) : (
-          <ChevronUp className="w-4 h-4 text-gray-400" />
+          <ChevronUp className="w-4 h-4 text-stone-400 transition-transform" />
         )}
       </button>
 
       {/* Content */}
       {isExpanded && (
-        <div className="px-3 pb-3 space-y-1.5">
+        <div className="map-legend-content space-y-1">
           {/* Accommodation toggle */}
           {accommodationCount > 0 && (
             <button
               onClick={() => onToggleAccommodations && onToggleAccommodations()}
-              className={`w-full flex items-center space-x-2 p-1.5 rounded transition-colors ${
-                showAccommodations ? 'bg-blue-50' : 'bg-gray-50 opacity-50'
-              }`}
+              className={`map-legend-item w-full ${!showAccommodations ? 'inactive' : ''}`}
             >
-              <div className={`bg-blue-600 text-white p-1 rounded-full ${!showAccommodations && 'opacity-50'}`}>
-                <Bed className="w-2.5 h-2.5" />
+              <div
+                className="map-legend-icon text-white"
+                style={{
+                  backgroundColor: showAccommodations ? '#0284C7' : '#a8a29e',
+                }}
+              >
+                <Bed className="w-3 h-3" />
               </div>
-              <span className="text-xs text-gray-600 flex-1 text-left">Accommodation</span>
+              <span className="map-legend-label flex-1 text-left">
+                Accommodations
+                <span className="ml-1 text-stone-400">({accommodationCount})</span>
+              </span>
               {showAccommodations ? (
-                <Eye className="w-3 h-3 text-blue-500" />
+                <Eye className="map-legend-toggle text-sky-500" />
               ) : (
-                <EyeOff className="w-3 h-3 text-gray-400" />
+                <EyeOff className="map-legend-toggle" />
               )}
             </button>
           )}
 
           {/* Category toggles */}
           {categories.map((category) => {
-            const colors = getCategoryColor(category);
+            const colors = getCategoryColors(category);
             const isVisible = !visibleCategories || visibleCategories.includes(category);
 
             return (
               <button
                 key={category}
                 onClick={() => onToggleCategory && onToggleCategory(category)}
-                className={`w-full flex items-center space-x-2 p-1.5 rounded transition-colors ${
-                  isVisible ? 'hover:bg-gray-50' : 'bg-gray-50 opacity-50'
-                }`}
+                className={`map-legend-item w-full ${!isVisible ? 'inactive' : ''}`}
               >
-                <div className={`${colors.bg} text-white p-1 rounded-full ${!isVisible && 'opacity-50'}`}>
-                  {renderCategoryIcon(category, "w-2.5 h-2.5")}
+                <div
+                  className="map-legend-icon text-white"
+                  style={{
+                    backgroundColor: isVisible ? colors.hex : '#a8a29e',
+                  }}
+                >
+                  {renderCategoryIcon(category, "w-3 h-3")}
                 </div>
-                <span className="text-xs text-gray-600 truncate flex-1 text-left">{category}</span>
+                <span className="map-legend-label truncate flex-1 text-left">{category}</span>
                 {isVisible ? (
-                  <Eye className="w-3 h-3 text-gray-400" />
+                  <Eye className="map-legend-toggle" style={{ color: colors.hex }} />
                 ) : (
-                  <EyeOff className="w-3 h-3 text-gray-400" />
+                  <EyeOff className="map-legend-toggle" />
                 )}
               </button>
             );
@@ -713,7 +755,7 @@ const AccommodationMarker = ({ accommodation, isHovered, onClick, onHover, onLea
 };
 
 /**
- * Accommodation Popup Content
+ * Accommodation Popup Content - Enhanced with better typography
  */
 const AccommodationPopupContent = ({ accommodation, onEdit, onDelete }) => {
   const nights = (() => {
@@ -739,71 +781,85 @@ const AccommodationPopupContent = ({ accommodation, onEdit, onDelete }) => {
   };
 
   return (
-    <div className="p-3 min-w-[200px] max-w-[280px]">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center space-x-2">
+    <div className="p-4 min-w-[220px] max-w-[300px]">
+      {/* Header with emoji */}
+      <div className="flex items-start gap-3 mb-4">
+        <div className="w-10 h-10 bg-sky-100 rounded-xl flex items-center justify-center flex-shrink-0">
           <span className="text-xl">{typeEmoji[accommodation.type] || typeEmoji.other}</span>
-          <div>
-            <h4 className="font-semibold text-gray-900 text-sm leading-tight">{accommodation.name}</h4>
-            <span className="text-xs text-blue-600 font-medium capitalize">{accommodation.type}</span>
-          </div>
+        </div>
+        <div className="min-w-0">
+          <h4 className="font-display font-bold text-stone-900 text-sm leading-tight">
+            {accommodation.name}
+          </h4>
+          <span className="text-xs font-semibold text-sky-600 capitalize">{accommodation.type}</span>
         </div>
       </div>
 
-      {/* Details */}
-      <div className="space-y-1.5 text-xs text-gray-500">
-        {/* Dates */}
-        <div className="flex items-center">
-          <Clock className="w-3 h-3 mr-1.5" />
-          <span>{accommodation.check_in_date} - {accommodation.check_out_date}</span>
-          <span className="ml-1 text-blue-600">({nights} night{nights !== 1 ? 's' : ''})</span>
-        </div>
+      {/* Stay duration badge */}
+      <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-sky-50 rounded-lg">
+        <Bed className="w-4 h-4 text-sky-600" />
+        <span className="text-xs font-semibold text-sky-700">
+          {nights} night{nights !== 1 ? 's' : ''}
+        </span>
+        <span className="text-xs text-sky-600">
+          {accommodation.check_in_date} → {accommodation.check_out_date}
+        </span>
+      </div>
 
+      {/* Details with improved styling */}
+      <div className="space-y-2.5 text-xs text-stone-500 mb-4">
         {/* Cost */}
         {accommodation.total_cost && (
-          <div className="flex items-center">
-            <DollarSign className="w-3 h-3 mr-1.5" />
-            <span>{accommodation.total_cost} {accommodation.currency || 'USD'}</span>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-md bg-stone-100 flex items-center justify-center">
+              <DollarSign className="w-3 h-3 text-stone-500" />
+            </div>
+            <span className="font-semibold text-stone-700">
+              {accommodation.total_cost} {accommodation.currency || 'USD'}
+            </span>
           </div>
         )}
 
         {/* Address */}
         {accommodation.address && (
-          <div className="flex items-start">
-            <MapPin className="w-3 h-3 mr-1.5 mt-0.5 flex-shrink-0" />
-            <span className="line-clamp-2">{accommodation.address}</span>
+          <div className="flex items-start gap-2">
+            <div className="w-5 h-5 rounded-md bg-stone-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <MapPin className="w-3 h-3 text-stone-500" />
+            </div>
+            <span className="line-clamp-2 leading-relaxed">{accommodation.address}</span>
           </div>
         )}
 
         {/* Booking Reference */}
         {accommodation.booking_reference && (
-          <div className="flex items-center text-gray-400">
-            <span className="mr-1">#</span>
-            <span className="font-mono">{accommodation.booking_reference}</span>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-md bg-stone-100 flex items-center justify-center">
+              <span className="text-xs font-bold text-stone-400">#</span>
+            </div>
+            <span className="font-mono text-stone-600">{accommodation.booking_reference}</span>
           </div>
         )}
       </div>
 
       {/* Action buttons */}
       {(onEdit || onDelete) && (
-        <div className="mt-3 pt-2 border-t border-gray-100 flex items-center justify-end space-x-1">
+        <div className="pt-3 border-t border-stone-100 flex items-center justify-end gap-1">
           {onEdit && (
             <button
               onClick={() => onEdit(accommodation)}
-              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+              className="p-2 hover:bg-stone-100 rounded-lg transition-colors"
               title="Edit accommodation"
             >
-              <Pencil className="w-3.5 h-3.5 text-gray-500" />
+              <Pencil className="w-3.5 h-3.5 text-stone-500" />
             </button>
           )}
           {onDelete && (
             <button
               onClick={() => onDelete(accommodation.id)}
-              className="p-1.5 hover:bg-red-50 rounded transition-colors"
+              className="p-2 hover:bg-rose-50 rounded-lg transition-colors"
               title="Delete accommodation"
             >
-              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
             </button>
           )}
         </div>
@@ -1390,7 +1446,7 @@ const MicroMap = ({
           </React.Fragment>
         ))}
 
-        {/* Searched Place Marker - Warm Explorer theme */}
+        {/* Searched Place Marker - Enhanced Warm Explorer theme */}
         {searchedPlace && (
           <Marker
             longitude={searchedPlace.longitude}
@@ -1406,10 +1462,25 @@ const MicroMap = ({
               setPopupType('searched');
             }}
           >
-            <div className="flex flex-col items-center">
-              <div className="bg-amber-600 text-white p-2.5 rounded-full shadow-2xl border-4 border-white animate-bounce">
+            <div className="flex flex-col items-center map-marker-searched">
+              <div
+                className="text-white p-3 rounded-full shadow-2xl border-4 border-white"
+                style={{
+                  background: `linear-gradient(135deg, ${BRAND_COLORS?.primary?.[600] || '#d97706'} 0%, ${BRAND_COLORS?.primary?.[700] || '#b45309'} 100%)`,
+                  boxShadow: `0 8px 24px rgba(180, 83, 9, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15)`,
+                }}
+              >
                 <Search className="w-5 h-5" />
               </div>
+              {/* Pointer triangle */}
+              <div
+                className="w-0 h-0 -mt-1"
+                style={{
+                  borderLeft: '8px solid transparent',
+                  borderRight: '8px solid transparent',
+                  borderTop: `10px solid ${BRAND_COLORS?.primary?.[600] || '#d97706'}`,
+                }}
+              />
             </div>
           </Marker>
         )}

@@ -9,14 +9,16 @@ import Map, {
   Layer,
   Popup,
 } from 'react-map-gl';
-import { MapPin, Plus, Car, Footprints, Bike, Train, Plane, Ship, Bus, ExternalLink, AlertTriangle, Home } from 'lucide-react';
+import { MapPin, Plus, Car, Footprints, Bike, Train, Plane, Ship, Bus, ExternalLink, AlertTriangle, Home, Calendar } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
 import useRouteStore from '../../stores/useRouteStore';
 import useWaypointStore from '../../stores/useWaypointStore';
 import SegmentNavigator from './SegmentNavigator';
 import { formatDateRangeShort } from '../../utils/dateFormat';
+import { BRAND_COLORS, ROUTE_STYLES, getTransportModeStyle } from './mapStyles';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import './mapStyles.css';
 
 
 /**
@@ -149,19 +151,19 @@ const generateRouteGeoJSON = (destinations) => {
   };
 };
 
-// Route colors and styles based on transport mode
+// Route colors and styles based on transport mode - Warm Explorer theme
 const TRANSPORT_MODE_STYLES = {
-  car: { color: '#4F46E5', dasharray: null }, // indigo (solid)
-  driving: { color: '#4F46E5', dasharray: null }, // indigo (solid)
-  walk: { color: '#10B981', dasharray: [1, 2] }, // green (dotted)
-  walking: { color: '#10B981', dasharray: [1, 2] }, // green (dotted)
-  bike: { color: '#F59E0B', dasharray: [2, 1] }, // amber (dashed)
-  cycling: { color: '#F59E0B', dasharray: [2, 1] }, // amber (dashed)
-  train: { color: '#8B5CF6', dasharray: [4, 2] }, // purple (dash-dot)
-  bus: { color: '#EC4899', dasharray: [3, 2] }, // pink (dashed)
-  plane: { color: '#3B82F6', dasharray: [8, 4] }, // blue (long-dash)
-  flight: { color: '#3B82F6', dasharray: [8, 4] }, // blue (long-dash)
-  ferry: { color: '#06B6D4', dasharray: [6, 3] }, // cyan (dashed)
+  car: { color: BRAND_COLORS.primary[600], dasharray: null }, // amber (solid)
+  driving: { color: BRAND_COLORS.primary[600], dasharray: null }, // amber (solid)
+  walk: { color: BRAND_COLORS.accent[600], dasharray: [1, 2] }, // lime green (dotted)
+  walking: { color: BRAND_COLORS.accent[600], dasharray: [1, 2] }, // lime green (dotted)
+  bike: { color: BRAND_COLORS.primary[400], dasharray: [2, 1] }, // light amber (dashed)
+  cycling: { color: BRAND_COLORS.primary[400], dasharray: [2, 1] }, // light amber (dashed)
+  train: { color: '#7C3AED', dasharray: [4, 2] }, // violet (dash-dot)
+  bus: { color: BRAND_COLORS.secondary[600], dasharray: [3, 2] }, // terracotta (dashed)
+  plane: { color: '#0284C7', dasharray: [8, 4] }, // sky blue (long-dash)
+  flight: { color: '#0284C7', dasharray: [8, 4] }, // sky blue (long-dash)
+  ferry: { color: '#0D9488', dasharray: [6, 3] }, // teal (dashed)
 };
 
 // Get route layer style for a specific segment with optional highlighting
@@ -839,7 +841,7 @@ const TripMap = ({
 
         <GeolocateControl position="top-right" />
 
-        {/* Destination markers */}
+        {/* Destination markers - Warm Explorer theme */}
         {sortedDestinations.map((destination, index) => {
           const coords = getCoordinates(destination);
           if (!coords) return null;
@@ -856,20 +858,34 @@ const TripMap = ({
                 onClick={(e) => handleMarkerClick(destination, e)}
               >
                 <div
-                  className={`flex items-center justify-center cursor-pointer transition-transform duration-200 ${
+                  className={`map-marker cursor-pointer transition-all duration-200 ${
                     isHovered || isSelected ? 'scale-125' : 'scale-100'
                   }`}
                   onMouseEnter={() => setHoveredDestinationId(destination.id)}
                   onMouseLeave={() => setHoveredDestinationId(null)}
                 >
-                  <div
-                    className={`relative flex items-center justify-center w-8 h-8 rounded-full ${
-                      isSelected
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-white text-indigo-600 border-2 border-indigo-600'
-                    }`}
-                  >
-                    <span className="text-xs font-bold">{index + 1}</span>
+                  <div className="destination-marker">
+                    <div
+                      className={`destination-marker-circle ${isSelected ? 'map-marker-selected' : ''}`}
+                      style={{
+                        background: isSelected
+                          ? `linear-gradient(135deg, ${BRAND_COLORS.primary[700]} 0%, ${BRAND_COLORS.primary[800]} 100%)`
+                          : (isHovered || isSelected)
+                            ? `linear-gradient(135deg, ${BRAND_COLORS.primary[600]} 0%, ${BRAND_COLORS.primary[700]} 100%)`
+                            : '#ffffff',
+                        color: isSelected ? '#ffffff' : BRAND_COLORS.primary[600],
+                        border: isSelected ? '3px solid #ffffff' : `3px solid ${BRAND_COLORS.primary[600]}`,
+                      }}
+                    >
+                      <span className="text-sm font-bold">{index + 1}</span>
+                    </div>
+                    {/* Pointer triangle */}
+                    <div
+                      className="destination-marker-pointer"
+                      style={{
+                        borderTopColor: isSelected ? BRAND_COLORS.primary[700] : BRAND_COLORS.primary[600],
+                      }}
+                    />
                   </div>
                 </div>
               </Marker>
@@ -878,25 +894,27 @@ const TripMap = ({
                   longitude={coords.lng}
                   latitude={coords.lat}
                   anchor="bottom"
-                  offset={[0, -40]}
+                  offset={[0, -44]}
                   closeButton={false}
                   closeOnClick={false}
+                  className="trip-map-popup"
                 >
-                  <div className="p-2 min-w-[120px]">
-                    <h3 className="font-semibold text-gray-900 text-sm">
+                  <div className="p-4 min-w-[160px]">
+                    <h3 className="font-display font-bold text-stone-900 text-sm leading-tight">
                       {destination.name || destination.city_name}
                     </h3>
                     {destination.arrivalDate && destination.departureDate && (
-                      <>
-                        <p className="text-indigo-600 font-medium text-xs mt-1">
+                      <div className="mt-2 pt-2 border-t border-stone-100">
+                        <p className="text-amber-600 font-semibold text-xs flex items-center gap-1.5">
+                          <Calendar className="w-3 h-3" />
                           {formatDateRangeShort(destination.arrivalDate, destination.departureDate)}
                         </p>
-                        <p className="text-gray-500 text-xs">
+                        <p className="text-stone-500 text-xs mt-0.5 font-medium">
                           {calculateNights(destination.arrivalDate, destination.departureDate)} nights
                         </p>
-                      </>
+                      </div>
                     )}
-                    <p className="text-gray-400 text-xs mt-1 italic">
+                    <p className="text-stone-400 text-xs mt-2 font-medium">
                       Click to view details
                     </p>
                   </div>
@@ -923,22 +941,34 @@ const TripMap = ({
           ))
         )}
 
-        {/* Origin marker - Green with plane/home icon */}
+        {/* Origin marker - Green with plane icon and gradient */}
         {originPoint?.latitude && originPoint?.longitude && (
           <Marker
             longitude={originPoint.longitude}
             latitude={originPoint.latitude}
             anchor="bottom"
           >
-            <div className="flex items-center justify-center">
-              <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-green-500 text-white border-2 border-white shadow-lg">
-                <Plane className="w-5 h-5" />
+            <div className="map-marker">
+              <div className="destination-marker">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-white border-3 border-white"
+                  style={{
+                    background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                    boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4), 0 2px 4px rgba(0, 0, 0, 0.1)',
+                  }}
+                >
+                  <Plane className="w-5 h-5" />
+                </div>
+                <div
+                  className="destination-marker-pointer"
+                  style={{ borderTopColor: '#22c55e' }}
+                />
               </div>
             </div>
           </Marker>
         )}
 
-        {/* Return marker - Red with plane icon (only if different from origin) */}
+        {/* Return marker - Rose with home icon (only if different from origin) */}
         {returnPoint?.latitude && returnPoint?.longitude &&
           (originPoint?.latitude !== returnPoint?.latitude ||
            originPoint?.longitude !== returnPoint?.longitude) && (
@@ -947,9 +977,21 @@ const TripMap = ({
             latitude={returnPoint.latitude}
             anchor="bottom"
           >
-            <div className="flex items-center justify-center">
-              <div className="relative flex items-center justify-center w-10 h-10 rounded-full bg-red-500 text-white border-2 border-white shadow-lg">
-                <Home className="w-5 h-5" />
+            <div className="map-marker">
+              <div className="destination-marker">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-white border-3 border-white"
+                  style={{
+                    background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
+                    boxShadow: '0 4px 14px rgba(244, 63, 94, 0.4), 0 2px 4px rgba(0, 0, 0, 0.1)',
+                  }}
+                >
+                  <Home className="w-5 h-5" />
+                </div>
+                <div
+                  className="destination-marker-pointer"
+                  style={{ borderTopColor: '#f43f5e' }}
+                />
               </div>
             </div>
           </Marker>
@@ -964,75 +1006,83 @@ const TripMap = ({
         </div>
       )}
 
-      {/* Add Destination button - show if enabled */}
+      {/* Add Destination button - show if enabled - Warm Explorer theme */}
       {/* Position adjusts based on whether route info bar is showing below */}
       {enableAddDestination && (
         <button
           onClick={toggleAddMode}
-          className={`absolute left-4 px-4 py-2 rounded-lg shadow-lg font-medium transition-all flex items-center space-x-2 z-10 ${
+          className={`absolute left-4 px-4 py-2.5 rounded-xl shadow-lg font-semibold transition-all flex items-center gap-2 z-10 ${
             showRouteControls && sortedDestinations.length >= 2 ? 'bottom-24' : 'bottom-4'
-          } ${
-            isAddMode
-              ? 'bg-red-500 text-white hover:bg-red-600'
-              : 'bg-indigo-600 text-white hover:bg-indigo-700'
           }`}
+          style={{
+            background: isAddMode
+              ? 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)'
+              : `linear-gradient(135deg, ${BRAND_COLORS.primary[600]} 0%, ${BRAND_COLORS.primary[700]} 100%)`,
+            color: '#ffffff',
+            boxShadow: isAddMode
+              ? '0 4px 14px rgba(244, 63, 94, 0.35)'
+              : '0 4px 14px rgba(180, 83, 9, 0.35)',
+          }}
         >
-          <Plus className={`w-4 h-4 ${isAddMode ? 'rotate-45' : ''} transition-transform`} />
+          <Plus className={`w-4 h-4 ${isAddMode ? 'rotate-45' : ''} transition-transform duration-200`} />
           <span>{isAddMode ? 'Cancel' : 'Add Destination'}</span>
         </button>
       )}
 
-      {/* Overlay hint when in add mode */}
+      {/* Overlay hint when in add mode - Enhanced styling */}
       {isAddMode && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-lg text-sm z-20">
-          Click on the map to add a destination
+        <div className="absolute top-4 left-1/2 z-20">
+          <div className="add-mode-overlay">
+            <Plus className="w-4 h-4" />
+            <span>Click on the map to add a destination</span>
+          </div>
         </div>
       )}
 
-      {/* Google Maps Floating Action Button - Bottom Right */}
+      {/* Google Maps Floating Action Button - Bottom Right - Warm Explorer theme */}
       {showRouteControls && sortedDestinations.length >= 2 && (
         <button
           onClick={handleExportToGoogleMaps}
-          className="absolute bottom-7 right-4 z-10 flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-lg shadow-lg hover:bg-indigo-700 transition-colors"
+          className="google-maps-btn absolute bottom-7 right-4 z-10"
         >
           <ExternalLink className="w-4 h-4" />
           <span className="hidden sm:inline">Google Maps</span>
         </button>
       )}
 
-      {/* Route Info Bar - Bottom Left, under Add POI button */}
+      {/* Route Info Bar - Bottom Left - Enhanced Warm Explorer styling */}
       {showRouteControls && sortedDestinations.length >= 2 && (
         <div className="absolute bottom-4 left-4 z-10 max-w-lg">
           {/* Fallback Warning - auto-hides after 4 seconds */}
           {routeTotals?.has_fallback && showFallbackWarning && (
-            <div className="bg-red-50 border border-red-200 rounded-lg shadow-lg p-3 mb-2 transition-opacity duration-300">
-              <div className="flex items-center gap-2 text-red-700">
+            <div className="bg-rose-50 border border-rose-200 rounded-xl shadow-lg p-3 mb-2 transition-opacity duration-300">
+              <div className="flex items-center gap-2 text-rose-700">
                 <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                <span className="text-sm font-medium">
+                <span className="text-sm font-semibold">
                   Public transport route unavailable for {routeTotals.fallback_count} segment{routeTotals.fallback_count > 1 ? 's' : ''}.
                   Showing car route instead.
                 </span>
               </div>
             </div>
           )}
-          <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-3">
+          <div className="route-summary">
             <div className="flex items-center gap-4">
               {/* Route Stats from travel segments */}
               {routeTotals && (
                 <>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-900">
+                  <div className="route-summary-stat">
+                    <MapPin className="route-summary-icon" />
+                    <span className="route-summary-value">
                       {formatDistance(routeTotals.distance_km)}
                     </span>
                   </div>
-                  <div className="h-4 w-px bg-gray-200" />
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900">
+                  <div className="route-summary-divider" />
+                  <div className="route-summary-stat">
+                    <span className="route-summary-value">
                       {formatDuration(routeTotals.duration_minutes)}
                     </span>
                   </div>
-                  <div className="h-4 w-px bg-gray-200" />
+                  <div className="route-summary-divider" />
                   {/* Segment Navigator with pagination, hover cards, and click-to-center */}
                   <SegmentNavigator
                     segments={validSegments}
@@ -1043,10 +1093,10 @@ const TripMap = ({
                 </>
               )}
               {isSegmentsLoading && (
-                <span className="text-sm text-gray-500">Loading routes...</span>
+                <span className="text-sm text-stone-500 font-medium animate-pulse">Loading routes...</span>
               )}
               {!routeTotals && !isSegmentsLoading && (
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-stone-500 font-medium">
                   {sortedDestinations.length} stops
                 </span>
               )}

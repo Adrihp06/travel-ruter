@@ -9,9 +9,11 @@ import Map, {
   Popup
 } from 'react-map-gl';
 import { useNavigate } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+import { MapPin, Navigation, Calendar } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
+import { BRAND_COLORS, ROUTE_STYLES } from './mapStyles';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import './mapStyles.css';
 
 const MacroMap = ({
   trips = [],
@@ -131,16 +133,35 @@ const MacroMap = ({
     setPopupInfo(null);
   }, []);
 
-  // Route line layer style
+  // Route line outline layer style (for better visibility)
+  const routeOutlineLayer = {
+    id: 'route-outline',
+    type: 'line',
+    paint: {
+      'line-color': '#ffffff',
+      'line-width': ROUTE_STYLES.main.outlineWidth,
+      'line-opacity': ROUTE_STYLES.main.outlineOpacity,
+    },
+    layout: {
+      'line-join': 'round',
+      'line-cap': 'round',
+    },
+  };
+
+  // Route line layer style - Warm Explorer amber theme
   const routeLineLayer = {
     id: 'route-line',
     type: 'line',
     paint: {
-      'line-color': '#6366f1', // indigo-500
-      'line-width': 3,
-      'line-opacity': 0.8,
-      'line-dasharray': [2, 1]
-    }
+      'line-color': BRAND_COLORS.primary[600], // amber-600
+      'line-width': ROUTE_STYLES.main.width,
+      'line-opacity': ROUTE_STYLES.main.opacity,
+      'line-dasharray': [3, 2],
+    },
+    layout: {
+      'line-join': 'round',
+      'line-cap': 'round',
+    },
   };
 
   if (!mapboxAccessToken) {
@@ -175,11 +196,12 @@ const MacroMap = ({
       {/* Route polylines connecting destinations */}
       {routeGeoJSON.features.length > 0 && (
         <Source id="route-source" type="geojson" data={routeGeoJSON}>
+          <Layer {...routeOutlineLayer} />
           <Layer {...routeLineLayer} />
         </Source>
       )}
 
-      {/* Destination markers */}
+      {/* Destination markers - Warm Explorer theme */}
       {allDestinations.map((destination) => (
         <Marker
           key={`${destination.tripId}-${destination.id}`}
@@ -193,62 +215,75 @@ const MacroMap = ({
         >
           <div
             className={`
-              cursor-pointer transition-all duration-200
+              cursor-pointer transition-all duration-200 map-marker
               ${hoveredDestination === destination.id ? 'scale-125' : 'scale-100'}
             `}
             onMouseEnter={() => handleMarkerEnter(destination)}
             onMouseLeave={handleMarkerLeave}
           >
-            <div className="relative">
-              {/* Marker with order number */}
-              <div className={`
-                w-8 h-8 rounded-full flex items-center justify-center
-                shadow-lg border-2 border-white
-                ${hoveredDestination === destination.id
-                  ? 'bg-indigo-600'
-                  : 'bg-indigo-500'}
-              `}>
+            <div className="destination-marker">
+              {/* Marker with order number - gradient amber background */}
+              <div
+                className={`
+                  destination-marker-circle
+                  ${hoveredDestination === destination.id ? 'map-marker-selected' : ''}
+                `}
+                style={{
+                  background: hoveredDestination === destination.id
+                    ? `linear-gradient(135deg, ${BRAND_COLORS.primary[700]} 0%, ${BRAND_COLORS.primary[800]} 100%)`
+                    : `linear-gradient(135deg, ${BRAND_COLORS.primary[600]} 0%, ${BRAND_COLORS.primary[700]} 100%)`,
+                }}
+              >
                 <span className="text-white text-sm font-bold">
                   {destination.orderIndex + 1}
                 </span>
               </div>
-              {/* Pointer */}
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-0
-                border-l-4 border-r-4 border-t-6
-                border-l-transparent border-r-transparent border-t-indigo-500"
-                style={{ borderTopWidth: '6px' }}
+              {/* Pointer triangle */}
+              <div
+                className="destination-marker-pointer"
+                style={{ borderTopColor: BRAND_COLORS.primary[600] }}
               />
             </div>
           </div>
         </Marker>
       ))}
 
-      {/* Popup on hover */}
+      {/* Popup on hover - Enhanced typography */}
       {popupInfo && (
         <Popup
           longitude={popupInfo.longitude}
           latitude={popupInfo.latitude}
           anchor="bottom"
-          offset={[0, -40]}
+          offset={[0, -44]}
           closeButton={false}
           closeOnClick={false}
           className="macro-map-popup"
         >
-          <div className="px-3 py-2 min-w-[150px]">
-            <div className="font-semibold text-gray-900">
+          <div className="p-4 min-w-[180px]">
+            {/* Destination name with gradient text */}
+            <h3 className="font-display font-bold text-base text-stone-900 leading-tight">
               {popupInfo.city_name || popupInfo.name}
-            </div>
+            </h3>
             {popupInfo.country && (
-              <div className="text-sm text-gray-500">{popupInfo.country}</div>
+              <p className="text-sm text-stone-500 font-medium mt-0.5">{popupInfo.country}</p>
             )}
+
+            {/* Trip info with icon */}
             {popupInfo.tripName && (
-              <div className="text-xs text-indigo-600 mt-1 flex items-center">
-                <MapPin className="w-3 h-3 mr-1" />
-                {popupInfo.tripName}
+              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-stone-100">
+                <div className="w-6 h-6 rounded-lg bg-amber-100 flex items-center justify-center">
+                  <Navigation className="w-3.5 h-3.5 text-amber-600" />
+                </div>
+                <span className="text-sm font-semibold text-amber-700">
+                  {popupInfo.tripName}
+                </span>
               </div>
             )}
-            <div className="text-xs text-gray-400 mt-1">
-              Click to view trip details
+
+            {/* Call to action */}
+            <div className="flex items-center gap-1.5 mt-3 text-xs text-stone-400 font-medium">
+              <Calendar className="w-3 h-3" />
+              <span>Click to view trip details</span>
             </div>
           </div>
         </Popup>
