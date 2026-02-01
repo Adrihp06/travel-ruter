@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   MapPin,
@@ -29,7 +29,7 @@ const TAG_COLORS = {
   beach: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300',
 };
 
-const TripCard = ({
+const TripCard = React.memo(function TripCard({
   trip,
   onEdit,
   onDelete,
@@ -41,19 +41,67 @@ const TripCard = ({
   totalPOIs = 0,
   scheduledPOIs = 0,
   budget = null
-}) => {
+}) {
   const [showActions, setShowActions] = useState(false);
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
 
   const isCompleted = trip.status === 'completed';
 
-  // Close menu when clicking outside
-  useEffect(() => {
-    if (!showActions) return;
+  // Memoized event handlers to prevent unnecessary re-renders
+  const handleToggleActions = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowActions(prev => !prev);
+  }, []);
 
+  const handleEdit = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onEdit?.(trip);
+    setShowActions(false);
+  }, [onEdit, trip]);
+
+  const handleDuplicate = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDuplicate?.(trip);
+    setShowActions(false);
+  }, [onDuplicate, trip]);
+
+  const handleStatusChange = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onStatusChange?.(trip, isCompleted ? 'planning' : 'completed');
+    setShowActions(false);
+  }, [onStatusChange, trip, isCompleted]);
+
+  const handleShare = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onShare?.(trip);
+    setShowActions(false);
+  }, [onShare, trip]);
+
+  const handleExport = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onExport?.(trip);
+    setShowActions(false);
+  }, [onExport, trip]);
+
+  const handleDelete = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDelete?.(trip.id);
+    setShowActions(false);
+  }, [onDelete, trip.id]);
+
+  // Close menu when clicking outside - always cleanup on unmount
+  useEffect(() => {
     const handleClickOutside = (event) => {
       if (
+        showActions &&
         menuRef.current &&
         !menuRef.current.contains(event.target) &&
         buttonRef.current &&
@@ -149,19 +197,25 @@ const TripCard = ({
     }
   };
 
-  // Format currency
-  const formatCurrency = (amount, currency = 'USD') => {
-    if (amount == null) return null;
-    return new Intl.NumberFormat('en-US', {
+  // Memoize currency formatter to avoid creating new Intl.NumberFormat on every render
+  const formatCurrency = useMemo(() => {
+    const currency = trip.currency || 'USD';
+    const formatter = new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount);
-  };
+    });
+    return (amount) => {
+      if (amount == null) return null;
+      return formatter.format(amount);
+    };
+  }, [trip.currency]);
 
-  // Default cover images based on location keywords
-  const getDefaultCoverImage = () => {
+  // Memoize default cover image based on location keywords
+  const coverImage = useMemo(() => {
+    if (trip.cover_image) return trip.cover_image;
+
     const location = (trip.location || '').toLowerCase();
     if (location.includes('beach') || location.includes('hawaii') || location.includes('caribbean')) {
       return 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&h=200&fit=crop';
@@ -179,9 +233,7 @@ const TripCard = ({
       return 'https://images.unsplash.com/photo-1520769669658-f07657f5a307?w=400&h=200&fit=crop';
     }
     return null; // Will show gradient instead
-  };
-
-  const coverImage = trip.cover_image || getDefaultCoverImage();
+  }, [trip.cover_image, trip.location]);
 
   return (
     <div className="trip-card group bg-white dark:bg-stone-800 rounded-2xl shadow-sm border border-stone-200/80 dark:border-stone-700 hover:shadow-xl hover:shadow-amber-900/5 dark:hover:shadow-2xl dark:hover:shadow-black/30 transition-all duration-300 hover:-translate-y-1 relative">
@@ -190,11 +242,7 @@ const TripCard = ({
         <div className="relative">
           <button
             ref={buttonRef}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowActions(!showActions);
-            }}
+            onClick={handleToggleActions}
             className="p-2 bg-white/90 dark:bg-gray-700/90 hover:bg-white dark:hover:bg-gray-600 rounded-lg transition-colors shadow-sm"
           >
             <MoreVertical className="w-4 h-4 text-gray-600 dark:text-gray-300" />
@@ -206,12 +254,7 @@ const TripCard = ({
               className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-700 rounded-lg shadow-2xl border border-gray-300 dark:border-gray-600 py-1 z-50"
             >
                 <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onEdit?.(trip);
-                    setShowActions(false);
-                  }}
+                  onClick={handleEdit}
                   className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
                   <div className="flex items-center">
@@ -220,12 +263,7 @@ const TripCard = ({
                   <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">⌘E</span>
                 </button>
                 <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onDuplicate?.(trip);
-                    setShowActions(false);
-                  }}
+                  onClick={handleDuplicate}
                   className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
                   <div className="flex items-center">
@@ -237,12 +275,7 @@ const TripCard = ({
                 <hr className="my-1 border-gray-100 dark:border-gray-600" />
                 
                 <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onStatusChange?.(trip, isCompleted ? 'planning' : 'completed');
-                    setShowActions(false);
-                  }}
+                  onClick={handleStatusChange}
                   className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
                   {isCompleted ? (
@@ -255,23 +288,13 @@ const TripCard = ({
                 <hr className="my-1 border-gray-100 dark:border-gray-600" />
 
                 <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onShare?.(trip);
-                    setShowActions(false);
-                  }}
+                  onClick={handleShare}
                   className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
                   <Share2 className="w-4 h-4 mr-2" /> Share Link
                 </button>
                 <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onExport?.(trip);
-                    setShowActions(false);
-                  }}
+                  onClick={handleExport}
                   className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
                   <Download className="w-4 h-4 mr-2" /> Export Data
@@ -280,12 +303,7 @@ const TripCard = ({
                 <hr className="my-1 border-gray-100 dark:border-gray-600" />
                 
                 <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onDelete?.(trip.id);
-                    setShowActions(false);
-                  }}
+                  onClick={handleDelete}
                   className="w-full flex items-center justify-between px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                 >
                   <div className="flex items-center">
@@ -392,11 +410,11 @@ const TripCard = ({
             </div>
             <div className="text-right">
               <div className="font-semibold text-gray-900 dark:text-white">
-                {formatCurrency(trip.total_budget || budget?.total_budget, trip.currency)}
+                {formatCurrency(trip.total_budget || budget?.total_budget)}
               </div>
               {budget?.actual_total != null && (
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {formatCurrency(budget.actual_total, trip.currency)} spent
+                  {formatCurrency(budget.actual_total)} spent
                 </div>
               )}
             </div>
@@ -439,6 +457,6 @@ const TripCard = ({
       </div>
     </div>
   );
-};
+});
 
 export default TripCard;
