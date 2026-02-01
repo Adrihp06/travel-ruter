@@ -31,13 +31,9 @@ async def create_destination(
     # Create destination
     db_destination = Destination(**destination.model_dump())
 
-    # If latitude and longitude are provided, create PostGIS points for both coordinates and location
+    # If latitude and longitude are provided, create PostGIS point for coordinates
     if destination.latitude is not None and destination.longitude is not None:
         db_destination.coordinates = ST_SetSRID(
-            ST_MakePoint(destination.longitude, destination.latitude),
-            4326
-        )
-        db_destination.location = ST_SetSRID(
             ST_MakePoint(destination.longitude, destination.latitude),
             4326
         )
@@ -115,14 +111,10 @@ async def update_destination(
     for field, value in update_data.items():
         setattr(db_destination, field, value)
 
-    # Update coordinates and location if latitude and longitude are provided
+    # Update coordinates if latitude and longitude are provided
     if "latitude" in update_data and "longitude" in update_data:
         if update_data["latitude"] is not None and update_data["longitude"] is not None:
             db_destination.coordinates = ST_SetSRID(
-                ST_MakePoint(update_data["longitude"], update_data["latitude"]),
-                4326
-            )
-            db_destination.location = ST_SetSRID(
                 ST_MakePoint(update_data["longitude"], update_data["latitude"]),
                 4326
             )

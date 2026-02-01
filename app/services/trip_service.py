@@ -289,8 +289,6 @@ class TripService:
                 # Copy coordinates if they exist
                 if original_dest.coordinates is not None:
                     new_dest.coordinates = original_dest.coordinates
-                if original_dest.location is not None:
-                    new_dest.location = original_dest.location
 
                 db.add(new_dest)
                 await db.flush()  # Get the new destination ID

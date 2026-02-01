@@ -22,7 +22,6 @@ class Destination(BaseModel):
     address = Column(String, nullable=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
-    location = Column(Geometry('POINT', srid=4326), nullable=True)
 
     # Relationships
     trip = relationship("Trip", back_populates="destinations")
