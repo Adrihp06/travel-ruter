@@ -2,6 +2,8 @@ from datetime import date, timedelta
 from typing import Optional
 import httpx
 
+from app.core.http_client import get_http_client
+
 # In-memory cache for weather data
 # Key: (lat, lon, month) tuple, Value: (temperature, timestamp)
 _weather_cache: dict[tuple[float, float, int], tuple[float, date]] = {}
@@ -62,39 +64,39 @@ class WeatherService:
             end_date = date(last_year, month + 1, 1) - timedelta(days=1)
 
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(
-                    cls.OPEN_METEO_BASE_URL,
-                    params={
-                        "latitude": latitude,
-                        "longitude": longitude,
-                        "start_date": start_date.isoformat(),
-                        "end_date": end_date.isoformat(),
-                        "daily": "temperature_2m_mean",
-                        "timezone": "auto"
-                    }
-                )
-                response.raise_for_status()
-                data = response.json()
+            client = await get_http_client()
+            response = await client.get(
+                cls.OPEN_METEO_BASE_URL,
+                params={
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "start_date": start_date.isoformat(),
+                    "end_date": end_date.isoformat(),
+                    "daily": "temperature_2m_mean",
+                    "timezone": "auto"
+                }
+            )
+            response.raise_for_status()
+            data = response.json()
 
-                daily_data = data.get("daily", {})
-                temperatures = daily_data.get("temperature_2m_mean", [])
+            daily_data = data.get("daily", {})
+            temperatures = daily_data.get("temperature_2m_mean", [])
 
-                if not temperatures:
-                    return None
+            if not temperatures:
+                return None
 
-                # Filter out None values and calculate average
-                valid_temps = [t for t in temperatures if t is not None]
-                if not valid_temps:
-                    return None
+            # Filter out None values and calculate average
+            valid_temps = [t for t in temperatures if t is not None]
+            if not valid_temps:
+                return None
 
-                avg_temp = sum(valid_temps) / len(valid_temps)
-                avg_temp = round(avg_temp, 1)
+            avg_temp = sum(valid_temps) / len(valid_temps)
+            avg_temp = round(avg_temp, 1)
 
-                # Cache the result
-                _weather_cache[cache_key] = (avg_temp, date.today())
+            # Cache the result
+            _weather_cache[cache_key] = (avg_temp, date.today())
 
-                return avg_temp
+            return avg_temp
 
         except (httpx.HTTPError, KeyError, ValueError):
             return None

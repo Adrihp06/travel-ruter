@@ -11,6 +11,7 @@ from typing import Optional
 from pydantic import BaseModel
 
 from app.core.config import settings
+from app.core.http_client import get_http_client
 
 
 class GeocodingResult(BaseModel):
@@ -145,14 +146,14 @@ class GeocodingService:
             "User-Agent": cls.USER_AGENT,
         }
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{cls.BASE_URL}/search",
-                params=params,
-                headers=headers,
-            )
-            response.raise_for_status()
-            data = response.json()
+        client = await get_http_client()
+        response = await client.get(
+            f"{cls.BASE_URL}/search",
+            params=params,
+            headers=headers,
+        )
+        response.raise_for_status()
+        data = response.json()
 
         results = []
         for item in data:
@@ -207,14 +208,14 @@ class GeocodingService:
             "User-Agent": cls.USER_AGENT,
         }
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{cls.BASE_URL}/reverse",
-                params=params,
-                headers=headers,
-            )
-            response.raise_for_status()
-            data = response.json()
+        client = await get_http_client()
+        response = await client.get(
+            f"{cls.BASE_URL}/reverse",
+            params=params,
+            headers=headers,
+        )
+        response.raise_for_status()
+        data = response.json()
 
         if "error" in data:
             return None

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 import httpx
 
 from app.core.config import settings
+from app.core.http_client import get_http_client
 from app.core.resilience import (
     with_retry,
     with_circuit_breaker,
@@ -98,34 +99,34 @@ class MapboxService:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(url, params=params)
+            client = await get_http_client()
+            response = await client.get(url, params=params)
 
-                if response.status_code == 401:
-                    raise MapboxServiceError("Invalid Mapbox access token")
-                if response.status_code == 422:
-                    raise MapboxServiceError("Invalid coordinates or parameters")
+            if response.status_code == 401:
+                raise MapboxServiceError("Invalid Mapbox access token")
+            if response.status_code == 422:
+                raise MapboxServiceError("Invalid coordinates or parameters")
 
-                response.raise_for_status()
-                data = response.json()
+            response.raise_for_status()
+            data = response.json()
 
-                if data.get("code") != "Ok":
-                    error_msg = data.get("message", "Unknown Mapbox API error")
-                    raise MapboxServiceError(f"Mapbox API error: {error_msg}")
+            if data.get("code") != "Ok":
+                error_msg = data.get("message", "Unknown Mapbox API error")
+                raise MapboxServiceError(f"Mapbox API error: {error_msg}")
 
-                routes = data.get("routes", [])
-                if not routes:
-                    raise MapboxServiceError("No routes found")
+            routes = data.get("routes", [])
+            if not routes:
+                raise MapboxServiceError("No routes found")
 
-                # Return the first (best) route
-                route = routes[0]
+            # Return the first (best) route
+            route = routes[0]
 
-                return MapboxRouteResult(
-                    distance_meters=route["distance"],
-                    duration_seconds=route["duration"],
-                    geometry=route["geometry"],
-                    waypoints=data.get("waypoints", []),
-                )
+            return MapboxRouteResult(
+                distance_meters=route["distance"],
+                duration_seconds=route["duration"],
+                geometry=route["geometry"],
+                waypoints=data.get("waypoints", []),
+            )
 
         except httpx.TimeoutException:
             raise MapboxServiceError("Mapbox API request timed out")

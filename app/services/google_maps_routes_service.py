@@ -12,6 +12,7 @@ import base64
 import logging
 
 from app.core.config import settings
+from app.core.http_client import get_http_client
 from app.core.resilience import (
     with_retry,
     with_circuit_breaker,
@@ -180,81 +181,81 @@ class GoogleMapsRoutesService:
 
         try:
             logger.debug(f"Google Maps request: mode={travel_mode.value}, origin={origin}, dest={destination}")
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(self.BASE_URL, headers=headers, json=body)
-                logger.debug(f"Google Maps response: status={response.status_code}")
+            client = await get_http_client()
+            response = await client.post(self.BASE_URL, headers=headers, json=body)
+            logger.debug(f"Google Maps response: status={response.status_code}")
 
-                if response.status_code == 400:
-                    error_data = response.json()
-                    error_msg = error_data.get("error", {}).get("message", "Bad request")
-                    raise GoogleMapsRoutesError(f"Invalid request: {error_msg}")
-                if response.status_code == 401:
-                    raise GoogleMapsRoutesError("Invalid Google Maps API key")
-                if response.status_code == 403:
-                    raise GoogleMapsRoutesError(
-                        "Google Maps API access denied. Check API key permissions and billing."
-                    )
-                if response.status_code == 429:
-                    raise GoogleMapsRoutesError("Google Maps API rate limit exceeded")
-
-                response.raise_for_status()
-                data = response.json()
-
-                logger.info(f"Google Maps API response status: {response.status_code}")
-                logger.debug(f"Google Maps API response: {data}")
-
-                routes = data.get("routes", [])
-                if not routes:
-                    # Log the full response for debugging
-                    logger.warning(f"Google Maps returned no routes. Full response: {data}")
-                    raise GoogleMapsRoutesError("No route found between given points")
-
-                route = routes[0]
-
-                # Parse duration (format: "1234s")
-                duration_str = route.get("duration", "0s")
-                duration_seconds = float(duration_str.rstrip("s"))
-
-                # Get distance
-                distance_meters = float(route.get("distanceMeters", 0))
-
-                # Get encoded polyline
-                encoded_polyline = route.get("polyline", {}).get("encodedPolyline", "")
-
-                # Decode polyline to GeoJSON
-                if encoded_polyline:
-                    coordinates = decode_polyline(encoded_polyline)
-                    geometry = {
-                        "type": "LineString",
-                        "coordinates": coordinates,
-                    }
-                else:
-                    # Fallback to straight line
-                    geometry = {
-                        "type": "LineString",
-                        "coordinates": [list(origin), list(destination)],
-                    }
-
-                # Extract transit details if available
-                transit_details = None
-                if travel_mode == GoogleMapsRouteTravelMode.TRANSIT:
-                    legs = route.get("legs", [])
-                    if legs:
-                        steps_with_transit = []
-                        for leg in legs:
-                            for step in leg.get("steps", []):
-                                if "transitDetails" in step:
-                                    steps_with_transit.append(step["transitDetails"])
-                        if steps_with_transit:
-                            transit_details = {"steps": steps_with_transit}
-
-                return GoogleMapsRouteResult(
-                    distance_meters=distance_meters,
-                    duration_seconds=duration_seconds,
-                    geometry=geometry,
-                    polyline=encoded_polyline,
-                    transit_details=transit_details,
+            if response.status_code == 400:
+                error_data = response.json()
+                error_msg = error_data.get("error", {}).get("message", "Bad request")
+                raise GoogleMapsRoutesError(f"Invalid request: {error_msg}")
+            if response.status_code == 401:
+                raise GoogleMapsRoutesError("Invalid Google Maps API key")
+            if response.status_code == 403:
+                raise GoogleMapsRoutesError(
+                    "Google Maps API access denied. Check API key permissions and billing."
                 )
+            if response.status_code == 429:
+                raise GoogleMapsRoutesError("Google Maps API rate limit exceeded")
+
+            response.raise_for_status()
+            data = response.json()
+
+            logger.info(f"Google Maps API response status: {response.status_code}")
+            logger.debug(f"Google Maps API response: {data}")
+
+            routes = data.get("routes", [])
+            if not routes:
+                # Log the full response for debugging
+                logger.warning(f"Google Maps returned no routes. Full response: {data}")
+                raise GoogleMapsRoutesError("No route found between given points")
+
+            route = routes[0]
+
+            # Parse duration (format: "1234s")
+            duration_str = route.get("duration", "0s")
+            duration_seconds = float(duration_str.rstrip("s"))
+
+            # Get distance
+            distance_meters = float(route.get("distanceMeters", 0))
+
+            # Get encoded polyline
+            encoded_polyline = route.get("polyline", {}).get("encodedPolyline", "")
+
+            # Decode polyline to GeoJSON
+            if encoded_polyline:
+                coordinates = decode_polyline(encoded_polyline)
+                geometry = {
+                    "type": "LineString",
+                    "coordinates": coordinates,
+                }
+            else:
+                # Fallback to straight line
+                geometry = {
+                    "type": "LineString",
+                    "coordinates": [list(origin), list(destination)],
+                }
+
+            # Extract transit details if available
+            transit_details = None
+            if travel_mode == GoogleMapsRouteTravelMode.TRANSIT:
+                legs = route.get("legs", [])
+                if legs:
+                    steps_with_transit = []
+                    for leg in legs:
+                        for step in leg.get("steps", []):
+                            if "transitDetails" in step:
+                                steps_with_transit.append(step["transitDetails"])
+                    if steps_with_transit:
+                        transit_details = {"steps": steps_with_transit}
+
+            return GoogleMapsRouteResult(
+                distance_meters=distance_meters,
+                duration_seconds=duration_seconds,
+                geometry=geometry,
+                polyline=encoded_polyline,
+                transit_details=transit_details,
+            )
 
         except httpx.TimeoutException:
             raise GoogleMapsRoutesError("Google Maps Routes API request timed out")

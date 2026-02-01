@@ -13,6 +13,7 @@ import httpx
 logger = logging.getLogger(__name__)
 from typing import List, Optional, Dict, Any
 from app.core.config import settings
+from app.core.http_client import get_http_client
 from app.core.resilience import (
     with_retry,
     with_circuit_breaker,
@@ -138,21 +139,21 @@ class GooglePlacesService:
         if types:
             params["types"] = types
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(self.AUTOCOMPLETE_URL, params=params)
-            response.raise_for_status()
-            data = response.json()
+        client = await get_http_client()
+        response = await client.get(self.AUTOCOMPLETE_URL, params=params)
+        response.raise_for_status()
+        data = response.json()
 
-            results = []
-            for prediction in data.get("predictions", []):
-                results.append(GooglePlacesAutocompleteResult(
-                    place_id=prediction["place_id"],
-                    description=prediction["description"],
-                    main_text=prediction["structured_formatting"]["main_text"],
-                    secondary_text=prediction["structured_formatting"].get("secondary_text", ""),
-                    types=prediction.get("types", [])
-                ))
-            return results
+        results = []
+        for prediction in data.get("predictions", []):
+            results.append(GooglePlacesAutocompleteResult(
+                place_id=prediction["place_id"],
+                description=prediction["description"],
+                main_text=prediction["structured_formatting"]["main_text"],
+                secondary_text=prediction["structured_formatting"].get("secondary_text", ""),
+                types=prediction.get("types", [])
+            ))
+        return results
 
     @with_retry(max_attempts=3)
     @with_circuit_breaker(google_places_circuit_breaker)
@@ -170,31 +171,31 @@ class GooglePlacesService:
             "language": "en"
         }
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(self.DETAILS_URL, params=params)
-            response.raise_for_status()
-            data = response.json()
+        client = await get_http_client()
+        response = await client.get(self.DETAILS_URL, params=params)
+        response.raise_for_status()
+        data = response.json()
 
-            result = data.get("result")
-            if not result:
-                return None
+        result = data.get("result")
+        if not result:
+            return None
 
-            location = result.get("geometry", {}).get("location", {})
+        location = result.get("geometry", {}).get("location", {})
 
-            return GooglePlacesDetailResult(
-                place_id=place_id,
-                name=result.get("name"),
-                formatted_address=result.get("formatted_address"),
-                latitude=location.get("lat"),
-                longitude=location.get("lng"),
-                rating=result.get("rating"),
-                user_ratings_total=result.get("user_ratings_total"),
-                types=result.get("types", []),
-                website=result.get("website"),
-                phone_number=result.get("international_phone_number"),
-                price_level=result.get("price_level"),
-                business_status=result.get("business_status")
-            )
+        return GooglePlacesDetailResult(
+            place_id=place_id,
+            name=result.get("name"),
+            formatted_address=result.get("formatted_address"),
+            latitude=location.get("lat"),
+            longitude=location.get("lng"),
+            rating=result.get("rating"),
+            user_ratings_total=result.get("user_ratings_total"),
+            types=result.get("types", []),
+            website=result.get("website"),
+            phone_number=result.get("international_phone_number"),
+            price_level=result.get("price_level"),
+            business_status=result.get("business_status")
+        )
 
     # ==================== POI Suggestions Methods (Static) ====================
 
@@ -258,13 +259,13 @@ class GooglePlacesService:
             params["keyword"] = keyword
 
         # Make API request
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
-                GooglePlacesService.NEARBY_SEARCH_ENDPOINT,
-                params=params
-            )
-            response.raise_for_status()
-            data = response.json()
+        client = await get_http_client()
+        response = await client.get(
+            GooglePlacesService.NEARBY_SEARCH_ENDPOINT,
+            params=params
+        )
+        response.raise_for_status()
+        data = response.json()
 
         if data.get("status") != "OK":
             error_msg = data.get("error_message", data.get("status"))
@@ -341,13 +342,13 @@ class GooglePlacesService:
             "key": settings.GOOGLE_MAPS_API_KEY,
         }
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
-                GooglePlacesService.PLACE_DETAILS_ENDPOINT,
-                params=params
-            )
-            response.raise_for_status()
-            data = response.json()
+        client = await get_http_client()
+        response = await client.get(
+            GooglePlacesService.PLACE_DETAILS_ENDPOINT,
+            params=params
+        )
+        response.raise_for_status()
+        data = response.json()
 
         if data.get("status") != "OK":
             error_msg = data.get("error_message", data.get("status"))

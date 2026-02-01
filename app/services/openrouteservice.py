@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import httpx
 
 from app.core.config import settings
+from app.core.http_client import get_http_client
 from app.core.resilience import (
     with_retry,
     with_circuit_breaker,
@@ -100,34 +101,34 @@ class OpenRouteServiceService:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(url, headers=headers, json=body)
+            client = await get_http_client()
+            response = await client.post(url, headers=headers, json=body)
 
-                if response.status_code == 401:
-                    raise ORSServiceError("Invalid OpenRouteService API key")
-                if response.status_code == 403:
-                    raise ORSServiceError("OpenRouteService API rate limit exceeded or access denied")
-                if response.status_code == 404:
-                    raise ORSServiceError("Route not found between given points")
+            if response.status_code == 401:
+                raise ORSServiceError("Invalid OpenRouteService API key")
+            if response.status_code == 403:
+                raise ORSServiceError("OpenRouteService API rate limit exceeded or access denied")
+            if response.status_code == 404:
+                raise ORSServiceError("Route not found between given points")
 
-                response.raise_for_status()
-                data = response.json()
+            response.raise_for_status()
+            data = response.json()
 
-                features = data.get("features", [])
-                if not features:
-                    raise ORSServiceError("No route found")
+            features = data.get("features", [])
+            if not features:
+                raise ORSServiceError("No route found")
 
-                route = features[0]
-                properties = route.get("properties", {})
-                summary = properties.get("summary", {})
+            route = features[0]
+            properties = route.get("properties", {})
+            summary = properties.get("summary", {})
 
-                return ORSRouteResult(
-                    distance_meters=summary.get("distance", 0),
-                    duration_seconds=summary.get("duration", 0),
-                    geometry=route.get("geometry", {}),
-                    segments=properties.get("segments", []),
-                    bbox=data.get("bbox", []),
-                )
+            return ORSRouteResult(
+                distance_meters=summary.get("distance", 0),
+                duration_seconds=summary.get("duration", 0),
+                geometry=route.get("geometry", {}),
+                segments=properties.get("segments", []),
+                bbox=data.get("bbox", []),
+            )
 
         except httpx.TimeoutException:
             raise ORSServiceError("OpenRouteService API request timed out")
