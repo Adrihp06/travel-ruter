@@ -6,6 +6,8 @@ import DateRangePicker from '../common/DateRangePicker';
 import Spinner from '../UI/Spinner';
 import { findDateCollisions, formatDateShort } from '../../utils/dateFormat';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
 const DestinationFormModal = ({
   isOpen,
   onClose,
@@ -13,6 +15,7 @@ const DestinationFormModal = ({
   destination = null,
   onSuccess,
   trip = null,
+  preFilledLocation = null, // { latitude, longitude } - for map click pre-fill
 }) => {
   const { createDestination, updateDestination, isLoading } = useDestinationStore();
   const isEditMode = !!destination;
@@ -105,7 +108,34 @@ const DestinationFormModal = ({
     }));
   };
 
-  // Populate form for edit mode
+  const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
+
+  // Reverse geocode coordinates to get city/country
+  const reverseGeocode = async (latitude, longitude) => {
+    setIsReverseGeocoding(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/geocoding/reverse?lat=${latitude}&lon=${longitude}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.display_name) {
+          const { city, country } = parseCityAndCountry(data.display_name);
+          setFormData(prev => ({
+            ...prev,
+            city_name: city || prev.city_name,
+            country: country || prev.country,
+            latitude,
+            longitude,
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Reverse geocoding failed:', error);
+    } finally {
+      setIsReverseGeocoding(false);
+    }
+  };
+
+  // Populate form for edit mode or pre-filled location
   useEffect(() => {
     if (destination) {
       setFormData({
@@ -117,6 +147,19 @@ const DestinationFormModal = ({
         latitude: destination.latitude || '',
         longitude: destination.longitude || '',
       });
+    } else if (preFilledLocation?.latitude && preFilledLocation?.longitude) {
+      // Pre-fill with coordinates from map click and reverse geocode
+      setFormData({
+        city_name: '',
+        country: inferCountry(),
+        arrival_date: '',
+        departure_date: '',
+        notes: '',
+        latitude: preFilledLocation.latitude,
+        longitude: preFilledLocation.longitude,
+      });
+      // Trigger reverse geocoding to fill city/country
+      reverseGeocode(preFilledLocation.latitude, preFilledLocation.longitude);
     } else {
       setFormData({
         city_name: '',
@@ -131,7 +174,7 @@ const DestinationFormModal = ({
     setErrors({});
     setCollisionWarningAcknowledged(false);
     setAcknowledgedForDates({ arrival: '', departure: '' });
-  }, [destination, isOpen, trip]);
+  }, [destination, isOpen, trip, preFilledLocation]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -244,6 +287,24 @@ const DestinationFormModal = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* Reverse geocoding indicator */}
+          {isReverseGeocoding && (
+            <div className="bg-indigo-50 text-indigo-700 p-3 rounded-lg text-sm flex items-center space-x-2">
+              <Spinner className="w-4 h-4" />
+              <span>Looking up location...</span>
+            </div>
+          )}
+
+          {/* Pre-filled coordinates indicator */}
+          {preFilledLocation && formData.latitude && formData.longitude && !isReverseGeocoding && (
+            <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm">
+              <p className="font-medium">Location selected from map</p>
+              <p className="text-xs text-green-600 mt-1">
+                {Number(formData.latitude).toFixed(6)}, {Number(formData.longitude).toFixed(6)}
+              </p>
+            </div>
+          )}
+
           {/* City Name with Location Autocomplete */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -258,8 +319,9 @@ const DestinationFormModal = ({
                 setFormData(prev => ({ ...prev, city_name: value }));
               }}
               onSelect={handleLocationSelect}
-              placeholder="Search for a city..."
+              placeholder={isReverseGeocoding ? "Loading..." : "Search for a city..."}
               error={errors.city_name}
+              disabled={isReverseGeocoding}
             />
           </div>
 

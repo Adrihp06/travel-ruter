@@ -315,16 +315,16 @@ const TripMap = ({
   height = '400px',
   className = '',
   tripLocation = null, // { latitude, longitude, name } - fallback location when no destinations
-  enableAddPOI = false, // Enable click-to-add-POI mode
-  onAddPOI = null, // Callback when clicking on map to add POI: ({ latitude, longitude }) => void
+  enableAddDestination = false, // Enable click-to-add-destination mode
+  onAddDestination = null, // Callback when clicking on map to add destination: ({ latitude, longitude }) => void
   tripId = null, // Trip ID for fetching travel segments
   onSegmentRouteUpdated = null, // Callback when a segment route is updated (after waypoint changes)
   // Origin and return point data from trip
   originPoint = null, // { name, latitude, longitude }
   returnPoint = null, // { name, latitude, longitude }
 }) => {
-  // Can only add POI if there are destinations to attach them to
-  const canAddPOI = enableAddPOI && destinations.length > 0;
+  // Can add destination from map click
+  const canAddDestination = enableAddDestination && onAddDestination;
   const { mapboxAccessToken } = useMapboxToken();
   const mapRef = useRef(null);
   const [hoveredDestinationId, setHoveredDestinationId] = useState(null);
@@ -713,7 +713,7 @@ const TripMap = ({
         return;
       }
 
-      // Handle POI adding mode
+      // Handle destination adding mode
       if (!isAddMode) return;
 
       const location = {
@@ -721,15 +721,14 @@ const TripMap = ({
         longitude: lngLat.lng,
       };
 
-      // Don't set pending location - let the modal handle it
-      // The marker will appear once the POI is actually created
+      // Exit add mode and trigger callback
       setIsAddMode(false);
 
-      if (onAddPOI) {
-        onAddPOI(location);
+      if (onAddDestination) {
+        onAddDestination(location);
       }
     },
-    [isAddMode, onAddPOI, addingWaypointMode, createWaypoint, exitAddWaypointMode, tripId, fetchTripSegments, onSegmentRouteUpdated]
+    [isAddMode, onAddDestination, addingWaypointMode, createWaypoint, exitAddWaypointMode, tripId, fetchTripSegments, onSegmentRouteUpdated]
   );
 
   // Toggle add mode
@@ -737,12 +736,12 @@ const TripMap = ({
     setIsAddMode((prev) => !prev);
   }, []);
 
-  // Reset add mode when feature is disabled or no destinations
+  // Reset add mode when feature is disabled
   useEffect(() => {
-    if (!canAddPOI) {
+    if (!canAddDestination) {
       setIsAddMode(false);
     }
-  }, [canAddPOI]);
+  }, [canAddDestination]);
 
   if (!mapboxAccessToken) {
     return (
@@ -965,49 +964,29 @@ const TripMap = ({
         </div>
       )}
 
-      {/* Add POI button - only show if enabled and there are destinations */}
+      {/* Add Destination button - show if enabled */}
       {/* Position adjusts based on whether route info bar is showing below */}
-      {enableAddPOI && (
-        <>
-          {canAddPOI ? (
-            <button
-              onClick={toggleAddMode}
-              className={`absolute left-4 px-4 py-2 rounded-lg shadow-lg font-medium transition-all flex items-center space-x-2 z-10 ${
-                showRouteControls && sortedDestinations.length >= 2 ? 'bottom-24' : 'bottom-4'
-              } ${
-                isAddMode
-                  ? 'bg-red-500 text-white hover:bg-red-600'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
-              }`}
-            >
-              <Plus className={`w-4 h-4 ${isAddMode ? 'rotate-45' : ''} transition-transform`} />
-              <span>{isAddMode ? 'Cancel' : 'Add POI'}</span>
-            </button>
-          ) : (
-            <div className={`absolute left-4 px-4 py-2 rounded-lg shadow-lg bg-gray-400 text-white font-medium flex items-center space-x-2 cursor-not-allowed z-10 ${
-              showRouteControls && sortedDestinations.length >= 2 ? 'bottom-24' : 'bottom-4'
-            }`}>
-              <Plus className="w-4 h-4" />
-              <span>Add POI</span>
-            </div>
-          )}
+      {enableAddDestination && (
+        <button
+          onClick={toggleAddMode}
+          className={`absolute left-4 px-4 py-2 rounded-lg shadow-lg font-medium transition-all flex items-center space-x-2 z-10 ${
+            showRouteControls && sortedDestinations.length >= 2 ? 'bottom-24' : 'bottom-4'
+          } ${
+            isAddMode
+              ? 'bg-red-500 text-white hover:bg-red-600'
+              : 'bg-indigo-600 text-white hover:bg-indigo-700'
+          }`}
+        >
+          <Plus className={`w-4 h-4 ${isAddMode ? 'rotate-45' : ''} transition-transform`} />
+          <span>{isAddMode ? 'Cancel' : 'Add Destination'}</span>
+        </button>
+      )}
 
-          {/* Overlay hint when in add mode */}
-          {isAddMode && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-lg text-sm z-20">
-              Click on the map to add a point of interest
-            </div>
-          )}
-
-          {/* Hint when no destinations */}
-          {!canAddPOI && (
-            <div className={`absolute left-4 bg-amber-100 text-amber-800 px-3 py-2 rounded-lg text-xs max-w-[200px] z-10 ${
-              showRouteControls && sortedDestinations.length >= 2 ? 'bottom-36' : 'bottom-16'
-            }`}>
-              Add a destination first to create POIs
-            </div>
-          )}
-        </>
+      {/* Overlay hint when in add mode */}
+      {isAddMode && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-lg text-sm z-20">
+          Click on the map to add a destination
+        </div>
       )}
 
       {/* Google Maps Floating Action Button - Bottom Right */}

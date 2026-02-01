@@ -648,10 +648,7 @@ const DetailViewContent = () => {
   // Destination modal state
   const [showDestinationModal, setShowDestinationModal] = useState(false);
   const [editingDestination, setEditingDestination] = useState(null);
-
-  // TripMap POI modal state (Level 1)
-  const [showTripMapPOIModal, setShowTripMapPOIModal] = useState(false);
-  const [pendingTripMapPOILocation, setPendingTripMapPOILocation] = useState(null);
+  const [destinationPreFilledLocation, setDestinationPreFilledLocation] = useState(null);
 
   // Accommodation modal state
   const [showAccommodationModal, setShowAccommodationModal] = useState(false);
@@ -769,19 +766,12 @@ const DetailViewContent = () => {
     setShowAddPOIModal(true);
   }, []);
 
-  // Handle adding POI via TripMap click (Level 1)
-  const handleAddPOIFromTripMap = useCallback((location) => {
-    setPendingTripMapPOILocation(location);
-    setShowTripMapPOIModal(true);
+  // Handle adding destination via TripMap click (Level 1)
+  const handleAddDestinationFromMap = useCallback((location) => {
+    setDestinationPreFilledLocation(location);
+    setEditingDestination(null);
+    setShowDestinationModal(true);
   }, []);
-
-  // Handle TripMap POI submission
-  const handleTripMapPOISubmit = useCallback(async (poiData) => {
-    await createPOI(poiData);
-    // Refresh the trip details to show updated POI counts
-    fetchTripDetails(id);
-    setPendingTripMapPOILocation(null);
-  }, [createPOI, fetchTripDetails, id]);
 
   const handlePOISubmit = useCallback(async (poiData) => {
     if (selectedDestinationId) {
@@ -1066,8 +1056,8 @@ const DetailViewContent = () => {
                     }
                   : null
               }
-              enableAddPOI={true}
-              onAddPOI={handleAddPOIFromTripMap}
+              enableAddDestination={true}
+              onAddDestination={handleAddDestinationFromMap}
               originPoint={
                 selectedTrip.origin_name && selectedTrip.origin_latitude && selectedTrip.origin_longitude
                   ? {
@@ -1188,29 +1178,19 @@ const DetailViewContent = () => {
         isSaving={isPOIsLoading}
       />
 
-      {/* TripMap POI Modal (Level 1) */}
-      <TripMapPOIModal
-        isOpen={showTripMapPOIModal}
-        onClose={() => {
-          setShowTripMapPOIModal(false);
-          setPendingTripMapPOILocation(null);
-        }}
-        onSubmit={handleTripMapPOISubmit}
-        location={pendingTripMapPOILocation}
-        destinations={selectedTrip?.destinations || []}
-      />
-
       {/* Destination Form Modal */}
       <DestinationFormModal
         isOpen={showDestinationModal}
         onClose={() => {
           setShowDestinationModal(false);
           setEditingDestination(null);
+          setDestinationPreFilledLocation(null);
         }}
         tripId={Number(id)}
         destination={editingDestination}
         onSuccess={() => fetchTripDetails(id)}
         trip={selectedTrip}
+        preFilledLocation={destinationPreFilledLocation}
       />
 
       {/* Accommodation Form Modal */}
