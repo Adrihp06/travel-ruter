@@ -54,6 +54,7 @@ import { formatDateWithWeekday, formatDateRangeShort } from '../../utils/dateFor
 // Lazy load heavy modal components
 const OptimizationPreview = lazy(() => import('../Agenda/OptimizationPreview'));
 const POISuggestionsModal = lazy(() => import('../POI/POISuggestionsModal'));
+const SmartSchedulerModal = lazy(() => import('../POI/SmartSchedulerModal'));
 
 // Category icon mapping
 const categoryIcons = {
@@ -487,14 +488,14 @@ const DayColumn = React.memo(function DayColumn({
 });
 
 // Unscheduled POIs Section - memoized to prevent re-renders when days change
-const UnscheduledSection = React.memo(function UnscheduledSection({ pois, isExpanded, onToggle, onEdit, onDelete, onVote, onPOIClick, onAddPOINote }) {
+const UnscheduledSection = React.memo(function UnscheduledSection({ pois, isExpanded, onToggle, onEdit, onDelete, onVote, onPOIClick, onAddPOINote, onSmartSchedule }) {
   return (
     <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800/50">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between p-3 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
-      >
-        <div className="flex items-center">
+      <div className="flex items-center justify-between p-3">
+        <button
+          onClick={onToggle}
+          className="flex items-center flex-1 hover:bg-gray-100 dark:hover:bg-gray-700/50 -m-1 p-1 rounded transition-colors"
+        >
           <MapPin className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
           <span className="font-medium text-sm text-gray-700 dark:text-gray-300">
             Unscheduled
@@ -504,13 +505,29 @@ const UnscheduledSection = React.memo(function UnscheduledSection({ pois, isExpa
               {pois.length}
             </span>
           )}
+        </button>
+        <div className="flex items-center gap-2">
+          {pois.length > 0 && onSmartSchedule && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onSmartSchedule();
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-lg transition-all shadow-sm hover:shadow active:scale-[0.98]"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Smart Schedule ({pois.length})</span>
+            </button>
+          )}
+          <button onClick={onToggle} className="p-1">
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            )}
+          </button>
         </div>
-        {isExpanded ? (
-          <ChevronDown className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-        ) : (
-          <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-        )}
-      </button>
+      </div>
 
       {isExpanded && (
         <DroppableContainer id="unscheduled" className="p-2 min-h-[60px] space-y-2 transition-all">
@@ -580,6 +597,10 @@ const DailyItinerary = ({
   // POI Suggestions state
   const [showSuggestionsModal, setShowSuggestionsModal] = useState(false);
 
+  // Smart Scheduler state
+  const [showSmartSchedulerModal, setShowSmartSchedulerModal] = useState(false);
+  const [isApplyingSmartSchedule, setIsApplyingSmartSchedule] = useState(false);
+
   // Store actions for optimization
   const {
     optimizationResult,
@@ -588,6 +609,7 @@ const DailyItinerary = ({
     optimizeDayRoute,
     applyOptimizedOrder,
     clearOptimizationResult,
+    applySmartSchedule,
   } = usePOIStore();
 
   // Flatten POIs from category groups
@@ -915,6 +937,31 @@ const DailyItinerary = ({
     }
   }, [showOptimizationPreview, startLocationInfo, optimizingDay, destination?.id, optimizeDayRoute]);
 
+  // Smart Scheduler handlers
+  const handleOpenSmartScheduler = useCallback(() => {
+    setShowSmartSchedulerModal(true);
+  }, []);
+
+  const handleCloseSmartScheduler = useCallback(() => {
+    setShowSmartSchedulerModal(false);
+  }, []);
+
+  const handleApplySmartSchedule = useCallback(async (assignments, optimizeRoutes) => {
+    if (!destination) return;
+
+    setIsApplyingSmartSchedule(true);
+
+    try {
+      await applySmartSchedule(destination.id, assignments, optimizeRoutes);
+      setShowSmartSchedulerModal(false);
+    } catch (error) {
+      setOptimizationError(error.message);
+      setTimeout(() => setOptimizationError(null), 5000);
+    } finally {
+      setIsApplyingSmartSchedule(false);
+    }
+  }, [destination, applySmartSchedule]);
+
   if (!destination) {
     return (
       <div className={`flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 w-80 ${className}`}>
@@ -1002,6 +1049,7 @@ const DailyItinerary = ({
             onVote={onVotePOI}
             onPOIClick={onPOIClick}
             onAddPOINote={onAddPOINote}
+            onSmartSchedule={handleOpenSmartScheduler}
           />
 
           {/* Drag Overlay */}
@@ -1061,6 +1109,22 @@ const DailyItinerary = ({
             onClose={() => setShowSuggestionsModal(false)}
             destinationId={destination?.id}
             destinationName={destination?.name || destination?.city_name}
+          />
+        )}
+      </Suspense>
+
+      {/* Smart Scheduler Modal - Lazy loaded */}
+      <Suspense fallback={null}>
+        {showSmartSchedulerModal && (
+          <SmartSchedulerModal
+            isOpen={showSmartSchedulerModal}
+            onClose={handleCloseSmartScheduler}
+            onApply={handleApplySmartSchedule}
+            allPOIs={allPOIs}
+            days={days}
+            unscheduled={unscheduled}
+            destinationId={destination?.id}
+            isApplying={isApplyingSmartSchedule}
           />
         )}
       </Suspense>

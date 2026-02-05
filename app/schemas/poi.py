@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, time
 from decimal import Decimal
 from typing import Optional, Any, List
 from pydantic import BaseModel, ConfigDict, Field
@@ -24,6 +24,8 @@ class POIBase(BaseModel):
     external_source: Optional[str] = Field(None, max_length=50, description="External source name")
     scheduled_date: Optional[date] = Field(None, description="Date this POI is scheduled for")
     day_order: Optional[int] = Field(None, description="Order within the scheduled day")
+    is_anchored: bool = Field(default=False, description="Whether this POI is anchored to a specific time")
+    anchored_time: Optional[time] = Field(None, description="Time of day when this POI is anchored (HH:MM format)")
 
 
 class POICreate(POIBase):
@@ -50,6 +52,8 @@ class POIUpdate(BaseModel):
     external_source: Optional[str] = Field(None, max_length=50, description="External source name")
     scheduled_date: Optional[date] = Field(None, description="Date this POI is scheduled for")
     day_order: Optional[int] = Field(None, description="Order within the scheduled day")
+    is_anchored: Optional[bool] = Field(None, description="Whether this POI is anchored to a specific time")
+    anchored_time: Optional[time] = Field(None, description="Time of day when this POI is anchored (HH:MM format)")
 
 
 class POIVote(BaseModel):

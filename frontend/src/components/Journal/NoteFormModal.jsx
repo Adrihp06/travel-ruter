@@ -3,21 +3,13 @@ import {
   X,
   Plus,
   Save,
-  MapPin,
   Tag,
-  Image,
-  Trash2,
-  Smile,
-  Cloud,
   Lock,
   Unlock,
   Pin,
 } from 'lucide-react';
 import RichTextEditor from './RichTextEditor';
 import Spinner from '../UI/Spinner';
-
-const MOOD_OPTIONS = ['happy', 'excited', 'relaxed', 'tired', 'adventurous', 'peaceful', 'inspired'];
-const WEATHER_OPTIONS = ['sunny', 'cloudy', 'rainy', 'windy', 'snowy', 'hot', 'cold', 'perfect'];
 
 const NoteFormModal = ({
   isOpen,
@@ -41,11 +33,6 @@ const NoteFormModal = ({
     poi_id: null,
     is_pinned: false,
     is_private: true,
-    location_name: '',
-    location_lat: null,
-    location_lng: null,
-    mood: '',
-    weather: '',
     tags: [],
   });
   const [tagInput, setTagInput] = useState('');
@@ -65,11 +52,6 @@ const NoteFormModal = ({
           poi_id: note.poi_id,
           is_pinned: note.is_pinned || false,
           is_private: note.is_private !== false,
-          location_name: note.location_name || '',
-          location_lat: note.location_lat,
-          location_lng: note.location_lng,
-          mood: note.mood || '',
-          weather: note.weather || '',
           tags: note.tags || [],
         });
       } else {
@@ -83,11 +65,6 @@ const NoteFormModal = ({
           poi_id: preselectedPoiId,
           is_pinned: false,
           is_private: true,
-          location_name: '',
-          location_lat: null,
-          location_lng: null,
-          mood: '',
-          weather: '',
           tags: [],
         });
       }
@@ -186,8 +163,6 @@ const NoteFormModal = ({
       destination_id: formData.destination_id || null,
       day_number: formData.day_number || null,
       poi_id: formData.poi_id || null,
-      location_lat: formData.location_lat || null,
-      location_lng: formData.location_lng || null,
     });
   };
 
@@ -297,61 +272,6 @@ const NoteFormModal = ({
                 placeholder="Write your thoughts, experiences, memories..."
                 minHeight="150px"
               />
-            </div>
-
-            {/* Location */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                <MapPin className="w-4 h-4 inline mr-1" />
-                Location (optional)
-              </label>
-              <input
-                type="text"
-                value={formData.location_name}
-                onChange={(e) => handleChange('location_name', e.target.value)}
-                placeholder="e.g., Eiffel Tower, Paris"
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-            </div>
-
-            {/* Mood & Weather */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  <Smile className="w-4 h-4 inline mr-1" />
-                  Mood
-                </label>
-                <select
-                  value={formData.mood}
-                  onChange={(e) => handleChange('mood', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="">Select mood</option>
-                  {MOOD_OPTIONS.map((mood) => (
-                    <option key={mood} value={mood}>
-                      {mood.charAt(0).toUpperCase() + mood.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  <Cloud className="w-4 h-4 inline mr-1" />
-                  Weather
-                </label>
-                <select
-                  value={formData.weather}
-                  onChange={(e) => handleChange('weather', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="">Select weather</option>
-                  {WEATHER_OPTIONS.map((weather) => (
-                    <option key={weather} value={weather}>
-                      {weather.charAt(0).toUpperCase() + weather.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
 
             {/* Tags */}

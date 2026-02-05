@@ -5,6 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/
 const useAccommodationStore = create((set, get) => ({
   // State
   accommodations: [],
+  accommodationsByDestination: {}, // Map of destination_id -> accommodations[]
   selectedAccommodation: null,
   isLoading: false,
   error: null,
@@ -21,7 +22,9 @@ const useAccommodationStore = create((set, get) => ({
         throw new Error('Failed to fetch accommodations');
       }
 
-      const accommodations = await response.json();
+      const data = await response.json();
+      // Handle paginated response format { items: [...] } or direct array
+      const accommodations = Array.isArray(data) ? data : (data.items || []);
       set({ accommodations, isLoading: false });
       return accommodations;
     } catch (error) {
@@ -129,10 +132,48 @@ const useAccommodationStore = create((set, get) => ({
   },
 
   clearAccommodations: () => {
-    set({ accommodations: [], selectedAccommodation: null, error: null });
+    set({ accommodations: [], accommodationsByDestination: {}, selectedAccommodation: null, error: null });
   },
 
   clearError: () => set({ error: null }),
+
+  // Fetch accommodations for all destinations in a trip and group by destination_id
+  fetchAccommodationsForTrip: async (destinations) => {
+    if (!destinations || destinations.length === 0) {
+      set({ accommodationsByDestination: {} });
+      return {};
+    }
+
+    try {
+      const grouped = {};
+
+      // Fetch accommodations for each destination in parallel
+      await Promise.all(
+        destinations.map(async (dest) => {
+          try {
+            const response = await fetch(
+              `${API_BASE_URL}/destinations/${dest.id}/accommodations`
+            );
+            if (response.ok) {
+              const data = await response.json();
+              const accs = Array.isArray(data) ? data : (data.items || []);
+              grouped[dest.id] = accs;
+            } else {
+              grouped[dest.id] = [];
+            }
+          } catch {
+            grouped[dest.id] = [];
+          }
+        })
+      );
+
+      set({ accommodationsByDestination: grouped });
+      return grouped;
+    } catch (error) {
+      console.error('Failed to fetch accommodations for trip:', error);
+      return {};
+    }
+  },
 }));
 
 export default useAccommodationStore;

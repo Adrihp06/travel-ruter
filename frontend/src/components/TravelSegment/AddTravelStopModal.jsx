@@ -62,7 +62,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
     setError(null);
     try {
       const response = await fetch(
-        `${API_BASE_URL}/google-places/autocomplete?query=${encodeURIComponent(searchQuery)}`
+        `${API_BASE_URL}/google-places/autocomplete?q=${encodeURIComponent(searchQuery)}`
       );
 
       if (!response.ok) {
@@ -84,7 +84,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
     try {
       // Fetch place details to get coordinates
       const response = await fetch(
-        `${API_BASE_URL}/google-places/details?place_id=${place.place_id}`
+        `${API_BASE_URL}/google-places/details/${place.place_id}`
       );
 
       if (!response.ok) {

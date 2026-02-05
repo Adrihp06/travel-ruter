@@ -31,6 +31,10 @@ class TripBase(BaseModel):
     return_latitude: Optional[float] = Field(None, ge=-90, le=90, description="Return latitude")
     return_longitude: Optional[float] = Field(None, ge=-180, le=180, description="Return longitude")
 
+    # Travel modes for origin/return segments
+    origin_travel_mode: str = Field(default="plane", description="Travel mode from origin to first destination (plane, car, train, bus, walk, bike, ferry)")
+    return_travel_mode: str = Field(default="plane", description="Travel mode from last destination to return point (plane, car, train, bus, walk, bike, ferry)")
+
     @field_validator("end_date")
     @classmethod
     def validate_end_date(cls, v: date, info) -> date:
@@ -69,6 +73,10 @@ class TripUpdate(BaseModel):
     return_name: Optional[str] = Field(None, max_length=255, description="Return location name")
     return_latitude: Optional[float] = Field(None, ge=-90, le=90, description="Return latitude")
     return_longitude: Optional[float] = Field(None, ge=-180, le=180, description="Return longitude")
+
+    # Travel modes for origin/return segments
+    origin_travel_mode: Optional[str] = Field(None, description="Travel mode from origin to first destination")
+    return_travel_mode: Optional[str] = Field(None, description="Travel mode from last destination to return point")
 
     @field_validator("end_date")
     @classmethod

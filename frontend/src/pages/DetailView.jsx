@@ -657,7 +657,7 @@ const DetailViewContent = () => {
   const { pois, fetchPOIsByDestination, createPOI, updatePOI, deletePOI, votePOI, updatePOISchedules, isLoading: isPOIsLoading } = usePOIStore();
   const { documents } = useDocumentStore();
   const { deleteDestination, reorderDestinations, setSelectedDestination, resetSelectedDestination, selectedDestination: storeSelectedDestination } = useDestinationStore();
-  const { accommodations, fetchAccommodations, deleteAccommodation, isLoading: isAccLoading } = useAccommodationStore();
+  const { accommodations, accommodationsByDestination, fetchAccommodations, fetchAccommodationsForTrip, deleteAccommodation, isLoading: isAccLoading } = useAccommodationStore();
   const { noteStats, fetchNoteStats } = useNoteStore();
   const { isSidebarVisible, isVaultVisible, isCalendarVisible, isJournalVisible, toggleSidebar, toggleVault, toggleCalendar, toggleJournal } = useItineraryUI();
 
@@ -912,12 +912,17 @@ const DetailViewContent = () => {
   // Delete handlers
   const handleDeleteDestination = useCallback(async (destId) => {
     if (window.confirm('Delete this destination and all its POIs?')) {
-      await deleteDestination(destId);
-      if (selectedDestinationId === destId) {
-        setSelectedDestinationId(null); // Return to Level 1
+      try {
+        await deleteDestination(destId);
+        if (selectedDestinationId === destId) {
+          setSelectedDestinationId(null); // Return to Level 1
+        }
+        // Refresh trip details
+        fetchTripDetails(id);
+      } catch (error) {
+        console.error('Failed to delete destination:', error);
+        alert('Failed to delete destination. Please try again.');
       }
-      // Refresh trip details
-      fetchTripDetails(id);
     }
   }, [deleteDestination, selectedDestinationId, fetchTripDetails, id]);
 
@@ -968,6 +973,13 @@ const DetailViewContent = () => {
       fetchNoteStats(id);
     }
   }, [id, fetchTripDetails, fetchNoteStats]);
+
+  // Fetch accommodations for all destinations (for trip-level warnings)
+  useEffect(() => {
+    if (selectedTrip?.destinations?.length > 0) {
+      fetchAccommodationsForTrip(selectedTrip.destinations);
+    }
+  }, [selectedTrip?.destinations, fetchAccommodationsForTrip]);
 
   // NO auto-select first destination - removed intentionally for Level 1 view
 
@@ -1026,10 +1038,10 @@ const DetailViewContent = () => {
           </div>
         </div>
 
-        {/* Right: Calendar, Journal & Vault Toggles */}
+        {/* Right: Journal, Calendar & Vault Toggles */}
         <div className="flex items-center gap-2">
-          <CalendarViewToggle onClick={toggleCalendar} isActive={isCalendarVisible} />
           <JournalToggle onClick={toggleJournal} noteCount={noteStats?.total_notes || 0} />
+          <CalendarViewToggle onClick={toggleCalendar} isActive={isCalendarVisible} />
           <VaultToggle onClick={toggleVault} documentCount={documents?.length || 0} />
         </div>
       </div>
@@ -1050,6 +1062,7 @@ const DetailViewContent = () => {
             <Timeline
               destinations={selectedTrip.destinations || []}
               tripId={Number(id)}
+              trip={selectedTrip}
               selectedDestinationId={selectedDestinationId}
               onSelectDestination={handleSelectDestination}
               onAddDestination={() => {
@@ -1062,6 +1075,7 @@ const DetailViewContent = () => {
               }}
               onDeleteDestination={handleDeleteDestination}
               onReorderDestinations={handleReorderDestinations}
+              accommodationsByDestination={accommodationsByDestination}
             />
           ) : isLeftPanelLoading ? (
             <DailyItinerarySkeleton />
@@ -1084,8 +1098,9 @@ const DetailViewContent = () => {
               </div>
 
               {/* Accommodation Section with Timeline */}
-              <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-shrink-0">
+              <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex-shrink-0 w-full">
                 <AccommodationTimeline
+                  className="w-full"
                   destination={selectedDestination}
                   accommodations={accommodations}
                   onAddForGap={handleAddAccommodationForGap}

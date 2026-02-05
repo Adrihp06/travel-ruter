@@ -15,6 +15,8 @@ import { BRAND_COLORS, ROUTE_STYLES } from './mapStyles';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './mapStyles.css';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
 const MacroMap = ({
   trips = [],
   style = { width: '100%', height: '100%' },
@@ -25,6 +27,7 @@ const MacroMap = ({
   const mapRef = useRef(null);
   const [hoveredDestination, setHoveredDestination] = useState(null);
   const [popupInfo, setPopupInfo] = useState(null);
+  const [tripSegments, setTripSegments] = useState({}); // { tripId: segments[] }
 
   // Extract all destinations with coordinates from all trips
   const allDestinations = useMemo(() => {
@@ -50,7 +53,54 @@ const MacroMap = ({
     });
   }, [trips]);
 
-  // Group destinations by trip for polylines
+  // Get unique trip IDs that have destinations with coordinates
+  const tripIds = useMemo(() => {
+    const ids = new Set();
+    trips.forEach(trip => {
+      if (trip.destinations?.some(d => d.latitude && d.longitude)) {
+        ids.add(trip.id);
+      }
+    });
+    return Array.from(ids);
+  }, [trips]);
+
+  // Fetch travel segments for all trips
+  useEffect(() => {
+    const fetchAllSegments = async () => {
+      const newSegments = {};
+
+      await Promise.all(
+        tripIds.map(async (tripId) => {
+          // Skip if already fetched
+          if (tripSegments[tripId]) {
+            newSegments[tripId] = tripSegments[tripId];
+            return;
+          }
+
+          try {
+            const response = await fetch(`${API_BASE_URL}/trips/${tripId}/travel-segments`);
+            if (response.ok) {
+              const data = await response.json();
+              newSegments[tripId] = data.segments || [];
+            }
+          } catch (error) {
+            // Silently fail - will use fallback straight lines
+            console.warn(`Failed to fetch segments for trip ${tripId}:`, error);
+          }
+        })
+      );
+
+      if (Object.keys(newSegments).length > 0) {
+        setTripSegments(prev => ({ ...prev, ...newSegments }));
+      }
+    };
+
+    if (tripIds.length > 0) {
+      fetchAllSegments();
+    }
+  }, [tripIds]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Group destinations by trip for fallback polylines
   const tripRoutes = useMemo(() => {
     const routes = {};
     allDestinations.forEach(dest => {
@@ -62,21 +112,64 @@ const MacroMap = ({
     return routes;
   }, [allDestinations]);
 
-  // Create GeoJSON for route polylines
+  // Create GeoJSON for route polylines - use real routes when available
   const routeGeoJSON = useMemo(() => {
-    const features = Object.entries(tripRoutes).map(([tripId, coordinates]) => ({
-      type: 'Feature',
-      properties: { tripId: Number(tripId) },
-      geometry: {
-        type: 'LineString',
-        coordinates
+    const features = [];
+
+    Object.entries(tripRoutes).forEach(([tripId, fallbackCoordinates]) => {
+      const segments = tripSegments[tripId];
+
+      if (segments && segments.length > 0) {
+        // Use real route geometry from segments
+        segments.forEach((segment, index) => {
+          let geometry;
+
+          if (segment.route_geometry?.type === 'LineString' &&
+              segment.route_geometry?.coordinates?.length >= 2) {
+            // Use the real route geometry
+            geometry = segment.route_geometry;
+          } else {
+            // Fallback: straight line for this segment
+            const fromDest = allDestinations.find(d => d.id === segment.from_destination_id);
+            const toDest = allDestinations.find(d => d.id === segment.to_destination_id);
+
+            if (fromDest && toDest) {
+              geometry = {
+                type: 'LineString',
+                coordinates: [
+                  [fromDest.longitude, fromDest.latitude],
+                  [toDest.longitude, toDest.latitude]
+                ]
+              };
+            }
+          }
+
+          if (geometry) {
+            features.push({
+              type: 'Feature',
+              properties: { tripId: Number(tripId), segmentIndex: index },
+              geometry
+            });
+          }
+        });
+      } else if (fallbackCoordinates.length >= 2) {
+        // No segments available - use straight lines between all destinations
+        features.push({
+          type: 'Feature',
+          properties: { tripId: Number(tripId) },
+          geometry: {
+            type: 'LineString',
+            coordinates: fallbackCoordinates
+          }
+        });
       }
-    }));
+    });
+
     return {
       type: 'FeatureCollection',
       features
     };
-  }, [tripRoutes]);
+  }, [tripRoutes, tripSegments, allDestinations]);
 
   // Calculate bounds to fit all destinations
   const fitMapBounds = useCallback(() => {

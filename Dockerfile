@@ -32,12 +32,13 @@ FROM python:3.11-slim
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Install only runtime dependencies (no compilers)
+# Package names for Debian trixie
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
-    libgdal32 \
-    libgeos-c1v5 \
+    libgdal36 \
+    libgeos-c1t64 \
     libproj25 \
-    libspatialindex6 \
+    libspatialindex8 \
     postgresql-client \
     curl \
     && rm -rf /var/lib/apt/lists/*

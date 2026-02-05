@@ -97,9 +97,18 @@ async def get_trip_travel_segments(
     return_segment = None
 
     if include_origin_return:
-        origin_segment, return_segment = await TravelSegmentService.calculate_origin_return_segments(
-            db, trip_id
-        )
+        # Get trip to read origin/return travel modes
+        trip_result = await db.execute(select(Trip).where(Trip.id == trip_id))
+        trip = trip_result.scalar_one_or_none()
+
+        if trip:
+            # Get travel modes from trip (defaults to plane if not set)
+            origin_mode = TravelMode(trip.origin_travel_mode or "plane")
+            return_mode = TravelMode(trip.return_travel_mode or "plane")
+
+            origin_segment, return_segment = await TravelSegmentService.calculate_origin_return_segments(
+                db, trip_id, origin_travel_mode=origin_mode, return_travel_mode=return_mode
+            )
 
     return TripTravelSegmentsWithOriginReturnResponse(
         segments=segments,

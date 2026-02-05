@@ -1,12 +1,12 @@
 from datetime import timedelta
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from geoalchemy2.functions import ST_SetSRID, ST_MakePoint
 
 from app.core.database import get_db
-from app.models import Destination, Trip
+from app.models import Destination, Trip, TravelSegment
 from app.schemas import DestinationCreate, DestinationUpdate, DestinationResponse, DestinationReorderRequest, PaginatedResponse
 from app.api.deps import PaginationParams
 
@@ -145,7 +145,7 @@ async def delete_destination(
     id: int,
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete a destination"""
+    """Delete a destination and its related travel segments"""
     result = await db.execute(select(Destination).where(Destination.id == id))
     db_destination = result.scalar_one_or_none()
 
@@ -155,6 +155,17 @@ async def delete_destination(
             detail=f"Destination with id {id} not found"
         )
 
+    # Delete all travel segments that reference this destination
+    await db.execute(
+        delete(TravelSegment).where(
+            or_(
+                TravelSegment.from_destination_id == id,
+                TravelSegment.to_destination_id == id
+            )
+        )
+    )
+
+    # Now delete the destination
     await db.delete(db_destination)
     await db.flush()
 

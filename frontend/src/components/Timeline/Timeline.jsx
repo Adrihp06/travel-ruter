@@ -21,22 +21,27 @@ import SortableDestinationItem from './SortableDestinationItem';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
 import useTravelStopStore from '../../stores/useTravelStopStore';
 import { TravelSegmentCard, TravelStopsList, AddTravelStopModal } from '../TravelSegment';
+import TripWarningsPanel from './TripWarningsPanel';
 
 const Timeline = ({
   destinations,
   tripId,
+  trip, // Full trip object with origin/return info
   onSelectDestination,
   selectedDestinationId,
   onAddDestination,
   onEditDestination,
   onDeleteDestination,
   onReorderDestinations,
+  accommodationsByDestination = {}, // Map of destination_id -> accommodations[]
 }) => {
   const [activeId, setActiveId] = useState(null);
   const [addStopModal, setAddStopModal] = useState({ isOpen: false, segmentId: null, existingStop: null });
 
   const {
     segments,
+    originSegment,
+    returnSegment,
     fetchTripSegments,
     calculateSegment,
     getSegment,
@@ -182,11 +187,36 @@ const Timeline = ({
       </div>
 
       <div className="flex-1 p-4">
-        {/* Start Marker */}
+        {/* Trip Warnings Panel - positioned under Trip Route header */}
+        <TripWarningsPanel
+          trip={trip}
+          destinations={sortedDestinations}
+          accommodationsByDestination={accommodationsByDestination}
+        />
+
+        {/* Start Marker with Origin */}
         <div className="flex items-center mb-2 text-xs text-gray-500 dark:text-gray-400">
           <span className="w-3 h-3 rounded-full border-2 border-green-500 mr-3"></span>
-          <span>Start: {tripStart && formatDateShort(tripStart)}</span>
+          <span>
+            Start: {trip?.origin_name || (tripStart && formatDateShort(tripStart))}
+          </span>
         </div>
+
+        {/* Origin to First Destination Segment */}
+        {trip?.origin_name && sortedDestinations.length > 0 && (
+          <div className="relative pl-6 py-2 mb-2">
+            <TravelSegmentCard
+              segment={originSegment}
+              fromCity={trip.origin_name}
+              toCity={sortedDestinations[0]?.name || sortedDestinations[0]?.city_name}
+              hasFetchedInitial={hasFetchedInitial}
+              hasCoordinates={
+                trip.origin_latitude != null && trip.origin_longitude != null &&
+                sortedDestinations[0]?.latitude != null && sortedDestinations[0]?.longitude != null
+              }
+            />
+          </div>
+        )}
 
         {/* Destinations with travel segments */}
         <DndContext
@@ -270,10 +300,29 @@ const Timeline = ({
           </DragOverlay>
         </DndContext>
 
+        {/* Last Destination to Return Segment */}
+        {trip?.return_name && sortedDestinations.length > 0 && (
+          <div className="relative pl-6 py-2 mt-2">
+            <TravelSegmentCard
+              segment={returnSegment}
+              fromCity={sortedDestinations[sortedDestinations.length - 1]?.name || sortedDestinations[sortedDestinations.length - 1]?.city_name}
+              toCity={trip.return_name}
+              hasFetchedInitial={hasFetchedInitial}
+              hasCoordinates={
+                sortedDestinations[sortedDestinations.length - 1]?.latitude != null &&
+                sortedDestinations[sortedDestinations.length - 1]?.longitude != null &&
+                trip.return_latitude != null && trip.return_longitude != null
+              }
+            />
+          </div>
+        )}
+
         {/* End Marker */}
         <div className="flex items-center mt-2 text-xs text-gray-500 dark:text-gray-400">
           <span className="w-3 h-3 rounded-full border-2 border-red-500 mr-3"></span>
-          <span>End: {tripEnd && formatDateShort(tripEnd)}</span>
+          <span>
+            End: {trip?.return_name || (tripEnd && formatDateShort(tripEnd))}
+          </span>
         </div>
 
         {/* Add Destination Button */}

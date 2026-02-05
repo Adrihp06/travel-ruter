@@ -40,7 +40,9 @@ const usePOIStore = create((set, get) => ({
         throw new Error('Failed to fetch POIs');
       }
 
-      const pois = await response.json();
+      const data = await response.json();
+      // Handle paginated response format { items: [...] } or direct array
+      const pois = Array.isArray(data) ? data : (data.items || []);
       set({ pois, poisById: buildPOIMap(pois), isLoading: false });
     } catch (error) {
       set({ error: error.message, isLoading: false, pois: [], poisById: new Map() });
@@ -517,6 +519,93 @@ const usePOIStore = create((set, get) => ({
       return newPOIs;
     } catch (error) {
       set({ error: error.message });
+      throw error;
+    }
+  },
+
+  // Fetch travel time matrix for Smart Scheduler
+  fetchTravelMatrix: async (destinationId, locations, profile = 'foot-walking') => {
+    const response = await fetch(
+      `${API_BASE_URL}/destinations/${destinationId}/travel-matrix`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locations, profile }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to fetch travel matrix');
+    }
+
+    return await response.json();
+  },
+
+  // Apply smart schedule with optional route optimization
+  applySmartSchedule: async (destinationId, assignments, optimizeRoutes = true) => {
+    set({ isLoading: true, error: null });
+
+    try {
+      // First, apply all schedule updates using existing bulk method
+      await get().updatePOISchedules(destinationId, assignments);
+
+      // If route optimization is requested, optimize each day with 2+ POIs
+      if (optimizeRoutes) {
+        // Group assignments by date to find days with multiple POIs
+        const poisByDate = {};
+        assignments.forEach(assignment => {
+          if (assignment.scheduled_date) {
+            if (!poisByDate[assignment.scheduled_date]) {
+              poisByDate[assignment.scheduled_date] = [];
+            }
+            poisByDate[assignment.scheduled_date].push(assignment);
+          }
+        });
+
+        // Get day numbers for dates that have 2+ POIs
+        const daysToOptimize = Object.entries(poisByDate)
+          .filter(([, pois]) => pois.length >= 2)
+          .map(([date]) => {
+            // Calculate day number from date (assumes dates are sequential starting from 1)
+            const dateObj = new Date(date);
+            return { date, dateObj };
+          })
+          .sort((a, b) => a.dateObj - b.dateObj)
+          .map((item, index) => ({
+            date: item.date,
+            dayNumber: index + 1,
+          }));
+
+        // Optimize routes for each qualifying day
+        for (const { date, dayNumber } of daysToOptimize) {
+          try {
+            // Get accommodation/start location for this day
+            const locationInfo = await get().getAccommodationForDay(destinationId, dayNumber);
+
+            // Optimize the route
+            const result = await get().optimizeDayRoute(
+              destinationId,
+              dayNumber,
+              locationInfo.start_location,
+              '08:00' // Default start time
+            );
+
+            // Apply the optimized order
+            if (result && result.optimized_order && result.optimized_order.length > 0) {
+              await get().applyOptimizedOrder(destinationId, result.optimized_order, date);
+            }
+          } catch {
+            // If optimization fails for a day, continue with others
+            console.warn(`Route optimization failed for day ${dayNumber}, skipping`);
+          }
+        }
+      }
+
+      set({ isLoading: false });
+      return true;
+    } catch (error) {
+      set({ error: error.message, isLoading: false });
       throw error;
     }
   },

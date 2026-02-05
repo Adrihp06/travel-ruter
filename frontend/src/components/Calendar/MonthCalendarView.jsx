@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, MapPin, Plane, Home } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Plane, Home, Car, Train, Bus, Footprints, Bike, Ship } from 'lucide-react';
 import { formatDateShort } from '../../utils/dateFormat';
+import { getTransportIcon } from './CalendarView';
 
 const MonthCalendarView = ({
   trip,
@@ -10,6 +11,7 @@ const MonthCalendarView = ({
   poisByDate,
   accommodationsByDate,
   destinationsByDate,
+  travelSegments = [],
 }) => {
   const [currentMonth, setCurrentMonth] = useState(() => {
     return selectedDate ? new Date(selectedDate) : new Date();
@@ -67,7 +69,8 @@ const MonthCalendarView = ({
 
   // Get data for a specific date
   const getDateData = (date) => {
-    const dateKey = date.toISOString().split('T')[0];
+    // Use local date components to match YYYY-MM-DD format stored in backend
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     return {
       pois: poisByDate[dateKey] || [],
       accommodations: accommodationsByDate[dateKey] || [],
@@ -191,16 +194,19 @@ const MonthCalendarView = ({
                 {/* Destination Markers */}
                 {hasDestinationEvent && (
                   <div className="flex flex-col gap-1 mb-1">
-                    {dateData.destinations.map((dest, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded truncate"
-                        title={`${dest.isArrival ? 'Arrive' : 'Depart'}: ${dest.city_name}`}
-                      >
-                        <Plane className="w-3 h-3 flex-shrink-0" />
-                        <span className="truncate text-[10px]">{dest.city_name}</span>
-                      </div>
-                    ))}
+                    {dateData.destinations.map((dest, idx) => {
+                      const TransportIcon = getTransportIcon(travelSegments, dest.id, dest.isArrival);
+                      return (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded truncate"
+                          title={`${dest.isArrival ? 'Arrive' : 'Depart'}: ${dest.city_name}`}
+                        >
+                          <TransportIcon className="w-3 h-3 flex-shrink-0" />
+                          <span className="truncate text-[10px]">{dest.city_name}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 

@@ -31,6 +31,10 @@ class Trip(BaseModel):
     return_latitude = Column(Float, nullable=True)
     return_longitude = Column(Float, nullable=True)
 
+    # Travel modes for origin/return segments
+    origin_travel_mode = Column(String(20), nullable=False, default="plane")
+    return_travel_mode = Column(String(20), nullable=False, default="plane")
+
     # Relationships
     destinations = relationship("Destination", back_populates="trip", cascade="all, delete-orphan")
 

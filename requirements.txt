@@ -18,7 +18,7 @@ geoalchemy2==0.14.3
 numpy==1.26.4
 
 # HTTP client
-httpx==0.26.0
+httpx[http2]==0.26.0
 tenacity==8.2.3
 
 # Caching

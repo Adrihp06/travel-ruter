@@ -318,6 +318,7 @@ const POIMarker = ({
   poi,
   isHovered,
   isSelected,
+  isHighlighted,
   onClick,
   onHover,
   onLeave,
@@ -406,6 +407,9 @@ const POIMarker = ({
               <GripVertical className="w-3 h-3 text-stone-400" />
             </div>
           )}
+
+          {/* Highlight circle when POI is selected from itinerary */}
+          {isHighlighted && <div className="poi-highlight-circle" />}
         </div>
       </div>
     </Marker>
@@ -923,6 +927,7 @@ const MicroMap = ({
   const [viewState, setViewState] = useState(null);
   const [bounds, setBounds] = useState(null);
   const [searchedPlace, setSearchedPlace] = useState(null);
+  const [highlightedPOI, setHighlightedPOI] = useState(null);
   const mapRef = useRef(null);
   const hoverTimeoutRef = useRef(null);
 
@@ -966,11 +971,14 @@ const MicroMap = ({
     if (centerOnPOI && mapRef.current) {
       const coords = getCoordinates(centerOnPOI);
       if (coords) {
+        // Fly to POI without changing zoom level
         mapRef.current.flyTo({
           center: [coords.lng, coords.lat],
-          zoom: 16,
-          duration: 1000,
+          duration: 800,
         });
+        // Show highlight circle for 4 seconds
+        setHighlightedPOI(centerOnPOI.id);
+        setTimeout(() => setHighlightedPOI(null), 4000);
         // Also open the popup for this POI
         setPopupInfo({
           ...centerOnPOI,
@@ -1176,8 +1184,8 @@ const MicroMap = ({
     bounds: bounds || [-180, -90, 180, 90],
     zoom: viewState?.zoom || zoom,
     options: {
-      radius: 60,
-      maxZoom: 16,
+      radius: 35,
+      maxZoom: 17,
     },
   });
 
@@ -1288,9 +1296,11 @@ const MicroMap = ({
     if (mapRef.current) {
       mapRef.current.flyTo({
         center: [poi.lng, poi.lat],
-        zoom: 16,
         duration: 500,
       });
+      // Show highlight circle for 4 seconds
+      setHighlightedPOI(poi.id);
+      setTimeout(() => setHighlightedPOI(null), 4000);
     }
   }, []);
 
@@ -1513,6 +1523,7 @@ const MicroMap = ({
                 poi={{ ...poi, id: poi.poiId, lng: longitude, lat: latitude }}
                 isHovered={hoveredPOI?.id === poi.poiId}
                 isSelected={selectedPOIs.includes(poi.poiId)}
+                isHighlighted={highlightedPOI === poi.poiId}
                 onClick={() => handleMarkerClick({ ...poi, id: poi.poiId, lng: longitude, lat: latitude })}
                 onHover={(p) => handlePOIHover(p)}
                 onLeave={handlePOILeave}
@@ -1533,6 +1544,7 @@ const MicroMap = ({
                 poi={poi}
                 isHovered={hoveredPOI?.id === poi.id}
                 isSelected={selectedPOIs.includes(poi.id)}
+                isHighlighted={highlightedPOI === poi.id}
                 onClick={handleMarkerClick}
                 onHover={(p) => handlePOIHover(p)}
                 onLeave={handlePOILeave}

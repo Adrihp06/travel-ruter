@@ -796,7 +796,8 @@ class TravelSegmentService:
         cls,
         db: AsyncSession,
         trip_id: int,
-        travel_mode: TravelMode = TravelMode.PLANE
+        origin_travel_mode: TravelMode = TravelMode.PLANE,
+        return_travel_mode: TravelMode = TravelMode.PLANE
     ) -> tuple[Optional[OriginReturnSegment], Optional[OriginReturnSegment]]:
         """
         Calculate origin and return segments for a trip.
@@ -804,6 +805,12 @@ class TravelSegmentService:
         These segments connect:
         - Origin point → First destination
         - Last destination → Return point
+
+        Args:
+            db: Database session
+            trip_id: Trip ID
+            origin_travel_mode: Travel mode from origin to first destination
+            return_travel_mode: Travel mode from last destination to return point
 
         Returns:
             tuple: (origin_segment, return_segment) - either can be None if not applicable
@@ -845,7 +852,7 @@ class TravelSegmentService:
                 to_name=first_dest.city_name,
                 to_lat=first_dest.latitude,
                 to_lng=first_dest.longitude,
-                travel_mode=travel_mode,
+                travel_mode=origin_travel_mode,
                 segment_type="origin"
             )
 
@@ -864,7 +871,7 @@ class TravelSegmentService:
                 to_name=return_name,
                 to_lat=return_lat,
                 to_lng=return_lng,
-                travel_mode=travel_mode,
+                travel_mode=return_travel_mode,
                 segment_type="return"
             )
 

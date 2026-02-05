@@ -1,8 +1,39 @@
-import React, { useState, useMemo } from 'react';
-import { Calendar as CalendarIcon, Grid3x3, List } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Calendar as CalendarIcon, Grid3x3, List, Plane, Car, Train, Bus, Footprints, Bike, Ship } from 'lucide-react';
 import MonthCalendarView from './MonthCalendarView';
 import WeekCalendarView from './WeekCalendarView';
 import CalendarExport from './CalendarExport';
+import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
+
+// Transport mode icon mapping
+const TRANSPORT_ICONS = {
+  plane: Plane,
+  flight: Plane,
+  car: Car,
+  driving: Car,
+  train: Train,
+  bus: Bus,
+  walk: Footprints,
+  walking: Footprints,
+  bike: Bike,
+  cycling: Bike,
+  ferry: Ship,
+};
+
+// Helper function to get transport icon for a destination arrival/departure
+export const getTransportIcon = (segments, destinationId, isArrival) => {
+  if (!segments || segments.length === 0) return Plane;
+
+  const segment = isArrival
+    ? segments.find(s => s.to_destination_id === destinationId)
+    : segments.find(s => s.from_destination_id === destinationId);
+
+  if (segment?.travel_mode) {
+    return TRANSPORT_ICONS[segment.travel_mode] || Plane;
+  }
+
+  return Plane;
+};
 
 const CalendarView = ({ trip, destinations, pois, accommodations }) => {
   const [viewMode, setViewMode] = useState('month'); // 'month' or 'week'
@@ -10,6 +41,15 @@ const CalendarView = ({ trip, destinations, pois, accommodations }) => {
     // Default to trip start date or today
     return trip?.start_date ? new Date(trip.start_date + 'T00:00:00') : new Date();
   });
+
+  // Fetch travel segments for transport icons
+  const { segments, fetchTripSegments } = useTravelSegmentStore();
+
+  useEffect(() => {
+    if (trip?.id) {
+      fetchTripSegments(trip.id);
+    }
+  }, [trip?.id, fetchTripSegments]);
 
   // Calculate trip date range
   const tripDateRange = useMemo(() => {
@@ -170,6 +210,7 @@ const CalendarView = ({ trip, destinations, pois, accommodations }) => {
             poisByDate={poisByDate}
             accommodationsByDate={accommodationsByDate}
             destinationsByDate={destinationsByDate}
+            travelSegments={segments}
           />
         ) : (
           <WeekCalendarView
@@ -182,6 +223,7 @@ const CalendarView = ({ trip, destinations, pois, accommodations }) => {
             destinationsByDate={destinationsByDate}
             destinations={destinations}
             pois={pois}
+            travelSegments={segments}
           />
         )}
       </div>

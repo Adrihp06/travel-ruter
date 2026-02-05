@@ -20,8 +20,12 @@ from app.schemas.poi_suggestions import (
     POISuggestionRequest, POISuggestionsResponse, POISuggestion,
     POISuggestionMetadata, POISuggestionPhoto, BulkAddPOIsRequest
 )
+from app.schemas.travel_matrix import (
+    TravelMatrixRequest, TravelMatrixResponse, ORSProfile, MatrixLocation
+)
 from app.services.poi_optimization_service import get_poi_optimization_service, POIOptimizationError
 from app.services.google_places_service import GooglePlacesService
+from app.services.openrouteservice import get_ors_service, ORSServiceError
 import math
 
 router = APIRouter()
@@ -51,6 +55,8 @@ def poi_to_response(poi: POI, latitude: float | None = None, longitude: float | 
         "external_source": poi.external_source,
         "scheduled_date": poi.scheduled_date,
         "day_order": poi.day_order,
+        "is_anchored": poi.is_anchored,
+        "anchored_time": poi.anchored_time,
         "created_at": poi.created_at,
         "updated_at": poi.updated_at,
     }
@@ -354,6 +360,133 @@ async def bulk_update_poi_schedule(
     rows = result.all()
 
     return [poi_to_response(row[0], row[1], row[2]) for row in rows]
+
+
+def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate haversine distance between two points in meters."""
+    R = 6371000  # Earth radius in meters
+
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    delta_lat = math.radians(lat2 - lat1)
+    delta_lon = math.radians(lon2 - lon1)
+
+    a = (math.sin(delta_lat / 2) ** 2 +
+         math.cos(lat1_rad) * math.cos(lat2_rad) *
+         math.sin(delta_lon / 2) ** 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    return R * c
+
+
+def estimate_travel_time(distance_meters: float, profile: str) -> float:
+    """Estimate travel time in seconds based on distance and profile."""
+    # Average speeds in m/s
+    speeds = {
+        "foot-walking": 1.4,      # ~5 km/h
+        "cycling-regular": 4.2,   # ~15 km/h
+        "driving-car": 8.3,       # ~30 km/h (urban average)
+    }
+    speed = speeds.get(profile, 1.4)
+    return distance_meters / speed
+
+
+@router.post("/destinations/{destination_id}/travel-matrix", response_model=TravelMatrixResponse)
+async def get_travel_matrix(
+    destination_id: int,
+    request: TravelMatrixRequest,
+    db: AsyncSession = Depends(get_db)
+) -> TravelMatrixResponse:
+    """
+    Compute travel time matrix for Smart Scheduler.
+
+    Uses ORS Matrix API when available, falls back to Haversine estimation.
+    Max 3500 matrix entries (locations^2) on ORS free tier.
+    """
+    # Verify destination exists
+    dest_result = await db.execute(select(Destination).where(Destination.id == destination_id))
+    destination = dest_result.scalar_one_or_none()
+
+    if not destination:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Destination with id {destination_id} not found"
+        )
+
+    # Validate locations have coordinates
+    valid_locations = [loc for loc in request.locations if loc.lat is not None and loc.lon is not None]
+
+    if len(valid_locations) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least 2 locations with valid coordinates are required"
+        )
+
+    # Build coordinate list for ORS
+    coordinates = [(loc.lat, loc.lon) for loc in valid_locations]
+    profile = request.profile.value
+
+    # Try ORS Matrix API
+    ors_service = get_ors_service()
+    fallback_used = False
+
+    if ors_service.is_available():
+        try:
+            matrix_result = await ors_service.get_matrix(coordinates, profile)
+
+            # Transform to indexed dict format
+            durations = {}
+            distances = {}
+
+            for i, source in enumerate(valid_locations):
+                durations[source.id] = {}
+                distances[source.id] = {}
+
+                for j, dest in enumerate(valid_locations):
+                    dur = matrix_result.durations[i][j]
+                    dist = matrix_result.distances[i][j]
+
+                    # Handle null values from ORS (unreachable)
+                    durations[source.id][dest.id] = dur if dur is not None else float('inf')
+                    distances[source.id][dest.id] = dist if dist is not None else float('inf')
+
+            return TravelMatrixResponse(
+                profile=request.profile,
+                locations=valid_locations,
+                durations=durations,
+                distances=distances,
+                fallback_used=False,
+            )
+
+        except ORSServiceError as e:
+            logger.warning(f"ORS Matrix API failed, using fallback: {e}")
+            fallback_used = True
+
+    # Fallback: Haversine estimation
+    durations = {}
+    distances = {}
+
+    for source in valid_locations:
+        durations[source.id] = {}
+        distances[source.id] = {}
+
+        for dest in valid_locations:
+            if source.id == dest.id:
+                durations[source.id][dest.id] = 0.0
+                distances[source.id][dest.id] = 0.0
+            else:
+                dist = haversine_distance(source.lat, source.lon, dest.lat, dest.lon)
+                dur = estimate_travel_time(dist, profile)
+                durations[source.id][dest.id] = dur
+                distances[source.id][dest.id] = dist
+
+    return TravelMatrixResponse(
+        profile=request.profile,
+        locations=valid_locations,
+        durations=durations,
+        distances=distances,
+        fallback_used=fallback_used or not ors_service.is_available(),
+    )
 
 
 @router.post("/destinations/{destination_id}/pois/optimize-day", response_model=POIOptimizationResponse)

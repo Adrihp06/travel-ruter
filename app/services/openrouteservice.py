@@ -42,6 +42,15 @@ class ORSRouteResult:
     bbox: list[float]
 
 
+@dataclass
+class ORSMatrixResult:
+    """Result from OpenRouteService Matrix API."""
+    durations: list[list[float]]  # matrix[source][dest] in seconds
+    distances: list[list[float]]  # matrix[source][dest] in meters
+    sources: list[dict]  # resolved source locations
+    destinations: list[dict]  # resolved destination locations
+
+
 class ORSServiceError(Exception):
     """Custom exception for OpenRouteService API errors."""
     pass
@@ -169,6 +178,78 @@ class OpenRouteServiceService:
     def is_available(self) -> bool:
         """Check if the service is available (has API key configured)."""
         return self._has_api_key
+
+    @with_retry(max_attempts=3)
+    @with_circuit_breaker(openrouteservice_circuit_breaker)
+    async def get_matrix(
+        self,
+        locations: list[tuple[float, float]],
+        profile: str = "foot-walking",
+    ) -> ORSMatrixResult:
+        """
+        Get travel time/distance matrix via ORS Matrix API.
+
+        Args:
+            locations: List of (latitude, longitude) tuples
+            profile: Routing profile (foot-walking, driving-car, cycling-regular)
+
+        Returns:
+            ORSMatrixResult with duration and distance matrices
+
+        Note:
+            - Max 3500 matrix entries (locations^2) on free tier
+            - POST /v2/matrix/{profile}
+        """
+        if not self._has_api_key:
+            raise ORSServiceError(
+                "OpenRouteService API key not configured. Set OPENROUTESERVICE_API_KEY in environment."
+            )
+
+        # ORS expects [longitude, latitude] format
+        ors_locations = [[lon, lat] for lat, lon in locations]
+
+        url = f"{self.BASE_URL}/matrix/{profile}"
+
+        headers = {
+            "Authorization": self.api_key,
+            "Content-Type": "application/json",
+        }
+
+        body = {
+            "locations": ors_locations,
+            "metrics": ["duration", "distance"],
+        }
+
+        try:
+            client = await get_http_client()
+            response = await client.post(url, headers=headers, json=body)
+
+            if response.status_code == 401:
+                raise ORSServiceError("Invalid OpenRouteService API key")
+            if response.status_code == 403:
+                raise ORSServiceError("OpenRouteService API rate limit exceeded or access denied")
+            if response.status_code == 413:
+                raise ORSServiceError(
+                    f"Matrix too large: {len(locations)}x{len(locations)}={len(locations)**2} entries. "
+                    "ORS free tier allows max 3500 entries."
+                )
+
+            response.raise_for_status()
+            data = response.json()
+
+            return ORSMatrixResult(
+                durations=data.get("durations", []),
+                distances=data.get("distances", []),
+                sources=data.get("sources", []),
+                destinations=data.get("destinations", []),
+            )
+
+        except httpx.TimeoutException:
+            raise ORSServiceError("OpenRouteService Matrix API request timed out")
+        except httpx.HTTPStatusError as e:
+            raise ORSServiceError(f"OpenRouteService Matrix API HTTP error: {e.response.status_code}")
+        except httpx.RequestError as e:
+            raise ORSServiceError(f"OpenRouteService Matrix API request failed: {str(e)}")
 
 
 # Singleton instance for convenience

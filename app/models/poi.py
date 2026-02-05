@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, Text, JSON, Index, Date
+from sqlalchemy import Column, String, Integer, ForeignKey, Numeric, Text, JSON, Index, Date, Boolean, Time
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry
 from geoalchemy2.shape import to_shape
@@ -51,6 +51,10 @@ class POI(BaseModel):
     # Daily itinerary scheduling
     scheduled_date = Column(Date, nullable=True, index=True, comment="Date this POI is scheduled for")
     day_order = Column(Integer, nullable=True, comment="Order within the scheduled day")
+
+    # Anchor fields for Smart Scheduler
+    is_anchored = Column(Boolean, nullable=False, default=False, comment="Whether this POI is anchored to a specific time")
+    anchored_time = Column(Time, nullable=True, comment="Time of day when this POI is anchored (HH:MM format)")
 
     # Files and metadata
     files = Column(JSON, nullable=True, comment="Array of file URLs/metadata")

@@ -342,8 +342,12 @@ const TripMap = ({
   // Travel segments store for segment-based routing
   const { segments, originSegment, returnSegment, fetchTripSegments, clearSegments, isLoading: isSegmentsLoading } = useTravelSegmentStore();
 
-  // Route store for Google Maps export only
-  const { exportToGoogleMaps } = useRouteStore();
+  // Route store for Google Maps export and route calculation
+  const { exportToGoogleMaps, calculateORSRoute, checkORSAvailability } = useRouteStore();
+
+  // Calculated routes for origin/return when backend doesn't provide route_geometry
+  const [calculatedOriginRoute, setCalculatedOriginRoute] = useState(null);
+  const [calculatedReturnRoute, setCalculatedReturnRoute] = useState(null);
 
   // Waypoint store for adding waypoints via map clicks
   const {
@@ -383,6 +387,65 @@ const TripMap = ({
       fetchTripSegments(tripId);
     }
   }, [tripId, destinationOrderKey, fetchTripSegments]);
+
+  // Calculate real routes for origin/return when backend doesn't provide route_geometry
+  useEffect(() => {
+    const calculateMissingRoutes = async () => {
+      const firstDestination = sortedDestinations[0];
+      const lastDestination = sortedDestinations[sortedDestinations.length - 1];
+
+      // Check if we need to calculate origin route
+      const needsOriginRoute = originPoint?.latitude && originPoint?.longitude &&
+        firstDestination &&
+        !originSegment?.route_geometry?.coordinates?.length;
+
+      // Check if we need to calculate return route
+      const needsReturnRoute = returnPoint?.latitude && returnPoint?.longitude &&
+        lastDestination &&
+        !returnSegment?.route_geometry?.coordinates?.length;
+
+      if (!needsOriginRoute && !needsReturnRoute) return;
+
+      // Check if ORS is available
+      const orsAvailable = await checkORSAvailability();
+      if (!orsAvailable) return;
+
+      // Calculate origin route if needed
+      if (needsOriginRoute) {
+        const firstDestCoords = getCoordinates(firstDestination);
+        if (firstDestCoords) {
+          const result = await calculateORSRoute([
+            { latitude: originPoint.latitude, longitude: originPoint.longitude },
+            { latitude: firstDestCoords.lat, longitude: firstDestCoords.lng }
+          ], 'driving');
+          if (result?.geometry) {
+            setCalculatedOriginRoute(result.geometry);
+          }
+        }
+      }
+
+      // Calculate return route if needed
+      if (needsReturnRoute) {
+        const lastDestCoords = getCoordinates(lastDestination);
+        if (lastDestCoords) {
+          const result = await calculateORSRoute([
+            { latitude: lastDestCoords.lat, longitude: lastDestCoords.lng },
+            { latitude: returnPoint.latitude, longitude: returnPoint.longitude }
+          ], 'driving');
+          if (result?.geometry) {
+            setCalculatedReturnRoute(result.geometry);
+          }
+        }
+      }
+    };
+
+    if (sortedDestinations.length > 0) {
+      calculateMissingRoutes();
+    }
+  }, [
+    originPoint, returnPoint, sortedDestinations, originSegment, returnSegment,
+    checkORSAvailability, calculateORSRoute
+  ]);
 
   // Fetch waypoints for all segments
   useEffect(() => {
@@ -521,51 +584,105 @@ const TripMap = ({
     if (!showRoute) return [];
 
     const results = [];
+    const firstDestination = sortedDestinations[0];
+    const lastDestination = sortedDestinations[sortedDestinations.length - 1];
 
     // Origin segment: origin point → first destination
-    if (originSegment?.route_geometry) {
-      results.push({
-        id: 'origin-segment',
-        segment_type: 'origin',
-        travel_mode: originSegment.travel_mode,
-        distance_km: originSegment.distance_km,
-        duration_minutes: originSegment.duration_minutes,
-        is_fallback: originSegment.is_fallback,
-        geojson: {
-          type: 'Feature',
-          properties: {
-            id: 'origin-segment',
-            segment_type: 'origin',
-            travel_mode: originSegment.travel_mode,
+    if (originPoint?.latitude && originPoint?.longitude && firstDestination) {
+      const firstDestCoords = getCoordinates(firstDestination);
+      let geometry = null;
+
+      // Priority 1: Use route_geometry from API if available and valid
+      if (originSegment?.route_geometry?.type === 'LineString' &&
+          originSegment?.route_geometry?.coordinates?.length >= 2) {
+        geometry = originSegment.route_geometry;
+      }
+      // Priority 2: Use calculated route from ORS
+      else if (calculatedOriginRoute?.type === 'LineString' &&
+               calculatedOriginRoute?.coordinates?.length >= 2) {
+        geometry = calculatedOriginRoute;
+      }
+      // Priority 3: Fallback to straight line
+      else if (firstDestCoords) {
+        geometry = {
+          type: 'LineString',
+          coordinates: [
+            [originPoint.longitude, originPoint.latitude],
+            [firstDestCoords.lng, firstDestCoords.lat],
+          ],
+        };
+      }
+
+      if (geometry) {
+        results.push({
+          id: 'origin-segment',
+          segment_type: 'origin',
+          travel_mode: originSegment?.travel_mode || 'car',
+          distance_km: originSegment?.distance_km,
+          duration_minutes: originSegment?.duration_minutes,
+          is_fallback: !originSegment?.route_geometry && !calculatedOriginRoute,
+          geojson: {
+            type: 'Feature',
+            properties: {
+              id: 'origin-segment',
+              segment_type: 'origin',
+              travel_mode: originSegment?.travel_mode || 'car',
+            },
+            geometry,
           },
-          geometry: originSegment.route_geometry,
-        },
-      });
+        });
+      }
     }
 
     // Return segment: last destination → return point
-    if (returnSegment?.route_geometry) {
-      results.push({
-        id: 'return-segment',
-        segment_type: 'return',
-        travel_mode: returnSegment.travel_mode,
-        distance_km: returnSegment.distance_km,
-        duration_minutes: returnSegment.duration_minutes,
-        is_fallback: returnSegment.is_fallback,
-        geojson: {
-          type: 'Feature',
-          properties: {
-            id: 'return-segment',
-            segment_type: 'return',
-            travel_mode: returnSegment.travel_mode,
+    if (returnPoint?.latitude && returnPoint?.longitude && lastDestination) {
+      const lastDestCoords = getCoordinates(lastDestination);
+      let geometry = null;
+
+      // Priority 1: Use route_geometry from API if available and valid
+      if (returnSegment?.route_geometry?.type === 'LineString' &&
+          returnSegment?.route_geometry?.coordinates?.length >= 2) {
+        geometry = returnSegment.route_geometry;
+      }
+      // Priority 2: Use calculated route from ORS
+      else if (calculatedReturnRoute?.type === 'LineString' &&
+               calculatedReturnRoute?.coordinates?.length >= 2) {
+        geometry = calculatedReturnRoute;
+      }
+      // Priority 3: Fallback to straight line
+      else if (lastDestCoords) {
+        geometry = {
+          type: 'LineString',
+          coordinates: [
+            [lastDestCoords.lng, lastDestCoords.lat],
+            [returnPoint.longitude, returnPoint.latitude],
+          ],
+        };
+      }
+
+      if (geometry) {
+        results.push({
+          id: 'return-segment',
+          segment_type: 'return',
+          travel_mode: returnSegment?.travel_mode || 'car',
+          distance_km: returnSegment?.distance_km,
+          duration_minutes: returnSegment?.duration_minutes,
+          is_fallback: !returnSegment?.route_geometry && !calculatedReturnRoute,
+          geojson: {
+            type: 'Feature',
+            properties: {
+              id: 'return-segment',
+              segment_type: 'return',
+              travel_mode: returnSegment?.travel_mode || 'car',
+            },
+            geometry,
           },
-          geometry: returnSegment.route_geometry,
-        },
-      });
+        });
+      }
     }
 
     return results;
-  }, [showRoute, originSegment, returnSegment]);
+  }, [showRoute, originSegment, returnSegment, originPoint, returnPoint, sortedDestinations, calculatedOriginRoute, calculatedReturnRoute]);
 
   // Filter segments to only valid pairs for calculations
   const validSegments = useMemo(() => {
@@ -914,6 +1031,19 @@ const TripMap = ({
                         </p>
                       </div>
                     )}
+                    <div className="mt-2 pt-2 border-t border-stone-100">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const url = `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`;
+                          window.open(url, '_blank', 'noopener,noreferrer');
+                        }}
+                        className="flex items-center gap-1.5 text-xs text-amber-600 hover:text-amber-700 font-medium"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        Open in Google Maps
+                      </button>
+                    </div>
                     <p className="text-stone-400 text-xs mt-2 font-medium">
                       Click to view details
                     </p>
@@ -1050,21 +1180,24 @@ const TripMap = ({
         </button>
       )}
 
+      {/* Fallback Warning - Bottom Right - auto-hides after 4 seconds */}
+      {showRouteControls && sortedDestinations.length >= 2 && routeTotals?.has_fallback && showFallbackWarning && (
+        <div className="absolute bottom-20 right-4 z-10 max-w-sm">
+          <div className="bg-rose-50 border border-rose-200 rounded-xl shadow-lg p-3 transition-opacity duration-300">
+            <div className="flex items-center gap-2 text-rose-700">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm font-semibold">
+                Public transport route unavailable for {routeTotals.fallback_count} segment{routeTotals.fallback_count > 1 ? 's' : ''}.
+                Showing car route instead.
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Route Info Bar - Bottom Left - Enhanced Warm Explorer styling */}
       {showRouteControls && sortedDestinations.length >= 2 && (
         <div className="absolute bottom-4 left-4 z-10 max-w-lg">
-          {/* Fallback Warning - auto-hides after 4 seconds */}
-          {routeTotals?.has_fallback && showFallbackWarning && (
-            <div className="bg-rose-50 border border-rose-200 rounded-xl shadow-lg p-3 mb-2 transition-opacity duration-300">
-              <div className="flex items-center gap-2 text-rose-700">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                <span className="text-sm font-semibold">
-                  Public transport route unavailable for {routeTotals.fallback_count} segment{routeTotals.fallback_count > 1 ? 's' : ''}.
-                  Showing car route instead.
-                </span>
-              </div>
-            </div>
-          )}
           <div className="route-summary">
             <div className="flex items-center gap-4">
               {/* Route Stats from travel segments */}

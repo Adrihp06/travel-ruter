@@ -24,9 +24,16 @@ import {
   ShoppingBag,
   Music,
   Camera,
+  Car,
+  Train,
+  Bus,
+  Footprints,
+  Bike,
+  Ship,
 } from 'lucide-react';
 import { formatDateWithWeekday } from '../../utils/dateFormat';
 import usePOIStore from '../../stores/usePOIStore';
+import { getTransportIcon } from './CalendarView';
 
 // Category icon mapping (same as DailyItinerary)
 const categoryIcons = {
@@ -119,7 +126,7 @@ const POICard = ({ poi, isDragging }) => {
 };
 
 // Droppable Day Column
-const DayColumn = ({ date, dateKey, pois, accommodations, destinations, isInTrip }) => {
+const DayColumn = ({ date, dateKey, pois, accommodations, destinations, isInTrip, travelSegments }) => {
   const { setNodeRef, isOver } = useDroppable({
     id: dateKey,
     data: {
@@ -150,17 +157,20 @@ const DayColumn = ({ date, dateKey, pois, accommodations, destinations, isInTrip
         {/* Destination Events */}
         {hasDestinations && (
           <div className="flex flex-col gap-1 mt-2">
-            {destinations.map((dest, idx) => (
-              <div
-                key={idx}
-                className="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-1 rounded"
-              >
-                <Plane className="w-3 h-3" />
-                <span className="truncate">
-                  {dest.isArrival ? 'Arrive' : 'Depart'}: {dest.city_name}
-                </span>
-              </div>
-            ))}
+            {destinations.map((dest, idx) => {
+              const TransportIcon = getTransportIcon(travelSegments, dest.id, dest.isArrival);
+              return (
+                <div
+                  key={idx}
+                  className="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-2 py-1 rounded"
+                >
+                  <TransportIcon className="w-3 h-3" />
+                  <span className="truncate">
+                    {dest.isArrival ? 'Arrive' : 'Depart'}: {dest.city_name}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -221,6 +231,7 @@ const WeekCalendarView = ({
   destinationsByDate,
   destinations,
   pois,
+  travelSegments = [],
 }) => {
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const start = selectedDate ? new Date(selectedDate) : new Date();
@@ -330,7 +341,8 @@ const WeekCalendarView = ({
       {/* Week Grid */}
       <div className="grid grid-cols-7 gap-3 flex-1">
         {weekDays.map((date) => {
-          const dateKey = date.toISOString().split('T')[0];
+          // Use local date components to match YYYY-MM-DD format stored in backend
+          const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
           const dayPOIs = poisByDate[dateKey] || [];
           const dayAccommodations = accommodationsByDate[dateKey] || [];
           const dayDestinations = destinationsByDate[dateKey] || [];
@@ -349,6 +361,7 @@ const WeekCalendarView = ({
                 accommodations={dayAccommodations}
                 destinations={dayDestinations}
                 isInTrip={inTrip}
+                travelSegments={travelSegments}
               />
             </div>
           );

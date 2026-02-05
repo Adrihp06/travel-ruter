@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plane, Image, Upload, Tag as TagIcon, Home, MapPin } from 'lucide-react';
+import { X, Plane, Image, Upload, Tag as TagIcon, Home, MapPin, Car, Train, Bus, Footprints, Bike, Ship } from 'lucide-react';
 import useTripStore from '../../stores/useTripStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import LocationMapPreview from '../Location/LocationMapPreview';
 import DateRangePicker from '../common/DateRangePicker';
 import Spinner from '../UI/Spinner';
+
+// Travel mode options with icons for origin/return segments
+const TRAVEL_MODE_OPTIONS = [
+  { value: 'plane', label: 'Plane', icon: Plane },
+  { value: 'car', label: 'Car', icon: Car },
+  { value: 'train', label: 'Train', icon: Train },
+  { value: 'bus', label: 'Bus', icon: Bus },
+  { value: 'walk', label: 'Walk', icon: Footprints },
+  { value: 'bike', label: 'Bike', icon: Bike },
+  { value: 'ferry', label: 'Ferry', icon: Ship },
+];
 
 const AVAILABLE_TAGS = [
   { id: 'business', label: 'Business', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
@@ -38,9 +49,11 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
     origin_name: '',
     origin_latitude: null,
     origin_longitude: null,
+    origin_travel_mode: 'plane',
     return_name: '',
     return_latitude: null,
     return_longitude: null,
+    return_travel_mode: 'plane',
   });
   const [returnSameAsOrigin, setReturnSameAsOrigin] = useState(true);
 
@@ -70,9 +83,11 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
         origin_name: trip.origin_name || '',
         origin_latitude: trip.origin_latitude || null,
         origin_longitude: trip.origin_longitude || null,
+        origin_travel_mode: trip.origin_travel_mode || 'plane',
         return_name: trip.return_name || '',
         return_latitude: trip.return_latitude || null,
         return_longitude: trip.return_longitude || null,
+        return_travel_mode: trip.return_travel_mode || 'plane',
       });
       // Determine if return is same as origin
       const hasReturnDifferentFromOrigin = trip.return_name && trip.return_name !== trip.origin_name;
@@ -100,9 +115,11 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
         origin_name: '',
         origin_latitude: null,
         origin_longitude: null,
+        origin_travel_mode: 'plane',
         return_name: '',
         return_latitude: null,
         return_longitude: null,
+        return_travel_mode: 'plane',
       });
       setReturnSameAsOrigin(true);
       setImageUploadMode('url');
@@ -237,6 +254,9 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
         return_name: returnName || null,
         return_latitude: returnLat,
         return_longitude: returnLng,
+        // Travel modes for origin/return segments
+        origin_travel_mode: formData.origin_travel_mode || 'plane',
+        return_travel_mode: formData.return_travel_mode || 'plane',
       };
 
       let result;
@@ -379,6 +399,33 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                 />
               </div>
             )}
+            {/* Travel mode selector */}
+            <div className="mt-3">
+              <label className="text-xs font-medium text-green-700/80 dark:text-green-400/70 mb-2 block">
+                How will you travel to your first destination?
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {TRAVEL_MODE_OPTIONS.map((mode) => {
+                  const Icon = mode.icon;
+                  const isSelected = formData.origin_travel_mode === mode.value;
+                  return (
+                    <button
+                      key={mode.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, origin_travel_mode: mode.value })}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        isSelected
+                          ? 'bg-green-600 text-white shadow-sm scale-105'
+                          : 'bg-white/70 dark:bg-gray-700/50 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {mode.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           {/* Return Point */}
@@ -442,6 +489,34 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                 )}
               </>
             )}
+
+            {/* Travel mode selector */}
+            <div className="mt-3">
+              <label className="text-xs font-medium text-red-700/80 dark:text-red-400/70 mb-2 block">
+                How will you travel from your last destination?
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {TRAVEL_MODE_OPTIONS.map((mode) => {
+                  const Icon = mode.icon;
+                  const isSelected = formData.return_travel_mode === mode.value;
+                  return (
+                    <button
+                      key={mode.value}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, return_travel_mode: mode.value })}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        isSelected
+                          ? 'bg-red-600 text-white shadow-sm scale-105'
+                          : 'bg-white/70 dark:bg-gray-700/50 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      {mode.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           {/* Description */}

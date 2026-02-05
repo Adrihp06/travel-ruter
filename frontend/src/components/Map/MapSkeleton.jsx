@@ -29,20 +29,20 @@ const MapSkeleton = ({ height = '100%', className = '' }) => {
         />
 
         {/* Subtle route lines */}
-        <svg className="absolute inset-0 w-full h-full opacity-20 dark:opacity-15">
+        <svg className="absolute inset-0 w-full h-full opacity-20 dark:opacity-15" viewBox="0 0 100 100" preserveAspectRatio="none">
           <path
-            d="M 10% 60% Q 30% 40%, 50% 50% T 90% 40%"
+            d="M 10 60 Q 30 40, 50 50 T 90 40"
             stroke="currentColor"
-            strokeWidth="2"
-            strokeDasharray="8 4"
+            strokeWidth="0.5"
+            strokeDasharray="2 1"
             fill="none"
             className="text-amber-500 animate-dash-slow"
           />
           <path
-            d="M 20% 80% Q 40% 60%, 60% 70% T 85% 55%"
+            d="M 20 80 Q 40 60, 60 70 T 85 55"
             stroke="currentColor"
-            strokeWidth="1.5"
-            strokeDasharray="6 3"
+            strokeWidth="0.4"
+            strokeDasharray="1.5 0.75"
             fill="none"
             className="text-stone-400 animate-dash-slow"
             style={{ animationDelay: '1s' }}

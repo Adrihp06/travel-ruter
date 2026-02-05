@@ -119,8 +119,12 @@ const filterAndSortTrips = (trips, { searchQuery, statusFilter, sortBy, showComp
       break;
     case 'default':
     default:
-      // Default sort: ongoing > planning (by proximity) > completed
-      filtered.sort((a, b) => getStatusPriority(a) - getStatusPriority(b));
+      // Default sort: by start_date ascending (earliest trips first)
+      filtered.sort((a, b) => {
+        const dateA = a.start_date ? new Date(a.start_date) : new Date(0);
+        const dateB = b.start_date ? new Date(b.start_date) : new Date(0);
+        return dateA - dateB;
+      });
       break;
   }
 
@@ -279,7 +283,8 @@ const useTripStore = create((set, get) => ({
               fetch(`${API_BASE_URL}/trips/${trip.id}/destinations`),
               fetch(`${API_BASE_URL}/trips/${trip.id}/poi-stats`)
             ]);
-            const destinations = destResponse.ok ? await destResponse.json() : [];
+            const destData = destResponse.ok ? await destResponse.json() : { items: [] };
+            const destinations = destData.items || [];
             const poiStats = statsResponse.ok ? await statsResponse.json() : { total_pois: 0, scheduled_pois: 0 };
             return { ...trip, destinations, poiStats };
           } catch {
@@ -311,7 +316,8 @@ const useTripStore = create((set, get) => ({
       if (!tripResponse.ok) throw new Error('Failed to fetch trip details');
 
       const tripDetails = await tripResponse.json();
-      const destinations = destinationsResponse.ok ? await destinationsResponse.json() : [];
+      const destData = destinationsResponse.ok ? await destinationsResponse.json() : { items: [] };
+      const destinations = destData.items || [];
 
       // Merge destinations into trip details
       const tripWithDestinations = {
