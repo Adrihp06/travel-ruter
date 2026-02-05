@@ -5,13 +5,14 @@ This script demonstrates the API endpoint for duplicating trips.
 """
 
 import asyncio
+import os
 import sys
 from datetime import date, timedelta
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 # Add app to path
-sys.path.insert(0, '/private/var/folders/zk/hdlpkdbn6hzgt8d24frqgnt80000gn/T/vibe-kanban/worktrees/47d7-feature-trip-dup/travel-ruter')
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 from app.services.trip_service import TripService
 from app.schemas.trip import TripCreate, TripDuplicateRequest
