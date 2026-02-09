@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Car, Footprints, Bike, Train, Plane, Ship, Bus, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Car, Footprints, Bike, Train, Ship, Bus } from 'lucide-react';
+import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
+import AirplaneIcon from '@/components/icons/airplane-icon';
 import SegmentHoverCard from './SegmentHoverCard';
 
 // Transport mode icons mapping
@@ -12,15 +14,15 @@ const TRANSPORT_MODE_ICONS = {
   cycling: Bike,
   train: Train,
   bus: Bus,
-  plane: Plane,
-  flight: Plane,
+  plane: AirplaneIcon,
+  flight: AirplaneIcon,
   ferry: Ship,
 };
 
 // Transport mode colors
 const TRANSPORT_MODE_COLORS = {
-  car: '#4F46E5',
-  driving: '#4F46E5',
+  car: '#D97706',
+  driving: '#D97706',
   walk: '#10B981',
   walking: '#10B981',
   bike: '#F59E0B',
@@ -155,8 +157,8 @@ const SegmentNavigator = ({
             disabled={startIndex === 0}
             className={`p-1 rounded transition-colors ${
               startIndex === 0
-                ? 'text-gray-300 cursor-not-allowed'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
             aria-label="Previous segment"
           >
@@ -185,9 +187,9 @@ const SegmentNavigator = ({
                 onMouseLeave={handleMouseLeave}
                 className={`p-1.5 rounded-lg transition-all cursor-pointer ${
                   isSelected
-                    ? 'ring-2 ring-offset-1 scale-110'
-                    : 'hover:scale-110 hover:bg-gray-100'
-                } ${segment.is_fallback ? 'bg-red-50' : ''}`}
+                    ? 'ring-2 ring-offset-1 dark:ring-offset-gray-800 scale-110'
+                    : 'hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700'
+                } ${segment.is_fallback ? 'bg-red-50 dark:bg-red-900/30' : ''}`}
                 style={{
                   color,
                   ringColor: isSelected ? color : undefined,
@@ -199,10 +201,10 @@ const SegmentNavigator = ({
                 <div className="relative flex flex-col items-center">
                   <Icon className="w-4 h-4 mb-1" />
                   {segment.is_fallback && (
-                    <AlertTriangle className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 text-red-600 bg-red-50 rounded-full" />
+                    <TriangleAlertIcon className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/50 rounded-full" />
                   )}
                   <span 
-                    className="text-[8px] font-bold leading-none px-1.5 py-0.5 bg-white rounded-full shadow-sm border mt-0.5"
+                    className="text-[8px] font-bold leading-none px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded-full shadow-sm border mt-0.5"
                     style={{
                       borderColor: color,
                       color: color
@@ -223,8 +225,8 @@ const SegmentNavigator = ({
             disabled={startIndex >= maxStartIndex}
             className={`p-1 rounded transition-colors ${
               startIndex >= maxStartIndex
-                ? 'text-gray-300 cursor-not-allowed'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
             aria-label="Next segment"
           >
@@ -234,7 +236,7 @@ const SegmentNavigator = ({
 
         {/* Position indicator */}
         {totalSegments > VISIBLE_COUNT && (
-          <span className="text-xs text-gray-400 ml-1 whitespace-nowrap">
+          <span className="text-xs text-gray-400 dark:text-gray-500 ml-1 whitespace-nowrap">
             {startIndex + 1}-{endIndex} of {totalSegments}
           </span>
         )}

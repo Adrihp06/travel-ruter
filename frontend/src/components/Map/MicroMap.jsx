@@ -1,7 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import Map, {
   NavigationControl,
-  ScaleControl,
   FullscreenControl,
   Marker,
   Popup,
@@ -13,35 +12,36 @@ import {
   MapPin,
   Bed,
   Utensils,
-  Camera,
   Landmark,
   ShoppingBag,
   Music,
   Dumbbell,
   Plus,
-  X,
-  Clock,
   DollarSign,
   ThumbsUp,
   ThumbsDown,
-  Pencil,
-  Trash2,
   Footprints,
-  ExternalLink,
   Route,
   Calendar,
   Eye,
   EyeOff,
-  ChevronDown,
   ChevronUp,
   Layers,
   GripVertical,
   Info,
-  Star,
-  Search,
 } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
+import ClockIcon from '@/components/icons/clock-icon';
+import CameraIcon from '@/components/icons/camera-icon';
+import PenIcon from '@/components/icons/pen-icon';
+import TrashIcon from '@/components/icons/trash-icon';
+import ExternalLinkIcon from '@/components/icons/external-link-icon';
+import DownChevron from '@/components/icons/down-chevron';
+import StarIcon from '@/components/icons/star-icon';
+import MagnifierIcon from '@/components/icons/magnifier-icon';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
+import RouteInfoBar from '../Routes/RouteInfoBar';
 import QuickPOISearch from './QuickPOISearch';
 import {
   getCategoryColors,
@@ -70,7 +70,7 @@ const getCategoryIconComponent = (category) => {
     return Utensils;
   }
   if (normalizedCategory.includes('sight') || normalizedCategory.includes('attraction') || normalizedCategory.includes('landmark') || normalizedCategory.includes('monument')) {
-    return Camera;
+    return CameraIcon;
   }
   if (normalizedCategory.includes('museum') || normalizedCategory.includes('gallery') || normalizedCategory.includes('historic')) {
     return Landmark;
@@ -269,7 +269,7 @@ const POIHoverPreview = ({ poi, position, onSchedule, onEdit }) => {
         <div className="poi-hover-preview-meta">
           {poi.dwell_time && (
             <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
+              <ClockIcon className="w-3 h-3" />
               {poi.dwell_time}m
             </span>
           )}
@@ -300,7 +300,7 @@ const POIHoverPreview = ({ poi, position, onSchedule, onEdit }) => {
             }}
             className="poi-hover-preview-btn poi-hover-preview-btn-secondary"
           >
-            <Pencil className="w-3 h-3" />
+            <PenIcon className="w-3 h-3" />
           </button>
         </div>
 
@@ -395,7 +395,7 @@ const POIMarker = ({
           {/* Priority indicator */}
           {poi.priority > 0 && (
             <div className="poi-marker-priority">
-              <Star className="w-3 h-3 fill-current" />
+              <StarIcon className="w-3 h-3 fill-current" />
             </div>
           )}
 
@@ -428,7 +428,7 @@ const AddPOIModeOverlay = ({ onCancel }) => (
         onClick={onCancel}
         className="add-mode-overlay-close"
       >
-        <X className="w-4 h-4" />
+        <XIcon className="w-4 h-4" />
       </button>
     </div>
   </div>
@@ -442,7 +442,7 @@ const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
   const score = (poi.likes || 0) - (poi.vetoes || 0);
 
   return (
-    <div className="p-4 min-w-[220px] max-w-[300px]">
+    <div className="p-4 pr-10 min-w-[220px] max-w-[300px]">
       {/* Header with category icon */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-start gap-3">
@@ -453,7 +453,7 @@ const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
             {renderCategoryIcon(poi.category, "w-4 h-4")}
           </div>
           <div className="min-w-0">
-            <h4 className="font-display font-bold text-stone-900 text-sm leading-tight">
+            <h4 className="font-display font-bold text-stone-900 dark:text-stone-100 text-sm leading-tight">
               {poi.name}
             </h4>
             <span
@@ -468,9 +468,9 @@ const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
         <div
           className={`
             px-2.5 py-1 rounded-lg text-xs font-bold flex-shrink-0
-            ${score > 5 ? 'bg-green-100 text-green-700' :
-              score < 0 ? 'bg-rose-100 text-rose-700' :
-              'bg-stone-100 text-stone-600'}
+            ${score > 5 ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' :
+              score < 0 ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300' :
+              'bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300'}
           `}
         >
           {score > 0 ? '+' : ''}{score}
@@ -479,9 +479,9 @@ const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
 
       {/* Priority indicator */}
       {poi.priority > 0 && (
-        <div className="flex items-center gap-1.5 mb-3 px-2.5 py-1.5 bg-amber-50 rounded-lg w-fit">
-          <Star className="w-3.5 h-3.5 text-amber-500 fill-current" />
-          <span className="text-xs font-semibold text-amber-700">
+        <div className="flex items-center gap-1.5 mb-3 px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/30 rounded-lg w-fit">
+          <StarIcon className="w-3.5 h-3.5 text-amber-500 fill-current" />
+          <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
             Priority {poi.priority}
           </span>
         </div>
@@ -489,25 +489,25 @@ const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
 
       {/* Description */}
       {poi.description && (
-        <p className="text-xs text-stone-600 mb-3 line-clamp-2 leading-relaxed">
+        <p className="text-xs text-stone-600 dark:text-stone-400 mb-3 line-clamp-2 leading-relaxed">
           {poi.description}
         </p>
       )}
 
       {/* Details with improved icons */}
-      <div className="space-y-2 text-xs text-stone-500 mb-4">
+      <div className="space-y-2 text-xs text-stone-500 dark:text-stone-400 mb-4">
         {poi.dwell_time && (
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-stone-100 flex items-center justify-center">
-              <Clock className="w-3 h-3 text-stone-500" />
+            <div className="w-5 h-5 rounded-md bg-stone-100 dark:bg-stone-700 flex items-center justify-center">
+              <ClockIcon className="w-3 h-3 text-stone-500 dark:text-stone-400" />
             </div>
             <span className="font-medium">{poi.dwell_time} min</span>
           </div>
         )}
         {(poi.estimated_cost || poi.actual_cost) && (
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-stone-100 flex items-center justify-center">
-              <DollarSign className="w-3 h-3 text-stone-500" />
+            <div className="w-5 h-5 rounded-md bg-stone-100 dark:bg-stone-700 flex items-center justify-center">
+              <DollarSign className="w-3 h-3 text-stone-500 dark:text-stone-400" />
             </div>
             <span className="font-medium">
               {poi.actual_cost ? `${poi.actual_cost} ${poi.currency || 'USD'}` :
@@ -517,8 +517,8 @@ const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
         )}
         {poi.address && (
           <div className="flex items-start gap-2">
-            <div className="w-5 h-5 rounded-md bg-stone-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <MapPin className="w-3 h-3 text-stone-500" />
+            <div className="w-5 h-5 rounded-md bg-stone-100 dark:bg-stone-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <MapPin className="w-3 h-3 text-stone-500 dark:text-stone-400" />
             </div>
             <span className="line-clamp-2 leading-relaxed">{poi.address}</span>
           </div>
@@ -526,12 +526,12 @@ const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
       </div>
 
       {/* Action buttons with better styling */}
-      <div className="pt-3 border-t border-stone-100 flex items-center justify-between">
+      <div className="pt-3 border-t border-stone-100 dark:border-stone-700 flex items-center justify-between">
         {/* Voting buttons */}
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => onVote && onVote(poi.id, 'like')}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold bg-green-50 hover:bg-green-100 text-green-700 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 text-green-700 dark:text-green-300 rounded-lg transition-colors"
             title="Like this POI"
           >
             <ThumbsUp className="w-3 h-3" />
@@ -539,7 +539,7 @@ const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
           </button>
           <button
             onClick={() => onVote && onVote(poi.id, 'veto')}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold bg-rose-50 dark:bg-rose-900/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-700 dark:text-rose-300 rounded-lg transition-colors"
             title="Veto this POI"
           >
             <ThumbsDown className="w-3 h-3" />
@@ -550,17 +550,17 @@ const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
         <div className="flex items-center gap-1">
           <button
             onClick={() => onEdit && onEdit(poi)}
-            className="p-2 hover:bg-stone-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-lg transition-colors"
             title="Edit POI"
           >
-            <Pencil className="w-3.5 h-3.5 text-stone-500" />
+            <PenIcon className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
           </button>
           <button
             onClick={() => onDelete && onDelete(poi)}
-            className="p-2 hover:bg-rose-50 rounded-lg transition-colors"
+            className="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors"
             title="Delete POI"
           >
-            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+            <TrashIcon className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" />
           </button>
         </div>
       </div>
@@ -608,7 +608,7 @@ const MarkerContextMenu = ({ poi, position, onClose, onSchedule, onEdit, onDelet
         onClick={() => { onEdit(poi); onClose(); }}
         className="map-context-menu-item"
       >
-        <Pencil className="map-context-menu-icon" />
+        <PenIcon className="map-context-menu-icon" />
         <span>Edit</span>
       </button>
       <div className="map-context-menu-divider" />
@@ -616,7 +616,7 @@ const MarkerContextMenu = ({ poi, position, onClose, onSchedule, onEdit, onDelet
         onClick={() => { onDelete(poi); onClose(); }}
         className="map-context-menu-item danger"
       >
-        <Trash2 className="map-context-menu-icon" />
+        <TrashIcon className="map-context-menu-icon" />
         <span>Delete</span>
       </button>
     </div>
@@ -651,7 +651,7 @@ const MapLegend = ({
           <span>Legend</span>
         </div>
         {isExpanded ? (
-          <ChevronDown className="w-4 h-4 text-stone-400 transition-transform" />
+          <DownChevron className="w-4 h-4 text-stone-400 transition-transform" />
         ) : (
           <ChevronUp className="w-4 h-4 text-stone-400 transition-transform" />
         )}
@@ -785,40 +785,40 @@ const AccommodationPopupContent = ({ accommodation, onEdit, onDelete }) => {
   };
 
   return (
-    <div className="p-4 min-w-[220px] max-w-[300px]">
+    <div className="p-4 pr-10 min-w-[220px] max-w-[300px]">
       {/* Header with emoji */}
       <div className="flex items-start gap-3 mb-4">
-        <div className="w-10 h-10 bg-sky-100 rounded-xl flex items-center justify-center flex-shrink-0">
+        <div className="w-10 h-10 bg-sky-100 dark:bg-sky-900/40 rounded-xl flex items-center justify-center flex-shrink-0">
           <span className="text-xl">{typeEmoji[accommodation.type] || typeEmoji.other}</span>
         </div>
         <div className="min-w-0">
-          <h4 className="font-display font-bold text-stone-900 text-sm leading-tight">
+          <h4 className="font-display font-bold text-stone-900 dark:text-stone-100 text-sm leading-tight">
             {accommodation.name}
           </h4>
-          <span className="text-xs font-semibold text-sky-600 capitalize">{accommodation.type}</span>
+          <span className="text-xs font-semibold text-sky-600 dark:text-sky-400 capitalize">{accommodation.type}</span>
         </div>
       </div>
 
       {/* Stay duration badge */}
-      <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-sky-50 rounded-lg">
-        <Bed className="w-4 h-4 text-sky-600" />
-        <span className="text-xs font-semibold text-sky-700">
+      <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-sky-50 dark:bg-sky-900/30 rounded-lg">
+        <Bed className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+        <span className="text-xs font-semibold text-sky-700 dark:text-sky-300">
           {nights} night{nights !== 1 ? 's' : ''}
         </span>
-        <span className="text-xs text-sky-600">
+        <span className="text-xs text-sky-600 dark:text-sky-400">
           {accommodation.check_in_date} → {accommodation.check_out_date}
         </span>
       </div>
 
       {/* Details with improved styling */}
-      <div className="space-y-2.5 text-xs text-stone-500 mb-4">
+      <div className="space-y-2.5 text-xs text-stone-500 dark:text-stone-400 mb-4">
         {/* Cost */}
         {accommodation.total_cost && (
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-stone-100 flex items-center justify-center">
-              <DollarSign className="w-3 h-3 text-stone-500" />
+            <div className="w-5 h-5 rounded-md bg-stone-100 dark:bg-stone-700 flex items-center justify-center">
+              <DollarSign className="w-3 h-3 text-stone-500 dark:text-stone-400" />
             </div>
-            <span className="font-semibold text-stone-700">
+            <span className="font-semibold text-stone-700 dark:text-stone-300">
               {accommodation.total_cost} {accommodation.currency || 'USD'}
             </span>
           </div>
@@ -827,8 +827,8 @@ const AccommodationPopupContent = ({ accommodation, onEdit, onDelete }) => {
         {/* Address */}
         {accommodation.address && (
           <div className="flex items-start gap-2">
-            <div className="w-5 h-5 rounded-md bg-stone-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <MapPin className="w-3 h-3 text-stone-500" />
+            <div className="w-5 h-5 rounded-md bg-stone-100 dark:bg-stone-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <MapPin className="w-3 h-3 text-stone-500 dark:text-stone-400" />
             </div>
             <span className="line-clamp-2 leading-relaxed">{accommodation.address}</span>
           </div>
@@ -837,33 +837,33 @@ const AccommodationPopupContent = ({ accommodation, onEdit, onDelete }) => {
         {/* Booking Reference */}
         {accommodation.booking_reference && (
           <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-md bg-stone-100 flex items-center justify-center">
-              <span className="text-xs font-bold text-stone-400">#</span>
+            <div className="w-5 h-5 rounded-md bg-stone-100 dark:bg-stone-700 flex items-center justify-center">
+              <span className="text-xs font-bold text-stone-400 dark:text-stone-500">#</span>
             </div>
-            <span className="font-mono text-stone-600">{accommodation.booking_reference}</span>
+            <span className="font-mono text-stone-600 dark:text-stone-400">{accommodation.booking_reference}</span>
           </div>
         )}
       </div>
 
       {/* Action buttons */}
       {(onEdit || onDelete) && (
-        <div className="pt-3 border-t border-stone-100 flex items-center justify-end gap-1">
+        <div className="pt-3 border-t border-stone-100 dark:border-stone-700 flex items-center justify-end gap-1">
           {onEdit && (
             <button
               onClick={() => onEdit(accommodation)}
-              className="p-2 hover:bg-stone-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-stone-100 dark:hover:bg-stone-700 rounded-lg transition-colors"
               title="Edit accommodation"
             >
-              <Pencil className="w-3.5 h-3.5 text-stone-500" />
+              <PenIcon className="w-3.5 h-3.5 text-stone-500 dark:text-stone-400" />
             </button>
           )}
           {onDelete && (
             <button
               onClick={() => onDelete(accommodation.id)}
-              className="p-2 hover:bg-rose-50 rounded-lg transition-colors"
+              className="p-2 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors"
               title="Delete accommodation"
             >
-              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+              <TrashIcon className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" />
             </button>
           )}
         </div>
@@ -965,6 +965,16 @@ const MicroMap = ({
       });
     }
   }, [destination, destinationCoords, zoom]);
+
+  // Cleanup hover timeout on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // Effect to fly to POI when centerOnPOI changes
   useEffect(() => {
@@ -1381,7 +1391,7 @@ const MicroMap = ({
 
   return (
     <div
-      className={`relative rounded-lg overflow-hidden border border-gray-200 ${className}`}
+      className={`relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 ${className}`}
       style={{ height }}
     >
       {/* Quick POI Search */}
@@ -1402,7 +1412,7 @@ const MicroMap = ({
       {enableAddPOI && onAddPOI && !isAddMode && (
         <button
           onClick={toggleAddMode}
-          className="absolute top-3 right-14 z-10 bg-white hover:bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg shadow-lg flex items-center space-x-1.5 text-sm font-medium transition-colors border border-gray-200"
+          className="absolute top-3 right-14 z-10 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-lg shadow-lg flex items-center space-x-1.5 text-sm font-medium transition-colors border border-gray-200 dark:border-gray-600"
         >
           <Plus className="w-4 h-4" />
           <span>Add POI</span>
@@ -1422,7 +1432,7 @@ const MicroMap = ({
       >
         <FullscreenControl position="top-right" />
         <NavigationControl position="top-right" showCompass={true} />
-        <ScaleControl position="bottom-left" />
+
 
         {/* Day route layers - render each visible day's route with unique color */}
 
@@ -1480,7 +1490,7 @@ const MicroMap = ({
                   boxShadow: `0 8px 24px rgba(180, 83, 9, 0.4), 0 4px 8px rgba(0, 0, 0, 0.15)`,
                 }}
               >
-                <Search className="w-5 h-5" />
+                <MagnifierIcon className="w-5 h-5" />
               </div>
               {/* Pointer triangle */}
               <div
@@ -1640,21 +1650,21 @@ const MicroMap = ({
             closeButton={true}
             className="micro-map-popup"
           >
-            <div className="p-3 min-w-[220px] max-w-[300px]">
+            <div className="p-3 pr-9 min-w-[220px] max-w-[300px]">
               <div className="mb-2">
-                <h4 className="font-bold text-gray-900 text-sm leading-tight">{popupInfo.name}</h4>
-                <p className="text-xs text-gray-500 mt-1">{popupInfo.formatted_address}</p>
+                <h4 className="font-bold text-gray-900 dark:text-gray-100 text-sm leading-tight">{popupInfo.name}</h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{popupInfo.formatted_address}</p>
               </div>
 
               <div className="flex items-center gap-3 mb-3">
                 {popupInfo.rating && (
-                  <div className="flex items-center gap-1 bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded text-[10px] font-bold">
-                    <Star className="w-2.5 h-2.5 fill-current" />
+                  <div className="flex items-center gap-1 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded text-[10px] font-bold">
+                    <StarIcon className="w-2.5 h-2.5 fill-current" />
                     {popupInfo.rating} ({popupInfo.user_ratings_total})
                   </div>
                 )}
                 {popupInfo.price_level !== undefined && (
-                  <div className="text-gray-400 text-[10px] font-bold">
+                  <div className="text-gray-400 dark:text-gray-500 text-[10px] font-bold">
                     {'$'.repeat(popupInfo.price_level)}
                   </div>
                 )}
@@ -1704,7 +1714,7 @@ const MicroMap = ({
           onToggleCategory={handleToggleCategory}
           showAccommodations={showAccommodations}
           onToggleAccommodations={() => setShowAccommodations(prev => !prev)}
-          className={showRouteControls && visibleRoutes.length > 0 ? "bottom-24 left-3" : "bottom-8 left-3"}
+          className="bottom-20 left-3"
         />
       )}
 
@@ -1713,9 +1723,9 @@ const MicroMap = ({
         <>
           {/* Day Route Toggle Buttons - Top Left */}
           <div className="absolute top-3 left-3 z-10">
-            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-2">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-2">
               <div className="flex items-center gap-1.5 mb-1.5">
-                <div className="text-xs font-medium text-gray-500">Show routes:</div>
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Show routes:</div>
                 <div className="group relative flex items-center">
                   <Info className="w-3.5 h-3.5 text-gray-400 cursor-help" />
                   <div className="absolute bottom-full left-0 mb-2 w-48 px-2 py-1.5 bg-gray-900/90 text-white text-xs rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-center backdrop-blur-sm">
@@ -1744,8 +1754,8 @@ const MicroMap = ({
                         ${hasRoute
                           ? isVisible
                             ? 'text-white shadow-sm ring-1 ring-black/5'
-                            : 'text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-sm'
-                          : 'text-gray-300 cursor-not-allowed border border-transparent'
+                            : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 shadow-sm'
+                          : 'text-gray-300 dark:text-gray-600 cursor-not-allowed border border-transparent'
                         }
                       `}
                       style={hasRoute && isVisible ? { backgroundColor: color.stroke } : {}}
@@ -1757,7 +1767,7 @@ const MicroMap = ({
                       />
                       Day {day.dayNumber}
                       {hasRoute && duration > 0 && (
-                        <span className={`text-[10px] ml-0.5 ${isVisible ? 'text-white/90' : 'text-gray-500'}`}>
+                        <span className={`text-[10px] ml-0.5 ${isVisible ? 'text-white/90' : 'text-gray-500 dark:text-gray-400'}`}>
                           ({formatDuration(duration)})
                         </span>
                       )}
@@ -1768,84 +1778,17 @@ const MicroMap = ({
             </div>
           </div>
 
-          {/* Route Legend - Top Right (when multiple routes visible) */}
-          {visibleRoutes.length > 1 && (
-            <div className="absolute top-3 right-14 z-10">
-              <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-2">
-                <div className="text-xs font-medium text-gray-500 mb-1">Route Legend</div>
-                <div className="space-y-1">
-                  {visibleRoutes.map((route) => {
-                    const day = days.find(d => d.date === route.date);
-                    const color = DAY_COLORS[route.dayIndex % DAY_COLORS.length];
-                    return (
-                      <div key={route.date} className="flex items-center gap-1.5 text-xs">
-                        <span
-                          className="w-3 h-0.5 rounded"
-                          style={{ backgroundColor: color.stroke }}
-                        />
-                        <span className="text-gray-700">Day {day?.dayNumber}</span>
-                        <span className="text-gray-400">
-                          {formatDistance(route.totalDistance)} · {formatDuration(route.totalDuration)}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Route Summary Bar - Bottom Left (when routes visible) */}
+          {/* Route Summary Bar - Bottom left, compact */}
           {visibleRoutes.length > 0 && (
-            <>
-              <div className="absolute bottom-3 left-3 z-10">
-                <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-2.5">
-                  <div className="flex items-center gap-3">
-                    {/* Route summary */}
-                    <div className="flex items-center gap-1.5">
-                      <Route className="w-4 h-4 text-amber-600" />
-                      <span className="text-xs font-medium text-stone-600">
-                        {visibleRoutes.length} {visibleRoutes.length === 1 ? 'day' : 'days'}
-                      </span>
-                    </div>
-
-                    {/* Total stats */}
-                    <div className="h-4 w-px bg-gray-200" />
-                    <div className="flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-900">
-                        {formatDistance(visibleRoutes.reduce((sum, r) => sum + r.totalDistance, 0))}
-                      </span>
-                    </div>
-                    <div className="h-4 w-px bg-gray-200" />
-                    <div className="flex items-center gap-1.5">
-                      <Footprints className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="text-sm font-medium text-gray-900">
-                        {formatDuration(visibleRoutes.reduce((sum, r) => sum + r.totalDuration, 0))}
-                      </span>
-                    </div>
-
-                    {isCalculating && (
-                      <span className="text-xs text-gray-500 animate-pulse">Calculating...</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Google Maps Export Button - Bottom Right */}
-              <div className="absolute bottom-3 right-3 z-10">
-                {visibleRoutes.length === 1 && (
-                  <button
-                    onClick={() => handleExportDayToGoogleMaps(visibleRoutes[0].date)}
-                    disabled={isCalculating}
-                    className="flex items-center gap-1.5 px-3 py-2.5 bg-amber-600 text-white text-xs font-medium rounded-lg shadow-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Google Maps</span>
-                  </button>
-                )}
-              </div>
-            </>
+            <div className="absolute bottom-3 left-3 z-10 max-w-[calc(100%-5rem)]">
+              <RouteInfoBar
+                distance={visibleRoutes.reduce((sum, r) => sum + r.totalDistance, 0)}
+                duration={visibleRoutes.reduce((sum, r) => sum + r.totalDuration, 0)}
+                isCalculating={isCalculating}
+                onExportGoogleMaps={() => handleExportDayToGoogleMaps(visibleRoutes[0].date)}
+                showExport={true}
+              />
+            </div>
           )}
         </>
       )}

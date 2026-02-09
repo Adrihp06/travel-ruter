@@ -127,12 +127,12 @@ export const DAY_ROUTE_COLORS = [
 // Transport mode colors and styling
 export const TRANSPORT_MODE_STYLES = {
   car: {
-    color: '#D97706',  // Primary amber
+    color: '#D97706',  // Amber for car routes
     dasharray: null,
     icon: 'car',
   },
   driving: {
-    color: '#D97706',
+    color: '#D97706',  // Amber for driving routes
     dasharray: null,
     icon: 'car',
   },

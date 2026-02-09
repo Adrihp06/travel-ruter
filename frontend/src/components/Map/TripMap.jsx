@@ -1,4 +1,5 @@
 import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import Map, {
   NavigationControl,
   ScaleControl,
@@ -9,12 +10,19 @@ import Map, {
   Layer,
   Popup,
 } from 'react-map-gl';
-import { MapPin, Plus, Car, Footprints, Bike, Train, Plane, Ship, Bus, ExternalLink, AlertTriangle, Home, Calendar } from 'lucide-react';
+import { MapPin, Plus, Car, Footprints, Bike, Train, Ship, Bus, Calendar, CircleStop } from 'lucide-react';
+import ExternalLinkIcon from '@/components/icons/external-link-icon';
+import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
+import HomeIcon from '@/components/icons/home-icon';
+import AirplaneIcon from '@/components/icons/airplane-icon';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
 import useRouteStore from '../../stores/useRouteStore';
 import useWaypointStore from '../../stores/useWaypointStore';
+import useTravelStopStore from '../../stores/useTravelStopStore';
 import SegmentNavigator from './SegmentNavigator';
+import MapSkeleton from './MapSkeleton';
+import RouteInfoBar from '../Routes/RouteInfoBar';
 import { formatDateRangeShort } from '../../utils/dateFormat';
 import { BRAND_COLORS, ROUTE_STYLES, getTransportModeStyle } from './mapStyles';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -153,8 +161,8 @@ const generateRouteGeoJSON = (destinations) => {
 
 // Route colors and styles based on transport mode - Warm Explorer theme
 const TRANSPORT_MODE_STYLES = {
-  car: { color: BRAND_COLORS.primary[600], dasharray: null }, // amber (solid)
-  driving: { color: BRAND_COLORS.primary[600], dasharray: null }, // amber (solid)
+  car: { color: '#D97706', dasharray: null }, // amber (solid)
+  driving: { color: '#D97706', dasharray: null }, // amber (solid)
   walk: { color: BRAND_COLORS.accent[600], dasharray: [1, 2] }, // lime green (dotted)
   walking: { color: BRAND_COLORS.accent[600], dasharray: [1, 2] }, // lime green (dotted)
   bike: { color: BRAND_COLORS.primary[400], dasharray: [2, 1] }, // light amber (dashed)
@@ -235,15 +243,20 @@ const getSegmentOutlineStyle = (segmentId, isSelected = false, hasSelection = fa
   };
 };
 
-// Origin/Return segment styles - always dotted
-const ORIGIN_RETURN_STYLES = {
-  origin: { color: '#10B981', dasharray: [2, 4] }, // green dotted
-  return: { color: '#EF4444', dasharray: [2, 4] }, // red dotted
-};
+// Get route layer style for origin/return segments - uses transport mode styles
+// so they appear as part of the main route chain
+const getOriginReturnLayerStyle = (segmentId, transportMode) => {
+  const style = TRANSPORT_MODE_STYLES[transportMode] || TRANSPORT_MODE_STYLES.car;
 
-// Get route layer style for origin/return segments (always dotted)
-const getOriginReturnLayerStyle = (segmentId, segmentType) => {
-  const style = ORIGIN_RETURN_STYLES[segmentType] || ORIGIN_RETURN_STYLES.origin;
+  const paint = {
+    'line-color': style.color,
+    'line-width': 4,
+    'line-opacity': 0.85,
+  };
+
+  if (style.dasharray) {
+    paint['line-dasharray'] = style.dasharray;
+  }
 
   return {
     id: `route-${segmentId}`,
@@ -252,12 +265,7 @@ const getOriginReturnLayerStyle = (segmentId, segmentType) => {
       'line-join': 'round',
       'line-cap': 'round',
     },
-    paint: {
-      'line-color': style.color,
-      'line-width': 3,
-      'line-opacity': 0.7,
-      'line-dasharray': style.dasharray,
-    },
+    paint,
   };
 };
 
@@ -286,8 +294,8 @@ const TRANSPORT_MODE_ICONS = {
   cycling: Bike,
   train: Train,
   bus: Bus,
-  plane: Plane,
-  flight: Plane,
+  plane: AirplaneIcon,
+  flight: AirplaneIcon,
   ferry: Ship,
 };
 
@@ -325,6 +333,7 @@ const TripMap = ({
   originPoint = null, // { name, latitude, longitude }
   returnPoint = null, // { name, latitude, longitude }
 }) => {
+  const { t } = useTranslation();
   // Can add destination from map click
   const canAddDestination = enableAddDestination && onAddDestination;
   const { mapboxAccessToken } = useMapboxToken();
@@ -332,15 +341,17 @@ const TripMap = ({
   const [hoveredDestinationId, setHoveredDestinationId] = useState(null);
   const [isAddMode, setIsAddMode] = useState(false);
   const [selectedSegmentId, setSelectedSegmentId] = useState(null);
+  const [hoveredStopId, setHoveredStopId] = useState(null);
   const [viewState, setViewState] = useState({
     longitude: 10.7522,
     latitude: 59.9139,
     zoom: 5,
   });
   const [showFallbackWarning, setShowFallbackWarning] = useState(true);
+  const [isMapTilesLoaded, setIsMapTilesLoaded] = useState(false);
 
   // Travel segments store for segment-based routing
-  const { segments, originSegment, returnSegment, fetchTripSegments, clearSegments, isLoading: isSegmentsLoading } = useTravelSegmentStore();
+  const { segments, originSegment, returnSegment, fetchTripSegments, clearSegments, isLoading: isSegmentsLoading, hasFetchedInitial } = useTravelSegmentStore();
 
   // Route store for Google Maps export and route calculation
   const { exportToGoogleMaps, calculateORSRoute, checkORSAvailability } = useRouteStore();
@@ -361,6 +372,9 @@ const TripMap = ({
   // Track waypoints for all segments
   const [segmentWaypoints, setSegmentWaypoints] = useState({});
 
+  // Travel stop store for intermediate stops between destinations
+  const { stopsBySegment, fetchStopsForSegments } = useTravelStopStore();
+
   // Sort destinations chronologically
   const sortedDestinations = useMemo(() => {
     if (!destinations || destinations.length === 0) return [];
@@ -378,6 +392,7 @@ const TripMap = ({
   useEffect(() => {
     return () => {
       clearSegments();
+      setIsMapTilesLoaded(false);
     };
   }, [tripId, clearSegments]);
 
@@ -390,6 +405,8 @@ const TripMap = ({
 
   // Calculate real routes for origin/return when backend doesn't provide route_geometry
   useEffect(() => {
+    let cancelled = false;
+
     const calculateMissingRoutes = async () => {
       const firstDestination = sortedDestinations[0];
       const lastDestination = sortedDestinations[sortedDestinations.length - 1];
@@ -408,43 +425,88 @@ const TripMap = ({
 
       // Check if ORS is available
       const orsAvailable = await checkORSAvailability();
-      if (!orsAvailable) return;
+      if (!orsAvailable || cancelled) return;
+
+      // Modes that ORS can route (road/path based)
+      const routableModes = new Set(['car', 'driving', 'walk', 'walking', 'bike', 'cycling', 'bus', 'train']);
 
       // Calculate origin route if needed
       if (needsOriginRoute) {
         const firstDestCoords = getCoordinates(firstDestination);
+        const originMode = originSegment?.travel_mode || 'car';
+
         if (firstDestCoords) {
-          const result = await calculateORSRoute([
-            { latitude: originPoint.latitude, longitude: originPoint.longitude },
-            { latitude: firstDestCoords.lat, longitude: firstDestCoords.lng }
-          ], 'driving');
-          if (result?.geometry) {
-            setCalculatedOriginRoute(result.geometry);
+          if (routableModes.has(originMode)) {
+            // Use ORS for routable modes
+            const orsMode = (originMode === 'walk' || originMode === 'walking') ? 'walking'
+              : (originMode === 'bike' || originMode === 'cycling') ? 'cycling'
+              : 'driving';
+            const result = await calculateORSRoute([
+              { latitude: originPoint.latitude, longitude: originPoint.longitude },
+              { latitude: firstDestCoords.lat, longitude: firstDestCoords.lng }
+            ], orsMode);
+            if (result?.geometry && !cancelled) {
+              setCalculatedOriginRoute(result.geometry);
+            }
+          } else {
+            // For plane/flight/ferry - use straight line
+            if (!cancelled) {
+              setCalculatedOriginRoute({
+                type: 'LineString',
+                coordinates: [
+                  [originPoint.longitude, originPoint.latitude],
+                  [firstDestCoords.lng, firstDestCoords.lat],
+                ],
+              });
+            }
           }
         }
       }
 
+      if (cancelled) return;
+
       // Calculate return route if needed
       if (needsReturnRoute) {
         const lastDestCoords = getCoordinates(lastDestination);
+        const returnMode = returnSegment?.travel_mode || 'car';
+
         if (lastDestCoords) {
-          const result = await calculateORSRoute([
-            { latitude: lastDestCoords.lat, longitude: lastDestCoords.lng },
-            { latitude: returnPoint.latitude, longitude: returnPoint.longitude }
-          ], 'driving');
-          if (result?.geometry) {
-            setCalculatedReturnRoute(result.geometry);
+          if (routableModes.has(returnMode)) {
+            // Use ORS for routable modes
+            const orsMode = (returnMode === 'walk' || returnMode === 'walking') ? 'walking'
+              : (returnMode === 'bike' || returnMode === 'cycling') ? 'cycling'
+              : 'driving';
+            const result = await calculateORSRoute([
+              { latitude: lastDestCoords.lat, longitude: lastDestCoords.lng },
+              { latitude: returnPoint.latitude, longitude: returnPoint.longitude }
+            ], orsMode);
+            if (result?.geometry && !cancelled) {
+              setCalculatedReturnRoute(result.geometry);
+            }
+          } else {
+            // For plane/flight/ferry - use straight line
+            if (!cancelled) {
+              setCalculatedReturnRoute({
+                type: 'LineString',
+                coordinates: [
+                  [lastDestCoords.lng, lastDestCoords.lat],
+                  [returnPoint.longitude, returnPoint.latitude],
+                ],
+              });
+            }
           }
         }
       }
     };
 
-    if (sortedDestinations.length > 0) {
+    if (sortedDestinations.length > 0 && hasFetchedInitial) {
       calculateMissingRoutes();
     }
+
+    return () => { cancelled = true; };
   }, [
     originPoint, returnPoint, sortedDestinations, originSegment, returnSegment,
-    checkORSAvailability, calculateORSRoute
+    checkORSAvailability, calculateORSRoute, hasFetchedInitial
   ]);
 
   // Fetch waypoints for all segments
@@ -466,6 +528,29 @@ const TripMap = ({
 
     fetchAllWaypoints();
   }, [segments, fetchSegmentWaypoints]);
+
+  // Fetch travel stops for all segments
+  useEffect(() => {
+    if (segments && segments.length > 0) {
+      const segmentIds = segments.map(s => s.id);
+      fetchStopsForSegments(segmentIds);
+    }
+  }, [segments, fetchStopsForSegments]);
+
+  // Collect all travel stops across segments for rendering
+  const allTravelStops = useMemo(() => {
+    const stops = [];
+    Object.entries(stopsBySegment).forEach(([segmentId, segmentStops]) => {
+      if (Array.isArray(segmentStops)) {
+        segmentStops.forEach(stop => {
+          if (stop.latitude && stop.longitude) {
+            stops.push({ ...stop, _segmentId: segmentId });
+          }
+        });
+      }
+    });
+    return stops;
+  }, [stopsBySegment]);
 
   // Calculate initial view to fit all destinations, origin, and return points
   useEffect(() => {
@@ -526,6 +611,7 @@ const TripMap = ({
   }, [sortedDestinations]);
 
   // Build segment data with GeoJSON for rendering
+  // When a segment has route_legs (per-leg travel modes), produce multiple features
   const segmentGeoJSONs = useMemo(() => {
     if (!showRoute || !segments || segments.length === 0) return [];
 
@@ -536,48 +622,74 @@ const TripMap = ({
         return validSegmentPairs.has(pairKey);
       })
       .map((segment) => {
-        // Get from/to destinations for fallback coordinates
-        const fromDest = sortedDestinations.find(d => d.id === segment.from_destination_id);
-        const toDest = sortedDestinations.find(d => d.id === segment.to_destination_id);
+        // Build features array: one feature per leg, or single feature for whole segment
+        const features = [];
+        const modesSet = new Set();
 
-        let geometry = null;
-
-        // Use route_geometry from API if available
-        if (segment.route_geometry?.type === 'LineString' && segment.route_geometry?.coordinates?.length >= 2) {
-          geometry = segment.route_geometry;
-        } else {
-          // Fallback to straight line between destinations
-          const fromCoords = getCoordinates(fromDest);
-          const toCoords = getCoordinates(toDest);
-          if (fromCoords && toCoords) {
-            geometry = {
-              type: 'LineString',
-              coordinates: [
-                [fromCoords.lng, fromCoords.lat],
-                [toCoords.lng, toCoords.lat],
-              ],
-            };
+        if (segment.route_legs?.length > 0) {
+          // Per-leg features from route_legs
+          for (const leg of segment.route_legs) {
+            if (!leg.geometry?.type || !leg.geometry?.coordinates?.length) continue;
+            const mode = leg.travel_mode || segment.travel_mode || 'car';
+            modesSet.add(mode);
+            features.push({
+              type: 'Feature',
+              properties: { travel_mode: mode },
+              geometry: leg.geometry,
+            });
           }
         }
 
-        if (!geometry) return null;
+        // Fallback: single geometry for the whole segment
+        if (features.length === 0) {
+          const fromDest = sortedDestinations.find(d => d.id === segment.from_destination_id);
+          const toDest = sortedDestinations.find(d => d.id === segment.to_destination_id);
+
+          let geometry = null;
+
+          if (segment.route_geometry?.type === 'LineString' && segment.route_geometry?.coordinates?.length >= 2) {
+            geometry = segment.route_geometry;
+          } else if (!isSegmentsLoading) {
+            // Only generate straight-line fallback AFTER loading completes
+            const fromCoords = getCoordinates(fromDest);
+            const toCoords = getCoordinates(toDest);
+            if (fromCoords && toCoords) {
+              geometry = {
+                type: 'LineString',
+                coordinates: [
+                  [fromCoords.lng, fromCoords.lat],
+                  [toCoords.lng, toCoords.lat],
+                ],
+              };
+            }
+          }
+
+          if (!geometry) return null;
+
+          const mode = segment.travel_mode || 'car';
+          modesSet.add(mode);
+          features.push({
+            type: 'Feature',
+            properties: { travel_mode: mode },
+            geometry,
+          });
+        }
 
         return {
           id: segment.id,
+          parentSegmentId: segment.id,
           travel_mode: segment.travel_mode,
           distance_km: segment.distance_km,
           duration_minutes: segment.duration_minutes,
+          modes: [...modesSet],
           geojson: {
-            type: 'Feature',
-            properties: {
-              id: segment.id,
-              travel_mode: segment.travel_mode,
-            },
-            geometry,
+            type: 'FeatureCollection',
+            features,
           },
         };
-      }).filter(Boolean);
-  }, [showRoute, segments, sortedDestinations, validSegmentPairs]);
+      })
+      .filter(Boolean);
+  }, [showRoute, segments, sortedDestinations, validSegmentPairs, isSegmentsLoading]);
 
   // Build GeoJSON for origin and return segments (dotted line style)
   const originReturnGeoJSONs = useMemo(() => {
@@ -602,8 +714,8 @@ const TripMap = ({
                calculatedOriginRoute?.coordinates?.length >= 2) {
         geometry = calculatedOriginRoute;
       }
-      // Priority 3: Fallback to straight line
-      else if (firstDestCoords) {
+      // Priority 3: Fallback to straight line (only after loading completes)
+      else if (!isSegmentsLoading && firstDestCoords) {
         geometry = {
           type: 'LineString',
           coordinates: [
@@ -649,8 +761,8 @@ const TripMap = ({
                calculatedReturnRoute?.coordinates?.length >= 2) {
         geometry = calculatedReturnRoute;
       }
-      // Priority 3: Fallback to straight line
-      else if (lastDestCoords) {
+      // Priority 3: Fallback to straight line (only after loading completes)
+      else if (!isSegmentsLoading && lastDestCoords) {
         geometry = {
           type: 'LineString',
           coordinates: [
@@ -682,7 +794,7 @@ const TripMap = ({
     }
 
     return results;
-  }, [showRoute, originSegment, returnSegment, originPoint, returnPoint, sortedDestinations, calculatedOriginRoute, calculatedReturnRoute]);
+  }, [showRoute, originSegment, returnSegment, originPoint, returnPoint, sortedDestinations, calculatedOriginRoute, calculatedReturnRoute, isSegmentsLoading]);
 
   // Filter segments to only valid pairs for calculations
   const validSegments = useMemo(() => {
@@ -744,15 +856,33 @@ const TripMap = ({
     }
   }, [routeTotals?.has_fallback, routeTotals?.fallback_count]);
 
-  // Handle Google Maps export
+  // Handle Google Maps export - includes travel stops as waypoints
   const handleExportToGoogleMaps = useCallback(async () => {
     if (sortedDestinations.length < 2) return;
     const origin = sortedDestinations[0];
     const destination = sortedDestinations[sortedDestinations.length - 1];
-    const waypoints = sortedDestinations.slice(1, -1);
-    // Use driving as default for Google Maps export
-    await exportToGoogleMaps(origin, destination, waypoints, 'driving');
-  }, [sortedDestinations, exportToGoogleMaps]);
+
+    // Build ordered waypoints: intermediate destinations + travel stops
+    const orderedWaypoints = [];
+    for (let i = 0; i < sortedDestinations.length - 1; i++) {
+      // Add intermediate destination (skip first=origin, include middle ones)
+      if (i > 0) {
+        orderedWaypoints.push(sortedDestinations[i]);
+      }
+      // Find segment between this dest and the next, add its stops
+      const segment = segments.find(s =>
+        s.from_destination_id === sortedDestinations[i].id &&
+        s.to_destination_id === sortedDestinations[i + 1].id
+      );
+      if (segment) {
+        const stops = stopsBySegment[segment.id] || [];
+        stops.filter(s => s.latitude && s.longitude)
+             .forEach(s => orderedWaypoints.push(s));
+      }
+    }
+
+    await exportToGoogleMaps(origin, destination, orderedWaypoints, 'driving');
+  }, [sortedDestinations, segments, stopsBySegment, exportToGoogleMaps]);
 
   // Handle segment click - center map on segment and highlight it
   const handleSegmentClick = useCallback((segment) => {
@@ -764,16 +894,16 @@ const TripMap = ({
 
     setSelectedSegmentId(segment.id);
 
-    // Find the segment's geometry to calculate bounds
-    const segmentData = segmentGeoJSONs.find(s => s.id === segment.id);
-    if (!segmentData?.geojson?.geometry?.coordinates) return;
+    // Collect all geometry coordinates from the segment's FeatureCollection
+    const segmentEntry = segmentGeoJSONs.find(s => s.id === segment.id);
+    const allCoordinates = (segmentEntry?.geojson?.features || []).flatMap(
+      f => f.geometry?.coordinates || []
+    );
+    if (allCoordinates.length < 2) return;
 
-    const coordinates = segmentData.geojson.geometry.coordinates;
-    if (coordinates.length < 2) return;
-
-    // Calculate bounds from segment coordinates
-    const lngs = coordinates.map(c => c[0]);
-    const lats = coordinates.map(c => c[1]);
+    // Calculate bounds from all coordinates
+    const lngs = allCoordinates.map(c => c[0]);
+    const lats = allCoordinates.map(c => c[1]);
     const minLng = Math.min(...lngs);
     const maxLng = Math.max(...lngs);
     const minLat = Math.min(...lats);
@@ -865,10 +995,10 @@ const TripMap = ({
   if (!mapboxAccessToken) {
     return (
       <div
-        className={`flex items-center justify-center bg-gray-100 rounded-xl ${className}`}
+        className={`flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-xl ${className}`}
         style={{ height }}
       >
-        <p className="text-gray-500">Map unavailable - Missing Mapbox token</p>
+        <p className="text-gray-500 dark:text-gray-400">{t('map.unavailableMissingToken')}</p>
       </div>
     );
   }
@@ -880,17 +1010,17 @@ const TripMap = ({
   if (sortedDestinations.length === 0 && !hasTripLocation && !hasOriginPoint) {
     return (
       <div
-        className={`flex items-center justify-center bg-gray-100 rounded-xl ${className}`}
+        className={`flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-xl ${className}`}
         style={{ height }}
       >
-        <p className="text-gray-500">No destinations to display</p>
+        <p className="text-gray-500 dark:text-gray-400">{t('map.noDestinations')}</p>
       </div>
     );
   }
 
   return (
     <div
-      className={`rounded-xl overflow-hidden shadow-sm border border-gray-200 ${className}`}
+      className={`relative rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 ${className}`}
       style={{ height }}
     >
       <Map
@@ -898,13 +1028,14 @@ const TripMap = ({
         {...viewState}
         onMove={(evt) => setViewState(evt.viewState)}
         onClick={handleMapClick}
+        onLoad={() => setIsMapTilesLoaded(true)}
         mapboxAccessToken={mapboxAccessToken}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/streets-v12"
         cursor={isAddMode || addingWaypointMode ? 'crosshair' : 'grab'}
       >
         <NavigationControl position="top-right" />
-        <ScaleControl position="bottom-left" />
+        <ScaleControl position="top-left" />
         <FullscreenControl position="top-right" />
 
         {/* Route segments - each with its own color based on transport mode */}
@@ -922,19 +1053,28 @@ const TripMap = ({
               >
                 <Layer {...getSegmentOutlineStyle(segmentData.id, isSelected, hasSelection)} />
               </Source>
-              {/* Segment line with transport mode color */}
+              {/* Per-mode layers within one stable source */}
               <Source
                 id={`route-segment-${segmentData.id}`}
                 type="geojson"
                 data={segmentData.geojson}
               >
-                <Layer {...getSegmentLayerStyle(segmentData.id, segmentData.travel_mode, isSelected, hasSelection)} />
+                {segmentData.modes.map((mode) => {
+                  const style = getSegmentLayerStyle(`${segmentData.id}-${mode}`, mode, isSelected, hasSelection);
+                  return (
+                    <Layer
+                      key={mode}
+                      {...style}
+                      filter={['==', ['get', 'travel_mode'], mode]}
+                    />
+                  );
+                })}
               </Source>
             </React.Fragment>
           );
         })}
 
-        {/* Origin/Return route segments - dotted lines */}
+        {/* Origin/Return route segments - styled by transport mode */}
         {originReturnGeoJSONs.map((segmentData) => (
           <React.Fragment key={`or-segment-${segmentData.id}`}>
             {/* Segment outline for visibility */}
@@ -945,13 +1085,13 @@ const TripMap = ({
             >
               <Layer {...getOriginReturnOutlineStyle(segmentData.id)} />
             </Source>
-            {/* Segment line with origin/return color (dotted) */}
+            {/* Segment line with transport mode color */}
             <Source
               id={`${segmentData.id}-source`}
               type="geojson"
               data={segmentData.geojson}
             >
-              <Layer {...getOriginReturnLayerStyle(segmentData.id, segmentData.segment_type)} />
+              <Layer {...getOriginReturnLayerStyle(segmentData.id, segmentData.travel_mode)} />
             </Source>
           </React.Fragment>
         ))}
@@ -1017,35 +1157,35 @@ const TripMap = ({
                   className="trip-map-popup"
                 >
                   <div className="p-4 min-w-[160px]">
-                    <h3 className="font-display font-bold text-stone-900 text-sm leading-tight">
+                    <h3 className="font-display font-bold text-stone-900 dark:text-stone-100 text-sm leading-tight">
                       {destination.name || destination.city_name}
                     </h3>
                     {destination.arrivalDate && destination.departureDate && (
-                      <div className="mt-2 pt-2 border-t border-stone-100">
-                        <p className="text-amber-600 font-semibold text-xs flex items-center gap-1.5">
+                      <div className="mt-2 pt-2 border-t border-stone-100 dark:border-stone-700">
+                        <p className="text-amber-600 dark:text-amber-400 font-semibold text-xs flex items-center gap-1.5">
                           <Calendar className="w-3 h-3" />
                           {formatDateRangeShort(destination.arrivalDate, destination.departureDate)}
                         </p>
-                        <p className="text-stone-500 text-xs mt-0.5 font-medium">
-                          {calculateNights(destination.arrivalDate, destination.departureDate)} nights
+                        <p className="text-stone-500 dark:text-stone-400 text-xs mt-0.5 font-medium">
+                          {calculateNights(destination.arrivalDate, destination.departureDate)} {t('common.nights')}
                         </p>
                       </div>
                     )}
-                    <div className="mt-2 pt-2 border-t border-stone-100">
+                    <div className="mt-2 pt-2 border-t border-stone-100 dark:border-stone-700">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           const url = `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`;
                           window.open(url, '_blank', 'noopener,noreferrer');
                         }}
-                        className="flex items-center gap-1.5 text-xs text-amber-600 hover:text-amber-700 font-medium"
+                        className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 font-medium"
                       >
-                        <ExternalLink className="w-3 h-3" />
-                        Open in Google Maps
+                        <ExternalLinkIcon className="w-3 h-3" />
+                        {t('routes.openInGoogleMaps')}
                       </button>
                     </div>
-                    <p className="text-stone-400 text-xs mt-2 font-medium">
-                      Click to view details
+                    <p className="text-stone-400 dark:text-stone-500 text-xs mt-2 font-medium">
+                      {t('map.clickToViewDetails')}
                     </p>
                   </div>
                 </Popup>
@@ -1071,6 +1211,69 @@ const TripMap = ({
           ))
         )}
 
+        {/* Travel stop markers - Orange stop markers distinct from destinations */}
+        {allTravelStops.map((stop) => (
+          <React.Fragment key={`stop-${stop.id}`}>
+            <Marker
+              longitude={stop.longitude}
+              latitude={stop.latitude}
+              anchor="bottom"
+            >
+              <div
+                className={`map-marker cursor-pointer transition-all duration-200 ${
+                  hoveredStopId === stop.id ? 'scale-125' : 'scale-100'
+                }`}
+                onMouseEnter={() => setHoveredStopId(stop.id)}
+                onMouseLeave={() => setHoveredStopId(null)}
+              >
+                <div className="destination-marker">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-white border-2 border-white"
+                    style={{
+                      background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                      boxShadow: '0 3px 10px rgba(249, 115, 22, 0.4), 0 1px 3px rgba(0, 0, 0, 0.1)',
+                    }}
+                  >
+                    <CircleStop className="w-4 h-4" />
+                  </div>
+                  <div
+                    className="destination-marker-pointer"
+                    style={{ borderTopColor: '#f97316' }}
+                  />
+                </div>
+              </div>
+            </Marker>
+            {hoveredStopId === stop.id && (
+              <Popup
+                longitude={stop.longitude}
+                latitude={stop.latitude}
+                anchor="bottom"
+                offset={[0, -36]}
+                closeButton={false}
+                closeOnClick={false}
+                className="trip-map-popup"
+              >
+                <div className="p-3 min-w-[140px]">
+                  <h3 className="font-display font-bold text-stone-900 dark:text-stone-100 text-sm">
+                    {stop.name}
+                  </h3>
+                  {stop.duration_minutes > 0 && (
+                    <p className="text-orange-600 dark:text-orange-400 text-xs font-medium mt-1">
+                      {stop.duration_minutes >= 60
+                        ? `${Math.floor(stop.duration_minutes / 60)}h${Math.round(stop.duration_minutes % 60) > 0 ? ` ${Math.round(stop.duration_minutes % 60)}m` : ''}`
+                        : `${Math.round(stop.duration_minutes)}m`
+                      } {t('routes.stop')}
+                    </p>
+                  )}
+                  {stop.address && (
+                    <p className="text-stone-500 dark:text-stone-400 text-xs mt-0.5 truncate">{stop.address}</p>
+                  )}
+                </div>
+              </Popup>
+            )}
+          </React.Fragment>
+        ))}
+
         {/* Origin marker - Green with plane icon and gradient */}
         {originPoint?.latitude && originPoint?.longitude && (
           <Marker
@@ -1087,7 +1290,7 @@ const TripMap = ({
                     boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4), 0 2px 4px rgba(0, 0, 0, 0.1)',
                   }}
                 >
-                  <Plane className="w-5 h-5" />
+                  <AirplaneIcon className="w-5 h-5" />
                 </div>
                 <div
                   className="destination-marker-pointer"
@@ -1116,7 +1319,7 @@ const TripMap = ({
                     boxShadow: '0 4px 14px rgba(244, 63, 94, 0.4), 0 2px 4px rgba(0, 0, 0, 0.1)',
                   }}
                 >
-                  <Home className="w-5 h-5" />
+                  <HomeIcon className="w-5 h-5" />
                 </div>
                 <div
                   className="destination-marker-pointer"
@@ -1129,10 +1332,30 @@ const TripMap = ({
 
       </Map>
 
+      {/* Skeleton overlay - fades out when map tiles and segments are ready */}
+      {(() => {
+        const isFullyReady = isMapTilesLoaded && (!tripId || hasFetchedInitial);
+        return (
+          <div
+            className={`absolute inset-0 z-30 pointer-events-none transition-opacity duration-500 ${
+              isFullyReady ? 'opacity-0' : 'opacity-100'
+            }`}
+            onTransitionEnd={(e) => {
+              // Remove from DOM after fade completes to avoid blocking interactions
+              if (e.propertyName === 'opacity' && isFullyReady) {
+                e.currentTarget.style.display = 'none';
+              }
+            }}
+          >
+            <MapSkeleton height="100%" />
+          </div>
+        );
+      })()}
+
       {/* Waypoint adding mode hint */}
       {addingWaypointMode && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm z-20 shadow-lg">
-          Click on the map to add a waypoint
+          {t('map.clickToAddWaypoint')}
         </div>
       )}
 
@@ -1141,8 +1364,8 @@ const TripMap = ({
       {enableAddDestination && (
         <button
           onClick={toggleAddMode}
-          className={`absolute left-4 px-4 py-2.5 rounded-xl shadow-lg font-semibold transition-all flex items-center gap-2 z-10 ${
-            showRouteControls && sortedDestinations.length >= 2 ? 'bottom-24' : 'bottom-4'
+          className={`absolute left-3 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl shadow-lg font-semibold transition-all flex items-center gap-2 z-10 text-sm ${
+            showRouteControls && sortedDestinations.length >= 2 ? 'bottom-16' : 'bottom-3'
           }`}
           style={{
             background: isAddMode
@@ -1155,7 +1378,7 @@ const TripMap = ({
           }}
         >
           <Plus className={`w-4 h-4 ${isAddMode ? 'rotate-45' : ''} transition-transform duration-200`} />
-          <span>{isAddMode ? 'Cancel' : 'Add Destination'}</span>
+          <span>{isAddMode ? t('common.cancel') : t('map.addDestination')}</span>
         </button>
       )}
 
@@ -1164,77 +1387,49 @@ const TripMap = ({
         <div className="absolute top-4 left-1/2 z-20">
           <div className="add-mode-overlay">
             <Plus className="w-4 h-4" />
-            <span>Click on the map to add a destination</span>
+            <span>{t('map.clickToAddDestination')}</span>
           </div>
         </div>
       )}
 
-      {/* Google Maps Floating Action Button - Bottom Right - Warm Explorer theme */}
-      {showRouteControls && sortedDestinations.length >= 2 && (
-        <button
-          onClick={handleExportToGoogleMaps}
-          className="google-maps-btn absolute bottom-7 right-4 z-10"
-        >
-          <ExternalLink className="w-4 h-4" />
-          <span className="hidden sm:inline">Google Maps</span>
-        </button>
-      )}
-
       {/* Fallback Warning - Bottom Right - auto-hides after 4 seconds */}
       {showRouteControls && sortedDestinations.length >= 2 && routeTotals?.has_fallback && showFallbackWarning && (
-        <div className="absolute bottom-20 right-4 z-10 max-w-sm">
-          <div className="bg-rose-50 border border-rose-200 rounded-xl shadow-lg p-3 transition-opacity duration-300">
-            <div className="flex items-center gap-2 text-rose-700">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+        <div className="absolute bottom-16 right-4 z-10 max-w-sm">
+          <div className="bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 rounded-xl shadow-lg p-3 transition-opacity duration-300">
+            <div className="flex items-center gap-2 text-rose-700 dark:text-rose-300">
+              <TriangleAlertIcon className="w-4 h-4 flex-shrink-0" />
               <span className="text-sm font-semibold">
-                Public transport route unavailable for {routeTotals.fallback_count} segment{routeTotals.fallback_count > 1 ? 's' : ''}.
-                Showing car route instead.
+                {t('map.fallbackRouteWarning', { count: routeTotals.fallback_count })}
               </span>
             </div>
           </div>
         </div>
       )}
 
-      {/* Route Info Bar - Bottom Left - Enhanced Warm Explorer styling */}
-      {showRouteControls && sortedDestinations.length >= 2 && (
-        <div className="absolute bottom-4 left-4 z-10 max-w-lg">
-          <div className="route-summary">
-            <div className="flex items-center gap-4">
-              {/* Route Stats from travel segments */}
-              {routeTotals && (
-                <>
-                  <div className="route-summary-stat">
-                    <MapPin className="route-summary-icon" />
-                    <span className="route-summary-value">
-                      {formatDistance(routeTotals.distance_km)}
-                    </span>
-                  </div>
-                  <div className="route-summary-divider" />
-                  <div className="route-summary-stat">
-                    <span className="route-summary-value">
-                      {formatDuration(routeTotals.duration_minutes)}
-                    </span>
-                  </div>
-                  <div className="route-summary-divider" />
-                  {/* Segment Navigator with pagination, hover cards, and click-to-center */}
-                  <SegmentNavigator
-                    segments={validSegments}
-                    destinations={sortedDestinations}
-                    selectedSegmentId={selectedSegmentId}
-                    onSegmentClick={handleSegmentClick}
-                  />
-                </>
-              )}
-              {isSegmentsLoading && (
-                <span className="text-sm text-stone-500 font-medium animate-pulse">Loading routes...</span>
-              )}
-              {!routeTotals && !isSegmentsLoading && (
-                <span className="text-sm text-stone-500 font-medium">
-                  {sortedDestinations.length} stops
-                </span>
-              )}
-            </div>
+      {/* Segment Navigator - separate from route bar, top-left */}
+      {showRouteControls && sortedDestinations.length >= 2 && routeTotals && (
+        <div className="absolute top-3 left-3 z-10">
+          <div className="bg-white/95 dark:bg-stone-800/95 backdrop-blur-sm rounded-xl shadow-lg border border-stone-200 dark:border-stone-700 px-3 py-2">
+            <SegmentNavigator
+              segments={validSegments}
+              destinations={sortedDestinations}
+              selectedSegmentId={selectedSegmentId}
+              onSegmentClick={handleSegmentClick}
+            />
           </div>
+        </div>
+      )}
+
+      {/* Route Info Bar - Bottom left - compact, only distance + duration + Google Maps */}
+      {showRouteControls && sortedDestinations.length >= 2 && (
+        <div className="absolute bottom-3 left-3 z-10">
+          <RouteInfoBar
+            distance={routeTotals?.distance_km}
+            duration={routeTotals?.duration_minutes}
+            isCalculating={isSegmentsLoading}
+            onExportGoogleMaps={handleExportToGoogleMaps}
+            emptyLabel={`${sortedDestinations.length} ${t('routes.stops')}`}
+          />
         </div>
       )}
     </div>

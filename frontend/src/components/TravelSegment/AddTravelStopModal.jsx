@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { X, MapPin, Clock, Search, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useId } from 'react';
+import { useTranslation } from 'react-i18next';
+import { MapPin, Loader2 } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
+import MagnifierIcon from '@/components/icons/magnifier-icon';
 import useTravelStopStore from '../../stores/useTravelStopStore';
+import TravelModeSelector from './TravelModeSelector';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop = null }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -14,6 +19,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
     duration_minutes: 60,
     arrival_time: '',
     stop_date: '',
+    travel_mode: '',
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -22,6 +28,11 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
   const [error, setError] = useState(null);
 
   const { createStop, updateStop } = useTravelStopStore();
+  const titleId = useId();
+
+  // Search cache for avoiding redundant API calls
+  const searchCache = useRef(new Map());
+  const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 
   // Pre-fill form if editing existing stop
   useEffect(() => {
@@ -35,6 +46,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
         duration_minutes: existingStop.duration_minutes || 60,
         arrival_time: existingStop.arrival_time || '',
         stop_date: existingStop.stop_date || '',
+        travel_mode: existingStop.travel_mode || '',
       });
     } else {
       // Reset form for new stop
@@ -47,6 +59,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
         duration_minutes: 60,
         arrival_time: '',
         stop_date: '',
+        travel_mode: '',
       });
     }
     setSearchQuery('');
@@ -54,9 +67,18 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
     setError(null);
   }, [existingStop, isOpen]);
 
-  // Search for places
+  // Search for places with caching
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
+
+    const cacheKey = searchQuery.trim().toLowerCase();
+
+    // Check cache first
+    const cached = searchCache.current.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY_MS) {
+      setSearchResults(cached.results);
+      return;
+    }
 
     setIsSearching(true);
     setError(null);
@@ -69,8 +91,15 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
         throw new Error('Failed to search for places');
       }
 
-      const results = await response.json();
-      setSearchResults(results.predictions || []);
+      const data = await response.json();
+      const places = data.results || [];
+      setSearchResults(places);
+
+      // Cache the results
+      searchCache.current.set(cacheKey, {
+        results: places,
+        timestamp: Date.now(),
+      });
     } catch (err) {
       setError('Search failed. Please enter location manually.');
     } finally {
@@ -126,8 +155,24 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
       setError('Name is required');
       return;
     }
-    if (!formData.latitude || !formData.longitude) {
-      setError('Location coordinates are required. Please search for a place or enter manually.');
+    // Validate latitude and longitude with proper null/empty checks and range validation
+    const lat = parseFloat(formData.latitude);
+    const lng = parseFloat(formData.longitude);
+
+    if (formData.latitude === '' || formData.latitude === null || formData.latitude === undefined || isNaN(lat)) {
+      setError('Latitude is required. Please search for a place or enter manually.');
+      return;
+    }
+    if (lat < -90 || lat > 90) {
+      setError('Latitude must be between -90 and 90.');
+      return;
+    }
+    if (formData.longitude === '' || formData.longitude === null || formData.longitude === undefined || isNaN(lng)) {
+      setError('Longitude is required. Please search for a place or enter manually.');
+      return;
+    }
+    if (lng < -180 || lng > 180) {
+      setError('Longitude must be between -180 and 180.');
       return;
     }
 
@@ -142,6 +187,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
         duration_minutes: parseInt(formData.duration_minutes) || 60,
         arrival_time: formData.arrival_time || null,
         stop_date: formData.stop_date || null,
+        travel_mode: formData.travel_mode || null,
       };
 
       if (existingStop) {
@@ -167,18 +213,27 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-stone-800 rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      role="presentation"
+    >
+      <div
+        className="bg-white dark:bg-stone-800 rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto mx-4"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-stone-200 dark:border-stone-700">
-          <h3 className="text-lg font-semibold text-stone-900 dark:text-stone-100">
-            {existingStop ? 'Edit Stop' : 'Add Intermediate Stop'}
+          <h3 id={titleId} className="text-lg font-semibold text-stone-900 dark:text-stone-100">
+            {existingStop ? t('segments.editStop') : t('segments.addIntermediateStop')}
           </h3>
           <button
             onClick={onClose}
             className="p-1 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 transition-colors"
+            aria-label={t('hotels.closeModal')}
           >
-            <X className="w-5 h-5" />
+            <XIcon className="w-5 h-5" />
           </button>
         </div>
 
@@ -187,7 +242,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
           {/* Place Search */}
           <div>
             <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">
-              Search for a place
+              {t('segments.searchPlaces')}
             </label>
             <div className="flex gap-2">
               <div className="flex-1 relative">
@@ -196,7 +251,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearch())}
-                  placeholder="Search for a city, landmark, station..."
+                  placeholder={t('segments.searchPlaceholder')}
                   className="w-full px-3 py-2 pr-8 border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-100 text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                 />
                 {isSearching && (
@@ -209,7 +264,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
                 disabled={isSearching || !searchQuery.trim()}
                 className="px-3 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white rounded-lg transition-colors"
               >
-                <Search className="w-4 h-4" />
+                <MagnifierIcon className="w-4 h-4" />
               </button>
             </div>
 
@@ -236,7 +291,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
           {/* Name */}
           <div>
             <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">
-              Name *
+              {t('segments.nameRequired')}
             </label>
             <input
               type="text"
@@ -252,7 +307,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">
-                Latitude *
+                {t('segments.latitudeRequired')}
               </label>
               <input
                 type="number"
@@ -266,7 +321,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
             </div>
             <div>
               <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">
-                Longitude *
+                {t('segments.longitudeRequired')}
               </label>
               <input
                 type="number"
@@ -283,7 +338,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
           {/* Duration */}
           <div>
             <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">
-              Duration (minutes) *
+              {t('segments.durationLabel')}
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -312,15 +367,42 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
             </div>
           </div>
 
+          {/* Travel Mode */}
+          <div>
+            <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">
+              {t('segments.travelModeToStop')}
+            </label>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, travel_mode: '' })}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    !formData.travel_mode
+                      ? 'bg-stone-200 dark:bg-stone-600 text-stone-800 dark:text-stone-200'
+                      : 'bg-stone-100 dark:bg-stone-700 text-stone-500 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-600'
+                  }`}
+                >
+                  {t('segments.inheritFromSegment')}
+                </button>
+              </div>
+              <TravelModeSelector
+                compact
+                selectedMode={formData.travel_mode}
+                onSelectMode={(mode) => setFormData({ ...formData, travel_mode: mode })}
+              />
+            </div>
+          </div>
+
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">
-              Description (optional)
+              {t('segments.descriptionOptional')}
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Notes about this stop..."
+              placeholder={t('segments.notesPlaceholder')}
               rows={2}
               className="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-100 text-sm resize-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
             />
@@ -340,7 +422,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-stone-600 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 transition-colors"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -348,7 +430,7 @@ const AddTravelStopModal = ({ isOpen, onClose, onSaved, segmentId, existingStop 
               className="px-4 py-2 text-sm font-medium bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 text-white rounded-lg transition-colors flex items-center gap-2"
             >
               {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {existingStop ? 'Save Changes' : 'Add Stop'}
+              {existingStop ? t('segments.save') : t('segments.addStopButton')}
             </button>
           </div>
         </form>

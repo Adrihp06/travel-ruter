@@ -1,22 +1,29 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, MapPin, Star, X, Loader2, Utensils, Camera, Hotel, ChevronUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { MapPin, Loader2, Utensils, ChevronUp } from 'lucide-react';
+import MagnifierIcon from '@/components/icons/magnifier-icon';
+import StarIcon from '@/components/icons/star-icon';
+import XIcon from '@/components/icons/x-icon';
+import CameraIcon from '@/components/icons/camera-icon';
+import HotelIcon from '@/components/icons/hotel-icon';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 const CATEGORIES = [
-  { id: 'all', label: 'All', icon: Search },
-  { id: 'restaurant', label: 'Restaurants', icon: Utensils, types: 'restaurant' },
-  { id: 'tourist_attraction', label: 'Attractions', icon: Camera, types: 'tourist_attraction' },
-  { id: 'lodging', label: 'Hotels', icon: Hotel, types: 'lodging' },
+  { id: 'all', labelKey: 'poi.categories.all', icon: MagnifierIcon },
+  { id: 'restaurant', labelKey: 'poi.categories.restaurants', icon: Utensils, types: 'restaurant' },
+  { id: 'tourist_attraction', labelKey: 'poi.categories.attractions', icon: CameraIcon, types: 'tourist_attraction' },
+  { id: 'lodging', labelKey: 'poi.categories.hotels', icon: HotelIcon, types: 'lodging' },
 ];
 
-const QuickPOISearch = ({ 
-  onSelect, 
-  location = null, 
+const QuickPOISearch = ({
+  onSelect,
+  location = null,
   radius = 5000,
   className = "",
   initialMinimized = true
 }) => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(!initialMinimized);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -151,9 +158,9 @@ const QuickPOISearch = ({
         <button
           onClick={toggleExpand}
           className="p-2.5 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all group"
-          title="Quick POI Search"
+          title={t('poi.quickSearch')}
         >
-          <Search className="h-5 w-5 group-hover:text-indigo-500 transition-colors" />
+          <MagnifierIcon className="h-5 w-5 group-hover:text-[#D97706] transition-colors" />
         </button>
       </div>
     );
@@ -166,9 +173,9 @@ const QuickPOISearch = ({
           <div className="relative group flex-1">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               {isLoading ? (
-                <Loader2 className="h-4 w-4 text-indigo-500 animate-spin" />
+                <Loader2 className="h-4 w-4 text-[#D97706] animate-spin" />
               ) : (
-                <Search className="h-4 w-4 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                <MagnifierIcon className="h-4 w-4 text-gray-400 group-focus-within:text-[#D97706] transition-colors" />
               )}
             </div>
             <input
@@ -177,22 +184,22 @@ const QuickPOISearch = ({
               value={query}
               onChange={handleInputChange}
               onFocus={() => setShowDropdown(true)}
-              placeholder="Search restaurants, attractions..."
-              className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm text-gray-900 dark:text-white transition-all"
+              placeholder={t('poi.searchPlaceholder')}
+              className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] text-sm text-gray-900 dark:text-white transition-all"
             />
             {query && (
               <button
                 onClick={clearSearch}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               >
-                <X className="h-4 w-4" />
+                <XIcon className="h-4 w-4" />
               </button>
             )}
           </div>
           <button
             onClick={toggleExpand}
             className="p-2.5 bg-white dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 transition-all"
-            title="Minimize"
+            title={t('common.minimize')}
           >
             <ChevronUp className="h-5 w-5" />
           </button>
@@ -208,12 +215,12 @@ const QuickPOISearch = ({
                 onClick={() => handleCategoryChange(cat.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
                   activeCategory === cat.id
-                    ? 'bg-indigo-600 text-white shadow-md'
-                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-700 shadow-sm'
+                    ? 'bg-[#D97706] text-white shadow-md'
+                    : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:border-amber-300 dark:hover:border-amber-700 shadow-sm'
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" />
-                {cat.label}
+                {t(cat.labelKey)}
               </button>
             );
           })}
@@ -226,7 +233,7 @@ const QuickPOISearch = ({
           <div className="max-h-80 overflow-y-auto">
             {query.length === 0 && recentSearches.length > 0 && (
               <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900/50 text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Recent Searches
+                {t('poi.recentSearches')}
               </div>
             )}
             
@@ -234,7 +241,7 @@ const QuickPOISearch = ({
               <button
                 key={result.place_id}
                 onClick={() => handleSelectResult(result)}
-                className="w-full flex items-start gap-3 px-4 py-3 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-left transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0"
+                className="w-full flex items-start gap-3 px-4 py-3 hover:bg-amber-50 dark:hover:bg-amber-900/20 text-left transition-colors border-b border-gray-100 dark:border-gray-700 last:border-0"
               >
                 <div className="mt-1 p-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400">
                   <MapPin className="h-4 w-4" />

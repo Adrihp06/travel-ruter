@@ -123,7 +123,7 @@ const getRouteLayerStyle = (transportMode, isActive = true) => {
         ...baseStyle,
         paint: {
           ...baseStyle.paint,
-          'line-color': '#4F46E5', // indigo
+          'line-color': '#D97706', // amber for car/driving
         },
       };
   }

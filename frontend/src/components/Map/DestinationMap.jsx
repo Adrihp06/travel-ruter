@@ -140,17 +140,17 @@ const DestinationMap = ({
   if (!viewState) {
     return (
       <div
-        className={`flex items-center justify-center bg-gray-100 rounded-lg ${className}`}
+        className={`flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg ${className}`}
         style={{ height }}
       >
-        <p className="text-gray-400 text-sm">Loading map...</p>
+        <p className="text-gray-400 dark:text-gray-500 text-sm">Loading map...</p>
       </div>
     );
   }
 
   return (
     <div
-      className={`rounded-lg overflow-hidden border border-gray-200 ${className}`}
+      className={`rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 ${className}`}
       style={{ height }}
     >
       <Map
@@ -167,7 +167,7 @@ const DestinationMap = ({
         {/* Main destination marker */}
         <Marker longitude={coords.lng} latitude={coords.lat} anchor="bottom">
           <div className="flex items-center justify-center">
-            <div className="bg-indigo-600 text-white p-2 rounded-full shadow-lg">
+            <div className="bg-[#D97706] text-white p-2 rounded-full shadow-lg">
               <MapPin className="w-5 h-5" />
             </div>
           </div>
@@ -185,7 +185,7 @@ const DestinationMap = ({
               onClick={(e) => handleMarkerClick(e, poi)}
             >
               <div className={`flex items-center justify-center cursor-pointer transition-transform ${isSelected ? 'scale-125' : 'hover:scale-110'}`}>
-                <div className={`text-white p-1.5 rounded-full shadow ${isSelected ? 'bg-indigo-600 ring-2 ring-indigo-300 ring-offset-1' : 'bg-amber-500'}`}>
+                <div className={`text-white p-1.5 rounded-full shadow ${isSelected ? 'bg-[#D97706] ring-2 ring-amber-300 ring-offset-1' : 'bg-amber-500'}`}>
                   <MapPin className="w-3 h-3" />
                 </div>
               </div>

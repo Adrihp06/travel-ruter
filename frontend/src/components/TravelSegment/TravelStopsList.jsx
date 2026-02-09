@@ -1,17 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Clock, Plus, Trash2, GripVertical, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { MapPin, Plus, GripVertical, ChevronUp, Car, Train, Bus, Footprints, Bike, Ship } from 'lucide-react';
+import ClockIcon from '@/components/icons/clock-icon';
+import TrashIcon from '@/components/icons/trash-icon';
+import PenIcon from '@/components/icons/pen-icon';
+import DownChevron from '@/components/icons/down-chevron';
+import AirplaneIcon from '@/components/icons/airplane-icon';
 import useTravelStopStore from '../../stores/useTravelStopStore';
+
+const TRAVEL_MODE_ICONS = {
+  plane: { Icon: AirplaneIcon, label: 'Plane' },
+  car: { Icon: Car, label: 'Car' },
+  driving: { Icon: Car, label: 'Car' },
+  train: { Icon: Train, label: 'Train' },
+  bus: { Icon: Bus, label: 'Bus' },
+  walk: { Icon: Footprints, label: 'Walk' },
+  walking: { Icon: Footprints, label: 'Walk' },
+  bike: { Icon: Bike, label: 'Bike' },
+  cycling: { Icon: Bike, label: 'Bike' },
+  ferry: { Icon: Ship, label: 'Ferry' },
+};
 
 const formatDuration = (minutes) => {
   if (!minutes) return '--';
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60) return `${Math.round(minutes)}m`;
   const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
+  const mins = Math.round(minutes % 60);
   if (mins === 0) return `${hours}h`;
   return `${hours}h ${mins}m`;
 };
 
 const TravelStopItem = ({ stop, onEdit, onDelete }) => {
+  const { t } = useTranslation();
   return (
     <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700/50 group">
       <div className="flex-shrink-0 cursor-move text-amber-400 dark:text-amber-500">
@@ -32,8 +52,15 @@ const TravelStopItem = ({ stop, onEdit, onDelete }) => {
         )}
       </div>
 
+      {stop.travel_mode && TRAVEL_MODE_ICONS[stop.travel_mode] && (
+        <div className="flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400 bg-violet-100 dark:bg-violet-900/40 px-2 py-0.5 rounded-full">
+          {React.createElement(TRAVEL_MODE_ICONS[stop.travel_mode].Icon, { className: 'w-3 h-3' })}
+          <span>{TRAVEL_MODE_ICONS[stop.travel_mode].label}</span>
+        </div>
+      )}
+
       <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 px-2 py-0.5 rounded-full">
-        <Clock className="w-3 h-3" />
+        <ClockIcon className="w-3 h-3" />
         <span>{formatDuration(stop.duration_minutes)}</span>
       </div>
 
@@ -41,16 +68,16 @@ const TravelStopItem = ({ stop, onEdit, onDelete }) => {
         <button
           onClick={() => onEdit(stop)}
           className="p-1 text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
-          title="Edit stop"
+          title={t('segments.editStopTitle')}
         >
-          <Pencil className="w-3.5 h-3.5" />
+          <PenIcon className="w-3.5 h-3.5" />
         </button>
         <button
           onClick={() => onDelete(stop.id)}
           className="p-1 text-gray-400 hover:text-red-500 transition-colors"
-          title="Delete stop"
+          title={t('segments.deleteStop')}
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <TrashIcon className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>
@@ -58,6 +85,7 @@ const TravelStopItem = ({ stop, onEdit, onDelete }) => {
 };
 
 const TravelStopsList = ({ segmentId, onAddStop, onStopChanged }) => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const { getStopsForSegment, fetchStopsForSegment, deleteStop, isLoading } = useTravelStopStore();
 
@@ -70,7 +98,7 @@ const TravelStopsList = ({ segmentId, onAddStop, onStopChanged }) => {
   }, [segmentId, fetchStopsForSegment]);
 
   const handleDelete = async (stopId) => {
-    if (window.confirm('Are you sure you want to delete this stop?')) {
+    if (window.confirm(t('segments.deleteConfirm'))) {
       await deleteStop(stopId, segmentId);
       // Notify parent that a stop was deleted (to refetch segment for updated route)
       if (onStopChanged) {
@@ -93,7 +121,7 @@ const TravelStopsList = ({ segmentId, onAddStop, onStopChanged }) => {
         className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors px-2 py-1 rounded hover:bg-amber-50 dark:hover:bg-amber-900/20"
       >
         <Plus className="w-3.5 h-3.5" />
-        <span>Add stop</span>
+        <span>{t('segments.addStop')}</span>
       </button>
     );
   }
@@ -106,8 +134,8 @@ const TravelStopsList = ({ segmentId, onAddStop, onStopChanged }) => {
         className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded px-2 py-1.5 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
       >
         <MapPin className="w-3.5 h-3.5" />
-        <span>{stops.length} stop{stops.length > 1 ? 's' : ''}</span>
-        <ChevronDown className="w-3 h-3 ml-1" />
+        <span>{t('segments.stopCount', { count: stops.length })}</span>
+        <DownChevron className="w-3 h-3 ml-1" />
       </button>
     );
   }
@@ -121,7 +149,7 @@ const TravelStopsList = ({ segmentId, onAddStop, onStopChanged }) => {
           className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
         >
           <MapPin className="w-3.5 h-3.5 text-amber-500" />
-          <span>{stops.length} intermediate stop{stops.length > 1 ? 's' : ''}</span>
+          <span>{t('segments.intermediateStopCount', { count: stops.length })}</span>
           <ChevronUp className="w-3 h-3 ml-1" />
         </button>
         <button
@@ -129,13 +157,13 @@ const TravelStopsList = ({ segmentId, onAddStop, onStopChanged }) => {
           className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Add</span>
+          <span>{t('common.add')}</span>
         </button>
       </div>
 
       <div className="space-y-1.5 pl-1">
         {isLoading ? (
-          <div className="text-xs text-gray-400 py-2">Loading stops...</div>
+          <div className="text-xs text-gray-400 py-2">{t('segments.loadingStops')}</div>
         ) : (
           stops.map((stop) => (
             <TravelStopItem

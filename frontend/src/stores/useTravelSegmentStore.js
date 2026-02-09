@@ -37,8 +37,25 @@ const useTravelSegmentStore = create((set, get) => ({
 
   // Fetch all travel segments for a trip
   fetchTripSegments: async (tripId) => {
-    // Clear old segments first to prevent stale data from showing
-    set({ isLoading: true, error: null, segments: [], originSegment: null, returnSegment: null });
+    // Keep old segments visible during refetch (clearSegments handles tripId changes)
+    set({ isLoading: true, error: null });
+
+    // Restore from sessionStorage cache for instant display
+    const cacheKey = `travel_segments_${tripId}`;
+    try {
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        const cachedData = JSON.parse(cached);
+        set({
+          segments: cachedData.segments || [],
+          originSegment: cachedData.origin_segment || null,
+          returnSegment: cachedData.return_segment || null,
+        });
+      }
+    } catch {
+      // Ignore cache parse errors
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/trips/${tripId}/travel-segments`);
 
@@ -54,6 +71,14 @@ const useTravelSegmentStore = create((set, get) => ({
         isLoading: false,
         hasFetchedInitial: true
       });
+
+      // Update sessionStorage cache
+      try {
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+      } catch {
+        // Ignore storage quota errors
+      }
+
       return data;
     } catch (error) {
       set({ error: error.message, isLoading: false, hasFetchedInitial: true });

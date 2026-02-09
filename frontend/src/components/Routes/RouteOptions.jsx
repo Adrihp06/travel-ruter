@@ -1,13 +1,15 @@
 import React from 'react';
-import { Car, Footprints, Bike, Train, Plane, Navigation } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Car, Footprints, Bike, Train, Navigation } from 'lucide-react';
+import AirplaneIcon from '@/components/icons/airplane-icon';
 
-// Transport mode configurations
+// Transport mode configurations (labels resolved via i18n at render time)
 const TRANSPORT_MODES = [
-  { id: 'driving', label: 'Drive', icon: Car, color: 'indigo' },
-  { id: 'walking', label: 'Walk', icon: Footprints, color: 'green' },
-  { id: 'cycling', label: 'Bike', icon: Bike, color: 'amber' },
-  { id: 'train', label: 'Train', icon: Train, color: 'purple' },
-  { id: 'flight', label: 'Fly', icon: Plane, color: 'blue' },
+  { id: 'driving', labelKey: 'routes.modes.driving', icon: Car, color: 'green' },
+  { id: 'walking', labelKey: 'routes.modes.walking', icon: Footprints, color: 'green' },
+  { id: 'cycling', labelKey: 'routes.modes.cycling', icon: Bike, color: 'amber' },
+  { id: 'train', labelKey: 'routes.modes.train', icon: Train, color: 'purple' },
+  { id: 'flight', labelKey: 'routes.modes.flight', icon: AirplaneIcon, color: 'blue' },
 ];
 
 // Inter-city modes (for longer distances)
@@ -35,6 +37,8 @@ const RouteOptions = ({
   disabled = false,
   size = 'md',
 }) => {
+  const { t } = useTranslation();
+
   // Filter modes based on inter-city or intra-city
   const availableModes = TRANSPORT_MODES.filter(mode =>
     isInterCity ? INTER_CITY_MODES.includes(mode.id) : INTRA_CITY_MODES.includes(mode.id)
@@ -84,10 +88,10 @@ const RouteOptions = ({
               }
               ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
             `}
-            title={mode.label}
+            title={t(mode.labelKey)}
           >
             <Icon className={`${sizes.icon} ${isSelected ? `text-${mode.color}-600` : 'text-gray-500'}`} />
-            {showLabels && <span className={sizes.text}>{mode.label}</span>}
+            {showLabels && <span className={sizes.text}>{t(mode.labelKey)}</span>}
           </button>
         );
       })}
@@ -104,6 +108,7 @@ export const RouteOptionsCompact = ({
   isInterCity = false,
   disabled = false,
 }) => {
+  const { t } = useTranslation();
   const availableModes = TRANSPORT_MODES.filter(mode =>
     isInterCity ? INTER_CITY_MODES.includes(mode.id) : INTRA_CITY_MODES.includes(mode.id)
   );
@@ -123,12 +128,12 @@ export const RouteOptionsCompact = ({
               p-2 transition-colors duration-150
               ${index !== 0 ? 'border-l border-gray-200' : ''}
               ${isSelected
-                ? 'bg-indigo-50 text-indigo-600'
+                ? 'bg-amber-50 text-[#D97706]'
                 : 'bg-white text-gray-500 hover:bg-gray-50'
               }
               ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
             `}
-            title={mode.label}
+            title={t(mode.labelKey)}
           >
             <Icon className="w-4 h-4" />
           </button>
@@ -147,6 +152,7 @@ export const RouteOptionsDropdown = ({
   isInterCity = false,
   disabled = false,
 }) => {
+  const { t } = useTranslation();
   const availableModes = TRANSPORT_MODES.filter(mode =>
     isInterCity ? INTER_CITY_MODES.includes(mode.id) : INTRA_CITY_MODES.includes(mode.id)
   );
@@ -163,13 +169,13 @@ export const RouteOptionsDropdown = ({
         className={`
           appearance-none pl-9 pr-8 py-2 rounded-lg border border-gray-200
           bg-white text-sm font-medium text-gray-700
-          focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+          focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706]
           ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
       >
         {availableModes.map((mode) => (
           <option key={mode.id} value={mode.id}>
-            {mode.label}
+            {t(mode.labelKey)}
           </option>
         ))}
       </select>

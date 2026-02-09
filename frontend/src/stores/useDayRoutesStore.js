@@ -5,34 +5,21 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/
 // Debounce configuration
 const ROUTE_CALCULATION_DEBOUNCE_MS = 500;
 
-// Debounce helper
-let debounceTimer = null;
-const debounce = (fn, ms) => {
-  return (...args) => {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-    }
-    return new Promise((resolve) => {
-      debounceTimer = setTimeout(async () => {
-        const result = await fn(...args);
-        resolve(result);
-      }, ms);
-    });
-  };
-};
-
 // Global AbortController for route calculations
 let currentAbortController = null;
 
+// Module-level debounce timer (shared across all calls)
+let debounceTimer = null;
+
 // Day colors for multi-day route display
 const DAY_COLORS = [
-  { stroke: '#4F46E5', fill: 'rgba(79, 70, 229, 0.2)', name: 'Indigo' },   // Day 1
-  { stroke: '#10B981', fill: 'rgba(16, 185, 129, 0.2)', name: 'Emerald' }, // Day 2
-  { stroke: '#F59E0B', fill: 'rgba(245, 158, 11, 0.2)', name: 'Amber' },   // Day 3
-  { stroke: '#EF4444', fill: 'rgba(239, 68, 68, 0.2)', name: 'Red' },      // Day 4
-  { stroke: '#8B5CF6', fill: 'rgba(139, 92, 246, 0.2)', name: 'Violet' },  // Day 5
-  { stroke: '#06B6D4', fill: 'rgba(6, 182, 212, 0.2)', name: 'Cyan' },     // Day 6
-  { stroke: '#EC4899', fill: 'rgba(236, 72, 153, 0.2)', name: 'Pink' },    // Day 7
+  { stroke: '#D97706', fill: 'rgba(217, 119, 6, 0.2)', name: 'Amber' },     // Day 1 - primary
+  { stroke: '#65A30D', fill: 'rgba(101, 163, 13, 0.2)', name: 'Lime' },     // Day 2 - accent green
+  { stroke: '#EA580C', fill: 'rgba(234, 88, 12, 0.2)', name: 'Orange' },    // Day 3 - terracotta
+  { stroke: '#0D9488', fill: 'rgba(13, 148, 136, 0.2)', name: 'Teal' },     // Day 4 - nature
+  { stroke: '#C026D3', fill: 'rgba(192, 38, 211, 0.2)', name: 'Fuchsia' },  // Day 5 - vibrant
+  { stroke: '#0284C7', fill: 'rgba(2, 132, 199, 0.2)', name: 'Sky' },       // Day 6 - sky blue
+  { stroke: '#E11D48', fill: 'rgba(225, 29, 72, 0.2)', name: 'Rose' },      // Day 7 - warm rose
 ];
 
 /**
@@ -67,7 +54,7 @@ const useDayRoutesStore = create((set, get) => ({
     return DAY_COLORS[dayIndex % DAY_COLORS.length];
   },
 
-  // Set transport mode for a specific segment
+  // Set transport mode for a specific segment and trigger recalculation
   setSegmentMode: (fromPoiId, toPoiId, mode) => {
     const segmentKey = `${fromPoiId}-${toPoiId}`;
     set((state) => ({
@@ -76,6 +63,19 @@ const useDayRoutesStore = create((set, get) => ({
         [segmentKey]: mode,
       },
     }));
+
+    // Find which day this segment belongs to and trigger recalculation
+    const { dayRoutes, recalculateSegment } = get();
+    for (const [date, dayRoute] of Object.entries(dayRoutes)) {
+      if (!dayRoute?.pois) continue;
+      const pois = dayRoute.pois;
+      for (let i = 0; i < pois.length - 1; i++) {
+        if (pois[i].id === fromPoiId && pois[i + 1].id === toPoiId) {
+          recalculateSegment(date, fromPoiId, toPoiId);
+          return;
+        }
+      }
+    }
   },
 
   // Get transport mode for a segment (default: walking)
@@ -309,33 +309,39 @@ const useDayRoutesStore = create((set, get) => ({
   },
 
   // Calculate routes for all days (debounced to prevent excessive API calls)
-  calculateAllDayRoutes: async (poisByDay) => {
-    // Use internal debounced function
-    const debouncedCalculate = debounce(async (poisByDayData) => {
-      // Abort any previous calculations
-      if (currentAbortController) {
-        currentAbortController.abort();
-      }
-      currentAbortController = new AbortController();
-      const signal = currentAbortController.signal;
+  calculateAllDayRoutes: (poisByDay) => {
+    // Clear any pending debounce
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
 
-      set({ isCalculating: true, error: null });
-
-      const dates = Object.keys(poisByDayData);
-
-      for (const date of dates) {
-        if (signal.aborted) {
-          break;
+    return new Promise((resolve) => {
+      debounceTimer = setTimeout(async () => {
+        debounceTimer = null;
+        // Abort any previous calculations
+        if (currentAbortController) {
+          currentAbortController.abort();
         }
-        await get().calculateDayRoute(date, poisByDayData[date], signal);
-      }
+        currentAbortController = new AbortController();
+        const signal = currentAbortController.signal;
 
-      if (!signal.aborted) {
-        set({ isCalculating: false });
-      }
-    }, ROUTE_CALCULATION_DEBOUNCE_MS);
+        set({ isCalculating: true, error: null });
 
-    return debouncedCalculate(poisByDay);
+        const dates = Object.keys(poisByDay);
+
+        for (const date of dates) {
+          if (signal.aborted) {
+            break;
+          }
+          await get().calculateDayRoute(date, poisByDay[date], signal);
+        }
+
+        if (!signal.aborted) {
+          set({ isCalculating: false });
+        }
+        resolve();
+      }, ROUTE_CALCULATION_DEBOUNCE_MS);
+    });
   },
 
   // Calculate routes immediately without debounce (for explicit user actions)
