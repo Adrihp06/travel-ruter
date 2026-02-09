@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Undo2, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import ArrowBackUpIcon from '@/components/icons/arrow-back-up-icon';
+import XIcon from '@/components/icons/x-icon';
 
 const UndoToast = ({ message, onUndo, onDismiss, duration = 5000 }) => {
+  const { t } = useTranslation();
   const [timeLeft, setTimeLeft] = useState(duration);
   const [isVisible, setIsVisible] = useState(true);
   const [isEntering, setIsEntering] = useState(true);
@@ -58,14 +61,14 @@ const UndoToast = ({ message, onUndo, onDismiss, duration = 5000 }) => {
               onClick={handleUndo}
               className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 rounded-lg text-sm font-semibold shadow-sm btn-interactive btn-ripple"
             >
-              <Undo2 className="w-4 h-4 icon-hover-bounce" />
-              <span>Undo</span>
+              <ArrowBackUpIcon className="w-4 h-4 icon-hover-bounce" />
+              <span>{t('common.undo')}</span>
             </button>
             <button
               onClick={handleDismiss}
               className="p-1.5 hover:bg-white/10 rounded-lg transition-colors press-effect"
             >
-              <X className="w-4 h-4" />
+              <XIcon className="w-4 h-4" />
             </button>
           </div>
         </div>

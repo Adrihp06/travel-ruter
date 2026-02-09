@@ -1,15 +1,13 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import DOMPurify from 'dompurify';
 import {
-  X,
   Pin,
   PinOff,
-  Pencil,
-  Trash2,
   MapPin,
   Calendar,
   Tag,
   Image,
-  Clock,
   Cloud,
   Smile,
   Lock,
@@ -17,8 +15,24 @@ import {
   Upload,
   Download,
 } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
+import PenIcon from '@/components/icons/pen-icon';
+import TrashIcon from '@/components/icons/trash-icon';
+import ClockIcon from '@/components/icons/clock-icon';
+import StarIcon from '@/components/icons/star-icon';
+import GlobeIcon from '@/components/icons/globe-icon';
+import CheckedIcon from '@/components/icons/checked-icon';
 import useNoteStore from '../../stores/useNoteStore';
 import Spinner from '../UI/Spinner';
+
+// Configure DOMPurify for safe HTML rendering
+const sanitizeConfig = {
+  ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'strong', 'em', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'blockquote', 'a', 'img', 'span', 'div'],
+  ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style', 'target', 'rel'],
+  ALLOW_DATA_ATTR: false,
+  FORBID_TAGS: ['script', 'style', 'iframe', 'form', 'input', 'object', 'embed'],
+  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
+};
 
 const NoteDetailModal = ({
   isOpen,
@@ -28,6 +42,7 @@ const NoteDetailModal = ({
   onDelete,
   onTogglePin,
 }) => {
+  const { t } = useTranslation();
   const { uploadMedia, deleteMedia, getMediaUrl, isUploading } = useNoteStore();
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
@@ -59,7 +74,7 @@ const NoteDetailModal = ({
       await uploadMedia(note.id, file);
     } catch (error) {
       console.error('Failed to upload media:', error);
-      alert('Failed to upload media: ' + error.message);
+      alert(t('journal.failedUploadMedia', { error: error.message }));
     } finally {
       setIsUploadingMedia(false);
     }
@@ -67,7 +82,7 @@ const NoteDetailModal = ({
 
   const handleDeleteMedia = useCallback(async (filename) => {
     if (!note) return;
-    if (!window.confirm('Delete this media file?')) return;
+    if (!window.confirm(t('journal.deleteMediaConfirm'))) return;
 
     try {
       await deleteMedia(note.id, filename);
@@ -75,6 +90,12 @@ const NoteDetailModal = ({
       console.error('Failed to delete media:', error);
     }
   }, [note, deleteMedia]);
+
+  // Sanitize note content to prevent XSS attacks
+  const sanitizedContent = useMemo(() => {
+    if (!note?.content) return `<p class="text-gray-400 italic">${t('journal.noContent')}</p>`;
+    return DOMPurify.sanitize(note.content, sanitizeConfig);
+  }, [note?.content]);
 
   if (!isOpen || !note) return null;
 
@@ -95,18 +116,18 @@ const NoteDetailModal = ({
                 {note.note_type}
               </span>
               <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3" />
+                <ClockIcon className="w-3 h-3" />
                 {formatDate(note.created_at)}
               </span>
               {note.is_private ? (
                 <span className="flex items-center gap-1">
                   <Lock className="w-3 h-3" />
-                  Private
+                  {t('common.private')}
                 </span>
               ) : (
                 <span className="flex items-center gap-1">
                   <Unlock className="w-3 h-3" />
-                  Shared
+                  {t('common.shared')}
                 </span>
               )}
             </div>
@@ -117,7 +138,7 @@ const NoteDetailModal = ({
             <button
               onClick={() => onTogglePin?.(note.id)}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              title={note.is_pinned ? 'Unpin' : 'Pin'}
+              title={note.is_pinned ? t('journal.unpin') : t('journal.pin')}
             >
               {note.is_pinned ? (
                 <PinOff className="w-5 h-5 text-yellow-500" />
@@ -131,27 +152,27 @@ const NoteDetailModal = ({
                 onEdit?.(note);
               }}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              title="Edit"
+              title={t('common.edit')}
             >
-              <Pencil className="w-5 h-5 text-gray-400" />
+              <PenIcon className="w-5 h-5 text-gray-400" />
             </button>
             <button
               onClick={() => {
-                if (window.confirm('Delete this note? This action cannot be undone.')) {
+                if (window.confirm(t('journal.deleteConfirm'))) {
                   onDelete?.(note.id);
                   onClose();
                 }
               }}
               className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-              title="Delete"
+              title={t('common.delete')}
             >
-              <Trash2 className="w-5 h-5 text-red-400" />
+              <TrashIcon className="w-5 h-5 text-red-400" />
             </button>
             <button
               onClick={onClose}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ml-2"
             >
-              <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              <XIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             </button>
           </div>
         </div>
@@ -186,7 +207,7 @@ const NoteDetailModal = ({
               {note.tags.map((tag, index) => (
                 <span
                   key={index}
-                  className="inline-flex items-center gap-1 text-sm text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-full"
+                  className="inline-flex items-center gap-1 text-sm text-[#D97706] dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-3 py-1 rounded-full"
                 >
                   <Tag className="w-3 h-3" />
                   {tag}
@@ -198,7 +219,7 @@ const NoteDetailModal = ({
           {/* Content */}
           <div
             className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300"
-            dangerouslySetInnerHTML={{ __html: note.content || '<p class="text-gray-400 italic">No content</p>' }}
+            dangerouslySetInnerHTML={{ __html: sanitizedContent }}
           />
 
           {/* Media */}
@@ -206,7 +227,7 @@ const NoteDetailModal = ({
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-medium text-gray-900 dark:text-white flex items-center gap-2">
                 <Image className="w-4 h-4" />
-                Media
+                {t('journal.media')}
                 {note.media_files && note.media_files.length > 0 && (
                   <span className="text-sm text-gray-500 dark:text-gray-400">
                     ({note.media_files.length})
@@ -225,12 +246,12 @@ const NoteDetailModal = ({
                   {isUploadingMedia ? (
                     <>
                       <Spinner className="w-4 h-4" />
-                      Uploading...
+                      {t('common.uploading')}
                     </>
                   ) : (
                     <>
                       <Upload className="w-4 h-4" />
-                      Add Media
+                      {t('journal.addMedia')}
                     </>
                   )}
                 </span>
@@ -275,16 +296,16 @@ const NoteDetailModal = ({
                           href={mediaUrl}
                           download={media.original_filename}
                           className="p-2 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
-                          title="Download"
+                          title={t('common.download')}
                         >
                           <Download className="w-4 h-4 text-white" />
                         </a>
                         <button
                           onClick={() => handleDeleteMedia(media.filename)}
                           className="p-2 bg-white/20 rounded-full hover:bg-red-500/50 transition-colors"
-                          title="Delete"
+                          title={t('common.delete')}
                         >
-                          <Trash2 className="w-4 h-4 text-white" />
+                          <TrashIcon className="w-4 h-4 text-white" />
                         </button>
                       </div>
                     </div>
@@ -293,7 +314,7 @@ const NoteDetailModal = ({
               </div>
             ) : (
               <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-6">
-                No media attached
+                {t('journal.noMedia')}
               </p>
             )}
           </div>

@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, MapPin, AlertTriangle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { MapPin } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
+import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
 import useDestinationStore from '../../stores/useDestinationStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import DateRangePicker from '../common/DateRangePicker';
@@ -17,6 +20,7 @@ const DestinationFormModal = ({
   trip = null,
   preFilledLocation = null, // { latitude, longitude } - for map click pre-fill
 }) => {
+  const { t } = useTranslation();
   const { createDestination, updateDestination, isLoading } = useDestinationStore();
   const isEditMode = !!destination;
 
@@ -180,20 +184,20 @@ const DestinationFormModal = ({
     const newErrors = {};
 
     if (!formData.city_name.trim()) {
-      newErrors.city_name = 'City name is required';
+      newErrors.city_name = t('destinations.cityName') + ' ' + t('common.required');
     }
 
     if (!formData.arrival_date) {
-      newErrors.arrival_date = 'Arrival date is required';
+      newErrors.arrival_date = t('destinations.arrivalDate') + ' ' + t('common.required');
     }
 
     if (!formData.departure_date) {
-      newErrors.departure_date = 'Departure date is required';
+      newErrors.departure_date = t('destinations.departureDate') + ' ' + t('common.required');
     }
 
     if (formData.arrival_date && formData.departure_date) {
       if (new Date(formData.departure_date) <= new Date(formData.arrival_date)) {
-        newErrors.departure_date = 'Departure must be after arrival';
+        newErrors.departure_date = t('destinations.departureDate') + ' must be after ' + t('destinations.arrivalDate').toLowerCase();
       }
     }
 
@@ -268,20 +272,20 @@ const DestinationFormModal = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto text-gray-900">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto text-gray-900 dark:text-white">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-2">
-            <MapPin className="w-5 h-5 text-indigo-600" />
-            <h3 className="text-lg font-semibold text-gray-900">
-              {isEditMode ? 'Edit Destination' : 'Add Destination'}
+            <MapPin className="w-5 h-5 text-[#D97706]" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              {isEditMode ? t('destinations.editDestination') : t('destinations.addDestination')}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <XIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
@@ -289,17 +293,17 @@ const DestinationFormModal = ({
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           {/* Reverse geocoding indicator */}
           {isReverseGeocoding && (
-            <div className="bg-indigo-50 text-indigo-700 p-3 rounded-lg text-sm flex items-center space-x-2">
+            <div className="bg-amber-50 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-400 p-3 rounded-lg text-sm flex items-center space-x-2">
               <Spinner className="w-4 h-4" />
-              <span>Looking up location...</span>
+              <span>{t('destinations.lookingUpLocation')}</span>
             </div>
           )}
 
           {/* Pre-filled coordinates indicator */}
           {preFilledLocation && formData.latitude && formData.longitude && !isReverseGeocoding && (
-            <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm">
-              <p className="font-medium">Location selected from map</p>
-              <p className="text-xs text-green-600 mt-1">
+            <div className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 p-3 rounded-lg text-sm">
+              <p className="font-medium">{t('destinations.locationSelectedFromMap')}</p>
+              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                 {Number(formData.latitude).toFixed(6)}, {Number(formData.longitude).toFixed(6)}
               </p>
             </div>
@@ -307,8 +311,8 @@ const DestinationFormModal = ({
 
           {/* City Name with Location Autocomplete */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              City *
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {t('destinations.city')} *
             </label>
             <LocationAutocomplete
               value={formData.city_name}
@@ -319,7 +323,7 @@ const DestinationFormModal = ({
                 setFormData(prev => ({ ...prev, city_name: value }));
               }}
               onSelect={handleLocationSelect}
-              placeholder={isReverseGeocoding ? "Loading..." : "Search for a city..."}
+              placeholder={isReverseGeocoding ? t('common.loading') : t('destinations.searchCity')}
               error={errors.city_name}
               disabled={isReverseGeocoding}
             />
@@ -327,16 +331,16 @@ const DestinationFormModal = ({
 
           {/* Country */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Country
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {t('destinations.country')}
             </label>
             <input
               type="text"
               list="countries"
               value={formData.country}
               onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
-              placeholder="Select or type country (optional)"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+              placeholder={t('destinations.selectOrTypeCountry')}
             />
             <datalist id="countries">
               {countries.map((country) => (
@@ -351,8 +355,8 @@ const DestinationFormModal = ({
             endDate={formData.departure_date}
             onStartChange={(date) => setFormData({ ...formData, arrival_date: date })}
             onEndChange={(date) => setFormData({ ...formData, departure_date: date })}
-            startLabel="Arrival Date"
-            endLabel="Departure Date"
+            startLabel={t('destinations.arrivalDate')}
+            endLabel={t('destinations.departureDate')}
             minDate={trip?.start_date}
             maxDate={trip?.end_date}
             startError={errors.arrival_date}
@@ -363,14 +367,14 @@ const DestinationFormModal = ({
 
           {/* Date Collision Warning */}
           {dateCollisions.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <TriangleAlertIcon className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-amber-800">
-                    Date overlap detected
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                    {t('destinations.dateCollisionWarning')}
                   </p>
-                  <p className="text-sm text-amber-700 mt-1">
+                  <p className="text-sm text-amber-700 dark:text-amber-300/80 mt-1">
                     These dates overlap with{' '}
                     {dateCollisions.length === 1 ? (
                       <>
@@ -393,14 +397,14 @@ const DestinationFormModal = ({
                     <button
                       type="button"
                       onClick={handleAcknowledgeWarning}
-                      className="mt-2 text-sm font-medium text-amber-800 hover:text-amber-900 underline"
+                      className="mt-2 text-sm font-medium text-amber-800 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 underline"
                     >
-                      I understand, proceed anyway
+                      {t('destinations.acknowledgeWarning')}
                     </button>
                   )}
                   {isAcknowledgmentValid && (
-                    <p className="mt-2 text-xs text-amber-600 italic">
-                      ✓ Warning acknowledged
+                    <p className="mt-2 text-xs text-amber-600 dark:text-amber-400 italic">
+                      {t('destinations.warningAcknowledged')}
                     </p>
                   )}
                 </div>
@@ -410,21 +414,21 @@ const DestinationFormModal = ({
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {t('common.notes')}
             </label>
             <textarea
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
               rows={3}
-              placeholder="Any notes about this destination..."
+              placeholder={t('destinations.anyNotes')}
             />
           </div>
 
           {/* Error Message */}
           {errors.submit && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm">
+            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm">
               {errors.submit}
             </div>
           )}
@@ -434,17 +438,17 @@ const DestinationFormModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center space-x-2"
+              className="flex-1 px-4 py-2 bg-[#D97706] text-white rounded-lg hover:bg-[#B45309] disabled:opacity-50 flex items-center justify-center space-x-2"
             >
               {isLoading && <Spinner className="text-white" />}
-              <span>{isLoading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Add Destination'}</span>
+              <span>{isLoading ? t('common.saving') : isEditMode ? t('common.save') : t('destinations.addDestination')}</span>
             </button>
           </div>
         </form>

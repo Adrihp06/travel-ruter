@@ -1,8 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { X, Bed, Calendar } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useId } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Bed, Calendar, Building2 } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
+import MagnifierIcon from '@/components/icons/magnifier-icon';
 import useAccommodationStore from '../../stores/useAccommodationStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import DateRangePicker from '../common/DateRangePicker';
+import HotelSearchModal from '../Hotels/HotelSearchModal';
 
 const AccommodationFormModal = ({
   isOpen,
@@ -13,8 +17,10 @@ const AccommodationFormModal = ({
   preFillDates = null,
   onSuccess,
 }) => {
+  const { t } = useTranslation();
   const { createAccommodation, updateAccommodation, isLoading } = useAccommodationStore();
   const isEditMode = !!accommodation;
+  const titleId = useId();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -30,20 +36,29 @@ const AccommodationFormModal = ({
     currency: 'USD',
     is_paid: false,
     description: '',
+    // Extended fields for booking integration
+    external_id: null,
+    provider: 'manual',
+    room_type: '',
+    cancellation_policy: '',
+    photos: [],
+    review_score: null,
+    review_count: null,
   });
 
   const [errors, setErrors] = useState({});
+  const [showHotelSearch, setShowHotelSearch] = useState(false);
 
   const accommodationTypes = [
-    { value: 'hotel', label: 'Hotel' },
-    { value: 'hostel', label: 'Hostel' },
-    { value: 'airbnb', label: 'Airbnb / Vacation Rental' },
-    { value: 'apartment', label: 'Apartment' },
-    { value: 'resort', label: 'Resort' },
-    { value: 'camping', label: 'Camping' },
-    { value: 'guesthouse', label: 'Guesthouse' },
-    { value: 'ryokan', label: 'Ryokan' },
-    { value: 'other', label: 'Other' },
+    { value: 'hotel', label: t('accommodation.types.hotel') },
+    { value: 'hostel', label: t('accommodation.types.hostel') },
+    { value: 'airbnb', label: t('accommodation.types.airbnb') },
+    { value: 'apartment', label: t('accommodation.types.apartment') },
+    { value: 'resort', label: t('accommodation.types.resort') },
+    { value: 'camping', label: t('accommodation.types.camping') },
+    { value: 'guesthouse', label: t('accommodation.types.guesthouse') },
+    { value: 'ryokan', label: t('accommodation.types.ryokan') },
+    { value: 'other', label: t('accommodation.types.other') },
   ];
 
   const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'NOK', 'SEK', 'DKK'];
@@ -74,15 +89,15 @@ const AccommodationFormModal = ({
 
     let display;
     if (nights.length === 1) {
-      display = `Covers night ${nights[0]} of your stay`;
+      display = t('accommodation.coversNight', { night: nights[0] });
     } else if (nights[nights.length - 1] - nights[0] + 1 === nights.length) {
-      display = `Covers nights ${nights[0]}-${nights[nights.length - 1]} of your stay`;
+      display = t('accommodation.coversNights', { start: nights[0], end: nights[nights.length - 1] });
     } else {
-      display = `Covers nights ${nights.join(', ')} of your stay`;
+      display = t('accommodation.coversNights', { start: nights[0], end: nights[nights.length - 1] });
     }
 
     return { nights, display };
-  }, [formData.check_in_date, formData.check_out_date, destination]);
+  }, [formData.check_in_date, formData.check_out_date, destination, t]);
 
   // Populate form for edit mode or set defaults
   useEffect(() => {
@@ -127,20 +142,20 @@ const AccommodationFormModal = ({
     const newErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Accommodation name is required';
+      newErrors.name = t('accommodation.nameRequired');
     }
 
     if (!formData.check_in_date) {
-      newErrors.check_in_date = 'Check-in date is required';
+      newErrors.check_in_date = t('accommodation.checkInRequired');
     }
 
     if (!formData.check_out_date) {
-      newErrors.check_out_date = 'Check-out date is required';
+      newErrors.check_out_date = t('accommodation.checkOutRequired');
     }
 
     if (formData.check_in_date && formData.check_out_date) {
       if (new Date(formData.check_out_date) <= new Date(formData.check_in_date)) {
-        newErrors.check_out_date = 'Check-out must be after check-in';
+        newErrors.check_out_date = t('accommodation.checkOutAfterCheckIn');
       }
     }
 
@@ -152,10 +167,10 @@ const AccommodationFormModal = ({
       const destDeparture = new Date(destination.departure_date);
 
       if (checkIn < destArrival) {
-        newErrors.check_in_date = 'Check-in cannot be before destination arrival';
+        newErrors.check_in_date = t('accommodation.checkInBeforeArrival');
       }
       if (checkOut > destDeparture) {
-        newErrors.check_out_date = 'Check-out cannot be after destination departure';
+        newErrors.check_out_date = t('accommodation.checkOutAfterDeparture');
       }
     }
 
@@ -171,6 +186,31 @@ const AccommodationFormModal = ({
       latitude: latitude,
       longitude: longitude,
     }));
+  };
+
+  // Handle hotel selection from Amadeus search
+  const handleHotelSelect = (data) => {
+    const { accommodationData } = data;
+    setFormData((prev) => ({
+      ...prev,
+      name: accommodationData.name || prev.name,
+      type: accommodationData.type || prev.type,
+      address: accommodationData.address || prev.address,
+      latitude: accommodationData.latitude || prev.latitude,
+      longitude: accommodationData.longitude || prev.longitude,
+      total_cost: accommodationData.total_cost || prev.total_cost,
+      currency: accommodationData.currency || prev.currency,
+      booking_reference: accommodationData.booking_reference || prev.booking_reference,
+      description: accommodationData.description || prev.description,
+      external_id: accommodationData.external_id || null,
+      provider: accommodationData.provider || 'google_places',
+      room_type: accommodationData.room_type || '',
+      cancellation_policy: accommodationData.cancellation_policy || '',
+      photos: accommodationData.photos || [],
+      review_score: accommodationData.review_score || null,
+      review_count: accommodationData.review_count || null,
+    }));
+    setShowHotelSearch(false);
   };
 
   const handleSubmit = async (e) => {
@@ -204,45 +244,81 @@ const AccommodationFormModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+      role="presentation"
+    >
+      <div
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center space-x-2">
-            <Bed className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {isEditMode ? 'Edit Accommodation' : 'Add Accommodation'}
+            <Bed className="w-5 h-5 text-[#D97706] dark:text-amber-400" />
+            <h3 id={titleId} className="text-lg font-semibold text-gray-900 dark:text-white">
+              {isEditMode ? t('accommodation.edit') : t('accommodation.add')}
             </h3>
           </div>
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+            aria-label={t('common.close')}
           >
-            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            <XIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* Hotel Search Button */}
+          {!isEditMode && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-[#D97706] dark:text-amber-400" />
+                  <span className="text-sm text-[#D97706] dark:text-amber-300">
+                    {t('accommodation.searchNearby')}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowHotelSearch(true)}
+                  className="px-3 py-1.5 bg-[#D97706] text-white rounded-lg hover:bg-[#B45309] transition-colors text-sm flex items-center gap-1"
+                >
+                  <MagnifierIcon className="w-4 h-4" />
+                  {t('accommodation.searchHotels')}
+                </button>
+              </div>
+              {formData.provider === 'google_places' && (
+                <p className="mt-2 text-xs text-[#D97706] dark:text-amber-400">
+                  {t('accommodation.hotelSelected')}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Name & Type */}
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 sm:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('common.name')} *</label>
               <input
                 type="text"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#D97706]/50 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${errors.name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                 placeholder="e.g., Hotel Nyhavn"
               />
               {errors.name && <p className="text-red-500 dark:text-red-400 text-xs mt-1">{errors.name}</p>}
             </div>
             <div className="col-span-2 sm:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Type *</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('common.type')} *</label>
               <select
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 {accommodationTypes.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
@@ -253,13 +329,13 @@ const AccommodationFormModal = ({
 
           {/* Address with Geocoding */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Address / Location</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('accommodation.addressLocation')}</label>
             <LocationAutocomplete
               value={formData.address}
               latitude={formData.latitude}
               longitude={formData.longitude}
               onChange={handleLocationChange}
-              placeholder="Search for hotel address..."
+              placeholder={t('accommodation.searchAddress')}
               className="[&_input]:dark:bg-gray-700 [&_input]:dark:text-white [&_input]:dark:border-gray-600"
             />
           </div>
@@ -270,8 +346,8 @@ const AccommodationFormModal = ({
             endDate={formData.check_out_date}
             onStartChange={(date) => setFormData({ ...formData, check_in_date: date })}
             onEndChange={(date) => setFormData({ ...formData, check_out_date: date })}
-            startLabel="Check-in"
-            endLabel="Check-out"
+            startLabel={t('accommodation.checkIn')}
+            endLabel={t('accommodation.checkOut')}
             startError={errors.check_in_date}
             endError={errors.check_out_date}
             minDate={destination?.arrival_date}
@@ -282,7 +358,7 @@ const AccommodationFormModal = ({
 
           {/* Night coverage indicator */}
           {nightCoverage.display && (
-            <div className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-3 py-2 rounded-lg text-sm flex items-center">
+            <div className="bg-amber-50 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-300 px-3 py-2 rounded-lg text-sm flex items-center">
               <Calendar className="w-4 h-4 mr-2" />
               <span>{nightCoverage.display}</span>
             </div>
@@ -291,22 +367,22 @@ const AccommodationFormModal = ({
           {/* Booking Info */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Booking Ref</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('accommodation.bookingRef')}</label>
               <input
                 type="text"
                 value={formData.booking_reference}
                 onChange={(e) => setFormData({ ...formData, booking_reference: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="ABC123"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Booking URL</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('accommodation.bookingUrl')}</label>
               <input
                 type="url"
                 value={formData.booking_url}
                 onChange={(e) => setFormData({ ...formData, booking_url: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 placeholder="https://..."
               />
             </div>
@@ -315,51 +391,51 @@ const AccommodationFormModal = ({
           {/* Cost & Payment */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Total Cost</label>
-              <div className="flex">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('accommodation.totalCost')}</label>
+              <div className="flex h-[38px]">
                 <input
                   type="number"
                   min="0"
                   step="0.01"
                   value={formData.total_cost}
                   onChange={(e) => setFormData({ ...formData, total_cost: e.target.value })}
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-l-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="flex-1 min-w-0 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-l-lg focus:ring-2 focus:ring-[#D97706]/50 focus:z-10 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
                 <select
                   value={formData.currency}
                   onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                  className="px-2 py-2 border border-l-0 border-gray-300 dark:border-gray-600 rounded-r-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="px-2 py-2 border border-l-0 border-gray-300 dark:border-gray-600 rounded-r-lg focus:ring-2 focus:ring-[#D97706]/50 focus:z-10 bg-gray-50 dark:bg-gray-600 text-gray-900 dark:text-white"
                 >
                   {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Status</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('accommodation.paymentStatus')}</label>
               <button
                 type="button"
                 onClick={() => setFormData({ ...formData, is_paid: !formData.is_paid })}
-                className={`w-full px-3 py-2 rounded-lg border transition-colors flex items-center justify-center space-x-2 ${
+                className={`w-full h-[38px] px-3 rounded-lg border transition-colors flex items-center justify-center space-x-2 ${
                   formData.is_paid
                     ? 'bg-green-50 dark:bg-green-900/30 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300'
                     : 'bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300'
                 }`}
               >
                 <span className={`w-3 h-3 rounded-full ${formData.is_paid ? 'bg-green-500' : 'bg-amber-500'}`} />
-                <span>{formData.is_paid ? 'Paid' : 'Not Paid'}</span>
+                <span>{formData.is_paid ? t('common.paid') : t('common.notPaid')}</span>
               </button>
             </div>
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('common.notes')}</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               rows={3}
-              placeholder="Additional notes about this accommodation..."
+              placeholder={t('accommodation.additionalNotes')}
             />
           </div>
 
@@ -375,20 +451,29 @@ const AccommodationFormModal = ({
               onClick={onClose}
               className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              className="flex-1 px-4 py-2 bg-[#D97706] text-white rounded-lg hover:bg-[#B45309] disabled:opacity-50 transition-colors"
             >
-              {isLoading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Add Accommodation'}
+              {isLoading ? t('common.saving') : isEditMode ? t('accommodation.saveChanges') : t('accommodation.add')}
             </button>
           </div>
         </form>
       </div>
+
+      {/* Hotel Search Modal */}
+      <HotelSearchModal
+        isOpen={showHotelSearch}
+        onClose={() => setShowHotelSearch(false)}
+        destination={destination}
+        onSelectHotel={handleHotelSelect}
+      />
     </div>
   );
 };
 
+export { HotelSearchModal };
 export default AccommodationFormModal;

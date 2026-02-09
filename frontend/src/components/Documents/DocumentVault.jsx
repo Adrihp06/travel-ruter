@@ -1,30 +1,37 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, FolderOpen, Filter, Plus, ChevronDown, ChevronRight, MapPin, Calendar, List, Layers } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { FolderOpen, Filter, Plus, MapPin, Calendar } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
+import DownChevron from '@/components/icons/down-chevron';
+import RightChevron from '@/components/icons/right-chevron';
+import LayersIcon from '@/components/icons/layers-icon';
+import UnorderedListIcon from '@/components/icons/unordered-list-icon';
 import FileUpload from './FileUpload';
 import DocumentList from './DocumentList';
 import useDocumentStore from '../../stores/useDocumentStore';
 import useDestinationStore from '../../stores/useDestinationStore';
 import DocumentVaultSkeleton from './DocumentVaultSkeleton';
 
-const CATEGORY_FILTERS = [
-  { value: 'all', label: 'All Documents' },
-  { value: 'flight', label: 'Flight Tickets' },
-  { value: 'hotel', label: 'Hotel Reservations' },
-  { value: 'insurance', label: 'Travel Insurance' },
-  { value: 'visa', label: 'Visa/Passport' },
-  { value: 'ticket', label: 'Tickets' },
-  { value: 'confirmation', label: 'Confirmations' },
-  { value: 'receipt', label: 'Receipts' },
-  { value: 'other', label: 'Other' },
+const CATEGORY_FILTER_KEYS = [
+  { value: 'all', labelKey: 'documents.categories.all' },
+  { value: 'flight', labelKey: 'documents.categories.flight' },
+  { value: 'hotel', labelKey: 'documents.categories.hotel' },
+  { value: 'insurance', labelKey: 'documents.categories.insurance' },
+  { value: 'visa', labelKey: 'documents.categories.visa' },
+  { value: 'ticket', labelKey: 'documents.categories.ticket' },
+  { value: 'confirmation', labelKey: 'documents.categories.confirmation' },
+  { value: 'receipt', labelKey: 'documents.categories.receipt' },
+  { value: 'other', labelKey: 'documents.categories.other' },
 ];
 
-const VIEW_MODES = [
-  { value: 'all', label: 'All', icon: List },
-  { value: 'byDestination', label: 'By Destination', icon: MapPin },
-  { value: 'byDay', label: 'By Day', icon: Calendar },
+const VIEW_MODE_KEYS = [
+  { value: 'all', labelKey: 'common.all', icon: UnorderedListIcon },
+  { value: 'byDestination', labelKey: 'documents.byDestination', icon: MapPin },
+  { value: 'byDay', labelKey: 'documents.byDay', icon: Calendar },
 ];
 
 const DocumentVault = ({ tripId, isOpen, onClose }) => {
+  const { t } = useTranslation();
   const [showUpload, setShowUpload] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedDestinations, setExpandedDestinations] = useState({});
@@ -145,7 +152,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
   };
 
   const handleDelete = async (documentId) => {
-    if (window.confirm('Are you sure you want to delete this document?')) {
+    if (window.confirm(t('documents.deleteConfirm'))) {
       await deleteDocument(documentId);
       // Refresh documents based on current view
       if (viewMode !== 'all') {
@@ -201,8 +208,8 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
       destinations={destinations}
       emptyMessage={
         selectedCategory === 'all'
-          ? 'No documents yet. Upload flight tickets, hotel reservations, or travel insurance.'
-          : `No ${CATEGORY_FILTERS.find(c => c.value === selectedCategory)?.label.toLowerCase() || 'documents'} uploaded.`
+          ? t('documents.noDocumentsHint')
+          : t('documents.noDocuments')
       }
     />
   );
@@ -219,7 +226,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-medium text-gray-700 flex items-center">
                 <FolderOpen className="w-4 h-4 mr-2 text-gray-500" />
-                Trip Documents
+                {t('documents.tripDocuments')}
                 <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
                   {groupedDocuments.trip_level.length}
                 </span>
@@ -254,17 +261,17 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
               >
                 <div className="flex items-center">
                   {isExpanded ? (
-                    <ChevronDown className="w-4 h-4 mr-2 text-gray-400" />
+                    <DownChevron className="w-4 h-4 mr-2 text-gray-400" />
                   ) : (
-                    <ChevronRight className="w-4 h-4 mr-2 text-gray-400" />
+                    <RightChevron className="w-4 h-4 mr-2 text-gray-400" />
                   )}
-                  <MapPin className="w-4 h-4 mr-2 text-indigo-500" />
+                  <MapPin className="w-4 h-4 mr-2 text-[#D97706]" />
                   <span className="font-medium text-gray-900">{destGroup.destination_name}</span>
                   {destination?.country && (
                     <span className="ml-2 text-xs text-gray-500">{destination.country}</span>
                   )}
                 </div>
-                <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-amber-100 text-[#D97706] px-2 py-0.5 rounded-full">
                   {filteredDocs.length}
                 </span>
               </button>
@@ -282,7 +289,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
                       destinations={destinations}
                     />
                   ) : (
-                    <p className="text-sm text-gray-500 py-2">No documents for this destination</p>
+                    <p className="text-sm text-gray-500 py-2">{t('documents.noDocumentsForDestination')}</p>
                   )}
                 </div>
               )}
@@ -293,7 +300,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
         {groupedDocuments.by_destination.length === 0 && groupedDocuments.trip_level.length === 0 && (
           <div className="text-center py-6 text-gray-500 text-sm">
             <FolderOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-            <p>No documents yet</p>
+            <p>{t('documents.noDocuments')}</p>
           </div>
         )}
       </div>
@@ -312,7 +319,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-medium text-gray-700 flex items-center">
                 <FolderOpen className="w-4 h-4 mr-2 text-gray-500" />
-                Trip Documents
+                {t('documents.tripDocuments')}
                 <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
                   {groupedDocuments.trip_level.length}
                 </span>
@@ -349,17 +356,17 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
               >
                 <div className="flex items-center">
                   {isDestExpanded ? (
-                    <ChevronDown className="w-4 h-4 mr-2 text-gray-400" />
+                    <DownChevron className="w-4 h-4 mr-2 text-gray-400" />
                   ) : (
-                    <ChevronRight className="w-4 h-4 mr-2 text-gray-400" />
+                    <RightChevron className="w-4 h-4 mr-2 text-gray-400" />
                   )}
-                  <MapPin className="w-4 h-4 mr-2 text-indigo-500" />
+                  <MapPin className="w-4 h-4 mr-2 text-[#D97706]" />
                   <span className="font-medium text-gray-900">{destGroup.destination_name}</span>
                   {numDays > 0 && (
-                    <span className="ml-2 text-xs text-gray-500">{numDays} days</span>
+                    <span className="ml-2 text-xs text-gray-500">{t('common.dayCount', { count: numDays })}</span>
                   )}
                 </div>
-                <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-amber-100 text-[#D97706] px-2 py-0.5 rounded-full">
                   {filteredDocs.length}
                 </span>
               </button>
@@ -370,8 +377,8 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
                   {docsByDay.general.length > 0 && (
                     <div className="p-3 border-b border-gray-100">
                       <h5 className="text-xs font-medium text-gray-600 mb-2 flex items-center">
-                        <Layers className="w-3 h-3 mr-1" />
-                        General
+                        <LayersIcon className="w-3 h-3 mr-1" />
+                        {t('common.general')}
                         <span className="ml-1 text-gray-400">({docsByDay.general.length})</span>
                       </h5>
                       <DocumentList
@@ -407,12 +414,12 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
                             className="flex items-center text-xs font-medium text-gray-600 mb-2 hover:text-gray-900"
                           >
                             {isDayExpanded ? (
-                              <ChevronDown className="w-3 h-3 mr-1" />
+                              <DownChevron className="w-3 h-3 mr-1" />
                             ) : (
-                              <ChevronRight className="w-3 h-3 mr-1" />
+                              <RightChevron className="w-3 h-3 mr-1" />
                             )}
                             <Calendar className="w-3 h-3 mr-1" />
-                            Day {day}
+                            {t('common.day')} {day}
                             <span className="ml-1 text-gray-400">({filteredDayDocs.length})</span>
                           </button>
                           {isDayExpanded && (
@@ -430,7 +437,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
                     })}
 
                   {filteredDocs.length === 0 && (
-                    <p className="text-sm text-gray-500 p-3">No documents for this destination</p>
+                    <p className="text-sm text-gray-500 p-3">{t('documents.noDocumentsForDestination')}</p>
                   )}
                 </div>
               )}
@@ -441,7 +448,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
         {groupedDocuments.by_destination.length === 0 && groupedDocuments.trip_level.length === 0 && (
           <div className="text-center py-6 text-gray-500 text-sm">
             <FolderOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-            <p>No documents yet</p>
+            <p>{t('documents.noDocuments')}</p>
           </div>
         )}
       </div>
@@ -454,12 +461,12 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
       style={{ transform: isOpen ? 'translateX(0)' : 'translateX(100%)', colorScheme: 'light' }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-white">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-amber-50 to-white">
         <div className="flex items-center space-x-2">
-          <FolderOpen className="w-5 h-5 text-indigo-600" />
-          <h2 className="font-semibold text-gray-900">Document Vault</h2>
+          <FolderOpen className="w-5 h-5 text-[#D97706]" />
+          <h2 className="font-semibold text-gray-900">{t('documents.vault')}</h2>
           {documents.length > 0 && (
-            <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-amber-100 text-[#D97706] px-2 py-0.5 rounded-full">
               {documents.length}
             </span>
           )}
@@ -467,16 +474,16 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
         <button
           onClick={onClose}
           className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-          aria-label="Close document vault"
+          aria-label={t('documents.closeVault')}
         >
-          <X className="w-5 h-5 text-gray-500" />
+          <XIcon className="w-5 h-5 text-gray-500" />
         </button>
       </div>
 
       {/* View Mode Toggle */}
       <div className="p-3 border-b border-gray-100 bg-white">
         <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
-          {VIEW_MODES.map(mode => {
+          {VIEW_MODE_KEYS.map(mode => {
             const Icon = mode.icon;
             return (
               <button
@@ -484,12 +491,12 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
                 onClick={() => setViewMode(mode.value)}
                 className={`flex-1 flex items-center justify-center space-x-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors ${
                   viewMode === mode.value
-                    ? 'bg-white text-indigo-600 shadow-sm'
+                    ? 'bg-white text-[#D97706] shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
-                <span>{mode.label}</span>
+                <span>{t(mode.labelKey)}</span>
               </button>
             );
           })}
@@ -500,16 +507,16 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
           <div className="flex items-center justify-end space-x-2 mt-2">
             <button
               onClick={expandAll}
-              className="text-xs text-indigo-600 hover:text-indigo-700"
+              className="text-xs text-[#D97706] hover:text-[#D97706]"
             >
-              Expand all
+              {t('common.expandAll')}
             </button>
             <span className="text-gray-300">|</span>
             <button
               onClick={collapseAll}
-              className="text-xs text-indigo-600 hover:text-indigo-700"
+              className="text-xs text-[#D97706] hover:text-[#D97706]"
             >
-              Collapse all
+              {t('common.collapseAll')}
             </button>
           </div>
         )}
@@ -522,11 +529,11 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="flex-1 text-sm text-gray-900 bg-white border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="flex-1 text-sm text-gray-900 bg-white border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706]"
           >
-            {CATEGORY_FILTERS.map((cat) => (
+            {CATEGORY_FILTER_KEYS.map((cat) => (
               <option key={cat.value} value={cat.value}>
-                {cat.label}
+                {t(cat.labelKey)}
                 {cat.value !== 'all' && documentStats[cat.value]
                   ? ` (${documentStats[cat.value]})`
                   : ''}
@@ -537,10 +544,10 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
             onClick={() => setShowUpload(!showUpload)}
             className={`p-2 rounded-lg transition-colors ${
               showUpload
-                ? 'bg-indigo-100 text-indigo-600'
+                ? 'bg-amber-100 text-[#D97706]'
                 : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}
-            title="Upload document"
+            title={t('documents.uploadDocument')}
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -553,9 +560,9 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
             <select
               value={selectedDestinationFilter || ''}
               onChange={(e) => setSelectedDestinationFilter(e.target.value ? parseInt(e.target.value) : null)}
-              className="flex-1 text-sm text-gray-900 bg-white border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="flex-1 text-sm text-gray-900 bg-white border border-gray-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706]"
             >
-              <option value="">All Destinations</option>
+              <option value="">{t('documents.allDestinations')}</option>
               {destinations.map(dest => (
                 <option key={dest.id} value={dest.id}>
                   {dest.city_name}{dest.country ? `, ${dest.country}` : ''}
@@ -570,7 +577,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
       {showUpload && (
         <div className="p-4 border-b border-gray-200 bg-white">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-gray-700">Upload Document</h3>
+            <h3 className="text-sm font-medium text-gray-700">{t('documents.uploadDocument')}</h3>
             <button
               onClick={() => {
                 setShowUpload(false);
@@ -578,7 +585,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
               }}
               className="text-xs text-gray-500 hover:text-gray-700"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
           <FileUpload
@@ -607,7 +614,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
                 onClick={() => setSelectedCategory(type)}
                 className={`text-xs px-2 py-1 rounded-full transition-colors ${
                   selectedCategory === type
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-[#D97706] text-white'
                     : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-100'
                 }`}
               >

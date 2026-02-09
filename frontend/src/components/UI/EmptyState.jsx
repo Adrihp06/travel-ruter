@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Plane,
   MapPin,
   Calendar,
   SearchX,
@@ -10,8 +9,9 @@ import {
   Luggage,
   Map,
   Plus,
-  Sparkles,
 } from 'lucide-react';
+import AirplaneIcon from '@/components/icons/airplane-icon';
+import SparklesIcon from '@/components/icons/sparkles-icon';
 
 // SVG Illustrations for different empty states
 const illustrations = {
@@ -227,7 +227,7 @@ const illustrations = {
 
 // Icon components for different empty states
 const emptyStateIcons = {
-  trips: Plane,
+  trips: AirplaneIcon,
   search: SearchX,
   pois: MapPin,
   destinations: Compass,
@@ -274,7 +274,7 @@ const EmptyState = ({
   size = 'md',
   className = '',
 }) => {
-  const Icon = CustomIcon || emptyStateIcons[type] || Plane;
+  const Icon = CustomIcon || emptyStateIcons[type] || AirplaneIcon;
   const defaults = defaultMessages[type] || defaultMessages.trips;
 
   const sizeClasses = {
@@ -361,7 +361,7 @@ const EmptyState = ({
 // Compact inline empty state for smaller contexts
 export const InlineEmptyState = ({
   message = 'No items',
-  icon: Icon = Sparkles,
+  icon: Icon = SparklesIcon,
   className = '',
 }) => {
   return (

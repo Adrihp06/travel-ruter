@@ -1,11 +1,16 @@
 import React from 'react';
-import { X, Trash2, AlertTriangle, MapPin, Calendar } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { MapPin, Calendar } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
+import TrashIcon from '@/components/icons/trash-icon';
+import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
 import { formatDateFull } from '../../utils/dateFormat';
 
 const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {
+  const { t } = useTranslation();
   if (!isOpen || !trip) return null;
 
-  const tripName = trip.title || trip.name || 'Untitled Trip';
+  const tripName = trip.title || trip.name || t('trips.untitledTrip');
   const destinationCount = trip.destinations?.length || 0;
 
   const handleConfirm = () => {
@@ -23,16 +28,16 @@ const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {
         <div className="modal-header flex items-center justify-between px-6 py-4 border-b border-stone-200 dark:border-stone-700">
           <div className="flex items-center gap-3">
             <div className="modal-icon-container danger">
-              <Trash2 className="w-5 h-5 text-red-600 dark:text-red-400" />
+              <TrashIcon className="w-5 h-5 text-red-600 dark:text-red-400" />
             </div>
-            <h3 className="text-lg font-bold text-stone-900 dark:text-stone-50">Delete Trip</h3>
+            <h3 className="text-lg font-bold text-stone-900 dark:text-stone-50">{t('trips.deleteTrip')}</h3>
           </div>
           <button
             onClick={handleClose}
             disabled={isDeleting}
             className="modal-close-btn p-2 rounded-xl text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 disabled:opacity-50"
           >
-            <X className="w-5 h-5" />
+            <XIcon className="w-5 h-5" />
           </button>
         </div>
 
@@ -41,11 +46,11 @@ const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {
           {/* Warning */}
           <div className="flex items-start gap-3 p-4 bg-gradient-to-br from-amber-50 to-orange-50/50 dark:from-amber-900/20 dark:to-orange-900/10 border border-amber-200/70 dark:border-amber-800/40 rounded-xl">
             <div className="modal-icon-container warning w-9 h-9 rounded-lg flex-shrink-0">
-              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <TriangleAlertIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
             </div>
             <div className="text-sm">
-              <p className="font-semibold text-amber-800 dark:text-amber-300">This action can be undone</p>
-              <p className="mt-1 text-amber-700/80 dark:text-amber-400/70">You will have 5 seconds to undo the deletion after confirming.</p>
+              <p className="font-semibold text-amber-800 dark:text-amber-300">{t('trips.canBeUndone')}</p>
+              <p className="mt-1 text-amber-700/80 dark:text-amber-400/70">{t('trips.undoWindow')}</p>
             </div>
           </div>
 
@@ -67,7 +72,7 @@ const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {
               <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
                 <MapPin className="w-4 h-4" />
                 <span className="font-medium">
-                  {destinationCount} destination{destinationCount !== 1 ? 's' : ''} will be deleted
+                  {t('trips.destinationsDeleted', { count: destinationCount })}
                 </span>
               </div>
             )}
@@ -79,7 +84,7 @@ const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {
 
           {/* Confirmation Text */}
           <p className="text-sm text-stone-600 dark:text-stone-300 leading-relaxed">
-            Are you sure you want to delete this trip? All associated destinations and their data will be permanently removed.
+            {t('trips.deleteConfirmText')}
           </p>
         </div>
 
@@ -91,7 +96,7 @@ const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {
             disabled={isDeleting}
             className="modal-btn modal-btn-secondary flex-1"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             type="button"
@@ -102,12 +107,12 @@ const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {
             {isDeleting ? (
               <>
                 <span className="modal-spinner" />
-                <span>Deleting...</span>
+                <span>{t('common.deleting')}</span>
               </>
             ) : (
               <>
-                <Trash2 className="w-4 h-4" />
-                <span>Delete Trip</span>
+                <TrashIcon className="w-4 h-4" />
+                <span>{t('trips.deleteTrip')}</span>
               </>
             )}
           </button>

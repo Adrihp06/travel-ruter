@@ -1,20 +1,21 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   MapPin,
   ArrowRight,
-  Pencil,
-  Trash2,
-  Copy,
   Share2,
   Download,
   Calendar,
   DollarSign,
-  Clock,
   MoreVertical,
-  Plane,
   Archive
 } from 'lucide-react';
+import PenIcon from '@/components/icons/pen-icon';
+import TrashIcon from '@/components/icons/trash-icon';
+import CopyIcon from '@/components/icons/copy-icon';
+import ClockIcon from '@/components/icons/clock-icon';
+import AirplaneIcon from '@/components/icons/airplane-icon';
 import { formatDateFull } from '../../utils/dateFormat';
 
 // Tag color mapping - Warm Explorer theme colors
@@ -73,6 +74,7 @@ const TripCard = React.memo(function TripCard({
   scheduledPOIs = 0,
   budget = null
 }) {
+  const { t } = useTranslation();
   const [showActions, setShowActions] = useState(false);
   const menuRef = useRef(null);
   const buttonRef = useRef(null);
@@ -147,14 +149,14 @@ const TripCard = React.memo(function TripCard({
   }, [showActions]);
 
   // Get trip title (handles both API format and mock data)
-  const title = trip.title || trip.name || 'Untitled Trip';
+  const title = trip.title || trip.name || t('trips.untitledTrip');
 
   // Get trip description
   const description = useMemo(() => {
     if (trip.description) return trip.description;
-    if (trip.location) return `Exploring ${trip.location} and surrounding areas.`;
-    return 'Plan your adventure!';
-  }, [trip.description, trip.location]);
+    if (trip.location) return t('trips.exploring', { location: trip.location });
+    return t('trips.planAdventure');
+  }, [trip.description, trip.location, t]);
 
 
   // Calculate countdown
@@ -174,23 +176,23 @@ const TripCard = React.memo(function TripCard({
       if (endDate) {
         endDate.setHours(0, 0, 0, 0);
         if (today <= endDate) {
-          return { type: 'ongoing', text: 'Trip in progress' };
+          return { type: 'ongoing', text: t('trips.tripInProgress') };
         }
       }
-      return { type: 'past', text: 'Completed' };
+      return { type: 'past', text: t('trips.completed') };
     } else if (diffDays === 0) {
-      return { type: 'today', text: 'Departing today!' };
+      return { type: 'today', text: t('trips.departingToday') };
     } else if (diffDays === 1) {
-      return { type: 'tomorrow', text: 'Departing tomorrow!' };
+      return { type: 'tomorrow', text: t('trips.departingTomorrow') };
     } else if (diffDays <= 7) {
-      return { type: 'soon', text: `${diffDays} days to go` };
+      return { type: 'soon', text: t('trips.daysToGo', { count: diffDays }) };
     } else if (diffDays <= 30) {
-      return { type: 'upcoming', text: `${diffDays} days until departure` };
+      return { type: 'upcoming', text: t('trips.daysUntilDeparture', { count: diffDays }) };
     } else {
       const weeks = Math.floor(diffDays / 7);
-      return { type: 'future', text: `${weeks} weeks away` };
+      return { type: 'future', text: t('trips.weeksAway', { count: weeks }) };
     }
-  }, [trip.start_date, trip.end_date]);
+  }, [trip.start_date, trip.end_date, t]);
 
   // POI scheduling progress percentage
   const progressPercent = totalPOIs > 0
@@ -258,7 +260,7 @@ const TripCard = React.memo(function TripCard({
                   className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
                   <div className="flex items-center">
-                    <Pencil className="w-4 h-4 mr-2" /> Edit
+                    <PenIcon className="w-4 h-4 mr-2" /> {t('common.edit')}
                   </div>
                   <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">⌘E</span>
                 </button>
@@ -267,7 +269,7 @@ const TripCard = React.memo(function TripCard({
                   className="w-full flex items-center justify-between px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
                   <div className="flex items-center">
-                    <Copy className="w-4 h-4 mr-2" /> Duplicate
+                    <CopyIcon className="w-4 h-4 mr-2" /> {t('common.duplicate')}
                   </div>
                   <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium">⌘D</span>
                 </button>
@@ -279,9 +281,9 @@ const TripCard = React.memo(function TripCard({
                   className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
                   {isCompleted ? (
-                    <><Clock className="w-4 h-4 mr-2" /> Re-open Trip</>
+                    <><ClockIcon className="w-4 h-4 mr-2" /> {t('trips.reopenTrip')}</>
                   ) : (
-                    <><Archive className="w-4 h-4 mr-2" /> Complete Trip</>
+                    <><Archive className="w-4 h-4 mr-2" /> {t('trips.completeTrip')}</>
                   )}
                 </button>
 
@@ -291,13 +293,13 @@ const TripCard = React.memo(function TripCard({
                   onClick={handleShare}
                   className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
-                  <Share2 className="w-4 h-4 mr-2" /> Share Link
+                  <Share2 className="w-4 h-4 mr-2" /> {t('trips.shareLink')}
                 </button>
                 <button
                   onClick={handleExport}
                   className="w-full flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
-                  <Download className="w-4 h-4 mr-2" /> Export Data
+                  <Download className="w-4 h-4 mr-2" /> {t('trips.exportData')}
                 </button>
                 
                 <hr className="my-1 border-gray-100 dark:border-gray-600" />
@@ -307,7 +309,7 @@ const TripCard = React.memo(function TripCard({
                   className="w-full flex items-center justify-between px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                 >
                   <div className="flex items-center">
-                    <Trash2 className="w-4 h-4 mr-2" /> Delete
+                    <TrashIcon className="w-4 h-4 mr-2" /> {t('common.delete')}
                   </div>
                   <span className="text-[10px] text-red-400 dark:text-red-500/70 font-medium">⌫</span>
                 </button>
@@ -328,7 +330,7 @@ const TripCard = React.memo(function TripCard({
           /* Warm Explorer gradient - amber to terracotta to olive */
           <div className="w-full h-full bg-gradient-to-br from-amber-500 via-orange-500 to-lime-600 transition-all duration-500 group-hover:from-amber-600 group-hover:via-orange-600 group-hover:to-lime-700">
             <div className="absolute inset-0 flex items-center justify-center">
-              <Plane className="w-16 h-16 text-white/30" />
+              <AirplaneIcon className="w-16 h-16 text-white/30" />
             </div>
           </div>
         )}
@@ -338,15 +340,15 @@ const TripCard = React.memo(function TripCard({
 
         {/* Status badge */}
         <div className="absolute top-3 left-3">
-          <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${getStatusStyle(trip.status)}`}>
-            {trip.status ? trip.status.charAt(0).toUpperCase() + trip.status.slice(1) : 'Planning'}
+          <span className={`text-xs font-medium px-2.5 py-1 rounded-full border min-w-[80px] text-center ${getStatusStyle(trip.status)}`}>
+            {trip.status ? t(`trips.${trip.status}`) : t('trips.planning')}
           </span>
         </div>
 
         {/* Countdown badge */}
         {countdown && countdown.type !== 'past' && (
           <div className={`absolute bottom-3 left-3 flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${getCountdownStyle(countdown.type)}`}>
-            <Clock className="w-3.5 h-3.5" />
+            <ClockIcon className="w-3.5 h-3.5" />
             <span>{countdown.text}</span>
           </div>
         )}
@@ -375,7 +377,7 @@ const TripCard = React.memo(function TripCard({
                     TAG_COLORS[tagId] || 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
                   }`}
                 >
-                  {tagId.charAt(0).toUpperCase() + tagId.slice(1)}
+                  {t(`trips.tags.${tagId}`, tagId.charAt(0).toUpperCase() + tagId.slice(1))}
                 </span>
               ))}
               {trip.tags.length > 3 && (
@@ -406,7 +408,7 @@ const TripCard = React.memo(function TripCard({
           <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
             <div className="flex items-center text-sm">
               <DollarSign className="w-4 h-4 mr-1.5 text-gray-400 dark:text-gray-500" />
-              <span className="text-gray-600 dark:text-gray-300">Budget</span>
+              <span className="text-gray-600 dark:text-gray-300">{t('trips.budget')}</span>
             </div>
             <div className="text-right">
               <div className="font-semibold text-gray-900 dark:text-white">
@@ -414,7 +416,7 @@ const TripCard = React.memo(function TripCard({
               </div>
               {budget?.actual_total != null && (
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {formatCurrency(budget.actual_total)} spent
+                  {formatCurrency(budget.actual_total)} {t('common.spent')}
                 </div>
               )}
             </div>
@@ -425,7 +427,7 @@ const TripCard = React.memo(function TripCard({
         {totalPOIs > 0 && (
           <div className="mb-4">
             <div className="flex items-center justify-between text-sm mb-1.5">
-              <span className="text-gray-600 dark:text-gray-300">POIs Scheduled</span>
+              <span className="text-gray-600 dark:text-gray-300">{t('trips.poisScheduled')}</span>
               <span className="text-gray-900 dark:text-white font-medium">{scheduledPOIs}/{totalPOIs}</span>
             </div>
             <div className="h-2 bg-stone-100 dark:bg-stone-700 rounded-full overflow-hidden">
@@ -440,7 +442,7 @@ const TripCard = React.memo(function TripCard({
         {destinationCount > 0 && totalPOIs === 0 && (
           <div className="mb-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600 dark:text-gray-300">Destinations</span>
+              <span className="text-gray-600 dark:text-gray-300">{t('trips.destinations')}</span>
               <span className="text-gray-900 dark:text-white font-medium">{destinationCount}</span>
             </div>
           </div>
@@ -451,7 +453,7 @@ const TripCard = React.memo(function TripCard({
           to={`/trips/${trip.id}`}
           className="inline-flex items-center w-full justify-center px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 font-semibold rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/40 btn-interactive btn-ripple group/link border border-amber-200/50 dark:border-amber-700/30"
         >
-          View Itinerary
+          {t('trips.viewItinerary')}
           <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover/link:translate-x-1.5" />
         </Link>
       </div>

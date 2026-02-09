@@ -1,11 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-  DndContext,
-  DragOverlay,
-  closestCorners,
-  PointerSensor,
-  useSensor,
-  useSensors,
   useDroppable,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
@@ -13,9 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   MapPin,
-  Clock,
-  Plane,
-  Home,
   GripVertical,
   Landmark,
   UtensilsCrossed,
@@ -31,9 +23,12 @@ import {
   Bike,
   Ship,
 } from 'lucide-react';
+import ClockIcon from '@/components/icons/clock-icon';
+import AirplaneIcon from '@/components/icons/airplane-icon';
+import HomeIcon from '@/components/icons/home-icon';
 import { formatDateWithWeekday } from '../../utils/dateFormat';
 import usePOIStore from '../../stores/usePOIStore';
-import { getTransportIcon } from './CalendarView';
+import { getTransportIcon } from './calendarUtils';
 
 // Category icon mapping (same as DailyItinerary)
 const categoryIcons = {
@@ -70,9 +65,9 @@ const categoryColors = {
 // Format minutes to hours and minutes
 const formatDwellTime = (minutes) => {
   if (!minutes) return null;
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60) return `${Math.round(minutes)}m`;
   const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
+  const mins = Math.round(minutes % 60);
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 };
 
@@ -109,7 +104,7 @@ const POICard = ({ poi, isDragging }) => {
           <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 dark:text-gray-400">
             {poi.dwell_time && (
               <div className="flex items-center gap-1">
-                <Clock className="w-3 h-3" />
+                <ClockIcon className="w-3 h-3" />
                 <span>{formatDwellTime(poi.dwell_time)}</span>
               </div>
             )}
@@ -126,7 +121,8 @@ const POICard = ({ poi, isDragging }) => {
 };
 
 // Droppable Day Column
-const DayColumn = ({ date, dateKey, pois, accommodations, destinations, isInTrip, travelSegments }) => {
+const DayColumn = ({ dateKey, pois, accommodations, destinations, isInTrip, travelSegments }) => {
+  const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({
     id: dateKey,
     data: {
@@ -166,7 +162,7 @@ const DayColumn = ({ date, dateKey, pois, accommodations, destinations, isInTrip
                 >
                   <TransportIcon className="w-3 h-3" />
                   <span className="truncate">
-                    {dest.isArrival ? 'Arrive' : 'Depart'}: {dest.city_name}
+                    {dest.isArrival ? t('calendar.arrive') : t('calendar.depart')}: {dest.city_name}
                   </span>
                 </div>
               );
@@ -177,7 +173,7 @@ const DayColumn = ({ date, dateKey, pois, accommodations, destinations, isInTrip
         {/* Accommodation Indicator */}
         {hasAccommodation && (
           <div className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-400 mt-2">
-            <Home className="w-3 h-3" />
+            <HomeIcon className="w-3 h-3" />
             <span className="truncate">{accommodations[0].name}</span>
           </div>
         )}
@@ -187,7 +183,7 @@ const DayColumn = ({ date, dateKey, pois, accommodations, destinations, isInTrip
       <div className="flex-1 p-2 space-y-2 overflow-y-auto">
         {pois.length === 0 ? (
           <div className="flex items-center justify-center h-24 text-sm text-gray-400 dark:text-gray-500">
-            No POIs scheduled
+            {t('calendar.noPoisScheduled')}
           </div>
         ) : (
           pois.map((poi) => (
@@ -222,17 +218,14 @@ const DraggablePOI = ({ poi }) => {
 };
 
 const WeekCalendarView = ({
-  trip,
   tripDateRange,
   selectedDate,
-  onDateChange,
   poisByDate,
   accommodationsByDate,
   destinationsByDate,
-  destinations,
-  pois,
   travelSegments = [],
 }) => {
+  const { t } = useTranslation();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => {
     const start = selectedDate ? new Date(selectedDate) : new Date();
     start.setDate(start.getDate() - start.getDay()); // Set to Sunday
@@ -316,7 +309,7 @@ const WeekCalendarView = ({
           <button
             onClick={handlePreviousWeek}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            aria-label="Previous week"
+            aria-label={t('calendar.previousWeek', 'Previous week')}
           >
             <ChevronLeft className="w-5 h-5 text-gray-700 dark:text-gray-300" />
           </button>
@@ -325,13 +318,13 @@ const WeekCalendarView = ({
             onClick={handleToday}
             className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
-            Today
+            {t('calendar.today')}
           </button>
 
           <button
             onClick={handleNextWeek}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            aria-label="Next week"
+            aria-label={t('calendar.nextWeek', 'Next week')}
           >
             <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-300" />
           </button>
@@ -355,7 +348,6 @@ const WeekCalendarView = ({
               onDrop={(e) => handleDrop(e, dateKey)}
             >
               <DayColumn
-                date={date}
                 dateKey={dateKey}
                 pois={dayPOIs}
                 accommodations={dayAccommodations}
@@ -373,19 +365,19 @@ const WeekCalendarView = ({
         <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded" />
-            <span>Trip Dates</span>
+            <span>{t('calendar.legend.tripDates')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Home className="w-4 h-4 text-blue-700 dark:text-blue-400" />
-            <span>Accommodation</span>
+            <HomeIcon className="w-4 h-4 text-blue-700 dark:text-blue-400" />
+            <span>{t('calendar.legend.accommodation')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Plane className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-            <span>Destination Change</span>
+            <AirplaneIcon className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+            <span>{t('calendar.legend.destinationChange')}</span>
           </div>
           <div className="flex items-center gap-2">
             <GripVertical className="w-4 h-4 text-gray-400" />
-            <span>Drag to reschedule</span>
+            <span>{t('calendar.dragToReschedule')}</span>
           </div>
         </div>
       </div>

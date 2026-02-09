@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-  X,
   Plus,
   Save,
   Tag,
@@ -8,6 +8,8 @@ import {
   Unlock,
   Pin,
 } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
+import GlobeIcon from '@/components/icons/globe-icon';
 import RichTextEditor from './RichTextEditor';
 import Spinner from '../UI/Spinner';
 
@@ -24,6 +26,7 @@ const NoteFormModal = ({
   preselectedDayNumber = null,
   preselectedPoiId = null,
 }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -142,13 +145,13 @@ const NoteFormModal = ({
   const validateForm = () => {
     const newErrors = {};
     if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
+      newErrors.title = t('journal.titleRequired');
     }
     if (formData.day_number && !formData.destination_id) {
-      newErrors.day_number = 'Day number requires a destination';
+      newErrors.day_number = t('journal.dayRequiresDestination');
     }
     if (formData.poi_id && !formData.destination_id) {
-      newErrors.poi_id = 'POI requires a destination';
+      newErrors.poi_id = t('journal.poiRequiresDestination');
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -174,13 +177,13 @@ const NoteFormModal = ({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {note ? 'Edit Note' : 'Add Note'}
+            {note ? t('journal.editNote') : t('journal.addNote')}
           </h2>
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+            <XIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
           </button>
         </div>
 
@@ -190,14 +193,14 @@ const NoteFormModal = ({
             {/* Title */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Title *
+                {t('journal.noteTitle')} *
               </label>
               <input
                 type="text"
                 value={formData.title}
                 onChange={(e) => handleChange('title', e.target.value)}
-                placeholder="Enter note title"
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+                placeholder={t('journal.enterTitle')}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
                   errors.title ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
               />
@@ -208,14 +211,14 @@ const NoteFormModal = ({
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Destination
+                  {t('journal.destination')}
                 </label>
                 <select
                   value={formData.destination_id || ''}
                   onChange={(e) => handleChange('destination_id', e.target.value ? Number(e.target.value) : null)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
-                  <option value="">Trip level</option>
+                  <option value="">{t('journal.tripLevel')}</option>
                   {destinations.map((dest) => (
                     <option key={dest.id} value={dest.id}>
                       {dest.city_name}
@@ -225,7 +228,7 @@ const NoteFormModal = ({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Day
+                  {t('journal.day')}
                 </label>
                 <input
                   type="number"
@@ -233,25 +236,25 @@ const NoteFormModal = ({
                   value={formData.day_number || ''}
                   onChange={(e) => handleChange('day_number', e.target.value ? Number(e.target.value) : null)}
                   disabled={!formData.destination_id}
-                  placeholder="Day #"
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+                  placeholder={t('journal.dayNumber')}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
                     !formData.destination_id ? 'opacity-50' : ''
                   } ${errors.day_number ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  POI
+                  {t('journal.poi')}
                 </label>
                 <select
                   value={formData.poi_id || ''}
                   onChange={(e) => handleChange('poi_id', e.target.value ? Number(e.target.value) : null)}
                   disabled={!formData.destination_id || availablePois.length === 0}
-                  className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
+                  className={`w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
                     !formData.destination_id || availablePois.length === 0 ? 'opacity-50' : ''
                   }`}
                 >
-                  <option value="">None</option>
+                  <option value="">{t('common.none')}</option>
                   {availablePois.map((poi) => (
                     <option key={poi.id} value={poi.id}>
                       {poi.name}
@@ -264,12 +267,12 @@ const NoteFormModal = ({
             {/* Content */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Content
+                {t('journal.content')}
               </label>
               <RichTextEditor
                 value={formData.content}
                 onChange={(value) => handleChange('content', value)}
-                placeholder="Write your thoughts, experiences, memories..."
+                placeholder={t('journal.contentPlaceholder')}
                 minHeight="150px"
               />
             </div>
@@ -278,7 +281,7 @@ const NoteFormModal = ({
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 <Tag className="w-4 h-4 inline mr-1" />
-                Tags
+                {t('journal.tags')}
               </label>
               <div className="flex gap-2">
                 <input
@@ -286,8 +289,8 @@ const NoteFormModal = ({
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyDown={handleTagKeyDown}
-                  placeholder="Add a tag and press Enter"
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  placeholder={t('journal.addTag')}
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 />
                 <button
                   type="button"
@@ -302,15 +305,15 @@ const NoteFormModal = ({
                   {formData.tags.map((tag, index) => (
                     <span
                       key={index}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-sm"
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-300 rounded-full text-sm"
                     >
                       {tag}
                       <button
                         type="button"
                         onClick={() => removeTag(tag)}
-                        className="hover:text-indigo-900 dark:hover:text-indigo-100"
+                        className="hover:text-amber-900 dark:hover:text-amber-100"
                       >
-                        <X className="w-3 h-3" />
+                        <XIcon className="w-3 h-3" />
                       </button>
                     </span>
                   ))}
@@ -325,17 +328,17 @@ const NoteFormModal = ({
                   type="checkbox"
                   checked={formData.is_pinned}
                   onChange={(e) => handleChange('is_pinned', e.target.checked)}
-                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  className="w-4 h-4 text-[#D97706] border-gray-300 rounded focus:ring-[#D97706]/50"
                 />
                 <Pin className="w-4 h-4 text-yellow-500" />
-                <span className="text-sm text-gray-700 dark:text-gray-300">Pin note</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">{t('journal.pinNote')}</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={formData.is_private}
                   onChange={(e) => handleChange('is_private', e.target.checked)}
-                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  className="w-4 h-4 text-[#D97706] border-gray-300 rounded focus:ring-[#D97706]/50"
                 />
                 {formData.is_private ? (
                   <Lock className="w-4 h-4 text-gray-500" />
@@ -343,7 +346,7 @@ const NoteFormModal = ({
                   <Unlock className="w-4 h-4 text-green-500" />
                 )}
                 <span className="text-sm text-gray-700 dark:text-gray-300">
-                  {formData.is_private ? 'Private' : 'Shared'}
+                  {formData.is_private ? t('common.private') : t('common.shared')}
                 </span>
               </label>
             </div>
@@ -357,22 +360,22 @@ const NoteFormModal = ({
             onClick={onClose}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSubmit}
             disabled={isSaving}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+            className="px-4 py-2 bg-[#D97706] text-white rounded-lg hover:bg-[#B45309] transition-colors flex items-center gap-2 disabled:opacity-50"
           >
             {isSaving ? (
               <>
                 <Spinner className="text-white" />
-                Saving...
+                {t('common.saving')}
               </>
             ) : (
               <>
                 {note ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                {note ? 'Save Changes' : 'Add Note'}
+                {note ? t('journal.saveChanges') : t('journal.addNote')}
               </>
             )}
           </button>

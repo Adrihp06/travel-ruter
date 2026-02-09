@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Bed, Plus, AlertTriangle, ChevronDown, ChevronUp, Pencil, MapPin } from 'lucide-react';
-import { formatDateWithWeekday } from '../../utils/dateFormat';
+import { useTranslation } from 'react-i18next';
+import { Bed, Plus, ChevronUp, MapPin } from 'lucide-react';
+import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
+import PenIcon from '@/components/icons/pen-icon';
+import DownChevron from '@/components/icons/down-chevron';
+import { formatDateWithWeekday, parseDateString } from '../../utils/dateFormat';
 
 /**
  * AccommodationTimeline - Compact visual timeline showing accommodation coverage
@@ -27,7 +31,8 @@ const AccommodationTimeline = ({
   onAddAccommodation,
   className = '',
 }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const { t } = useTranslation();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Map accommodation IDs to colors
   const accommodationColors = useMemo(() => {
@@ -43,16 +48,21 @@ const AccommodationTimeline = ({
     if (!destination?.arrival_date || !destination?.departure_date) return [];
 
     const result = [];
-    const arrival = new Date(destination.arrival_date);
-    const departure = new Date(destination.departure_date);
+    const arrival = parseDateString(destination.arrival_date);
+    const departure = parseDateString(destination.departure_date);
+    if (!arrival || !departure) return [];
     let current = new Date(arrival);
     let nightNum = 1;
 
     while (current < departure) {
+      const year = current.getFullYear();
+      const month = String(current.getMonth() + 1).padStart(2, '0');
+      const day = String(current.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
       result.push({
         nightNumber: nightNum,
-        date: current.toISOString().split('T')[0],
-        displayDate: formatDateWithWeekday(current),
+        date: dateStr,
+        displayDate: formatDateWithWeekday(dateStr),
       });
       current.setDate(current.getDate() + 1);
       nightNum++;
@@ -70,12 +80,16 @@ const AccommodationTimeline = ({
     });
 
     accommodations.forEach((acc) => {
-      let current = new Date(acc.check_in_date);
-      const checkOut = new Date(acc.check_out_date);
+      let current = parseDateString(acc.check_in_date);
+      const checkOut = parseDateString(acc.check_out_date);
+      if (!current || !checkOut) return;
 
       while (current < checkOut) {
-        const dateStr = current.toISOString().split('T')[0];
-        if (coverage.hasOwnProperty(dateStr)) {
+        const year = current.getFullYear();
+        const month = String(current.getMonth() + 1).padStart(2, '0');
+        const day = String(current.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        if (Object.hasOwn(coverage, dateStr)) {
           coverage[dateStr] = acc;
         }
         current.setDate(current.getDate() + 1);
@@ -100,9 +114,14 @@ const AccommodationTimeline = ({
       } else {
         if (currentGap) {
           const lastNight = currentGap.nights[currentGap.nights.length - 1];
-          const endDate = new Date(lastNight.date);
-          endDate.setDate(endDate.getDate() + 1);
-          currentGap.endDate = endDate.toISOString().split('T')[0];
+          const endDate = parseDateString(lastNight.date);
+          if (endDate) {
+            endDate.setDate(endDate.getDate() + 1);
+            const y = endDate.getFullYear();
+            const m = String(endDate.getMonth() + 1).padStart(2, '0');
+            const d = String(endDate.getDate()).padStart(2, '0');
+            currentGap.endDate = `${y}-${m}-${d}`;
+          }
           gapList.push(currentGap);
           currentGap = null;
         }
@@ -112,9 +131,14 @@ const AccommodationTimeline = ({
     // Handle gap at end
     if (currentGap) {
       const lastNight = currentGap.nights[currentGap.nights.length - 1];
-      const endDate = new Date(lastNight.date);
-      endDate.setDate(endDate.getDate() + 1);
-      currentGap.endDate = endDate.toISOString().split('T')[0];
+      const endDate = parseDateString(lastNight.date);
+      if (endDate) {
+        endDate.setDate(endDate.getDate() + 1);
+        const y = endDate.getFullYear();
+        const m = String(endDate.getMonth() + 1).padStart(2, '0');
+        const d = String(endDate.getDate()).padStart(2, '0');
+        currentGap.endDate = `${y}-${m}-${d}`;
+      }
       gapList.push(currentGap);
     }
 
@@ -131,53 +155,70 @@ const AccommodationTimeline = ({
 
   return (
     <div className={className}>
-      {/* Compact Header */}
+      {/* Compact Header with Smart Summary */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
       >
-        <div className="flex items-center space-x-2">
-          <Bed className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+        <div className="flex items-center space-x-2 min-w-0">
+          <Bed className="w-3.5 h-3.5 flex-shrink-0 text-gray-500 dark:text-gray-400" />
           <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-            Stays
+            {t('accommodation.stays')}
           </span>
-          {accommodations.length > 0 && (
-            <span className="text-[10px] text-gray-400 dark:text-gray-500">
-              ({coveredNights}/{totalNights})
+          {/* Collapsed smart summary */}
+          {!isExpanded && accommodations.length > 0 && !hasGaps && (
+            <span className="text-[11px] text-green-600 dark:text-green-400 truncate">
+              — {accommodations.map(a => a.name).join(', ')} ({coveredNights}n)
+            </span>
+          )}
+          {!isExpanded && hasGaps && (
+            <span className="text-[11px] text-amber-600 dark:text-amber-400">
+              — {t('accommodation.nightsUncovered', { count: gaps.reduce((sum, g) => sum + g.nights.length, 0) })}
+            </span>
+          )}
+          {!isExpanded && accommodations.length === 0 && !hasGaps && totalNights > 0 && (
+            <span className="text-[11px] text-gray-400 dark:text-gray-500">
+              — {t('accommodation.noStaysAdded')}
             </span>
           )}
         </div>
-        <div className="flex items-center space-x-1.5">
+        <div className="flex items-center space-x-1.5 flex-shrink-0">
           {hasGaps && (
-            <AlertTriangle className="w-3 h-3 text-amber-500" />
+            <TriangleAlertIcon className="w-3 h-3 text-amber-500" />
+          )}
+          {!hasGaps && accommodations.length > 0 && coveredNights === totalNights && (
+            <span className="w-3 h-3 text-green-500 text-xs font-bold leading-none flex items-center justify-center">&#10003;</span>
           )}
           {isExpanded ? (
             <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
           ) : (
-            <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+            <DownChevron className="w-3.5 h-3.5 text-gray-400" />
           )}
         </div>
       </button>
 
       {/* Collapsible Content */}
-      {isExpanded && (
-        <div className="px-3 pb-2 space-y-2">
+      <div
+        className={`space-y-2 transition-all duration-200 ease-in-out overflow-hidden ${
+          isExpanded ? 'max-h-[400px] opacity-100 px-3 pb-2' : 'max-h-0 opacity-0 px-3 pb-0'
+        }`}
+      >
           {/* Timeline Bar */}
           <div className="relative">
-            <div className="flex h-5 rounded overflow-hidden bg-gray-100 dark:bg-gray-700/50 gap-0">
+            <div className="flex h-6 rounded overflow-hidden bg-gray-100 dark:bg-gray-700/50 gap-0">
               {nights.map((night, index) => {
                 const accommodation = nightCoverage[night.date];
                 const isGap = !accommodation;
                 const colorSet = accommodation ? accommodationColors[accommodation.id] : null;
                 const bgColor = colorSet ? colorSet.bg : '';
 
-                // Check boundaries
+                // Check boundaries for potential future use (e.g., rounded corners)
                 const prevNight = index > 0 ? nights[index - 1] : null;
                 const nextNight = index < nights.length - 1 ? nights[index + 1] : null;
                 const prevAcc = prevNight ? nightCoverage[prevNight.date] : null;
                 const nextAcc = nextNight ? nightCoverage[nextNight.date] : null;
-                const isStart = accommodation && (!prevAcc || prevAcc.id !== accommodation.id);
-                const isEnd = accommodation && (!nextAcc || nextAcc.id !== accommodation.id);
+                const _isStart = accommodation && (!prevAcc || prevAcc.id !== accommodation.id);
+                const _isEnd = accommodation && (!nextAcc || nextAcc.id !== accommodation.id);
 
                 return (
                   <div
@@ -199,8 +240,8 @@ const AccommodationTimeline = ({
                     }}
                     title={
                       isGap
-                        ? `Night ${night.nightNumber}: Click to add accommodation`
-                        : `Night ${night.nightNumber}: ${accommodation.name}`
+                        ? t('accommodation.nightClickToAdd', { number: night.nightNumber })
+                        : t('accommodation.nightLabel', { number: night.nightNumber, name: accommodation.name })
                     }
                   >
                     {isGap && (
@@ -230,7 +271,7 @@ const AccommodationTimeline = ({
                     className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] border ${colorSet.light} ${colorSet.border}`}
                   >
                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${colorSet.bg}`} />
-                    <span className={`font-medium truncate max-w-[100px] ${colorSet.text}`}>
+                    <span className={`font-medium truncate max-w-[120px] ${colorSet.text}`}>
                       {acc.name}
                     </span>
                     <span className="text-gray-400 dark:text-gray-500">
@@ -243,7 +284,7 @@ const AccommodationTimeline = ({
                           onCenterOnAccommodation?.(acc);
                         }}
                         className="p-0.5 hover:bg-white/50 dark:hover:bg-gray-600/50 rounded"
-                        title="Show on map"
+                        title={t('accommodation.showOnMap')}
                       >
                         <MapPin className="w-2.5 h-2.5 text-gray-400" />
                       </button>
@@ -254,9 +295,9 @@ const AccommodationTimeline = ({
                         onEditAccommodation?.(acc);
                       }}
                       className="p-0.5 hover:bg-white/50 dark:hover:bg-gray-600/50 rounded"
-                      title="Edit"
+                      title={t('common.edit')}
                     >
-                      <Pencil className="w-2.5 h-2.5 text-gray-400" />
+                      <PenIcon className="w-2.5 h-2.5 text-gray-400" />
                     </button>
                   </div>
                 );
@@ -273,9 +314,9 @@ const AccommodationTimeline = ({
               }}
               className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
             >
-              <AlertTriangle className="w-3 h-3" />
+              <TriangleAlertIcon className="w-3 h-3" />
               <span>
-                {gaps.reduce((sum, g) => sum + g.nights.length, 0)} night{gaps.reduce((sum, g) => sum + g.nights.length, 0) !== 1 ? 's' : ''} uncovered
+                {t('accommodation.nightsUncovered', { count: gaps.reduce((sum, g) => sum + g.nights.length, 0) })}
               </span>
               <Plus className="w-3 h-3" />
             </button>
@@ -288,11 +329,10 @@ const AccommodationTimeline = ({
               className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] text-gray-500 dark:text-gray-400 border border-dashed border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
             >
               <Plus className="w-3 h-3" />
-              Add accommodation
+              {t('accommodation.addAccommodation')}
             </button>
           )}
-        </div>
-      )}
+      </div>
     </div>
   );
 };

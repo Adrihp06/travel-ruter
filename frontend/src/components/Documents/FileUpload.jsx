@@ -1,23 +1,29 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
-import { Upload, X, FileText, Image, AlertCircle, CheckCircle, MapPin, Calendar } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Upload, Image, MapPin, Calendar } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
+import FileDescriptionIcon from '@/components/icons/file-description-icon';
+import InfoCircleIcon from '@/components/icons/info-circle-icon';
+import FilledCheckedIcon from '@/components/icons/filled-checked-icon';
 
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
-const DOCUMENT_TYPES = [
-  { value: 'flight', label: 'Flight Ticket' },
-  { value: 'hotel', label: 'Hotel Reservation' },
-  { value: 'insurance', label: 'Travel Insurance' },
-  { value: 'visa', label: 'Visa/Passport' },
-  { value: 'ticket', label: 'Event Ticket' },
-  { value: 'confirmation', label: 'Booking Confirmation' },
-  { value: 'reservation', label: 'Restaurant Reservation' },
-  { value: 'receipt', label: 'Receipt' },
-  { value: 'map', label: 'Map' },
-  { value: 'other', label: 'Other' },
+const DOCUMENT_TYPE_KEYS = [
+  { value: 'flight', labelKey: 'documents.documentTypes.flight' },
+  { value: 'hotel', labelKey: 'documents.documentTypes.hotel' },
+  { value: 'insurance', labelKey: 'documents.documentTypes.insurance' },
+  { value: 'visa', labelKey: 'documents.documentTypes.visa' },
+  { value: 'ticket', labelKey: 'documents.documentTypes.ticket' },
+  { value: 'confirmation', labelKey: 'documents.documentTypes.confirmation' },
+  { value: 'reservation', labelKey: 'documents.documentTypes.reservation' },
+  { value: 'receipt', labelKey: 'documents.documentTypes.receipt' },
+  { value: 'map', labelKey: 'documents.documentTypes.map' },
+  { value: 'other', labelKey: 'documents.documentTypes.other' },
 ];
 
 const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
+  const { t } = useTranslation();
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [documentType, setDocumentType] = useState('other');
@@ -41,16 +47,16 @@ const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
 
     return Array.from({ length: numDays }, (_, i) => ({
       value: i + 1,
-      label: `Day ${i + 1}`,
+      labelKey: i + 1,
     }));
   }, [selectedDestination, destinations]);
 
   const validateFile = (file) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return 'Invalid file type. Only PDF, JPG, and PNG files are allowed.';
+      return t('documents.invalidFileType');
     }
     if (file.size > MAX_FILE_SIZE) {
-      return 'File size exceeds 50MB limit.';
+      return t('documents.fileSizeExceeded');
     }
     return null;
   };
@@ -164,9 +170,9 @@ const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
 
   const getFileIcon = (mimeType) => {
     if (mimeType?.startsWith('image/')) {
-      return <Image className="w-8 h-8 text-indigo-500" />;
+      return <Image className="w-8 h-8 text-[#D97706]" />;
     }
-    return <FileText className="w-8 h-8 text-red-500" />;
+    return <FileDescriptionIcon className="w-8 h-8 text-red-500" />;
   };
 
   return (
@@ -181,8 +187,8 @@ const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
           relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
           transition-all duration-200
           ${isDragOver
-            ? 'border-indigo-500 bg-indigo-50'
-            : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50'
+            ? 'border-[#D97706] bg-amber-50'
+            : 'border-gray-300 hover:border-amber-400 hover:bg-gray-50'
           }
         `}
       >
@@ -196,11 +202,11 @@ const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
 
         {!selectedFile ? (
           <>
-            <Upload className={`mx-auto w-10 h-10 ${isDragOver ? 'text-indigo-500' : 'text-gray-400'}`} />
+            <Upload className={`mx-auto w-10 h-10 ${isDragOver ? 'text-[#D97706]' : 'text-gray-400'}`} />
             <p className="mt-2 text-sm text-gray-600">
-              <span className="font-medium text-indigo-600">Click to upload</span> or drag and drop
+              <span className="font-medium text-[#D97706]">{t('documents.clickToUpload')}</span> {t('documents.dragAndDrop')}
             </p>
-            <p className="mt-1 text-xs text-gray-500">PDF, JPG, or PNG (max 50MB)</p>
+            <p className="mt-1 text-xs text-gray-500">{t('documents.fileFormats')}</p>
           </>
         ) : (
           <div className="flex items-center justify-center space-x-3">
@@ -219,7 +225,7 @@ const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
               }}
               className="p-1 text-gray-400 hover:text-red-500 transition-colors"
             >
-              <X className="w-5 h-5" />
+              <XIcon className="w-5 h-5" />
             </button>
           </div>
         )}
@@ -228,7 +234,7 @@ const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
       {/* Validation Error */}
       {validationError && (
         <div className="flex items-center space-x-2 text-sm text-red-600 bg-red-50 p-2 rounded">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <InfoCircleIcon className="w-4 h-4 flex-shrink-0" />
           <span>{validationError}</span>
         </div>
       )}
@@ -236,7 +242,7 @@ const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
       {/* Upload Error */}
       {error && (
         <div className="flex items-center space-x-2 text-sm text-red-600 bg-red-50 p-2 rounded">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <InfoCircleIcon className="w-4 h-4 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
@@ -244,8 +250,8 @@ const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
       {/* Upload Success */}
       {uploadSuccess && (
         <div className="flex items-center space-x-2 text-sm text-green-600 bg-green-50 p-2 rounded">
-          <CheckCircle className="w-4 h-4 flex-shrink-0" />
-          <span>Document uploaded successfully!</span>
+          <FilledCheckedIcon className="w-4 h-4 flex-shrink-0" />
+          <span>{t('documents.uploadSuccess')}</span>
         </div>
       )}
 
@@ -255,16 +261,16 @@ const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
           {/* Document Type */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Document Type
+              {t('documents.documentType')}
             </label>
             <select
               value={documentType}
               onChange={(e) => setDocumentType(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-[#D97706]/50 focus:border-[#D97706] text-sm"
             >
-              {DOCUMENT_TYPES.map((type) => (
+              {DOCUMENT_TYPE_KEYS.map((type) => (
                 <option key={type.value} value={type.value}>
-                  {type.label}
+                  {t(type.labelKey)}
                 </option>
               ))}
             </select>
@@ -276,15 +282,15 @@ const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 <span className="flex items-center">
                   <MapPin className="w-4 h-4 mr-1 text-gray-400" />
-                  Destination (optional)
+                  {t('documents.destinationOptional')}
                 </span>
               </label>
               <select
                 value={selectedDestination}
                 onChange={handleDestinationChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-[#D97706]/50 focus:border-[#D97706] text-sm"
               >
-                <option value="">Trip-level document</option>
+                <option value="">{t('documents.tripLevelDocument')}</option>
                 {destinations.map((dest) => (
                   <option key={dest.id} value={dest.id}>
                     {dest.city_name}{dest.country ? `, ${dest.country}` : ''}
@@ -300,18 +306,18 @@ const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 <span className="flex items-center">
                   <Calendar className="w-4 h-4 mr-1 text-gray-400" />
-                  Day (optional)
+                  {t('documents.dayOptional')}
                 </span>
               </label>
               <select
                 value={selectedDay}
                 onChange={(e) => setSelectedDay(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-[#D97706]/50 focus:border-[#D97706] text-sm"
               >
-                <option value="">General (all days)</option>
+                <option value="">{t('documents.generalAllDays')}</option>
                 {availableDays.map((day) => (
                   <option key={day.value} value={day.value}>
-                    {day.label}
+                    {t('common.day')} {day.labelKey}
                   </option>
                 ))}
               </select>
@@ -321,28 +327,28 @@ const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Title (optional)
+              {t('documents.titleOptional')}
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Museum Ticket - Louvre"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+              placeholder={t('documents.titlePlaceholder')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-[#D97706]/50 focus:border-[#D97706] text-sm"
             />
           </div>
 
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description (optional)
+              {t('documents.descriptionOptional')}
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
-              placeholder="Add notes about this document..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm resize-none"
+              placeholder={t('documents.descriptionPlaceholder')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-[#D97706]/50 focus:border-[#D97706] text-sm resize-none"
             />
           </div>
 
@@ -354,12 +360,12 @@ const FileUpload = ({ onUpload, isUploading, error, destinations = [] }) => {
               w-full py-2 px-4 rounded-md text-white font-medium text-sm
               transition-colors duration-200
               ${isUploading
-                ? 'bg-indigo-400 cursor-not-allowed'
-                : 'bg-indigo-600 hover:bg-indigo-700'
+                ? 'bg-amber-400 cursor-not-allowed'
+                : 'bg-[#D97706] hover:bg-[#B45309]'
               }
             `}
           >
-            {isUploading ? 'Uploading...' : 'Upload Document'}
+            {isUploading ? t('common.uploading') : t('documents.uploadButton')}
           </button>
         </div>
       )}

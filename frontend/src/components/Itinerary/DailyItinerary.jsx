@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   DndContext,
   DragOverlay,
@@ -18,38 +19,39 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  ArrowLeft,
   ChevronDown,
   ChevronRight,
-  Clock,
   GripVertical,
   Landmark,
   UtensilsCrossed,
   Mountain,
   TreePine,
-  ShoppingBag,
   Music,
-  Camera,
   MapPin,
+  ShoppingBag,
   Calendar,
-  Pencil,
-  Trash2,
-  ThumbsUp,
   ThumbsDown,
   Footprints,
   Bike,
   Car,
-  ArrowDown,
   Route,
   Loader2,
-  AlertCircle,
   Plus,
-  Sparkles,
+  ThumbsUp,
   BookOpen,
 } from 'lucide-react';
+import ArrowBackIcon from '@/components/icons/arrow-back-icon';
+import ClockIcon from '@/components/icons/clock-icon';
+
+import CameraIcon from '@/components/icons/camera-icon';
+import PenIcon from '@/components/icons/pen-icon';
+import TrashIcon from '@/components/icons/trash-icon';
+import ArrowNarrowDownIcon from '@/components/icons/arrow-narrow-down-icon';
+import InfoCircleIcon from '@/components/icons/info-circle-icon';
+import SparklesIcon from '@/components/icons/sparkles-icon';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import usePOIStore from '../../stores/usePOIStore';
-import { formatDateWithWeekday, formatDateRangeShort } from '../../utils/dateFormat';
+import { formatDateWithWeekday, formatDateRangeShort, parseDateString } from '../../utils/dateFormat';
 
 // Lazy load heavy modal components
 const OptimizationPreview = lazy(() => import('../Agenda/OptimizationPreview'));
@@ -66,7 +68,7 @@ const categoryIcons = {
   'Nature': TreePine,
   'Shopping': ShoppingBag,
   'Entertainment': Music,
-  'Photography': Camera,
+  'Photography': CameraIcon,
   'Accommodation': MapPin,
   'Activity': MapPin,
   'Museum': Landmark,
@@ -91,21 +93,21 @@ const categoryColors = {
 // Format minutes to hours and minutes
 const formatDwellTime = (minutes) => {
   if (!minutes) return null;
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60) return `${Math.round(minutes)}m`;
   const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
+  const mins = Math.round(minutes % 60);
   return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 };
 
 // Transport mode options for segment routing
 const TRANSPORT_MODES = [
-  { id: 'walking', label: 'Walk', icon: Footprints, color: 'text-green-600 bg-green-50' },
-  { id: 'cycling', label: 'Bike', icon: Bike, color: 'text-amber-600 bg-amber-50' },
-  { id: 'driving', label: 'Drive', icon: Car, color: 'text-indigo-600 bg-indigo-50' },
+  { id: 'walking', labelKey: 'routes.modes.walk', icon: Footprints, color: 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/30' },
+  { id: 'cycling', labelKey: 'routes.modes.bike', icon: Bike, color: 'text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-900/30' },
+  { id: 'driving', labelKey: 'routes.modes.drive', icon: Car, color: 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/30' },
 ];
 
 // Transport Mode Connector between POIs - memoized to prevent re-renders
-const TransportModeConnector = React.memo(function TransportModeConnector({ fromPoiId, toPoiId, segment }) {
+const TransportModeConnector = React.memo(function TransportModeConnector({ fromPoiId, toPoiId, segment, t }) {
   const { getSegmentMode, setSegmentMode } = useDayRoutesStore();
   const currentMode = getSegmentMode(fromPoiId, toPoiId);
 
@@ -129,7 +131,7 @@ const TransportModeConnector = React.memo(function TransportModeConnector({ from
       <div className="flex items-center gap-2">
         {/* Connector line */}
         <div className="flex flex-col items-center">
-          <ArrowDown className="w-3 h-3 text-gray-300" />
+          <ArrowNarrowDownIcon className="w-3 h-3 text-gray-300" />
         </div>
 
         {/* Transport mode buttons */}
@@ -146,7 +148,7 @@ const TransportModeConnector = React.memo(function TransportModeConnector({ from
                     ? mode.color
                     : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
                 }`}
-                title={mode.label}
+                title={t(mode.labelKey)}
               >
                 <Icon className="w-3 h-3" />
               </button>
@@ -165,22 +167,31 @@ const TransportModeConnector = React.memo(function TransportModeConnector({ from
   );
 });
 
-// Generate days between arrival and departure
+// Generate days between arrival and departure using timezone-safe parsing
 const generateDays = (arrivalDate, departureDate) => {
   if (!arrivalDate || !departureDate) return [];
 
   const days = [];
-  const arrival = new Date(arrivalDate);
-  const departure = new Date(departureDate);
+  // Use timezone-safe parsing to avoid UTC conversion issues
+  const arrival = parseDateString(arrivalDate);
+  const departure = parseDateString(departureDate);
+
+  if (!arrival || !departure) return [];
 
   let currentDate = new Date(arrival);
   let dayNumber = 1;
 
   while (currentDate < departure) {
+    // Format date as YYYY-MM-DD in local timezone
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const day = String(currentDate.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
     days.push({
       dayNumber,
-      date: currentDate.toISOString().split('T')[0],
-      displayDate: formatDateWithWeekday(currentDate),
+      date: dateStr,
+      displayDate: formatDateWithWeekday(dateStr),
     });
     currentDate.setDate(currentDate.getDate() + 1);
     dayNumber++;
@@ -190,7 +201,7 @@ const generateDays = (arrivalDate, departureDate) => {
 };
 
 // Sortable POI Item
-const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onClick, onAddNote, noteCount = 0 }) => {
+const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onClick, onAddNote, noteCount = 0, t }) => {
   const {
     attributes,
     listeners,
@@ -214,16 +225,16 @@ const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onC
       ref={setNodeRef}
       style={style}
       className={`
-        flex items-center p-2 rounded-lg bg-white dark:bg-gray-800
+        flex items-start p-2.5 rounded-lg bg-white dark:bg-gray-800
         border border-gray-200 dark:border-gray-700
-        ${isDragging ? 'shadow-lg ring-2 ring-indigo-500' : 'shadow-sm'}
+        ${isDragging ? 'shadow-lg ring-2 ring-[#D97706]' : 'shadow-sm'}
         ${isOverlay ? 'shadow-xl' : ''}
         transition-shadow cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50
       `}
       onClick={() => onClick && onClick(poi)}
     >
       <button
-        className="p-1 mr-2 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+        className="p-1 mr-2 mt-0.5 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 flex-shrink-0"
         {...attributes}
         {...listeners}
         onClick={(e) => e.stopPropagation()}
@@ -232,11 +243,11 @@ const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onC
       </button>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
+        <div className="flex items-start justify-between gap-2">
+          <span className="text-sm font-medium text-gray-900 dark:text-white truncate pt-0.5">
             {poi.name}
           </span>
-          <div className="flex items-center space-x-1 ml-2" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
             {onVote && (
               <>
                 <button
@@ -257,7 +268,7 @@ const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onC
               <button
                 onClick={() => onAddNote(poi)}
                 className="p-1 hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded transition-colors relative"
-                title="Add note for this POI"
+                title={t('itinerary.addNoteForPOI')}
               >
                 <BookOpen className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                 {noteCount > 0 && (
@@ -272,7 +283,7 @@ const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onC
                 onClick={() => onEdit(poi)}
                 className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
               >
-                <Pencil className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                <PenIcon className="w-3 h-3 text-gray-500 dark:text-gray-400" />
               </button>
             )}
             {onDelete && (
@@ -280,19 +291,19 @@ const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onC
                 onClick={() => onDelete(poi)}
                 className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
               >
-                <Trash2 className="w-3 h-3 text-red-500 dark:text-red-400" />
+                <TrashIcon className="w-3 h-3 text-red-500 dark:text-red-400" />
               </button>
             )}
           </div>
         </div>
-        <div className="flex items-center mt-1 gap-2 flex-wrap">
+        <div className="flex items-center mt-1.5 gap-2 flex-wrap">
           <span className={`text-xs px-1.5 py-0.5 rounded flex items-center ${categoryColors[poi.category] || 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}>
             <CategoryIcon className="w-3 h-3 mr-1" />
             {poi.category}
           </span>
           {poi.dwell_time && (
             <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-              <Clock className="w-3 h-3 mr-1" />
+              <ClockIcon className="w-3 h-3 mr-1" />
               {formatDwellTime(poi.dwell_time)}
             </span>
           )}
@@ -318,7 +329,7 @@ const DroppableContainer = ({ id, children, className = '' }) => {
   return (
     <div
       ref={setNodeRef}
-      className={`${className} ${isOver ? 'ring-2 ring-indigo-500 ring-opacity-50 bg-indigo-50 dark:bg-indigo-900/10' : ''}`}
+      className={`${className} ${isOver ? 'ring-2 ring-[#D97706] ring-opacity-50 bg-amber-50 dark:bg-amber-900/10' : ''}`}
     >
       {typeof children === 'function' ? children(isOver) : children}
     </div>
@@ -336,32 +347,42 @@ const DayColumn = React.memo(function DayColumn({
   onVote,
   onPOIClick,
   totalDwellTime,
+  transportTime,
   onOptimize,
   isOptimizing,
   onAddDayNote,
   onAddPOINote,
+  t,
 }) {
+  const totalTime = totalDwellTime + (transportTime || 0);
+
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden bg-white dark:bg-gray-800">
-      <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50">
+      <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 dark:bg-gray-700/50">
         <button
           onClick={onToggle}
-          className="flex items-center flex-1 hover:bg-gray-100 dark:hover:bg-gray-700 -m-1 p-1 rounded transition-colors"
+          className="flex items-center flex-1 min-w-0 hover:bg-gray-100 dark:hover:bg-gray-700 -m-1 p-1 rounded transition-colors"
         >
-          <Calendar className="w-4 h-4 mr-2 text-indigo-500 dark:text-indigo-400" />
-          <span className="font-medium text-sm text-gray-900 dark:text-white">
-            Day {day.dayNumber}
+          <Calendar className="w-4 h-4 mr-2 flex-shrink-0 text-[#D97706] dark:text-amber-400" />
+          <span className="font-medium text-sm text-gray-900 dark:text-white whitespace-nowrap">
+            {t('itinerary.dayNumber', { number: day.dayNumber })}
           </span>
-          <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
+          <span className="ml-2 text-xs text-gray-500 dark:text-gray-400 truncate">
             {day.displayDate}
           </span>
           {pois.length > 0 && (
-            <span className="ml-2 text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.5 rounded-full">
+            <span className="ml-1.5 text-xs bg-amber-100 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-300 px-1.5 py-0.5 rounded-full flex-shrink-0">
               {pois.length}
             </span>
           )}
         </button>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+          {totalTime > 0 && (
+            <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center mr-1" title={transportTime > 0 ? `Activities: ${formatDwellTime(totalDwellTime)} + Travel: ${formatDwellTime(transportTime)}` : undefined}>
+              <ClockIcon className="w-3 h-3 mr-0.5" />
+              {formatDwellTime(totalTime)}
+            </span>
+          )}
           {/* Add Note Button */}
           {onAddDayNote && (
             <button
@@ -369,8 +390,8 @@ const DayColumn = React.memo(function DayColumn({
                 e.stopPropagation();
                 onAddDayNote(day.dayNumber, day.date);
               }}
-              className="p-1 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded transition-colors"
-              title="Add note for this day"
+              className="p-1.5 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded transition-colors"
+              title={t('itinerary.addNoteForDay')}
             >
               <BookOpen className="w-3.5 h-3.5" />
             </button>
@@ -383,22 +404,15 @@ const DayColumn = React.memo(function DayColumn({
                 onOptimize?.(day.dayNumber);
               }}
               disabled={isOptimizing}
-              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded transition-colors disabled:opacity-50"
-              title="Optimize route order"
+              className="p-1.5 text-[#D97706] dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition-colors disabled:opacity-50"
+              title={t('itinerary.optimizeRouteOrder')}
             >
               {isOptimizing ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <Route className="w-3 h-3" />
+                <Route className="w-3.5 h-3.5" />
               )}
-              <span>Optimize</span>
             </button>
-          )}
-          {totalDwellTime > 0 && (
-            <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-              <Clock className="w-3 h-3 mr-1" />
-              {formatDwellTime(totalDwellTime)}
-            </span>
           )}
           <button onClick={onToggle} className="p-1">
             {isExpanded ? (
@@ -411,7 +425,7 @@ const DayColumn = React.memo(function DayColumn({
       </div>
 
       {isExpanded && (
-        <DroppableContainer id={day.date} className="p-2 min-h-[60px] transition-all">
+        <DroppableContainer id={day.date} className="p-2.5 min-h-[60px] transition-all">
           {(isOver) => (
             <SortableContext
               items={pois.map(p => p.id)}
@@ -422,39 +436,39 @@ const DayColumn = React.memo(function DayColumn({
                   flex flex-col items-center justify-center py-8 px-4
                   border-2 border-dashed rounded-xl transition-all duration-300 ease-out
                   ${isOver
-                    ? 'border-indigo-500 bg-gradient-to-br from-indigo-50 to-indigo-100/50 dark:from-indigo-900/30 dark:to-indigo-800/20 scale-[1.02] shadow-inner'
-                    : 'border-gray-300 dark:border-gray-600 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                    ? 'border-[#D97706] bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-900/20 dark:to-amber-800/20 scale-[1.02] shadow-inner'
+                    : 'border-gray-300 dark:border-gray-600 hover:border-amber-400 dark:hover:border-[#D97706] hover:bg-gray-50 dark:hover:bg-gray-800/50'
                   }
                 `}>
                   {/* Animated icon container */}
                   <div className={`
                     relative p-3 rounded-xl mb-3 transition-all duration-300
                     ${isOver
-                      ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 shadow-md'
+                      ? 'bg-amber-100 dark:bg-amber-900/30 text-[#D97706] dark:text-amber-400 shadow-md'
                       : 'bg-gradient-to-br from-gray-100 to-gray-50 dark:from-gray-700 dark:to-gray-800 text-gray-400 dark:text-gray-500'
                     }
                   `}>
                     <Calendar className={`w-6 h-6 transition-transform duration-300 ${isOver ? 'scale-110' : ''}`} />
                     {/* Decorative ring on hover/drag */}
                     {isOver && (
-                      <div className="absolute inset-0 rounded-xl border-2 border-indigo-400/50 animate-ping" />
+                      <div className="absolute inset-0 rounded-xl border-2 border-amber-400/50 animate-ping" />
                     )}
                   </div>
 
-                  <span className={`text-sm font-medium transition-colors duration-200 ${isOver ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-300'}`}>
-                    {isOver ? 'Release to schedule' : 'Plan your day'}
+                  <span className={`text-sm font-medium transition-colors duration-200 ${isOver ? 'text-[#D97706] dark:text-amber-300' : 'text-gray-600 dark:text-gray-300'}`}>
+                    {isOver ? t('itinerary.releaseToSchedule') : t('itinerary.planYourDay')}
                   </span>
 
-                  <span className={`text-xs mt-1.5 text-center transition-colors duration-200 max-w-[160px] ${isOver ? 'text-indigo-600/80 dark:text-indigo-400/80' : 'text-gray-400 dark:text-gray-500'}`}>
-                    {isOver ? 'Adding to this day\'s itinerary' : 'Drag places here to add them to this day'}
+                  <span className={`text-xs mt-1.5 text-center transition-colors duration-200 max-w-[160px] ${isOver ? 'text-[#D97706]/80 dark:text-amber-400/80' : 'text-gray-400 dark:text-gray-500'}`}>
+                    {isOver ? t('itinerary.addingToDay') : t('itinerary.dragPlacesHere')}
                   </span>
 
                   {/* Visual hint arrows */}
                   {!isOver && (
                     <div className="mt-3 flex items-center space-x-1 text-gray-300 dark:text-gray-600">
-                      <ArrowDown className="w-3 h-3 animate-bounce" style={{ animationDelay: '0s' }} />
-                      <ArrowDown className="w-3 h-3 animate-bounce" style={{ animationDelay: '0.1s' }} />
-                      <ArrowDown className="w-3 h-3 animate-bounce" style={{ animationDelay: '0.2s' }} />
+                      <ArrowNarrowDownIcon className="w-3 h-3 animate-bounce" style={{ animationDelay: '0s' }} />
+                      <ArrowNarrowDownIcon className="w-3 h-3 animate-bounce" style={{ animationDelay: '0.1s' }} />
+                      <ArrowNarrowDownIcon className="w-3 h-3 animate-bounce" style={{ animationDelay: '0.2s' }} />
                     </div>
                   )}
                 </div>
@@ -468,12 +482,14 @@ const DayColumn = React.memo(function DayColumn({
                       onVote={onVote}
                       onClick={onPOIClick}
                       onAddNote={onAddPOINote ? () => onAddPOINote(poi) : null}
+                      t={t}
                     />
                     {/* Transport mode connector between POIs */}
                     {index < pois.length - 1 && (
                       <TransportModeConnector
                         fromPoiId={poi.id}
                         toPoiId={pois[index + 1].id}
+                        t={t}
                       />
                     )}
                   </React.Fragment>
@@ -488,35 +504,35 @@ const DayColumn = React.memo(function DayColumn({
 });
 
 // Unscheduled POIs Section - memoized to prevent re-renders when days change
-const UnscheduledSection = React.memo(function UnscheduledSection({ pois, isExpanded, onToggle, onEdit, onDelete, onVote, onPOIClick, onAddPOINote, onSmartSchedule }) {
+const UnscheduledSection = React.memo(function UnscheduledSection({ pois, isExpanded, onToggle, onEdit, onDelete, onVote, onPOIClick, onAddPOINote, onSmartSchedule, t }) {
   return (
     <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800/50">
-      <div className="flex items-center justify-between p-3">
+      <div className="flex items-center justify-between px-3 py-2.5 gap-2">
         <button
           onClick={onToggle}
-          className="flex items-center flex-1 hover:bg-gray-100 dark:hover:bg-gray-700/50 -m-1 p-1 rounded transition-colors"
+          className="flex items-center flex-1 min-w-0 hover:bg-gray-100 dark:hover:bg-gray-700/50 -m-1 p-1 rounded transition-colors overflow-hidden"
         >
-          <MapPin className="w-4 h-4 mr-2 text-gray-500 dark:text-gray-400" />
-          <span className="font-medium text-sm text-gray-700 dark:text-gray-300">
-            Unscheduled
+          <MapPin className="w-4 h-4 mr-2 flex-shrink-0 text-gray-500 dark:text-gray-400" />
+          <span className="font-medium text-sm text-gray-700 dark:text-gray-300 truncate">
+            {t('itinerary.unscheduled')}
           </span>
           {pois.length > 0 && (
-            <span className="ml-2 text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-1.5 py-0.5 rounded-full">
+            <span className="ml-2 text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-1.5 py-0.5 rounded-full flex-shrink-0">
               {pois.length}
             </span>
           )}
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {pois.length > 0 && onSmartSchedule && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onSmartSchedule();
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-lg transition-all shadow-sm hover:shadow active:scale-[0.98]"
+              className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] rounded-lg transition-all shadow-sm hover:shadow active:scale-[0.98] whitespace-nowrap"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Smart Schedule ({pois.length})</span>
+              <SparklesIcon className="w-3.5 h-3.5" />
+              <span>{t('itinerary.smartSchedule', { count: pois.length })}</span>
             </button>
           )}
           <button onClick={onToggle} className="p-1">
@@ -538,13 +554,13 @@ const UnscheduledSection = React.memo(function UnscheduledSection({ pois, isExpa
             {pois.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 px-4">
                 <div className="p-2.5 rounded-full bg-gradient-to-br from-green-100 to-emerald-50 dark:from-green-900/30 dark:to-emerald-800/20 mb-3">
-                  <Sparkles className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  <SparklesIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
                 <span className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">
-                  All set!
+                  {t('itinerary.allSet')}
                 </span>
                 <span className="text-xs text-gray-400 dark:text-gray-500 text-center">
-                  Every place has been scheduled
+                  {t('itinerary.everyPlaceScheduled')}
                 </span>
               </div>
             ) : (
@@ -557,6 +573,7 @@ const UnscheduledSection = React.memo(function UnscheduledSection({ pois, isExpa
                   onVote={onVote}
                   onClick={onPOIClick}
                   onAddNote={onAddPOINote ? () => onAddPOINote(poi) : null}
+                  t={t}
                 />
               ))
             )}
@@ -582,6 +599,7 @@ const DailyItinerary = ({
   className = '',
   showHeader = true,
 }) => {
+  const { t } = useTranslation();
   const [expandedDays, setExpandedDays] = useState({});
   const [unscheduledExpanded, setUnscheduledExpanded] = useState(true);
   const [activePOI, setActivePOI] = useState(null);
@@ -612,6 +630,9 @@ const DailyItinerary = ({
     applySmartSchedule,
   } = usePOIStore();
 
+  // Day routes for transport time
+  const { dayRoutes } = useDayRoutesStore();
+
   // Flatten POIs from category groups
   const allPOIs = useMemo(() => {
     if (!pois || !Array.isArray(pois)) return [];
@@ -636,10 +657,12 @@ const DailyItinerary = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
-  // Organize POIs by scheduled date
-  const { scheduledByDay, unscheduled } = useMemo(() => {
+  // Organize POIs by scheduled date with O(1) lookup map
+  const { scheduledByDay, unscheduled, poiContainerMap } = useMemo(() => {
     const scheduled = {};
     const unscheduledList = [];
+    // Map for O(1) POI to container lookup
+    const containerMap = new Map();
 
     days.forEach((day) => {
       scheduled[day.date] = [];
@@ -648,8 +671,10 @@ const DailyItinerary = ({
     allPOIs.forEach((poi) => {
       if (poi.scheduled_date && scheduled[poi.scheduled_date]) {
         scheduled[poi.scheduled_date].push(poi);
+        containerMap.set(poi.id, poi.scheduled_date);
       } else {
         unscheduledList.push(poi);
+        containerMap.set(poi.id, 'unscheduled');
       }
     });
 
@@ -658,7 +683,7 @@ const DailyItinerary = ({
       scheduled[date].sort((a, b) => (a.day_order || 0) - (b.day_order || 0));
     });
 
-    return { scheduledByDay: scheduled, unscheduled: unscheduledList };
+    return { scheduledByDay: scheduled, unscheduled: unscheduledList, poiContainerMap: containerMap };
   }, [allPOIs, days]);
 
   // Calculate total dwell time per day
@@ -669,6 +694,17 @@ const DailyItinerary = ({
     });
     return times;
   }, [scheduledByDay]);
+
+  // Get transport time per day from route calculations
+  const transportTimeByDay = useMemo(() => {
+    const times = {};
+    if (dayRoutes) {
+      Object.entries(dayRoutes).forEach(([date, route]) => {
+        times[date] = route?.totalDuration || 0;
+      });
+    }
+    return times;
+  }, [dayRoutes]);
 
   // DnD Sensors
   const sensors = useSensors(
@@ -682,20 +718,10 @@ const DailyItinerary = ({
     })
   );
 
-  // Find which container a POI belongs to - memoized to avoid recreating on every render
+  // Find which container a POI belongs to - O(1) lookup using Map
   const findContainer = useCallback((poiId) => {
-    // Check unscheduled
-    if (unscheduled.find(p => p.id === poiId)) {
-      return 'unscheduled';
-    }
-    // Check each day
-    for (const [date, dayPOIs] of Object.entries(scheduledByDay)) {
-      if (dayPOIs.find(p => p.id === poiId)) {
-        return date;
-      }
-    }
-    return null;
-  }, [unscheduled, scheduledByDay]);
+    return poiContainerMap.get(poiId) || null;
+  }, [poiContainerMap]);
 
   // Handle drag start
   const handleDragStart = (event) => {
@@ -859,7 +885,7 @@ const DailyItinerary = ({
 
     const dayPOIs = scheduledByDay[day.date] || [];
     if (dayPOIs.length < 2) {
-      setOptimizationError('Need at least 2 POIs to optimize');
+      setOptimizationError(t('itinerary.needAtLeast2POIs'));
       setTimeout(() => setOptimizationError(null), 3000);
       return;
     }
@@ -965,7 +991,7 @@ const DailyItinerary = ({
   if (!destination) {
     return (
       <div className={`flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 w-80 ${className}`}>
-        <div className="p-4 text-gray-500 dark:text-gray-400">No destination selected</div>
+        <div className="p-4 text-gray-500 dark:text-gray-400">{t('itinerary.noDestinationSelected')}</div>
       </div>
     );
   }
@@ -980,8 +1006,8 @@ const DailyItinerary = ({
               onClick={onBack}
               className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-2 transition-colors"
             >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Back to route
+              <ArrowBackIcon className="w-4 h-4 mr-1" />
+              {t('itinerary.backToRoute')}
             </button>
           )}
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -992,19 +1018,19 @@ const DailyItinerary = ({
           </p>
           <div className="flex items-center mt-2 justify-between">
             <div className="flex items-center space-x-3">
-              <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-                {days.length} {days.length === 1 ? 'day' : 'days'}
+              <span className="text-xs text-[#D97706] dark:text-amber-400 font-medium">
+                {t('itinerary.dayCount', { count: days.length })}
               </span>
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                {allPOIs.length} POI{allPOIs.length !== 1 ? 's' : ''}
+                {t('itinerary.poiCount', { count: allPOIs.length })}
               </span>
             </div>
             <button
               onClick={() => setShowSuggestionsModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 rounded-lg transition-all shadow-sm hover:shadow"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-[#D97706] to-[#EA580C] hover:from-[#B45309] hover:to-[#C2410C] rounded-lg transition-all shadow-sm hover:shadow"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Discover POIs</span>
+              <SparklesIcon className="w-3.5 h-3.5" />
+              <span>{t('poi.discoverPois')}</span>
             </button>
           </div>
         </div>
@@ -1032,10 +1058,12 @@ const DailyItinerary = ({
               onVote={onVotePOI}
               onPOIClick={onPOIClick}
               totalDwellTime={dwellTimeByDay[day.date] || 0}
+              transportTime={transportTimeByDay[day.date] || 0}
               onOptimize={handleOptimizeDay}
               isOptimizing={optimizingDay === day.dayNumber && isOptimizing}
               onAddDayNote={onAddDayNote}
               onAddPOINote={onAddPOINote}
+              t={t}
             />
           ))}
 
@@ -1050,6 +1078,7 @@ const DailyItinerary = ({
             onPOIClick={onPOIClick}
             onAddPOINote={onAddPOINote}
             onSmartSchedule={handleOpenSmartScheduler}
+            t={t}
           />
 
           {/* Drag Overlay */}
@@ -1065,10 +1094,10 @@ const DailyItinerary = ({
       <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <div className="flex items-center justify-between text-xs">
           <span className="text-gray-500 dark:text-gray-400">
-            Scheduled: <span className="font-medium text-indigo-600 dark:text-indigo-400">{allPOIs.length - unscheduled.length}</span>
+            {t('itinerary.scheduled')}: <span className="font-medium text-[#D97706] dark:text-amber-400">{allPOIs.length - unscheduled.length}</span>
           </span>
           <span className="text-gray-500 dark:text-gray-400">
-            Unscheduled: <span className="font-medium text-gray-700 dark:text-gray-300">{unscheduled.length}</span>
+            {t('itinerary.unscheduled')}: <span className="font-medium text-gray-700 dark:text-gray-300">{unscheduled.length}</span>
           </span>
         </div>
       </div>
@@ -1076,7 +1105,7 @@ const DailyItinerary = ({
       {/* Optimization Error Toast */}
       {optimizationError && (
         <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-3 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg shadow-lg">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <InfoCircleIcon className="w-4 h-4 flex-shrink-0" />
           <span className="text-sm">{optimizationError}</span>
         </div>
       )}
@@ -1093,7 +1122,7 @@ const DailyItinerary = ({
             dayNumber={optimizingDay}
             startLocationName={
               startLocationInfo?.accommodation?.name ||
-              (startLocationInfo?.warning ? 'City center (no accommodation set)' : null)
+              (startLocationInfo?.warning ? t('itinerary.cityCenterNoAccommodation') : null)
             }
             startTime={startTime}
             onStartTimeChange={handleStartTimeChange}

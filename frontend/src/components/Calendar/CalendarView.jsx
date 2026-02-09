@@ -1,45 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar as CalendarIcon, Grid3x3, List, Plane, Car, Train, Bus, Footprints, Bike, Ship } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Calendar as CalendarIcon, Grid3x3 } from 'lucide-react';
+import UnorderedListIcon from '@/components/icons/unordered-list-icon';
 import MonthCalendarView from './MonthCalendarView';
 import WeekCalendarView from './WeekCalendarView';
 import CalendarExport from './CalendarExport';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
-
-// Transport mode icon mapping
-const TRANSPORT_ICONS = {
-  plane: Plane,
-  flight: Plane,
-  car: Car,
-  driving: Car,
-  train: Train,
-  bus: Bus,
-  walk: Footprints,
-  walking: Footprints,
-  bike: Bike,
-  cycling: Bike,
-  ferry: Ship,
-};
-
-// Helper function to get transport icon for a destination arrival/departure
-export const getTransportIcon = (segments, destinationId, isArrival) => {
-  if (!segments || segments.length === 0) return Plane;
-
-  const segment = isArrival
-    ? segments.find(s => s.to_destination_id === destinationId)
-    : segments.find(s => s.from_destination_id === destinationId);
-
-  if (segment?.travel_mode) {
-    return TRANSPORT_ICONS[segment.travel_mode] || Plane;
-  }
-
-  return Plane;
-};
+import { parseDateString } from '../../utils/dateFormat';
 
 const CalendarView = ({ trip, destinations, pois, accommodations }) => {
+  const { t } = useTranslation();
   const [viewMode, setViewMode] = useState('month'); // 'month' or 'week'
   const [selectedDate, setSelectedDate] = useState(() => {
     // Default to trip start date or today
-    return trip?.start_date ? new Date(trip.start_date + 'T00:00:00') : new Date();
+    return trip?.start_date ? parseDateString(trip.start_date) || new Date() : new Date();
   });
 
   // Fetch travel segments for transport icons
@@ -55,8 +29,9 @@ const CalendarView = ({ trip, destinations, pois, accommodations }) => {
   const tripDateRange = useMemo(() => {
     if (!trip?.start_date || !trip?.end_date) return null;
 
-    const startDate = new Date(trip.start_date + 'T00:00:00');
-    const endDate = new Date(trip.end_date + 'T00:00:00');
+    const startDate = parseDateString(trip.start_date);
+    const endDate = parseDateString(trip.end_date);
+    if (!startDate || !endDate) return null;
 
     return { startDate, endDate };
   }, [trip?.start_date, trip?.end_date]);
@@ -100,7 +75,10 @@ const CalendarView = ({ trip, destinations, pois, accommodations }) => {
       // Mark all nights this accommodation covers
       let currentDate = new Date(checkIn);
       while (currentDate < checkOut) {
-        const dateKey = currentDate.toISOString().split('T')[0];
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const dateKey = `${year}-${month}-${day}`;
         if (!organized[dateKey]) {
           organized[dateKey] = [];
         }
@@ -146,7 +124,7 @@ const CalendarView = ({ trip, destinations, pois, accommodations }) => {
   if (!trip) {
     return (
       <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
-        <p>No trip data available</p>
+        <p>{t('calendar.noTripData')}</p>
       </div>
     );
   }
@@ -158,7 +136,7 @@ const CalendarView = ({ trip, destinations, pois, accommodations }) => {
         <div className="flex items-center gap-3">
           <CalendarIcon className="w-6 h-6 text-gray-700 dark:text-gray-300" />
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Calendar View
+            {t('calendar.title')}
           </h2>
         </div>
 
@@ -174,7 +152,7 @@ const CalendarView = ({ trip, destinations, pois, accommodations }) => {
               }`}
             >
               <Grid3x3 className="w-4 h-4" />
-              Month
+              {t('calendar.month')}
             </button>
             <button
               onClick={() => setViewMode('week')}
@@ -184,8 +162,8 @@ const CalendarView = ({ trip, destinations, pois, accommodations }) => {
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
-              <List className="w-4 h-4" />
-              Week
+              <UnorderedListIcon className="w-4 h-4" />
+              {t('calendar.week')}
             </button>
           </div>
 

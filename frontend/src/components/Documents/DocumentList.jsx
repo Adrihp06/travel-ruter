@@ -1,10 +1,8 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-  FileText,
   Image,
   Download,
-  Eye,
-  Trash2,
   Ticket,
   CalendarCheck,
   Receipt,
@@ -18,6 +16,12 @@ import {
   MapPin,
   Calendar,
 } from 'lucide-react';
+import FileDescriptionIcon from '@/components/icons/file-description-icon';
+import TrashIcon from '@/components/icons/trash-icon';
+import ExternalLinkIcon from '@/components/icons/external-link-icon';
+import EyeIcon from '@/components/icons/eye-icon';
+import CheckedIcon from '@/components/icons/checked-icon';
+import StarIcon from '@/components/icons/star-icon';
 import { formatDateForDocument } from '../../utils/dateFormat';
 
 const DOCUMENT_TYPE_ICONS = {
@@ -52,10 +56,13 @@ const DocumentList = ({
   onDownload,
   onDelete,
   isLoading,
-  emptyMessage = 'No documents uploaded yet',
+  emptyMessage,
   compact = false,
   destinations = [],
 }) => {
+  const { t } = useTranslation();
+  const displayEmptyMessage = emptyMessage || t('documents.noDocuments');
+
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -68,9 +75,9 @@ const DocumentList = ({
 
   const getFileIcon = (mimeType, size = 5) => {
     if (mimeType?.startsWith('image/')) {
-      return <Image className={`w-${size} h-${size} text-indigo-500`} />;
+      return <Image className={`w-${size} h-${size} text-[#D97706]`} />;
     }
-    return <FileText className={`w-${size} h-${size} text-red-500`} />;
+    return <FileDescriptionIcon className={`w-${size} h-${size} text-red-500`} />;
   };
 
   const getTypeIcon = (documentType) => {
@@ -86,7 +93,7 @@ const DocumentList = ({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#D97706]"></div>
       </div>
     );
   }
@@ -94,8 +101,8 @@ const DocumentList = ({
   if (!documents || documents.length === 0) {
     return (
       <div className={`text-center ${compact ? 'py-3' : 'py-6'} text-gray-500 text-sm`}>
-        {!compact && <FileText className="w-8 h-8 mx-auto mb-2 text-gray-300" />}
-        <p>{emptyMessage}</p>
+        {!compact && <FileDescriptionIcon className="w-8 h-8 mx-auto mb-2 text-gray-300" />}
+        <p>{displayEmptyMessage}</p>
       </div>
     );
   }
@@ -105,7 +112,7 @@ const DocumentList = ({
       {documents.map((doc) => (
         <div
           key={doc.id}
-          className={`group flex items-center ${compact ? 'p-2' : 'p-3'} bg-white border border-gray-200 rounded-lg hover:border-indigo-200 hover:shadow-sm transition-all duration-200`}
+          className={`group flex items-center ${compact ? 'p-2' : 'p-3'} bg-white border border-gray-200 rounded-lg hover:border-amber-200 hover:shadow-sm transition-all duration-200`}
         >
           {/* File Icon */}
           <div className={`flex-shrink-0 ${compact ? 'mr-2' : 'mr-3'}`}>
@@ -133,7 +140,7 @@ const DocumentList = ({
             {(doc.destination_id || doc.day_number) && (
               <div className="flex items-center flex-wrap gap-1 mt-1">
                 {doc.destination_id && (
-                  <span className="inline-flex items-center text-xs text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                  <span className="inline-flex items-center text-xs text-[#D97706] bg-amber-50 px-1.5 py-0.5 rounded">
                     <MapPin className="w-3 h-3 mr-0.5" />
                     {getDestinationName(doc.destination_id) || `Dest #${doc.destination_id}`}
                   </span>
@@ -141,7 +148,7 @@ const DocumentList = ({
                 {doc.day_number && (
                   <span className="inline-flex items-center text-xs text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
                     <Calendar className="w-3 h-3 mr-0.5" />
-                    Day {doc.day_number}
+                    {t('common.day')} {doc.day_number}
                   </span>
                 )}
               </div>
@@ -161,24 +168,24 @@ const DocumentList = ({
           <div className={`flex items-center ${compact ? 'space-x-0.5 ml-1' : 'space-x-1 ml-2'} opacity-0 group-hover:opacity-100 transition-opacity`}>
             <button
               onClick={() => onView(doc.id)}
-              className={`${compact ? 'p-1' : 'p-1.5'} text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors`}
-              title="View"
+              className={`${compact ? 'p-1' : 'p-1.5'} text-gray-400 hover:text-[#D97706] hover:bg-amber-50 rounded transition-colors`}
+              title={t('common.view')}
             >
-              <Eye className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
+              <EyeIcon className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
             </button>
             <button
               onClick={() => onDownload(doc.id)}
               className={`${compact ? 'p-1' : 'p-1.5'} text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors`}
-              title="Download"
+              title={t('common.download')}
             >
               <Download className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
             </button>
             <button
               onClick={() => onDelete(doc.id)}
               className={`${compact ? 'p-1' : 'p-1.5'} text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors`}
-              title="Delete"
+              title={t('common.delete')}
             >
-              <Trash2 className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
+              <TrashIcon className={compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
             </button>
           </div>
         </div>

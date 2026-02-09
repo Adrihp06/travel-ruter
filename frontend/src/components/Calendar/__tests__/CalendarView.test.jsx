@@ -1,6 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { getTransportIcon } from '../CalendarView';
+import { describe, it, expect } from 'vitest';
+import { getTransportIcon } from '../calendarUtils';
 import { Plane, Car, Train, Bus, Footprints, Bike, Ship } from 'lucide-react';
 
 describe('CalendarView', () => {

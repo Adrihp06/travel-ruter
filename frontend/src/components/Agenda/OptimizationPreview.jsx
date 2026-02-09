@@ -1,13 +1,14 @@
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-  X,
-  Check,
   Route,
-  Clock,
   MapPin,
-  AlertTriangle,
   Footprints,
 } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
+import ClockIcon from '@/components/icons/clock-icon';
+import CheckedIcon from '@/components/icons/checked-icon';
+import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
 
 const OptimizationPreview = ({
   isOpen,
@@ -20,6 +21,7 @@ const OptimizationPreview = ({
   startTime,
   onStartTimeChange,
 }) => {
+  const { t } = useTranslation();
   // Check if order changed
   const orderChanged = useMemo(() => {
     const optimized_order = optimizationResult?.optimized_order || [];
@@ -30,9 +32,9 @@ const OptimizationPreview = ({
 
   // Format duration
   const formatDuration = (minutes) => {
-    if (minutes < 60) return `${minutes} min`;
+    if (minutes < 60) return `${Math.round(minutes)} min`;
     const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+    const mins = Math.round(minutes % 60);
     return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   };
 
@@ -49,20 +51,20 @@ const OptimizationPreview = ({
         <div className="modal-header flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="modal-icon-container primary">
-              <Route className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <Route className="w-5 h-5 text-[#D97706] dark:text-amber-400" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                Optimized Route
+                {t('itinerary.optimizedRoute')}
               </h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">Day {dayNumber}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('itinerary.dayTitle', { number: dayNumber })}</p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="modal-close-btn p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
-            <X className="w-5 h-5" />
+            <XIcon className="w-5 h-5" />
           </button>
         </div>
 
@@ -70,19 +72,19 @@ const OptimizationPreview = ({
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
           {/* Summary Stats */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-gradient-to-br from-indigo-50 to-blue-50/50 dark:from-indigo-900/30 dark:to-blue-900/20 rounded-xl p-4 border border-indigo-100/70 dark:border-indigo-800/40">
-              <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mb-2">
+            <div className="bg-gradient-to-br from-amber-50 to-blue-50/50 dark:from-amber-900/20 dark:to-blue-900/20 rounded-xl p-4 border border-amber-100/70 dark:border-amber-800/40">
+              <div className="flex items-center gap-2 text-[#D97706] dark:text-amber-400 mb-2">
                 <Footprints className="w-4 h-4" />
-                <span className="text-xs font-medium uppercase tracking-wide">Total Distance</span>
+                <span className="text-xs font-medium uppercase tracking-wide">{t('itinerary.totalDistance')}</span>
               </div>
-              <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
+              <p className="text-2xl font-bold text-[#D97706] dark:text-amber-300">
                 {total_distance_km.toFixed(1)} <span className="text-sm font-medium">km</span>
               </p>
             </div>
             <div className="bg-gradient-to-br from-emerald-50 to-green-50/50 dark:from-emerald-900/30 dark:to-green-900/20 rounded-xl p-4 border border-emerald-100/70 dark:border-emerald-800/40">
               <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 mb-2">
-                <Clock className="w-4 h-4" />
-                <span className="text-xs font-medium uppercase tracking-wide">Travel Time</span>
+                <ClockIcon className="w-4 h-4" />
+                <span className="text-xs font-medium uppercase tracking-wide">{t('itinerary.travelTime')}</span>
               </div>
               <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
                 {formatDuration(total_duration_minutes)}
@@ -94,10 +96,10 @@ const OptimizationPreview = ({
           {!orderChanged && (
             <div className="flex items-center gap-3 p-4 bg-gradient-to-br from-amber-50 to-yellow-50/50 dark:from-yellow-900/20 dark:to-amber-900/10 rounded-xl border border-amber-200/70 dark:border-yellow-800/40">
               <div className="modal-icon-container warning w-9 h-9 rounded-lg flex-shrink-0">
-                <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
+                <TriangleAlertIcon className="w-4 h-4 text-yellow-600 dark:text-yellow-400" />
               </div>
               <p className="text-sm font-medium text-yellow-700 dark:text-yellow-300">
-                The current order is already optimal!
+                {t('itinerary.alreadyOptimal')}
               </p>
             </div>
           )}
@@ -109,11 +111,11 @@ const OptimizationPreview = ({
                 <MapPin className="w-4 h-4 text-green-600 dark:text-green-400" />
               </div>
               <span className="truncate">
-                Start: <span className="font-semibold text-gray-900 dark:text-white">{startLocationName || 'Accommodation'}</span>
+                {t('itinerary.start')} <span className="font-semibold text-gray-900 dark:text-white">{startLocationName || t('itinerary.accommodationDefault')}</span>
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-gray-400" />
+              <ClockIcon className="w-4 h-4 text-gray-400" />
               <input
                 type="time"
                 value={startTime}
@@ -126,7 +128,7 @@ const OptimizationPreview = ({
           {/* Schedule with Times */}
           <div className="space-y-2">
             <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-              Optimized schedule
+              {t('itinerary.optimizedSchedule')}
             </p>
             <div className="space-y-2">
               {(schedule || []).map((item, index) => {
@@ -145,7 +147,7 @@ const OptimizationPreview = ({
                       <span className="opacity-70">{item.estimated_departure}</span>
                     </div>
                     {/* Order badge */}
-                    <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center bg-gradient-to-br from-indigo-100 to-blue-100 dark:from-indigo-900/50 dark:to-blue-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-bold shadow-sm">
+                    <div className="flex-shrink-0 w-7 h-7 flex items-center justify-center bg-gradient-to-br from-amber-100 to-blue-100 dark:from-amber-900/30 dark:to-blue-900/30 text-[#D97706] dark:text-amber-300 rounded-lg text-xs font-bold shadow-sm">
                       {index + 1}
                     </div>
                     {/* POI info */}
@@ -184,7 +186,7 @@ const OptimizationPreview = ({
             disabled={isApplying}
             className="modal-btn modal-btn-secondary"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={onApply}
@@ -194,12 +196,12 @@ const OptimizationPreview = ({
             {isApplying ? (
               <>
                 <span className="modal-spinner" />
-                <span>Applying...</span>
+                <span>{t('poi.applying')}</span>
               </>
             ) : (
               <>
-                <Check className="w-4 h-4" />
-                <span>Apply Order</span>
+                <CheckedIcon className="w-4 h-4" />
+                <span>{t('itinerary.applyOrder')}</span>
               </>
             )}
           </button>

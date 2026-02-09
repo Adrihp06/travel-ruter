@@ -1,31 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-  Search,
   Filter,
-  X,
-  ChevronDown,
   ArrowUpDown,
-  Eye,
-  EyeOff,
-  Sparkles
 } from 'lucide-react';
-
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All Statuses', color: 'stone' },
-  { value: 'planning', label: 'Planning', color: 'amber' },
-  { value: 'booked', label: 'Booked', color: 'emerald' },
-  { value: 'completed', label: 'Completed', color: 'blue' },
-  { value: 'cancelled', label: 'Cancelled', color: 'red' },
-];
-
-const SORT_OPTIONS = [
-  { value: 'default', label: 'Default (Status Priority)', icon: '⚡' },
-  { value: 'date_asc', label: 'Date (Earliest First)', icon: '📅' },
-  { value: 'date_desc', label: 'Date (Latest First)', icon: '📆' },
-  { value: 'name_asc', label: 'Name (A-Z)', icon: '🔤' },
-  { value: 'name_desc', label: 'Name (Z-A)', icon: '🔠' },
-  { value: 'modified', label: 'Recently Modified', icon: '🕐' },
-];
+import MagnifierIcon from '@/components/icons/magnifier-icon';
+import EyeIcon from '@/components/icons/eye-icon';
+import EyeOffIcon from '@/components/icons/eye-off-icon';
+import DownChevron from '@/components/icons/down-chevron';
+import SparklesIcon from '@/components/icons/sparkles-icon';
+import XIcon from '@/components/icons/x-icon';
+import CheckedIcon from '@/components/icons/checked-icon';
 
 const TripSearchFilter = ({
   searchQuery,
@@ -39,10 +24,28 @@ const TripSearchFilter = ({
   activeFiltersCount,
   onClearFilters,
 }) => {
+  const { t } = useTranslation();
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const filterRef = useRef(null);
   const sortRef = useRef(null);
+
+  const STATUS_OPTIONS = useMemo(() => [
+    { value: 'all', label: t('trips.allStatuses'), color: 'stone' },
+    { value: 'planning', label: t('trips.planning'), color: 'amber' },
+    { value: 'booked', label: t('trips.booked'), color: 'emerald' },
+    { value: 'completed', label: t('trips.completed'), color: 'blue' },
+    { value: 'cancelled', label: t('trips.cancelled'), color: 'red' },
+  ], [t]);
+
+  const SORT_OPTIONS = useMemo(() => [
+    { value: 'default', label: t('trips.sortDefault'), icon: '\u26A1' },
+    { value: 'date_asc', label: t('trips.sortDateAsc'), icon: '\uD83D\uDCC5' },
+    { value: 'date_desc', label: t('trips.sortDateDesc'), icon: '\uD83D\uDCC6' },
+    { value: 'name_asc', label: t('trips.sortNameAsc'), icon: '\uD83D\uDD24' },
+    { value: 'name_desc', label: t('trips.sortNameDesc'), icon: '\uD83D\uDD20' },
+    { value: 'modified', label: t('trips.sortModified'), icon: '\uD83D\uDD50' },
+  ], [t]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -60,24 +63,24 @@ const TripSearchFilter = ({
   }, []);
 
   const getStatusLabel = (value) => {
-    return STATUS_OPTIONS.find(opt => opt.value === value)?.label || 'All Statuses';
+    return STATUS_OPTIONS.find(opt => opt.value === value)?.label || t('trips.allStatuses');
   };
 
   return (
     <div className="space-y-4">
       {/* Main search bar container */}
       <div className="bg-white dark:bg-stone-800 rounded-2xl shadow-md border border-stone-200/50 dark:border-stone-700/50 p-3 sm:p-4 transition-all hover:shadow-lg">
-        <div className="flex flex-col lg:flex-row gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3">
           {/* Search input - Enhanced */}
           <div className="relative flex-1 group">
             <div className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors">
-              <Search className="w-5 h-5 text-stone-400 group-focus-within:text-amber-500 dark:group-focus-within:text-amber-400" />
+              <MagnifierIcon className="w-5 h-5 text-stone-400 group-focus-within:text-amber-500 dark:group-focus-within:text-amber-400" />
             </div>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Search trips by name, location, or date..."
+              placeholder={t('trips.searchPlaceholder')}
               className="w-full pl-12 pr-12 py-3.5 border-2 border-stone-200 dark:border-stone-600 rounded-xl bg-stone-50 dark:bg-stone-700/50 text-stone-900 dark:text-white placeholder-stone-400 dark:placeholder-stone-500 focus:border-amber-500 dark:focus:border-amber-400 focus:bg-white dark:focus:bg-stone-700 focus:ring-0 focus:outline-none transition-all text-base"
             />
             {searchQuery && (
@@ -85,13 +88,13 @@ const TripSearchFilter = ({
                 onClick={() => onSearchChange('')}
                 className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 text-stone-400 hover:text-stone-600 dark:hover:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-600 rounded-lg transition-all"
               >
-                <X className="w-4 h-4" />
+                <XIcon className="w-4 h-4" />
               </button>
             )}
           </div>
 
           {/* Filter controls container */}
-          <div className="flex flex-wrap sm:flex-nowrap gap-2 lg:gap-3">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 lg:gap-3">
             {/* Status filter dropdown */}
             <div className="relative flex-1 sm:flex-none" ref={filterRef}>
               <button
@@ -107,15 +110,15 @@ const TripSearchFilter = ({
               >
                 <Filter className="w-4 h-4" />
                 <span className="hidden sm:inline whitespace-nowrap">{getStatusLabel(statusFilter)}</span>
-                <span className="sm:hidden">Filter</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
+                <span className="sm:hidden">{t('common.filter')}</span>
+                <DownChevron className={`w-4 h-4 transition-transform ${showFilterDropdown ? 'rotate-180' : ''}`} />
               </button>
 
               {showFilterDropdown && (
                 <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-56 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl shadow-xl z-30 overflow-hidden animate-scale-fade">
                   <div className="p-2">
                     <div className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider px-3 py-2">
-                      Filter by Status
+                      {t('trips.filterByStatus')}
                     </div>
                     {STATUS_OPTIONS.map((option) => (
                       <button
@@ -139,7 +142,7 @@ const TripSearchFilter = ({
                         }`} />
                         {option.label}
                         {statusFilter === option.value && (
-                          <Sparkles className="w-3 h-3 ml-auto text-amber-500" />
+                          <SparklesIcon className="w-3 h-3 ml-auto text-amber-500" />
                         )}
                       </button>
                     ))}
@@ -162,15 +165,15 @@ const TripSearchFilter = ({
                 }`}
               >
                 <ArrowUpDown className="w-4 h-4" />
-                <span className="hidden sm:inline">Sort</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} />
+                <span className="hidden sm:inline">{t('common.sort')}</span>
+                <DownChevron className={`w-4 h-4 transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} />
               </button>
 
               {showSortDropdown && (
                 <div className="absolute left-0 sm:right-0 sm:left-auto mt-2 w-64 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl shadow-xl z-30 overflow-hidden animate-scale-fade">
                   <div className="p-2">
                     <div className="text-xs font-semibold text-stone-500 dark:text-stone-400 uppercase tracking-wider px-3 py-2">
-                      Sort By
+                      {t('trips.sortBy')}
                     </div>
                     {SORT_OPTIONS.map((option) => (
                       <button
@@ -188,7 +191,7 @@ const TripSearchFilter = ({
                         <span className="text-base">{option.icon}</span>
                         {option.label}
                         {sortBy === option.value && (
-                          <Sparkles className="w-3 h-3 ml-auto text-amber-500" />
+                          <SparklesIcon className="w-3 h-3 ml-auto text-amber-500" />
                         )}
                       </button>
                     ))}
@@ -205,14 +208,14 @@ const TripSearchFilter = ({
                   ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-md hover:shadow-lg'
                   : 'bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-600'
               }`}
-              title={showCompleted ? 'Hide completed trips' : 'Show completed trips'}
+              title={showCompleted ? t('trips.hideCompletedTrips') : t('trips.showCompletedTrips')}
             >
               {showCompleted ? (
-                <Eye className="w-4 h-4" />
+                <EyeIcon className="w-4 h-4" />
               ) : (
-                <EyeOff className="w-4 h-4" />
+                <EyeOffIcon className="w-4 h-4" />
               )}
-              <span className="hidden md:inline">Completed</span>
+              <span className="hidden sm:inline">{t('trips.showCompleted')}</span>
             </button>
           </div>
         </div>
@@ -222,16 +225,16 @@ const TripSearchFilter = ({
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-stone-200 dark:border-stone-700">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full text-sm font-medium">
-                <Sparkles className="w-3.5 h-3.5" />
-                {activeFiltersCount} filter{activeFiltersCount > 1 ? 's' : ''} active
+                <SparklesIcon className="w-3.5 h-3.5" />
+                {t('trips.filtersActive', { count: activeFiltersCount })}
               </span>
             </div>
             <button
               onClick={onClearFilters}
               className="flex items-center gap-1.5 text-sm text-stone-600 dark:text-stone-400 hover:text-amber-600 dark:hover:text-amber-400 font-medium transition-colors"
             >
-              <X className="w-4 h-4" />
-              Clear all
+              <XIcon className="w-4 h-4" />
+              {t('common.clearAll')}
             </button>
           </div>
         )}

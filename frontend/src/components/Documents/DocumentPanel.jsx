@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { FolderOpen, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { FolderOpen, ChevronUp, Plus } from 'lucide-react';
+import DownChevron from '@/components/icons/down-chevron';
 import FileUpload from './FileUpload';
 import DocumentList from './DocumentList';
 import useDocumentStore from '../../stores/useDocumentStore';
 
-const DocumentPanel = ({ poiId, tripId, title = 'The Vault' }) => {
+const DocumentPanel = ({ poiId, tripId, title }) => {
+  const { t } = useTranslation();
+  const displayTitle = title || t('documents.vault');
   const [isExpanded, setIsExpanded] = useState(true);
   const [showUpload, setShowUpload] = useState(false);
 
@@ -52,7 +56,7 @@ const DocumentPanel = ({ poiId, tripId, title = 'The Vault' }) => {
   };
 
   const handleDelete = async (documentId) => {
-    if (window.confirm('Are you sure you want to delete this document?')) {
+    if (window.confirm(t('documents.deleteConfirm'))) {
       await deleteDocument(documentId);
     }
   };
@@ -65,10 +69,10 @@ const DocumentPanel = ({ poiId, tripId, title = 'The Vault' }) => {
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center space-x-2">
-          <FolderOpen className="w-5 h-5 text-indigo-600" />
-          <h3 className="font-medium text-gray-900">{title}</h3>
+          <FolderOpen className="w-5 h-5 text-[#D97706]" />
+          <h3 className="font-medium text-gray-900">{displayTitle}</h3>
           {documents.length > 0 && (
-            <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-amber-100 text-[#D97706] px-2 py-0.5 rounded-full">
               {documents.length}
             </span>
           )}
@@ -80,15 +84,15 @@ const DocumentPanel = ({ poiId, tripId, title = 'The Vault' }) => {
               setShowUpload(!showUpload);
               if (!isExpanded) setIsExpanded(true);
             }}
-            className="p-1 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-            title="Add document"
+            className="p-1 text-gray-500 hover:text-[#D97706] hover:bg-amber-50 rounded transition-colors"
+            title={t('documents.addDocument')}
           >
             <Plus className="w-4 h-4" />
           </button>
           {isExpanded ? (
             <ChevronUp className="w-4 h-4 text-gray-500" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-gray-500" />
+            <DownChevron className="w-4 h-4 text-gray-500" />
           )}
         </div>
       </div>
@@ -100,7 +104,7 @@ const DocumentPanel = ({ poiId, tripId, title = 'The Vault' }) => {
           {showUpload && (
             <div className="mb-4 pb-4 border-b border-gray-200">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-medium text-gray-700">Upload Document</h4>
+                <h4 className="text-sm font-medium text-gray-700">{t('documents.uploadDocument')}</h4>
                 <button
                   onClick={() => {
                     setShowUpload(false);
@@ -108,7 +112,7 @@ const DocumentPanel = ({ poiId, tripId, title = 'The Vault' }) => {
                   }}
                   className="text-xs text-gray-500 hover:text-gray-700"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
               </div>
               <FileUpload
@@ -126,7 +130,7 @@ const DocumentPanel = ({ poiId, tripId, title = 'The Vault' }) => {
             onDownload={handleDownload}
             onDelete={handleDelete}
             isLoading={isLoading}
-            emptyMessage="No documents yet. Click + to upload tickets, confirmations, or receipts."
+            emptyMessage={t('documents.noDocumentsUploadHint')}
           />
         </div>
       )}

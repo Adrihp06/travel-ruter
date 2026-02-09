@@ -1,18 +1,24 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Map, Settings, X } from 'lucide-react';
+import { Map, Bot } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import GearIcon from '@/components/icons/gear-icon';
+import XIcon from '@/components/icons/x-icon';
 
 const Sidebar = ({ isOpen, onClose }) => {
+  const { t } = useTranslation();
+
   const navItems = [
-    { name: 'Trips', path: '/trips', icon: Map },
-    { name: 'Settings', path: '/settings', icon: Settings },
+    { name: t('nav.trips'), path: '/trips', icon: Map },
+    { name: t('nav.settings'), path: '/settings', icon: GearIcon },
+    { name: t('nav.aiSettings'), path: '/ai-settings', icon: Bot },
   ];
 
   return (
     <>
       {/* Mobile Overlay */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={onClose}
         />
@@ -25,12 +31,12 @@ const Sidebar = ({ isOpen, onClose }) => {
         md:translate-x-0 md:static md:inset-auto md:block
       `}>
         <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-gray-700">
-          <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">Travel Ruter</span>
+          <span className="text-xl font-bold text-[#D97706] dark:text-amber-400">{t('nav.travelRuter')}</span>
           <button
             onClick={onClose}
             className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 md:hidden"
           >
-            <X className="w-6 h-6 text-gray-600 dark:text-gray-300" />
+            <XIcon className="w-6 h-6 text-gray-600 dark:text-gray-300" />
           </button>
         </div>
 
@@ -43,7 +49,7 @@ const Sidebar = ({ isOpen, onClose }) => {
               className={({ isActive }) => `
                 flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors
                 ${isActive
-                  ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
+                  ? 'bg-amber-50 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-300'
                   : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'}
               `}
             >

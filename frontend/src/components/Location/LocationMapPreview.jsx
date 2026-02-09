@@ -36,7 +36,7 @@ const LocationMapPreview = ({ latitude, longitude, height = 150 }) => {
         attributionControl={false}
       >
         <Marker longitude={longitude} latitude={latitude} anchor="bottom">
-          <div className="bg-indigo-600 text-white p-1.5 rounded-full shadow-lg">
+          <div className="bg-[#D97706] text-white p-1.5 rounded-full shadow-lg">
             <MapPin className="h-4 w-4" />
           </div>
         </Marker>

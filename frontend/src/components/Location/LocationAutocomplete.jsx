@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MapPin, Loader2, X } from 'lucide-react';
+import { MapPin, Loader2 } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 const SETTINGS_KEY = 'travel-ruter-settings';
@@ -48,7 +49,7 @@ const LocationAutocomplete = ({
     }
   }, [value, latitude, longitude]);
 
-  // Close dropdown when clicking outside
+  // Close dropdown when clicking outside and cleanup debounce on unmount
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
@@ -56,7 +57,13 @@ const LocationAutocomplete = ({
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      // Cleanup debounce timer to prevent memory leak and setState on unmounted component
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
   }, []);
 
   const searchLocations = useCallback(async (query) => {
@@ -161,7 +168,7 @@ const LocationAutocomplete = ({
           value={inputValue}
           onChange={handleInputChange}
           onFocus={handleFocus}
-          className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 bg-white ${
+          className={`w-full pl-10 pr-10 py-2 border rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] text-gray-900 bg-white ${
             error || searchError ? 'border-red-500' : 'border-gray-300'
           }`}
           placeholder={placeholder}
@@ -172,7 +179,7 @@ const LocationAutocomplete = ({
             onClick={handleClear}
             className="absolute inset-y-0 right-0 pr-3 flex items-center"
           >
-            <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+            <XIcon className="h-4 w-4 text-gray-400 hover:text-gray-600" />
           </button>
         )}
       </div>
@@ -190,10 +197,10 @@ const LocationAutocomplete = ({
               <li
                 key={suggestion.place_id}
                 onClick={() => handleSuggestionClick(suggestion)}
-                className="px-4 py-3 hover:bg-indigo-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                className="px-4 py-3 hover:bg-amber-50 cursor-pointer border-b border-gray-100 last:border-b-0"
               >
                 <div className="flex items-start space-x-2">
-                  <MapPin className="h-4 w-4 text-indigo-500 mt-0.5 flex-shrink-0" />
+                  <MapPin className="h-4 w-4 text-[#D97706] mt-0.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">
                       {formatDisplayName(suggestion.display_name)}

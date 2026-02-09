@@ -1,19 +1,21 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Pin,
   PinOff,
-  Pencil,
-  Trash2,
   MapPin,
   Calendar,
   Tag,
   Image,
-  Clock,
   Cloud,
   Smile,
   Lock,
   Unlock,
 } from 'lucide-react';
+import PenIcon from '@/components/icons/pen-icon';
+import TrashIcon from '@/components/icons/trash-icon';
+import ClockIcon from '@/components/icons/clock-icon';
+import StarIcon from '@/components/icons/star-icon';
 
 const NoteCard = ({
   note,
@@ -23,6 +25,7 @@ const NoteCard = ({
   onClick,
   compact = false,
 }) => {
+  const { t } = useTranslation();
   const {
     id,
     title,
@@ -74,7 +77,7 @@ const NoteCard = ({
 
   const handleDelete = (e) => {
     e.stopPropagation();
-    if (window.confirm('Delete this note? This action cannot be undone.')) {
+    if (window.confirm(t('journal.deleteConfirm'))) {
       onDelete?.(id);
     }
   };
@@ -138,13 +141,13 @@ const NoteCard = ({
                 {note_type}
               </span>
               <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3" />
+                <ClockIcon className="w-3 h-3" />
                 {formatDate(created_at)}
               </span>
               {is_private ? (
-                <Lock className="w-3 h-3" title="Private" />
+                <Lock className="w-3 h-3" title={t('common.private')} />
               ) : (
-                <Unlock className="w-3 h-3" title="Shared" />
+                <Unlock className="w-3 h-3" title={t('common.shared')} />
               )}
             </div>
           </div>
@@ -154,7 +157,7 @@ const NoteCard = ({
             <button
               onClick={handleTogglePin}
               className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              title={is_pinned ? 'Unpin' : 'Pin'}
+              title={is_pinned ? t('journal.unpin') : t('journal.pin')}
             >
               {is_pinned ? (
                 <PinOff className="w-4 h-4 text-yellow-500" />
@@ -165,16 +168,16 @@ const NoteCard = ({
             <button
               onClick={handleEdit}
               className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              title="Edit"
+              title={t('common.edit')}
             >
-              <Pencil className="w-4 h-4 text-gray-400" />
+              <PenIcon className="w-4 h-4 text-gray-400" />
             </button>
             <button
               onClick={handleDelete}
               className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
-              title="Delete"
+              title={t('common.delete')}
             >
-              <Trash2 className="w-4 h-4 text-red-400" />
+              <TrashIcon className="w-4 h-4 text-red-400" />
             </button>
           </div>
         </div>
@@ -187,14 +190,14 @@ const NoteCard = ({
             {contentPreview}
           </p>
         ) : (
-          <p className="text-gray-400 dark:text-gray-500 text-sm italic">No content</p>
+          <p className="text-gray-400 dark:text-gray-500 text-sm italic">{t('journal.noContent')}</p>
         )}
 
         {/* Media preview */}
         {media_files && media_files.length > 0 && (
           <div className="mt-3 flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
             <Image className="w-4 h-4" />
-            <span>{media_files.length} attachment{media_files.length > 1 ? 's' : ''}</span>
+            <span>{t('journal.attachment', { count: media_files.length })}</span>
           </div>
         )}
 
@@ -226,7 +229,7 @@ const NoteCard = ({
             {tags.map((tag, index) => (
               <span
                 key={index}
-                className="inline-flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full"
+                className="inline-flex items-center gap-1 text-xs text-[#D97706] dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full"
               >
                 <Tag className="w-3 h-3" />
                 {tag}

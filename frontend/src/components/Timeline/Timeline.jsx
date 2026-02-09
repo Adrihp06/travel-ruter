@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Calendar, Moon, Plus } from 'lucide-react';
+import AirplaneIcon from '@/components/icons/airplane-icon';
+import HomeIcon from '@/components/icons/home-icon';
 import { formatDateShort } from '../../utils/dateFormat';
 import {
   DndContext,
@@ -20,6 +23,7 @@ import {
 import SortableDestinationItem from './SortableDestinationItem';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
 import useTravelStopStore from '../../stores/useTravelStopStore';
+import useTripStore from '../../stores/useTripStore';
 import { TravelSegmentCard, TravelStopsList, AddTravelStopModal } from '../TravelSegment';
 import TripWarningsPanel from './TripWarningsPanel';
 
@@ -35,6 +39,7 @@ const Timeline = ({
   onReorderDestinations,
   accommodationsByDestination = {}, // Map of destination_id -> accommodations[]
 }) => {
+  const { t } = useTranslation();
   const [activeId, setActiveId] = useState(null);
   const [addStopModal, setAddStopModal] = useState({ isOpen: false, segmentId: null, existingStop: null });
 
@@ -50,6 +55,7 @@ const Timeline = ({
   } = useTravelSegmentStore();
 
   const { fetchStopsForSegments } = useTravelStopStore();
+  const { updateTrip } = useTripStore();
 
   // Configure sensors for pointer, touch, and keyboard interactions
   const sensors = useSensors(
@@ -160,24 +166,37 @@ const Timeline = ({
     await calculateSegment(fromId, toId, mode);
   }, [calculateSegment]);
 
+  // Handle mode change for origin/return segments
+  const handleOriginModeChange = useCallback(async (mode) => {
+    if (!trip?.id) return;
+    await updateTrip(trip.id, { origin_travel_mode: mode });
+    await fetchTripSegments(trip.id);
+  }, [trip?.id, updateTrip, fetchTripSegments]);
+
+  const handleReturnModeChange = useCallback(async (mode) => {
+    if (!trip?.id) return;
+    await updateTrip(trip.id, { return_travel_mode: mode });
+    await fetchTripSegments(trip.id);
+  }, [trip?.id, updateTrip, fetchTripSegments]);
+
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 w-80 overflow-y-auto transition-colors">
       {/* Trip Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Trip Route</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('timeline.tripRoute')}</h2>
           {onAddDestination && (
             <button
               onClick={onAddDestination}
-              className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
-              title="Add destination"
+              className="p-1.5 text-[#D97706] dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
+              title={t('timeline.addDestination')}
             >
               <Plus className="w-4 h-4" />
             </button>
           )}
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          {totalDays} days total
+          {t('timeline.daysTotal', { count: totalDays })}
         </p>
         {tripStart && tripEnd && (
           <p className="text-xs text-gray-400 dark:text-gray-500">
@@ -186,7 +205,7 @@ const Timeline = ({
         )}
       </div>
 
-      <div className="flex-1 p-4">
+      <div className="flex-1 p-4 pb-20">
         {/* Trip Warnings Panel - positioned under Trip Route header */}
         <TripWarningsPanel
           trip={trip}
@@ -194,21 +213,34 @@ const Timeline = ({
           accommodationsByDestination={accommodationsByDestination}
         />
 
-        {/* Start Marker with Origin */}
-        <div className="flex items-center mb-2 text-xs text-gray-500 dark:text-gray-400">
-          <span className="w-3 h-3 rounded-full border-2 border-green-500 mr-3"></span>
-          <span>
-            Start: {trip?.origin_name || (tripStart && formatDateShort(tripStart))}
-          </span>
+        {/* Origin Node - Start of Trip */}
+        <div className="group relative pl-6 py-2.5">
+          <span className="absolute left-0 top-3.5 w-3 h-3 rounded-full bg-green-500 border-2 border-green-500 z-10 shadow-sm"></span>
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-green-100 dark:bg-green-900/30">
+              <AirplaneIcon className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                {trip?.origin_name || t('timeline.origin')}
+              </h3>
+              {tripStart && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {formatDateShort(tripStart)}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Origin to First Destination Segment */}
         {trip?.origin_name && sortedDestinations.length > 0 && (
-          <div className="relative pl-6 py-2 mb-2">
+          <div className="relative pl-6 py-1.5">
             <TravelSegmentCard
               segment={originSegment}
               fromCity={trip.origin_name}
               toCity={sortedDestinations[0]?.name || sortedDestinations[0]?.city_name}
+              onModeChange={handleOriginModeChange}
               hasFetchedInitial={hasFetchedInitial}
               hasCoordinates={
                 trip.origin_latitude != null && trip.origin_longitude != null &&
@@ -287,7 +319,7 @@ const Timeline = ({
           {/* Drag Overlay for visual preview */}
           <DragOverlay>
             {activeDestination ? (
-              <div className="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-3 border-2 border-indigo-400 opacity-90">
+              <div className="bg-white dark:bg-gray-800 shadow-xl rounded-lg p-3 border-2 border-amber-400 opacity-90">
                 <h3 className="font-medium text-gray-900 dark:text-white">
                   {activeDestination.name || activeDestination.city_name}
                 </h3>
@@ -302,11 +334,12 @@ const Timeline = ({
 
         {/* Last Destination to Return Segment */}
         {trip?.return_name && sortedDestinations.length > 0 && (
-          <div className="relative pl-6 py-2 mt-2">
+          <div className="relative pl-6 py-1.5 mt-1">
             <TravelSegmentCard
               segment={returnSegment}
               fromCity={sortedDestinations[sortedDestinations.length - 1]?.name || sortedDestinations[sortedDestinations.length - 1]?.city_name}
               toCity={trip.return_name}
+              onModeChange={handleReturnModeChange}
               hasFetchedInitial={hasFetchedInitial}
               hasCoordinates={
                 sortedDestinations[sortedDestinations.length - 1]?.latitude != null &&
@@ -317,22 +350,34 @@ const Timeline = ({
           </div>
         )}
 
-        {/* End Marker */}
-        <div className="flex items-center mt-2 text-xs text-gray-500 dark:text-gray-400">
-          <span className="w-3 h-3 rounded-full border-2 border-red-500 mr-3"></span>
-          <span>
-            End: {trip?.return_name || (tripEnd && formatDateShort(tripEnd))}
-          </span>
+        {/* Return Node - End of Trip */}
+        <div className="group relative pl-6 py-2.5 mt-1">
+          <span className="absolute left-0 top-3.5 w-3 h-3 rounded-full bg-red-500 border-2 border-red-500 z-10 shadow-sm"></span>
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-red-100 dark:bg-red-900/30">
+              <HomeIcon className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                {trip?.return_name || t('timeline.return')}
+              </h3>
+              {tripEnd && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {formatDateShort(tripEnd)}
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Add Destination Button */}
         {onAddDestination && (
           <button
             onClick={onAddDestination}
-            className="w-full flex items-center justify-center space-x-2 p-3 mt-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-indigo-400 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            className="w-full flex items-center justify-center space-x-2 p-3 mt-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:border-amber-400 dark:hover:border-[#D97706] hover:text-[#D97706] dark:hover:text-amber-400 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            <span>Add Destination</span>
+            <span>{t('timeline.addDestination')}</span>
           </button>
         )}
       </div>

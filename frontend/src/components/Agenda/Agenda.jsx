@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Building2,
   MapPin,
-  Clock,
   DollarSign,
   ChevronDown,
   ChevronRight,
@@ -15,6 +15,7 @@ import {
   TreePine,
   Star,
 } from 'lucide-react';
+import ClockIcon from '@/components/icons/clock-icon';
 
 // Category icon mapping - lookup table, not function creating components
 const categoryIcons = {
@@ -32,7 +33,7 @@ const categoryIcons = {
 // Category color mapping
 const getCategoryColor = (category) => {
   const colors = {
-    'Sights': 'bg-indigo-100 text-indigo-600',
+    'Sights': 'bg-amber-100 text-[#D97706]',
     'Museums': 'bg-purple-100 text-purple-600',
     'Food': 'bg-orange-100 text-orange-600',
     'Restaurants': 'bg-orange-100 text-orange-600',
@@ -54,18 +55,38 @@ const Agenda = ({
   onCenterMapOnPOI,
   className = '',
 }) => {
+  const { t } = useTranslation();
+  // Track which categories we've seen to auto-expand new ones
+  const seenCategoriesRef = useRef(new Set());
   const [expandedCategories, setExpandedCategories] = useState({});
 
-  // Initialize all categories as expanded by default using useEffect
-  useEffect(() => {
-    if (pois.length > 0) {
-      const initialExpanded = {};
-      pois.forEach((cat) => {
-        initialExpanded[cat.category] = true;
-      });
-      setExpandedCategories(initialExpanded);
-    }
+  // Auto-expand categories when new POIs arrive
+  const currentCategories = useMemo(() => {
+    const categories = new Set();
+    pois.forEach((cat) => categories.add(cat.category));
+    return categories;
   }, [pois]);
+
+  // Check for new categories and expand them
+  useEffect(() => {
+    const newCategories = [];
+    currentCategories.forEach((cat) => {
+      if (!seenCategoriesRef.current.has(cat)) {
+        newCategories.push(cat);
+        seenCategoriesRef.current.add(cat);
+      }
+    });
+
+    if (newCategories.length > 0) {
+      setExpandedCategories((prev) => {
+        const updated = { ...prev };
+        newCategories.forEach((cat) => {
+          updated[cat] = true;
+        });
+        return updated;
+      });
+    }
+  }, [currentCategories]);
 
   const toggleCategory = (category) => {
     setExpandedCategories((prev) => ({
@@ -105,40 +126,40 @@ const Agenda = ({
   // Format dwell time
   const formatDwellTime = (minutes) => {
     if (!minutes) return null;
-    if (minutes < 60) return `${minutes} min`;
+    if (minutes < 60) return `${Math.round(minutes)} min`;
     const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+    const mins = Math.round(minutes % 60);
     if (mins === 0) return `${hours}h`;
     return `${hours}h ${mins}m`;
   };
 
   return (
-    <div className={`flex flex-col h-full bg-white border-r border-gray-200 w-80 overflow-hidden ${className}`}>
+    <div className={`flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 w-80 overflow-hidden ${className}`}>
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 bg-gray-50">
-        <h2 className="text-lg font-semibold text-gray-900">Agenda</h2>
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('itinerary.agenda', 'Agenda')}</h2>
         {destination && (
-          <p className="text-sm text-gray-500 mt-1">{destination.name || destination.city_name}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{destination.name || destination.city_name}</p>
         )}
       </div>
 
       <div className="flex-1 overflow-y-auto">
         {/* Accommodation Section */}
         {accommodation && (
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center mb-3">
-              <div className="p-2 rounded-lg bg-indigo-100 mr-3">
-                <Building2 className="w-4 h-4 text-indigo-600" />
+              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30 mr-3">
+                <Building2 className="w-4 h-4 text-[#D97706] dark:text-amber-400" />
               </div>
-              <h3 className="font-medium text-gray-900">Accommodation</h3>
+              <h3 className="font-medium text-gray-900 dark:text-white">{t('itinerary.accommodationDefault')}</h3>
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-              <h4 className="font-medium text-gray-900">{accommodation.name}</h4>
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-2">
+              <h4 className="font-medium text-gray-900 dark:text-white">{accommodation.name}</h4>
 
               {accommodation.address && (
-                <div className="flex items-start text-sm text-gray-600">
-                  <MapPin className="w-3.5 h-3.5 mr-2 mt-0.5 flex-shrink-0 text-gray-400" />
+                <div className="flex items-start text-sm text-gray-600 dark:text-gray-300">
+                  <MapPin className="w-3.5 h-3.5 mr-2 mt-0.5 flex-shrink-0 text-gray-400 dark:text-gray-500" />
                   <span>{accommodation.address}</span>
                 </div>
               )}
@@ -146,20 +167,20 @@ const Agenda = ({
               <div className="flex flex-wrap gap-3 pt-2">
                 {accommodation.checkIn && (
                   <div className="flex items-center text-xs">
-                    <span className="text-gray-500 mr-1">Check-in:</span>
-                    <span className="font-medium text-gray-700">{accommodation.checkIn}</span>
+                    <span className="text-gray-500 dark:text-gray-400 mr-1">{t('accommodation.checkIn')}:</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-200">{accommodation.checkIn}</span>
                   </div>
                 )}
                 {accommodation.checkOut && (
                   <div className="flex items-center text-xs">
-                    <span className="text-gray-500 mr-1">Check-out:</span>
-                    <span className="font-medium text-gray-700">{accommodation.checkOut}</span>
+                    <span className="text-gray-500 dark:text-gray-400 mr-1">{t('accommodation.checkOut')}:</span>
+                    <span className="font-medium text-gray-700 dark:text-gray-200">{accommodation.checkOut}</span>
                   </div>
                 )}
               </div>
 
               {accommodation.notes && (
-                <p className="text-xs text-gray-500 pt-1 border-t border-gray-200 mt-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400 pt-1 border-t border-gray-200 dark:border-gray-600 mt-2">
                   {accommodation.notes}
                 </p>
               )}
@@ -169,10 +190,10 @@ const Agenda = ({
 
         {/* POIs by Category */}
         <div className="p-4">
-          <h3 className="font-medium text-gray-900 mb-3">Points of Interest</h3>
+          <h3 className="font-medium text-gray-900 dark:text-white mb-3">{t('poi.title')}</h3>
 
           {pois.length === 0 ? (
-            <p className="text-sm text-gray-500 italic">No points of interest yet.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 italic">{t('poi.noPois')}</p>
           ) : (
             <div className="space-y-3">
               {pois.map((categoryGroup) => {
@@ -182,25 +203,25 @@ const Agenda = ({
                 const selectedCount = categoryGroup.pois.filter((p) => isPOISelected(p.id)).length;
 
                 return (
-                  <div key={categoryGroup.category} className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div key={categoryGroup.category} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                     {/* Category Header */}
                     <button
                       onClick={() => toggleCategory(categoryGroup.category)}
-                      className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                      className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                     >
                       <div className="flex items-center">
                         <div className={`p-1.5 rounded-md ${categoryColor} mr-2`}>
                           <CategoryIcon className="w-3.5 h-3.5" />
                         </div>
-                        <span className="font-medium text-gray-900 text-sm">
+                        <span className="font-medium text-gray-900 dark:text-white text-sm">
                           {categoryGroup.category}
                         </span>
-                        <span className="ml-2 text-xs text-gray-500">
+                        <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
                           ({categoryGroup.pois.length})
                         </span>
                         {selectedCount > 0 && (
-                          <span className="ml-2 px-1.5 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-600 rounded">
-                            {selectedCount} selected
+                          <span className="ml-2 px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-[#D97706] rounded">
+                            {selectedCount} {t('common.selected', 'selected')}
                           </span>
                         )}
                       </div>
@@ -209,7 +230,7 @@ const Agenda = ({
 
                     {/* POI List */}
                     <div className={`accordion-content ${isExpanded ? 'expanded' : ''}`}>
-                      <div className="divide-y divide-gray-100">
+                      <div className="divide-y divide-gray-100 dark:divide-gray-700">
                         {categoryGroup.pois.map((poi) => {
                           const selected = isPOISelected(poi.id);
 
@@ -220,14 +241,14 @@ const Agenda = ({
                               className={`
                                 p-3 cursor-pointer transition-all
                                 ${selected
-                                  ? 'bg-indigo-50 border-l-2 border-indigo-500'
-                                  : 'bg-white hover:bg-gray-50 border-l-2 border-transparent'}
+                                  ? 'bg-amber-50 dark:bg-amber-900/20 border-l-2 border-[#D97706]'
+                                  : 'bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 border-l-2 border-transparent'}
                               `}
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center">
-                                    <h4 className={`font-medium text-sm truncate ${selected ? 'text-indigo-900' : 'text-gray-900'}`}>
+                                    <h4 className={`font-medium text-sm truncate ${selected ? 'text-amber-900 dark:text-amber-300' : 'text-gray-900 dark:text-white'}`}>
                                       {poi.name}
                                     </h4>
                                     {poi.rating && (
@@ -239,7 +260,7 @@ const Agenda = ({
                                   </div>
 
                                   {poi.description && (
-                                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
                                       {poi.description}
                                     </p>
                                   )}
@@ -247,14 +268,14 @@ const Agenda = ({
                                   {/* POI Details: Cost and Dwell Time */}
                                   <div className="flex items-center gap-3 mt-2">
                                     {poi.estimatedCost !== undefined && (
-                                      <div className="flex items-center text-xs text-gray-600">
-                                        <DollarSign className="w-3 h-3 mr-0.5 text-gray-400" />
+                                      <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
+                                        <DollarSign className="w-3 h-3 mr-0.5 text-gray-400 dark:text-gray-500" />
                                         <span>{formatCost(poi.estimatedCost, poi.currency)}</span>
                                       </div>
                                     )}
                                     {poi.dwellTime && (
-                                      <div className="flex items-center text-xs text-gray-600">
-                                        <Clock className="w-3 h-3 mr-0.5 text-gray-400" />
+                                      <div className="flex items-center text-xs text-gray-600 dark:text-gray-400">
+                                        <ClockIcon className="w-3 h-3 mr-0.5 text-gray-400 dark:text-gray-500" />
                                         <span>{formatDwellTime(poi.dwellTime)}</span>
                                       </div>
                                     )}
@@ -267,10 +288,10 @@ const Agenda = ({
                                   className={`
                                     ml-2 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors
                                     ${selected
-                                      ? 'bg-indigo-600 border-indigo-600 text-white'
-                                      : 'border-gray-300 hover:border-indigo-400'}
+                                      ? 'bg-[#D97706] border-[#D97706] text-white'
+                                      : 'border-gray-300 dark:border-gray-600 hover:border-amber-400 dark:hover:border-amber-500'}
                                   `}
-                                  title={selected ? 'Deselect POI' : 'Select to highlight on map'}
+                                  title={selected ? t('itinerary.deselectPoi', 'Deselect POI') : t('itinerary.selectToHighlight', 'Select to highlight on map')}
                                 >
                                   {selected && (
                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -294,9 +315,9 @@ const Agenda = ({
 
       {/* Footer with selection summary */}
       {selectedPOIs.length > 0 && (
-        <div className="p-3 border-t border-gray-200 bg-indigo-50">
-          <p className="text-xs text-indigo-700">
-            <span className="font-medium">{selectedPOIs.length}</span> POI{selectedPOIs.length !== 1 ? 's' : ''} highlighted on map
+        <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-amber-50 dark:bg-amber-900/20">
+          <p className="text-xs text-[#D97706] dark:text-amber-400">
+            <span className="font-medium">{selectedPOIs.length}</span> {t('itinerary.highlightedOnMap')}
           </p>
         </div>
       )}

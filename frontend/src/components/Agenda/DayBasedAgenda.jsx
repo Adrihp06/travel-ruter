@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
   ChevronDown,
   ChevronRight,
-  Star,
   Landmark,
   UtensilsCrossed,
   Mountain,
@@ -12,16 +12,17 @@ import {
   Music,
   Camera,
   MapPin,
-  Pencil,
-  Trash2,
   ThumbsUp,
   ThumbsDown,
   Filter,
-  X,
   Route,
   Loader2,
-  AlertCircle,
 } from 'lucide-react';
+import StarIcon from '@/components/icons/star-icon';
+import PenIcon from '@/components/icons/pen-icon';
+import TrashIcon from '@/components/icons/trash-icon';
+import XIcon from '@/components/icons/x-icon';
+import InfoCircleIcon from '@/components/icons/info-circle-icon';
 import OptimizationPreview from './OptimizationPreview';
 import usePOIStore from '../../stores/usePOIStore';
 import { formatDateWithLongWeekday, formatDateShort } from '../../utils/dateFormat';
@@ -121,12 +122,12 @@ const organizeByDay = (pois, arrivalDate, nights) => {
 };
 
 // Format day header
-const formatDayHeader = (dayNumber, date) => {
-  return `Day ${dayNumber} - ${formatDateWithLongWeekday(date)}`;
+const formatDayHeader = (t, dayNumber, date) => {
+  return `${t('itinerary.dayNumber', { number: dayNumber })} - ${formatDateWithLongWeekday(date)}`;
 };
 
 // POI Item sub-component
-const POIItem = ({ poi, isSelected, onSelect, onCenter, onEdit, onDelete, onVote, orderIndex }) => {
+const POIItem = ({ poi, isSelected, onSelect, onCenter, onEdit, onDelete, onVote, orderIndex, t }) => {
   const [isHovered, setIsHovered] = useState(false);
   // Get the icon component from the mapping (not creating component during render)
   const CategoryIcon = categoryIcons[poi.category] || MapPin;
@@ -160,14 +161,14 @@ const POIItem = ({ poi, isSelected, onSelect, onCenter, onEdit, onDelete, onVote
     <div
       className={`
         flex items-center p-2 rounded cursor-pointer transition-colors group
-        ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 border-l-2 border-indigo-500' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50 border-l-2 border-transparent'}
+        ${isSelected ? 'bg-amber-50 dark:bg-amber-900/20 border-l-2 border-[#D97706]' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50 border-l-2 border-transparent'}
       `}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Order number badge */}
       {orderIndex && (
-        <div className="w-5 h-5 flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-bold mr-2 flex-shrink-0">
+        <div className="w-5 h-5 flex items-center justify-center bg-amber-100 dark:bg-amber-900/30 text-[#D97706] dark:text-amber-300 rounded-full text-xs font-bold mr-2 flex-shrink-0">
           {orderIndex}
         </div>
       )}
@@ -175,7 +176,7 @@ const POIItem = ({ poi, isSelected, onSelect, onCenter, onEdit, onDelete, onVote
         type="checkbox"
         checked={isSelected}
         onChange={handleCheckboxChange}
-        className="w-4 h-4 text-indigo-600 rounded mr-2 flex-shrink-0 cursor-pointer"
+        className="w-4 h-4 text-[#D97706] rounded mr-2 flex-shrink-0 cursor-pointer"
       />
       <div className="flex-1 min-w-0" onClick={handleItemClick}>
         <div className="flex items-center justify-between">
@@ -187,30 +188,30 @@ const POIItem = ({ poi, isSelected, onSelect, onCenter, onEdit, onDelete, onVote
             <button
               onClick={(e) => handleVote(e, 'like')}
               className="p-1 hover:bg-green-100 dark:hover:bg-green-900/30 rounded transition-colors"
-              title="Like"
+              title={t('agenda.like')}
             >
               <ThumbsUp className="w-3 h-3 text-green-600 dark:text-green-400" />
             </button>
             <button
               onClick={(e) => handleVote(e, 'veto')}
               className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
-              title="Veto"
+              title={t('agenda.veto')}
             >
               <ThumbsDown className="w-3 h-3 text-red-600 dark:text-red-400" />
             </button>
             <button
               onClick={handleEdit}
               className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors"
-              title="Edit POI"
+              title={t('agenda.editPOI')}
             >
-              <Pencil className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+              <PenIcon className="w-3 h-3 text-gray-500 dark:text-gray-400" />
             </button>
             <button
               onClick={handleDelete}
               className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors"
-              title="Delete POI"
+              title={t('agenda.deletePOI')}
             >
-              <Trash2 className="w-3 h-3 text-red-500 dark:text-red-400" />
+              <TrashIcon className="w-3 h-3 text-red-500 dark:text-red-400" />
             </button>
           </div>
         </div>
@@ -233,7 +234,7 @@ const POIItem = ({ poi, isSelected, onSelect, onCenter, onEdit, onDelete, onVote
           )}
           {poi.rating && (
             <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
-              <Star className="w-3 h-3 mr-0.5 fill-yellow-400 text-yellow-400" />
+              <StarIcon className="w-3 h-3 mr-0.5 fill-yellow-400 text-yellow-400" />
               {poi.rating}
             </span>
           )}
@@ -255,6 +256,7 @@ const DayBasedAgenda = ({
   onVotePOI,
   className = '',
 }) => {
+  const { t } = useTranslation();
   const [expandedDays, setExpandedDays] = useState({});
   const [categoryFilter, setCategoryFilter] = useState(null);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
@@ -340,7 +342,7 @@ const DayBasedAgenda = ({
   // Optimization handlers
   const handleOptimizeDay = useCallback(async (dayNumber, totalPOIs) => {
     if (totalPOIs < 2) {
-      setOptimizationError('Need at least 2 POIs to optimize');
+      setOptimizationError(t('itinerary.needAtLeast2POIs'));
       setTimeout(() => setOptimizationError(null), 3000);
       return;
     }
@@ -426,7 +428,7 @@ const DayBasedAgenda = ({
   if (!destination) {
     return (
       <div className={`flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 w-80 ${className}`}>
-        <div className="p-4 text-gray-500 dark:text-gray-400">No destination selected</div>
+        <div className="p-4 text-gray-500 dark:text-gray-400">{t('itinerary.noDestinationSelected')}</div>
       </div>
     );
   }
@@ -440,7 +442,7 @@ const DayBasedAgenda = ({
           className="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-2 transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
-          Back to route
+          {t('itinerary.backToRoute')}
         </button>
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
           {destination.name || destination.city_name}
@@ -449,8 +451,8 @@ const DayBasedAgenda = ({
           {formatDateShort(destination.arrival_date)} - {formatDateShort(destination.departure_date)}
         </p>
         <div className="flex items-center justify-between mt-1">
-          <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">
-            {nights} {nights === 1 ? 'night' : 'nights'} · {allPOIs.length} POI{allPOIs.length !== 1 ? 's' : ''}
+          <p className="text-xs text-[#D97706] dark:text-amber-400 font-medium">
+            {t('agenda.nightCount', { count: nights })} · {t('itinerary.poiCount', { count: allPOIs.length })}
           </p>
           {/* Category Filter Button */}
           {availableCategories.length > 0 && (
@@ -459,14 +461,14 @@ const DayBasedAgenda = ({
                 onClick={() => setShowFilterMenu(!showFilterMenu)}
                 className={`flex items-center text-xs px-2 py-1 rounded transition-colors ${
                   categoryFilter
-                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300'
+                    ? 'bg-amber-100 text-[#D97706] dark:bg-amber-900/30 dark:text-amber-300'
                     : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
               >
                 <Filter className="w-3 h-3 mr-1" />
-                {categoryFilter || 'Filter'}
+                {categoryFilter || t('agenda.filter')}
                 {categoryFilter && (
-                  <X
+                  <XIcon
                     className="w-3 h-3 ml-1 hover:text-red-500"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -484,10 +486,10 @@ const DayBasedAgenda = ({
                       setShowFilterMenu(false);
                     }}
                     className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 ${
-                      !categoryFilter ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-gray-700 dark:text-gray-300'
+                      !categoryFilter ? 'bg-amber-50 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-300' : 'text-gray-700 dark:text-gray-300'
                     }`}
                   >
-                    All Categories
+                    {t('agenda.allCategories')}
                   </button>
                   {availableCategories.map((cat) => {
                     const CategoryIcon = categoryIcons[cat] || MapPin;
@@ -499,7 +501,7 @@ const DayBasedAgenda = ({
                           setShowFilterMenu(false);
                         }}
                         className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-600 flex items-center ${
-                          categoryFilter === cat ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'text-gray-700 dark:text-gray-300'
+                          categoryFilter === cat ? 'bg-amber-50 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-300' : 'text-gray-700 dark:text-gray-300'
                         }`}
                       >
                         <CategoryIcon className="w-3 h-3 mr-2" />
@@ -517,7 +519,7 @@ const DayBasedAgenda = ({
       {/* Optimization Error Toast */}
       {optimizationError && (
         <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-3 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg shadow-lg">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <InfoCircleIcon className="w-4 h-4 flex-shrink-0" />
           <span className="text-sm">{optimizationError}</span>
         </div>
       )}
@@ -538,7 +540,7 @@ const DayBasedAgenda = ({
                   className="flex items-center flex-1 hover:bg-gray-100 dark:hover:bg-gray-700 -m-1 p-1 rounded transition-colors"
                 >
                   <span className="font-medium text-sm text-gray-900 dark:text-white">
-                    {formatDayHeader(dayNumber, date)}
+                    {formatDayHeader(t, dayNumber, date)}
                   </span>
                   {totalPOIs > 0 && (
                     <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">({totalPOIs})</span>
@@ -557,15 +559,15 @@ const DayBasedAgenda = ({
                       handleOptimizeDay(dayNumber, totalPOIs);
                     }}
                     disabled={isOptimizingThisDay}
-                    className="ml-2 flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded transition-colors disabled:opacity-50"
-                    title="Optimize route order"
+                    className="ml-2 flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#D97706] dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition-colors disabled:opacity-50"
+                    title={t('itinerary.optimizeRouteOrder')}
                   >
                     {isOptimizingThisDay ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
                       <Route className="w-3 h-3" />
                     )}
-                    <span className="hidden sm:inline">Optimize</span>
+                    <span className="hidden sm:inline">{t('agenda.optimize')}</span>
                   </button>
                 )}
               </div>
@@ -574,7 +576,7 @@ const DayBasedAgenda = ({
               {isExpanded && (
                 <div className="p-2 space-y-1">
                   {totalPOIs === 0 ? (
-                    <p className="text-xs text-gray-400 dark:text-gray-500 italic p-2">No activities planned</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 italic p-2">{t('agenda.noActivitiesPlanned')}</p>
                   ) : (
                     scheduled.map((poi, index) => (
                       <POIItem
@@ -587,6 +589,7 @@ const DayBasedAgenda = ({
                         onDelete={onDeletePOI}
                         onVote={onVotePOI}
                         orderIndex={index + 1}
+                        t={t}
                       />
                     ))
                   )}
@@ -599,7 +602,7 @@ const DayBasedAgenda = ({
         {/* Unassigned POIs Section */}
         {unassigned.length > 0 && (
           <div className="border border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-3">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Not yet scheduled:</p>
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">{t('agenda.notYetScheduled')}:</p>
             <div className="space-y-1">
               {unassigned.map((poi) => (
                 <POIItem
@@ -611,6 +614,7 @@ const DayBasedAgenda = ({
                   onEdit={onEditPOI}
                   onDelete={onDeletePOI}
                   onVote={onVotePOI}
+                  t={t}
                 />
               ))}
             </div>
@@ -620,10 +624,9 @@ const DayBasedAgenda = ({
 
       {/* Footer with selection summary */}
       {selectedPOIs.length > 0 && (
-        <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-indigo-50 dark:bg-indigo-900/30">
-          <p className="text-xs text-indigo-700 dark:text-indigo-300">
-            <span className="font-medium">{selectedPOIs.length}</span> POI
-            {selectedPOIs.length !== 1 ? 's' : ''} highlighted on map
+        <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-amber-50 dark:bg-amber-900/20">
+          <p className="text-xs text-[#D97706] dark:text-amber-300">
+            {t('agenda.highlightedOnMap', { count: selectedPOIs.length })}
           </p>
         </div>
       )}
@@ -638,7 +641,7 @@ const DayBasedAgenda = ({
         dayNumber={optimizingDay}
         startLocationName={
           startLocationInfo?.accommodation?.name ||
-          (startLocationInfo?.warning ? 'City center (no accommodation set)' : null)
+          (startLocationInfo?.warning ? t('itinerary.cityCenterNoAccommodation') : null)
         }
         startTime={startTime}
         onStartTimeChange={handleStartTimeChange}

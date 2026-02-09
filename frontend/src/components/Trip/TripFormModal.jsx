@@ -1,36 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import { X, Plane, Image, Upload, Tag as TagIcon, Home, MapPin, Car, Train, Bus, Footprints, Bike, Ship } from 'lucide-react';
+import React, { useState, useEffect, useId, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Image, Upload, Tag as TagIcon, MapPin, Car, Train, Bus, Footprints, Bike, Ship } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
+import AirplaneIcon from '@/components/icons/airplane-icon';
+import HomeIcon from '@/components/icons/home-icon';
 import useTripStore from '../../stores/useTripStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import LocationMapPreview from '../Location/LocationMapPreview';
 import DateRangePicker from '../common/DateRangePicker';
 import Spinner from '../UI/Spinner';
 
-// Travel mode options with icons for origin/return segments
-const TRAVEL_MODE_OPTIONS = [
-  { value: 'plane', label: 'Plane', icon: Plane },
-  { value: 'car', label: 'Car', icon: Car },
-  { value: 'train', label: 'Train', icon: Train },
-  { value: 'bus', label: 'Bus', icon: Bus },
-  { value: 'walk', label: 'Walk', icon: Footprints },
-  { value: 'bike', label: 'Bike', icon: Bike },
-  { value: 'ferry', label: 'Ferry', icon: Ship },
-];
-
-const AVAILABLE_TAGS = [
-  { id: 'business', label: 'Business', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
-  { id: 'vacation', label: 'Vacation', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
-  { id: 'adventure', label: 'Adventure', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' },
-  { id: 'romantic', label: 'Romantic', color: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300' },
-  { id: 'family', label: 'Family', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' },
-  { id: 'solo', label: 'Solo', color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' },
-  { id: 'cultural', label: 'Cultural', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300' },
-  { id: 'beach', label: 'Beach', color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300' },
-];
 
 const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
+  const { t } = useTranslation();
   const { createTrip, updateTrip, isLoading } = useTripStore();
   const isEditMode = !!trip;
+  const titleId = useId();
+
+  const TRAVEL_MODE_OPTIONS = useMemo(() => [
+    { value: 'plane', label: t('trips.travelModes.plane'), icon: AirplaneIcon },
+    { value: 'car', label: t('trips.travelModes.car'), icon: Car },
+    { value: 'train', label: t('trips.travelModes.train'), icon: Train },
+    { value: 'bus', label: t('trips.travelModes.bus'), icon: Bus },
+    { value: 'walk', label: t('trips.travelModes.walk'), icon: Footprints },
+    { value: 'bike', label: t('trips.travelModes.bike'), icon: Bike },
+    { value: 'ferry', label: t('trips.travelModes.ferry'), icon: Ship },
+  ], [t]);
+
+  const AVAILABLE_TAGS = useMemo(() => [
+    { id: 'business', label: t('trips.tags.business'), color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300' },
+    { id: 'vacation', label: t('trips.tags.vacation'), color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' },
+    { id: 'adventure', label: t('trips.tags.adventure'), color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300' },
+    { id: 'romantic', label: t('trips.tags.romantic'), color: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300' },
+    { id: 'family', label: t('trips.tags.family'), color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300' },
+    { id: 'solo', label: t('trips.tags.solo'), color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300' },
+    { id: 'cultural', label: t('trips.tags.cultural'), color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300' },
+    { id: 'beach', label: t('trips.tags.beach'), color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300' },
+  ], [t]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -147,12 +153,12 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        setErrors({ ...errors, cover_image: 'Please select an image file' });
+        setErrors({ ...errors, cover_image: t('trips.selectImageFile') });
         return;
       }
       // Validate file size (5MB max for images)
       if (file.size > 5 * 1024 * 1024) {
-        setErrors({ ...errors, cover_image: 'Image must be less than 5MB' });
+        setErrors({ ...errors, cover_image: t('trips.imageTooLarge') });
         return;
       }
       setImageFile(file);
@@ -187,25 +193,25 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
     const newErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Trip name is required';
+      newErrors.name = t('trips.tripNameRequired');
     }
 
     if (!formData.start_date) {
-      newErrors.start_date = 'Start date is required';
+      newErrors.start_date = t('trips.startDateRequired');
     }
 
     if (!formData.end_date) {
-      newErrors.end_date = 'End date is required';
+      newErrors.end_date = t('trips.endDateRequired');
     }
 
     if (formData.start_date && formData.end_date) {
       if (new Date(formData.end_date) < new Date(formData.start_date)) {
-        newErrors.end_date = 'End date must be after start date';
+        newErrors.end_date = t('trips.endAfterStart');
       }
     }
 
-    if (formData.total_budget && formData.total_budget < 0) {
-      newErrors.total_budget = 'Budget cannot be negative';
+    if (formData.total_budget !== '' && Number(formData.total_budget) < 0) {
+      newErrors.total_budget = t('trips.budgetNegative');
     }
 
     setErrors(newErrors);
@@ -234,17 +240,20 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
         });
 
         if (!uploadResponse.ok) {
-          throw new Error('Failed to upload cover image');
+          throw new Error(t('trips.failedUploadCover'));
         }
 
         const uploadResult = await uploadResponse.json();
         coverImageUrl = uploadResult.url;
       }
 
-      // If return is same as origin, copy origin values to return
-      const returnName = returnSameAsOrigin ? formData.origin_name : formData.return_name;
-      const returnLat = returnSameAsOrigin ? formData.origin_latitude : formData.return_latitude;
-      const returnLng = returnSameAsOrigin ? formData.origin_longitude : formData.return_longitude;
+      // If return is same as origin, copy origin values to return (with null safety)
+      const returnName = returnSameAsOrigin && formData.origin_name
+        ? formData.origin_name : formData.return_name;
+      const returnLat = returnSameAsOrigin && formData.origin_latitude !== null
+        ? formData.origin_latitude : formData.return_latitude;
+      const returnLng = returnSameAsOrigin && formData.origin_longitude !== null
+        ? formData.origin_longitude : formData.return_longitude;
 
       const tripData = {
         ...formData,
@@ -277,37 +286,46 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
 
   const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'NOK', 'SEK', 'DKK'];
   const statuses = [
-    { value: 'planning', label: 'Planning' },
-    { value: 'booked', label: 'Booked' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'cancelled', label: 'Cancelled' },
+    { value: 'planning', label: t('trips.planning') },
+    { value: 'booked', label: t('trips.booked') },
+    { value: 'completed', label: t('trips.completed') },
+    { value: 'cancelled', label: t('trips.cancelled') },
   ];
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 modal-backdrop flex items-center justify-center z-50 p-4">
-      <div className="modal-content bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-gray-200/50 dark:border-gray-700/50">
+    <div
+      className="fixed inset-0 bg-black/40 modal-backdrop flex items-center justify-center z-50 p-4"
+      role="presentation"
+    >
+      <div
+        className="modal-content bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-gray-200/50 dark:border-gray-700/50"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
         {/* Header */}
         <div className="modal-header flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div className="modal-icon-container primary">
-              <Plane className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <AirplaneIcon className="w-5 h-5 text-[#D97706] dark:text-amber-400" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                {isEditMode ? 'Edit Trip' : 'Create New Trip'}
+              <h3 id={titleId} className="text-lg font-bold text-gray-900 dark:text-white">
+                {isEditMode ? t('trips.editTrip') : t('trips.createTrip')}
               </h3>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {isEditMode ? 'Update your trip details' : 'Plan your next adventure'}
+                {isEditMode ? t('trips.updateDetails') : t('trips.planNextAdventure')}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
             className="modal-close-btn p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            aria-label="Close modal"
           >
-            <X className="w-5 h-5" />
+            <XIcon className="w-5 h-5" />
           </button>
         </div>
 
@@ -317,7 +335,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
             {/* Trip Name */}
             <div>
               <label className="modal-label">
-                Trip Name <span className="text-red-500">*</span>
+                {t('trips.tripName')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -326,7 +344,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                 className={`modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700 ${
                   errors.name ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''
                 }`}
-                placeholder="e.g., Japan Adventure 2026"
+                placeholder={t('trips.tripNamePlaceholder')}
               />
               {errors.name && (
                 <p className="text-red-500 dark:text-red-400 text-xs mt-1.5 flex items-center gap-1">
@@ -340,7 +358,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           <div>
             <label className="modal-label">
               <MapPin className="w-4 h-4" />
-              Destination
+              {t('trips.destination')}
             </label>
             <LocationAutocomplete
               value={formData.location}
@@ -354,7 +372,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                   longitude: lng,
                 });
               }}
-              placeholder="Search for a location..."
+              placeholder={t('trips.searchLocation')}
             />
             {formData.latitude && formData.longitude && (
               <div className="mt-2">
@@ -370,11 +388,11 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           {/* Departure Point (Origin) */}
           <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50/50 dark:from-green-900/20 dark:to-emerald-900/10 rounded-xl border border-green-200/70 dark:border-green-800/50">
             <label className="modal-label text-green-700 dark:text-green-400">
-              <Home className="w-4 h-4" />
-              Departure Point
+              <HomeIcon className="w-4 h-4" />
+              {t('trips.departurePoint')}
             </label>
             <p className="text-xs text-green-600/70 dark:text-green-400/60 mb-3">
-              Where does your trip start? (e.g., home airport)
+              {t('trips.departureDescription')}
             </p>
             <LocationAutocomplete
               value={formData.origin_name}
@@ -388,7 +406,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                   origin_longitude: lng,
                 });
               }}
-              placeholder="Search for departure airport or location..."
+              placeholder={t('trips.searchDeparture')}
             />
             {formData.origin_latitude && formData.origin_longitude && (
               <div className="mt-2">
@@ -402,7 +420,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
             {/* Travel mode selector */}
             <div className="mt-3">
               <label className="text-xs font-medium text-green-700/80 dark:text-green-400/70 mb-2 block">
-                How will you travel to your first destination?
+                {t('trips.travelToFirst')}
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {TRAVEL_MODE_OPTIONS.map((mode) => {
@@ -432,7 +450,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           <div className="p-4 bg-gradient-to-br from-rose-50 to-red-50/50 dark:from-red-900/20 dark:to-rose-900/10 rounded-xl border border-red-200/70 dark:border-red-800/50">
             <label className="modal-label text-red-700 dark:text-red-400">
               <MapPin className="w-4 h-4" />
-              Return Point
+              {t('trips.returnPoint')}
             </label>
 
             {/* Checkbox for same location */}
@@ -452,17 +470,17 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                     });
                   }
                 }}
-                className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-0"
+                className="w-4 h-4 rounded border-gray-300 text-[#D97706] focus:ring-[#D97706]/50 focus:ring-offset-0"
               />
               <span className="text-sm text-red-600/80 dark:text-red-400/70 group-hover:text-red-700 dark:group-hover:text-red-300 transition-colors">
-                Return to same location as departure
+                {t('trips.returnSameAsDeparture')}
               </span>
             </label>
 
             {!returnSameAsOrigin && (
               <>
                 <p className="text-xs text-red-600/60 dark:text-red-400/50 mb-3">
-                  Where does your trip end?
+                  {t('trips.returnDescription')}
                 </p>
                 <LocationAutocomplete
                   value={formData.return_name}
@@ -476,7 +494,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                       return_longitude: lng,
                     });
                   }}
-                  placeholder="Search for return airport or location..."
+                  placeholder={t('trips.searchReturn')}
                 />
                 {formData.return_latitude && formData.return_longitude && (
                   <div className="mt-2">
@@ -493,7 +511,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
             {/* Travel mode selector */}
             <div className="mt-3">
               <label className="text-xs font-medium text-red-700/80 dark:text-red-400/70 mb-2 block">
-                How will you travel from your last destination?
+                {t('trips.travelFromLast')}
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {TRAVEL_MODE_OPTIONS.map((mode) => {
@@ -522,14 +540,14 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           {/* Description */}
           <div className="modal-section">
             <label className="modal-label">
-              Description
+              {t('common.description')}
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className="modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700 resize-none"
               rows={3}
-              placeholder="Brief description of your trip..."
+              placeholder={t('common.description')}
             />
           </div>
 
@@ -537,7 +555,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           <div>
             <label className="modal-label">
               <Image className="w-4 h-4" />
-              Cover Image
+              {t('trips.coverImage')}
             </label>
 
             {/* Toggle between URL and File upload */}
@@ -547,7 +565,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                 onClick={() => setImageUploadMode('url')}
                 className={`flex-1 px-3 py-2 text-sm rounded-xl font-medium transition-all ${
                   imageUploadMode === 'url'
-                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 ring-2 ring-indigo-500/30'
+                    ? 'bg-amber-100 text-[#D97706] dark:bg-amber-900/30 dark:text-amber-300 ring-2 ring-amber-500/30'
                     : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
@@ -558,12 +576,12 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                 onClick={() => setImageUploadMode('file')}
                 className={`flex-1 px-3 py-2 text-sm rounded-xl font-medium transition-all flex items-center justify-center gap-1.5 ${
                   imageUploadMode === 'file'
-                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 ring-2 ring-indigo-500/30'
+                    ? 'bg-amber-100 text-[#D97706] dark:bg-amber-900/30 dark:text-amber-300 ring-2 ring-amber-500/30'
                     : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
               >
                 <Upload className="w-3.5 h-3.5" />
-                Upload
+                {t('common.upload')}
               </button>
             </div>
 
@@ -584,9 +602,16 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         e.target.style.display = 'none';
+                        setErrors(prev => ({ ...prev, cover_image_preview: t('trips.failedLoadPreview') }));
                       }}
                     />
                   </div>
+                )}
+                {errors.cover_image_preview && (
+                  <p className="text-amber-500 dark:text-amber-400 text-xs mt-1.5 flex items-center gap-1">
+                    <span className="w-1 h-1 bg-amber-500 rounded-full"></span>
+                    {errors.cover_image_preview}
+                  </p>
                 )}
               </>
             ) : (
@@ -594,8 +619,8 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                 <div
                   className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all hover:scale-[1.01] ${
                     imageFile
-                      ? 'border-indigo-300 bg-indigo-50/50 dark:border-indigo-700 dark:bg-indigo-900/20'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      ? 'border-amber-300 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-900/20'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-amber-400 dark:hover:border-[#D97706] hover:bg-gray-50 dark:hover:bg-gray-700/50'
                   }`}
                   onClick={() => document.getElementById('cover-image-input').click()}
                 >
@@ -625,7 +650,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                         }}
                         className="text-xs text-red-500 hover:text-red-600 font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                       >
-                        Remove
+                        {t('common.remove')}
                       </button>
                     </div>
                   ) : (
@@ -634,10 +659,10 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                         <Upload className="w-6 h-6 text-gray-400" />
                       </div>
                       <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                        Click to upload an image
+                        {t('trips.clickToUpload')}
                       </p>
                       <p className="text-xs text-gray-400 dark:text-gray-500">
-                        JPG, PNG up to 5MB
+                        {t('trips.imageFormats')}
                       </p>
                     </div>
                   )}
@@ -648,7 +673,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
               </>
             )}
             <p className="modal-helper">
-              Optional: Add a cover image for your trip card
+              {t('trips.coverImageHelper')}
             </p>
           </div>
 
@@ -658,8 +683,8 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
             endDate={formData.end_date}
             onStartChange={(date) => setFormData({ ...formData, start_date: date })}
             onEndChange={(date) => setFormData({ ...formData, end_date: date })}
-            startLabel="Start Date"
-            endLabel="End Date"
+            startLabel={t('trips.startDate')}
+            endLabel={t('trips.endDate')}
             startError={errors.start_date}
             endError={errors.end_date}
             required
@@ -670,7 +695,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           <div className="modal-section">
             <label className="modal-label">
               <TagIcon className="w-4 h-4" />
-              Trip Tags
+              {t('trips.tripTags')}
             </label>
             <div className="flex flex-wrap gap-2">
               {AVAILABLE_TAGS.map((tag) => (
@@ -680,7 +705,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                   onClick={() => toggleTag(tag.id)}
                   className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all ${
                     formData.tags.includes(tag.id)
-                      ? `${tag.color} ring-2 ring-offset-1 ring-indigo-500 dark:ring-offset-gray-800 scale-105`
+                      ? `${tag.color} ring-2 ring-offset-1 ring-[#D97706] dark:ring-offset-gray-800 scale-105`
                       : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 hover:scale-105'
                   }`}
                 >
@@ -689,7 +714,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
               ))}
             </div>
             <p className="modal-helper">
-              Select tags to categorize your trip
+              {t('trips.selectTags')}
             </p>
           </div>
 
@@ -697,7 +722,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="modal-label">
-                Budget
+                {t('trips.budgetField')}
               </label>
               <input
                 type="number"
@@ -711,7 +736,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
             </div>
             <div>
               <label className="modal-label">
-                Currency
+                {t('trips.currency')}
               </label>
               <select
                 value={formData.currency}
@@ -729,7 +754,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
           {isEditMode && (
             <div>
               <label className="modal-label">
-                Status
+                {t('common.status')}
               </label>
               <select
                 value={formData.status}
@@ -763,7 +788,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
               onClick={onClose}
               className="modal-btn modal-btn-secondary flex-1"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -772,7 +797,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
             >
               {(isLoading || isUploading) && <span className="modal-spinner" />}
               <span>
-                {isUploading ? 'Uploading...' : isLoading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Trip'}
+                {isUploading ? t('common.uploading') : isLoading ? t('common.saving') : isEditMode ? t('trips.saveChanges') : t('trips.createTrip')}
               </span>
             </button>
           </div>

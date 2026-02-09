@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Download, Calendar as CalendarIcon, Check } from 'lucide-react';
+import { Download, Calendar as CalendarIcon } from 'lucide-react';
+import CheckedIcon from '@/components/icons/checked-icon';
 import { exportTripToICS } from '../../utils/icsExport';
 
 const CalendarExport = ({ trip, destinations, pois, accommodations }) => {
@@ -54,7 +55,7 @@ const CalendarExport = ({ trip, destinations, pois, accommodations }) => {
             <div className="p-2">
               {exportSuccess ? (
                 <div className="flex items-center justify-center gap-2 py-4 text-green-600 dark:text-green-400">
-                  <Check className="w-5 h-5" />
+                  <CheckedIcon className="w-5 h-5" />
                   <span className="text-sm font-medium">Exported successfully!</span>
                 </div>
               ) : (

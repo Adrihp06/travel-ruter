@@ -1,5 +1,6 @@
 import React from 'react';
-import { X, FolderOpen } from 'lucide-react';
+import { FolderOpen } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
 import Skeleton from '../UI/Skeleton';
 
 const DocumentVaultSkeleton = ({ isOpen, onClose }) => {
@@ -9,9 +10,9 @@ const DocumentVaultSkeleton = ({ isOpen, onClose }) => {
       style={{ transform: isOpen ? 'translateX(0)' : 'translateX(100%)', colorScheme: 'light' }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-white">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-amber-50 to-white">
         <div className="flex items-center space-x-2">
-          <FolderOpen className="w-5 h-5 text-indigo-300" />
+          <FolderOpen className="w-5 h-5 text-amber-300" />
           <Skeleton className="h-6 w-32" />
           <Skeleton className="h-5 w-6 rounded-full" />
         </div>
@@ -19,7 +20,7 @@ const DocumentVaultSkeleton = ({ isOpen, onClose }) => {
           onClick={onClose}
           className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
         >
-          <X className="w-5 h-5 text-gray-500" />
+          <XIcon className="w-5 h-5 text-gray-500" />
         </button>
       </div>
 

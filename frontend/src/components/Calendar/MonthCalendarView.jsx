@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, MapPin, Plane, Home, Car, Train, Bus, Footprints, Bike, Ship } from 'lucide-react';
-import { formatDateShort } from '../../utils/dateFormat';
-import { getTransportIcon } from './CalendarView';
+import { useTranslation } from 'react-i18next';
+import { ChevronLeft, MapPin } from 'lucide-react';
+import RightChevron from '@/components/icons/right-chevron';
+import AirplaneIcon from '@/components/icons/airplane-icon';
+import HomeIcon from '@/components/icons/home-icon';
+import { getTransportIcon } from './calendarUtils';
 
 const MonthCalendarView = ({
-  trip,
   tripDateRange,
   selectedDate,
   onDateChange,
@@ -13,6 +15,7 @@ const MonthCalendarView = ({
   destinationsByDate,
   travelSegments = [],
 }) => {
+  const { t } = useTranslation();
   const [currentMonth, setCurrentMonth] = useState(() => {
     return selectedDate ? new Date(selectedDate) : new Date();
   });
@@ -115,7 +118,7 @@ const MonthCalendarView = ({
           <button
             onClick={handlePreviousMonth}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            aria-label="Previous month"
+            aria-label={t('calendar.previousMonth', 'Previous month')}
           >
             <ChevronLeft className="w-5 h-5 text-gray-700 dark:text-gray-300" />
           </button>
@@ -124,15 +127,15 @@ const MonthCalendarView = ({
             onClick={() => setCurrentMonth(new Date())}
             className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
-            Today
+            {t('calendar.today')}
           </button>
 
           <button
             onClick={handleNextMonth}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            aria-label="Next month"
+            aria-label={t('calendar.nextMonth', 'Next month')}
           >
-            <ChevronRight className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+            <RightChevron className="w-5 h-5 text-gray-700 dark:text-gray-300" />
           </button>
         </div>
       </div>
@@ -141,7 +144,7 @@ const MonthCalendarView = ({
       <div className="flex-1">
         {/* Weekday Headers */}
         <div className="grid grid-cols-7 gap-2 mb-2">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+          {[t('calendar.weekdays.sun'), t('calendar.weekdays.mon'), t('calendar.weekdays.tue'), t('calendar.weekdays.wed'), t('calendar.weekdays.thu'), t('calendar.weekdays.fri'), t('calendar.weekdays.sat')].map(day => (
             <div
               key={day}
               className="text-center text-sm font-semibold text-gray-600 dark:text-gray-400 py-2"
@@ -200,7 +203,7 @@ const MonthCalendarView = ({
                         <div
                           key={idx}
                           className="flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 rounded truncate"
-                          title={`${dest.isArrival ? 'Arrive' : 'Depart'}: ${dest.city_name}`}
+                          title={`${dest.isArrival ? t('calendar.arrive') : t('calendar.depart')}: ${dest.city_name}`}
                         >
                           <TransportIcon className="w-3 h-3 flex-shrink-0" />
                           <span className="truncate text-[10px]">{dest.city_name}</span>
@@ -213,7 +216,7 @@ const MonthCalendarView = ({
                 {/* Accommodation Indicator */}
                 {hasAccommodation && (
                   <div className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-400 mb-1">
-                    <Home className="w-3 h-3" />
+                    <HomeIcon className="w-3 h-3" />
                   </div>
                 )}
 
@@ -242,23 +245,23 @@ const MonthCalendarView = ({
         <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600 dark:text-gray-400">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 border-2 border-blue-500 dark:border-blue-400 rounded" />
-            <span>Today</span>
+            <span>{t('calendar.legend.today')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded" />
-            <span>Trip Dates</span>
+            <span>{t('calendar.legend.tripDates')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Home className="w-4 h-4 text-blue-700 dark:text-blue-400" />
-            <span>Accommodation</span>
+            <HomeIcon className="w-4 h-4 text-blue-700 dark:text-blue-400" />
+            <span>{t('calendar.legend.accommodation')}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Plane className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-            <span>Destination Change</span>
+            <AirplaneIcon className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+            <span>{t('calendar.legend.destinationChange')}</span>
           </div>
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-purple-700 dark:text-purple-400" />
-            <span>POIs Scheduled</span>
+            <span>{t('calendar.legend.poisScheduled')}</span>
           </div>
         </div>
       </div>

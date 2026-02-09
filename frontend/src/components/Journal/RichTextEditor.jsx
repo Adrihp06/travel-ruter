@@ -1,4 +1,6 @@
 import React, { useRef, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import DOMPurify from 'dompurify';
 import {
   Bold,
   Italic,
@@ -10,9 +12,19 @@ import {
   Heading2,
   Link,
   Image,
-  Undo,
   Redo,
 } from 'lucide-react';
+import ArrowBackUpIcon from '@/components/icons/arrow-back-up-icon';
+
+// Configure DOMPurify to allow safe HTML elements for rich text editing
+const sanitizeConfig = {
+  ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'strong', 'em', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'blockquote', 'a', 'img', 'span', 'div'],
+  ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style', 'target', 'rel'],
+  ALLOW_DATA_ATTR: false,
+  ADD_ATTR: ['target'],
+  FORBID_TAGS: ['script', 'style', 'iframe', 'form', 'input', 'object', 'embed'],
+  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
+};
 
 const ToolbarButton = ({ onClick, active, disabled, title, children }) => (
   <button
@@ -23,7 +35,7 @@ const ToolbarButton = ({ onClick, active, disabled, title, children }) => (
     className={`
       p-1.5 rounded transition-colors
       ${active
-        ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400'
+        ? 'bg-amber-100 dark:bg-amber-900/30 text-[#D97706] dark:text-amber-400'
         : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
       }
       ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
@@ -45,14 +57,16 @@ const RichTextEditor = ({
   minHeight = '200px',
   disabled = false,
 }) => {
+  const { t } = useTranslation();
   const editorRef = useRef(null);
   const isInternalChange = useRef(false);
 
-  // Initialize editor content
+  // Initialize editor content with sanitized HTML
   useEffect(() => {
     if (editorRef.current && !isInternalChange.current) {
-      if (editorRef.current.innerHTML !== value) {
-        editorRef.current.innerHTML = value || '';
+      const sanitizedValue = value ? DOMPurify.sanitize(value, sanitizeConfig) : '';
+      if (editorRef.current.innerHTML !== sanitizedValue) {
+        editorRef.current.innerHTML = sanitizedValue;
       }
     }
     isInternalChange.current = false;
@@ -86,14 +100,14 @@ const RichTextEditor = ({
   const formatRedo = () => execCommand('redo');
 
   const insertLink = () => {
-    const url = prompt('Enter URL:');
+    const url = prompt(t('journal.richText.enterUrl'));
     if (url) {
       execCommand('createLink', url);
     }
   };
 
   const insertImage = () => {
-    const url = prompt('Enter image URL:');
+    const url = prompt(t('journal.richText.enterImageUrl'));
     if (url) {
       execCommand('insertImage', url);
     }
@@ -142,52 +156,52 @@ const RichTextEditor = ({
     <div className={`border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden ${className}`}>
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-0.5 p-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-        <ToolbarButton onClick={formatBold} title="Bold (Ctrl+B)" disabled={disabled}>
+        <ToolbarButton onClick={formatBold} title={t('journal.richText.bold')} disabled={disabled}>
           <Bold className="w-4 h-4" />
         </ToolbarButton>
-        <ToolbarButton onClick={formatItalic} title="Italic (Ctrl+I)" disabled={disabled}>
+        <ToolbarButton onClick={formatItalic} title={t('journal.richText.italic')} disabled={disabled}>
           <Italic className="w-4 h-4" />
         </ToolbarButton>
-        <ToolbarButton onClick={formatUnderline} title="Underline (Ctrl+U)" disabled={disabled}>
+        <ToolbarButton onClick={formatUnderline} title={t('journal.richText.underline')} disabled={disabled}>
           <Underline className="w-4 h-4" />
         </ToolbarButton>
 
         <Divider />
 
-        <ToolbarButton onClick={formatH1} title="Heading 1" disabled={disabled}>
+        <ToolbarButton onClick={formatH1} title={t('journal.richText.heading1')} disabled={disabled}>
           <Heading1 className="w-4 h-4" />
         </ToolbarButton>
-        <ToolbarButton onClick={formatH2} title="Heading 2" disabled={disabled}>
+        <ToolbarButton onClick={formatH2} title={t('journal.richText.heading2')} disabled={disabled}>
           <Heading2 className="w-4 h-4" />
         </ToolbarButton>
 
         <Divider />
 
-        <ToolbarButton onClick={formatUnorderedList} title="Bullet List" disabled={disabled}>
+        <ToolbarButton onClick={formatUnorderedList} title={t('journal.richText.bulletList')} disabled={disabled}>
           <List className="w-4 h-4" />
         </ToolbarButton>
-        <ToolbarButton onClick={formatOrderedList} title="Numbered List" disabled={disabled}>
+        <ToolbarButton onClick={formatOrderedList} title={t('journal.richText.numberedList')} disabled={disabled}>
           <ListOrdered className="w-4 h-4" />
         </ToolbarButton>
-        <ToolbarButton onClick={formatQuote} title="Quote" disabled={disabled}>
+        <ToolbarButton onClick={formatQuote} title={t('journal.richText.quote')} disabled={disabled}>
           <Quote className="w-4 h-4" />
         </ToolbarButton>
 
         <Divider />
 
-        <ToolbarButton onClick={insertLink} title="Insert Link" disabled={disabled}>
+        <ToolbarButton onClick={insertLink} title={t('journal.richText.insertLink')} disabled={disabled}>
           <Link className="w-4 h-4" />
         </ToolbarButton>
-        <ToolbarButton onClick={insertImage} title="Insert Image URL" disabled={disabled}>
+        <ToolbarButton onClick={insertImage} title={t('journal.richText.insertImage')} disabled={disabled}>
           <Image className="w-4 h-4" />
         </ToolbarButton>
 
         <Divider />
 
-        <ToolbarButton onClick={formatUndo} title="Undo (Ctrl+Z)" disabled={disabled}>
-          <Undo className="w-4 h-4" />
+        <ToolbarButton onClick={formatUndo} title={t('journal.richText.undo')} disabled={disabled}>
+          <ArrowBackUpIcon className="w-4 h-4" />
         </ToolbarButton>
-        <ToolbarButton onClick={formatRedo} title="Redo (Ctrl+Shift+Z)" disabled={disabled}>
+        <ToolbarButton onClick={formatRedo} title={t('journal.richText.redo')} disabled={disabled}>
           <Redo className="w-4 h-4" />
         </ToolbarButton>
       </div>
@@ -210,7 +224,7 @@ const RichTextEditor = ({
           [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 [&_blockquote]:pl-4 [&_blockquote]:italic
           [&_ul]:list-disc [&_ul]:ml-4
           [&_ol]:list-decimal [&_ol]:ml-4
-          [&_a]:text-indigo-600 [&_a]:underline
+          [&_a]:text-[#D97706] [&_a]:underline
           [&_img]:max-w-full [&_img]:rounded-lg
           empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400 empty:before:dark:text-gray-500
         `}

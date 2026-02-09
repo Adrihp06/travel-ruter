@@ -1,16 +1,17 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Bed,
   Calendar,
   MapPin,
-  ExternalLink,
   Hash,
-  Star,
-  Pencil,
   Trash2,
-  CheckCircle,
   Clock,
 } from 'lucide-react';
+import ExternalLinkIcon from '@/components/icons/external-link-icon';
+import StarIcon from '@/components/icons/star-icon';
+import PenIcon from '@/components/icons/pen-icon';
+import FilledCheckedIcon from '@/components/icons/filled-checked-icon';
 import { formatDateWithWeekday } from '../../utils/dateFormat';
 
 const accommodationTypeIcons = {
@@ -32,6 +33,7 @@ const AccommodationCard = ({
   onShowOnMap,
   isCompact = false,
 }) => {
+  const { t } = useTranslation();
   const {
     name,
     type,
@@ -71,7 +73,7 @@ const AccommodationCard = ({
             <span className="text-lg flex-shrink-0">{typeIcon}</span>
             <div className="min-w-0">
               <h4 className="font-medium text-gray-900 dark:text-white truncate">{name}</h4>
-              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{type}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{t(`accommodation.types.${type}`, type)}</p>
             </div>
           </div>
           <div className="opacity-0 group-hover:opacity-100 flex space-x-1 transition-opacity flex-shrink-0">
@@ -79,16 +81,16 @@ const AccommodationCard = ({
               <button
                 onClick={() => onEdit(accommodation)}
                 className="p-1 hover:bg-gray-100 dark:hover:bg-gray-600 rounded"
-                title="Edit accommodation"
+                title={t('accommodation.editAccommodation')}
               >
-                <Pencil className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+                <PenIcon className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
               </button>
             )}
             {onDelete && (
               <button
                 onClick={() => onDelete(accommodation.id)}
                 className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
-                title="Delete accommodation"
+                title={t('accommodation.deleteAccommodation')}
               >
                 <Trash2 className="w-3.5 h-3.5 text-red-500 dark:text-red-400" />
               </button>
@@ -98,7 +100,7 @@ const AccommodationCard = ({
         <div className="mt-2 flex items-center text-xs text-gray-500 dark:text-gray-400 space-x-3">
           <span className="flex items-center">
             <Calendar className="w-3 h-3 mr-1" />
-            {nights} night{nights !== 1 ? 's' : ''}
+            {t('common.nightCount', { count: nights })}
           </span>
           {total_cost && (
             <span className="flex items-center">
@@ -107,8 +109,8 @@ const AccommodationCard = ({
           )}
           {is_paid && (
             <span className="flex items-center text-green-600 dark:text-green-400">
-              <CheckCircle className="w-3 h-3 mr-1" />
-              Paid
+              <FilledCheckedIcon className="w-3 h-3 mr-1" />
+              {t('common.paid')}
             </span>
           )}
         </div>
@@ -122,16 +124,16 @@ const AccommodationCard = ({
       <div className="p-4 border-b border-gray-100 dark:border-gray-700">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg flex items-center justify-center text-xl">
+            <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/20 rounded-lg flex items-center justify-center text-xl">
               {typeIcon}
             </div>
             <div>
               <h3 className="font-semibold text-gray-900 dark:text-white">{name}</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 capitalize flex items-center">
-                {type}
+                {t(`accommodation.types.${type}`, type)}
                 {rating && (
                   <span className="ml-2 flex items-center text-amber-500">
-                    <Star className="w-3.5 h-3.5 mr-0.5 fill-current" />
+                    <StarIcon className="w-3.5 h-3.5 mr-0.5 fill-current" />
                     {rating}
                   </span>
                 )}
@@ -143,7 +145,7 @@ const AccommodationCard = ({
               <button
                 onClick={() => onShowOnMap(accommodation)}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                title="Show on map"
+                title={t('accommodation.showOnMap')}
               >
                 <MapPin className="w-4 h-4 text-gray-500 dark:text-gray-400" />
               </button>
@@ -152,16 +154,16 @@ const AccommodationCard = ({
               <button
                 onClick={() => onEdit(accommodation)}
                 className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                title="Edit"
+                title={t('common.edit')}
               >
-                <Pencil className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                <PenIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
               </button>
             )}
             {onDelete && (
               <button
                 onClick={() => onDelete(accommodation.id)}
                 className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
-                title="Delete"
+                title={t('common.delete')}
               >
                 <Trash2 className="w-4 h-4 text-red-500 dark:text-red-400" />
               </button>
@@ -175,18 +177,18 @@ const AccommodationCard = ({
         {/* Dates */}
         <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
           <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Check-in</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t('accommodation.checkIn')}</p>
             <p className="font-medium text-gray-900 dark:text-white">{formatDateWithWeekday(check_in_date)}</p>
           </div>
           <div className="flex flex-col items-center px-4">
-            <div className="flex items-center text-indigo-600 dark:text-indigo-400">
+            <div className="flex items-center text-[#D97706] dark:text-amber-400">
               <Clock className="w-4 h-4 mr-1" />
               <span className="font-semibold">{nights}</span>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">night{nights !== 1 ? 's' : ''}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('common.nightCount', { count: nights })}</p>
           </div>
           <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Check-out</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">{t('accommodation.checkOut')}</p>
             <p className="font-medium text-gray-900 dark:text-white">{formatDateWithWeekday(check_out_date)}</p>
           </div>
         </div>
@@ -213,10 +215,10 @@ const AccommodationCard = ({
                 href={booking_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                className="flex items-center text-[#D97706] dark:text-amber-400 hover:text-[#D97706] dark:hover:text-amber-300"
               >
-                <ExternalLink className="w-4 h-4 mr-1" />
-                View Booking
+                <ExternalLinkIcon className="w-4 h-4 mr-1" />
+                {t('accommodation.viewBooking')}
               </a>
             )}
           </div>
@@ -251,18 +253,18 @@ const AccommodationCard = ({
             </p>
             {pricePerNight && (
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {pricePerNight} {currency} / night
+                {t('accommodation.perNight', { price: pricePerNight, currency })}
               </p>
             )}
           </div>
           {is_paid ? (
             <span className="flex items-center px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-sm rounded-full">
-              <CheckCircle className="w-4 h-4 mr-1" />
-              Paid
+              <FilledCheckedIcon className="w-4 h-4 mr-1" />
+              {t('common.paid')}
             </span>
           ) : (
             <span className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-sm rounded-full">
-              Unpaid
+              {t('common.unpaid')}
             </span>
           )}
         </div>

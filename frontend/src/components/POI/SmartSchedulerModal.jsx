@@ -1,13 +1,10 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useId } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-  X,
-  Check,
   Sparkles,
-  Clock,
   UtensilsCrossed,
   Calendar,
   Route,
-  AlertTriangle,
   MapPin,
   ChevronDown,
   ChevronRight,
@@ -21,6 +18,11 @@ import {
   Lock,
   Infinity,
 } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
+import CheckedIcon from '@/components/icons/checked-icon';
+import ClockIcon from '@/components/icons/clock-icon';
+import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
+import StarIcon from '@/components/icons/star-icon';
 import usePOIStore from '../../stores/usePOIStore';
 import {
   generateSmartSchedule,
@@ -30,10 +32,10 @@ import {
 
 // Transport mode configurations
 const TRANSPORT_MODES = [
-  { id: 'foot-walking', label: 'Walk', icon: Footprints, orsProfile: 'foot-walking' },
-  { id: 'cycling-regular', label: 'Bike', icon: Bike, orsProfile: 'cycling-regular' },
-  { id: 'driving-car', label: 'Drive', icon: Car, orsProfile: 'driving-car' },
-  { id: 'public-transit', label: 'Bus', icon: Bus, orsProfile: 'driving-car', multiplier: 1.5 },
+  { id: 'foot-walking', labelKey: 'routes.modes.walk', icon: Footprints, orsProfile: 'foot-walking' },
+  { id: 'cycling-regular', labelKey: 'routes.modes.bike', icon: Bike, orsProfile: 'cycling-regular' },
+  { id: 'driving-car', labelKey: 'routes.modes.drive', icon: Car, orsProfile: 'driving-car' },
+  { id: 'public-transit', labelKey: 'routes.modes.bus', icon: Bus, orsProfile: 'driving-car', multiplier: 1.5 },
   // Note: Transit uses driving matrix x 1.5 (no ORS transit support)
 ];
 
@@ -71,7 +73,7 @@ const POIChip = ({ poi }) => {
 };
 
 // Day preview card
-const DayPreviewCard = ({ dayPreview, isExpanded, onToggle, showTravelTime = false, noTimeLimit = false }) => {
+const DayPreviewCard = ({ dayPreview, isExpanded, onToggle, showTravelTime = false, noTimeLimit = false, t }) => {
   const {
     dayNumber,
     displayDate,
@@ -103,9 +105,9 @@ const DayPreviewCard = ({ dayPreview, isExpanded, onToggle, showTravelTime = fal
         className="w-full flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+          <Calendar className="w-4 h-4 text-[#D97706] dark:text-amber-400" />
           <span className="font-medium text-sm text-gray-900 dark:text-white">
-            Day {dayNumber}
+            {t('scheduler.dayNumber', { number: dayNumber })}
           </span>
           <span className="text-xs text-gray-500 dark:text-gray-400">
             {displayDate}
@@ -118,8 +120,8 @@ const DayPreviewCard = ({ dayPreview, isExpanded, onToggle, showTravelTime = fal
             </span>
           ) : (
             <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-              <AlertTriangle className="w-3 h-3" />
-              <span>No accommodation</span>
+              <TriangleAlertIcon className="w-3 h-3" />
+              <span>{t('scheduler.noAccommodation')}</span>
             </span>
           )}
         </div>
@@ -128,13 +130,13 @@ const DayPreviewCard = ({ dayPreview, isExpanded, onToggle, showTravelTime = fal
           {/* POI count badge */}
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
             pois.length > 0
-              ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+              ? 'bg-amber-100 text-[#D97706] dark:bg-amber-900/30 dark:text-amber-300'
               : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
           }`}>
-            {pois.length} POI{pois.length !== 1 ? 's' : ''}
+            {t('scheduler.poiCount', { count: pois.length })}
             {anchoredCount > 0 && (
               <span className="ml-1 text-amber-600 dark:text-amber-400">
-                ({anchoredCount} locked)
+                ({t('scheduler.locked', { count: anchoredCount })})
               </span>
             )}
           </span>
@@ -149,12 +151,12 @@ const DayPreviewCard = ({ dayPreview, isExpanded, onToggle, showTravelTime = fal
               ? 'text-amber-600 dark:text-amber-400'
               : 'text-gray-500 dark:text-gray-400'
           }`}>
-            <Clock className="w-3 h-3" />
+            <ClockIcon className="w-3 h-3" />
             {showTravelTime ? (
               <span>
                 {totalTimeHours}h
                 <span className="text-gray-400 dark:text-gray-500 ml-0.5">
-                  ({dwellTimeHours}+{Math.round(travelTimeMinutes / 6) / 10}h travel)
+                  ({dwellTimeHours}+{Math.round(travelTimeMinutes / 6) / 10}h {t('scheduler.travel')})
                 </span>
               </span>
             ) : (
@@ -178,7 +180,7 @@ const DayPreviewCard = ({ dayPreview, isExpanded, onToggle, showTravelTime = fal
 
           {/* Warning icon */}
           {hasWarnings && (
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            <TriangleAlertIcon className="w-4 h-4 text-amber-500" />
           )}
 
           {isExpanded ? (
@@ -205,7 +207,7 @@ const DayPreviewCard = ({ dayPreview, isExpanded, onToggle, showTravelTime = fal
                   : 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300'
               }`}
             >
-              <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+              <TriangleAlertIcon className="w-3 h-3 flex-shrink-0" />
               <span>{warning.message}</span>
             </div>
           ))}
@@ -228,7 +230,7 @@ const DayPreviewCard = ({ dayPreview, isExpanded, onToggle, showTravelTime = fal
         <div className="px-3 pb-3 border-t border-gray-100 dark:border-gray-700 mt-2">
           <div className="flex items-center justify-center py-3 text-gray-400 dark:text-gray-500 text-xs">
             <MapPin className="w-3.5 h-3.5 mr-1.5" />
-            No POIs scheduled
+            {t('scheduler.noPOIsScheduled')}
           </div>
         </div>
       )}
@@ -237,7 +239,7 @@ const DayPreviewCard = ({ dayPreview, isExpanded, onToggle, showTravelTime = fal
 };
 
 // Transport Mode Selector component
-const TransportModeSelector = ({ selectedMode, onModeChange, isLoading, loadingMode }) => {
+const TransportModeSelector = ({ selectedMode, onModeChange, isLoading, loadingMode, t }) => {
   return (
     <div className="flex items-center gap-1.5">
       <Navigation className="w-4 h-4 text-gray-400 mr-1" />
@@ -253,17 +255,17 @@ const TransportModeSelector = ({ selectedMode, onModeChange, isLoading, loadingM
             disabled={isLoading}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
               isSelected
-                ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 ring-1 ring-indigo-300 dark:ring-indigo-700'
+                ? 'bg-amber-100 text-[#D97706] dark:bg-amber-900/30 dark:text-amber-300 ring-1 ring-amber-300 dark:ring-amber-700'
                 : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
             } ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
-            title={mode.id === 'public-transit' ? 'Estimated as 1.5x driving time' : mode.label}
+            title={mode.id === 'public-transit' ? t('scheduler.transitEstimate') : t(mode.labelKey)}
           >
             {isLoadingThis ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <Icon className="w-3.5 h-3.5" />
             )}
-            {mode.label}
+            {t(mode.labelKey)}
           </button>
         );
       })}
@@ -281,6 +283,10 @@ const SmartSchedulerModal = ({
   destinationId,
   isApplying = false,
 }) => {
+  const { t } = useTranslation();
+  // Accessibility
+  const titleId = useId();
+
   // Configuration state
   const [includeScheduled, setIncludeScheduled] = useState(false);
   const [maxFoodPerDay, setMaxFoodPerDay] = useState(DEFAULT_CONSTRAINTS.maxFoodPerDay);
@@ -525,20 +531,28 @@ const SmartSchedulerModal = ({
   const hasMatrix = !!effectiveMatrix;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop bg-black/40 p-4">
-      <div className="modal-content bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-gray-200/50 dark:border-gray-700/50 overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop bg-black/40 p-4"
+      role="presentation"
+    >
+      <div
+        className="modal-content bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-gray-200/50 dark:border-gray-700/50 overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
         {/* Header */}
         <div className="modal-header flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
-            <div className="modal-icon-container w-11 h-11 rounded-xl bg-gradient-to-br from-purple-100 to-indigo-100 dark:from-purple-900/40 dark:to-indigo-900/40 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            <div className="modal-icon-container w-11 h-11 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/40 dark:to-orange-900/30 flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-[#D97706] dark:text-amber-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                Smart Day Planner
+              <h2 id={titleId} className="text-lg font-bold text-gray-900 dark:text-white">
+                {t('scheduler.smartDayPlanner')}
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Auto-distribute POIs across {days.length} days
+                {t('scheduler.autoDistribute', { count: days.length })}
               </p>
             </div>
           </div>
@@ -546,8 +560,9 @@ const SmartSchedulerModal = ({
             onClick={onClose}
             disabled={isApplying}
             className="modal-close-btn p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50"
+            aria-label="Close modal"
           >
-            <X className="w-5 h-5" />
+            <XIcon className="w-5 h-5" />
           </button>
         </div>
 
@@ -556,17 +571,18 @@ const SmartSchedulerModal = ({
           {/* Transport Mode Selector */}
           <div>
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
-              Travel Mode
+              {t('scheduler.travelMode')}
             </label>
             <TransportModeSelector
               selectedMode={transportMode}
               onModeChange={handleTransportModeChange}
               isLoading={isLoadingMatrix}
               loadingMode={loadingMode}
+              t={t}
             />
             {transportMode === 'public-transit' && (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-6">
-                Estimated as 1.5x driving time (ORS doesn't support transit)
+                {t('scheduler.transitEstimateNote')}
               </p>
             )}
           </div>
@@ -575,17 +591,17 @@ const SmartSchedulerModal = ({
           <div className="flex items-center justify-between">
             <div>
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Include already scheduled POIs
+                {t('scheduler.includeScheduled')}
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Re-schedule all POIs, not just unscheduled ones
+                {t('scheduler.includeScheduledDesc')}
               </p>
             </div>
             <button
               onClick={() => setIncludeScheduled(!includeScheduled)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 includeScheduled
-                  ? 'bg-indigo-600'
+                  ? 'bg-[#D97706]'
                   : 'bg-gray-300 dark:bg-gray-600'
               }`}
             >
@@ -604,9 +620,9 @@ const SmartSchedulerModal = ({
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
                   <UtensilsCrossed className="w-3.5 h-3.5 text-orange-500" />
-                  Max restaurants/day
+                  {t('scheduler.maxRestaurantsPerDay')}
                 </label>
-                <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+                <span className="text-sm font-bold text-[#D97706] dark:text-amber-400">
                   {maxFoodPerDay}
                 </span>
               </div>
@@ -616,7 +632,7 @@ const SmartSchedulerModal = ({
                 max="4"
                 value={maxFoodPerDay}
                 onChange={(e) => setMaxFoodPerDay(Number(e.target.value))}
-                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-indigo-600"
+                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-amber-600"
               />
               <div className="flex justify-between text-xs text-gray-400 mt-1">
                 <span>1</span>
@@ -628,17 +644,17 @@ const SmartSchedulerModal = ({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-blue-500" />
-                  Max hours/day
+                  <ClockIcon className="w-3.5 h-3.5 text-blue-500" />
+                  {t('scheduler.maxHoursPerDay')}
                 </label>
                 <div className="flex items-center gap-2">
                   {noTimeLimit ? (
                     <span className="text-sm font-bold text-green-600 dark:text-green-400 flex items-center gap-1">
                       <Infinity className="w-4 h-4" />
-                      No limit
+                      {t('scheduler.noLimit')}
                     </span>
                   ) : (
-                    <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+                    <span className="text-sm font-bold text-[#D97706] dark:text-amber-400">
                       {maxHoursPerDay}h
                     </span>
                   )}
@@ -652,7 +668,7 @@ const SmartSchedulerModal = ({
                   value={maxHoursPerDay}
                   onChange={(e) => setMaxHoursPerDay(Number(e.target.value))}
                   disabled={noTimeLimit}
-                  className={`flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-indigo-600 ${noTimeLimit ? 'opacity-40' : ''}`}
+                  className={`flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-amber-600 ${noTimeLimit ? 'opacity-40' : ''}`}
                 />
                 <button
                   onClick={() => setNoTimeLimit(!noTimeLimit)}
@@ -661,7 +677,7 @@ const SmartSchedulerModal = ({
                       ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 ring-1 ring-green-300 dark:ring-green-700'
                       : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                   }`}
-                  title="Disable time budget limit"
+                  title={t('scheduler.disableTimeBudgetLimit')}
                 >
                   <Infinity className="w-3.5 h-3.5" />
                 </button>
@@ -676,16 +692,16 @@ const SmartSchedulerModal = ({
           {/* Route Optimization Toggle */}
           <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2">
-              <Route className="w-4 h-4 text-indigo-500" />
+              <Route className="w-4 h-4 text-[#D97706]" />
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Optimize routes after scheduling
+                {t('scheduler.optimizeRoutes')}
               </label>
             </div>
             <button
               onClick={() => setOptimizeRoutes(!optimizeRoutes)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 optimizeRoutes
-                  ? 'bg-indigo-600'
+                  ? 'bg-[#D97706]'
                   : 'bg-gray-300 dark:bg-gray-600'
               }`}
             >
@@ -702,10 +718,10 @@ const SmartSchedulerModal = ({
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {/* Loading matrix indicator */}
           {isLoadingMatrix && (
-            <div className="flex items-center gap-2 p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg mb-2">
-              <Loader2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-spin" />
-              <span className="text-sm text-indigo-700 dark:text-indigo-300">
-                Calculating travel times for {TRANSPORT_MODES.find(m => m.id === loadingMode)?.label || 'selected mode'}...
+            <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg mb-2">
+              <Loader2 className="w-4 h-4 text-[#D97706] dark:text-amber-400 animate-spin" />
+              <span className="text-sm text-[#D97706] dark:text-amber-300">
+                {t('scheduler.calculatingTravelTimes', { mode: t(TRANSPORT_MODES.find(m => m.id === loadingMode)?.labelKey || 'routes.modes.drive') })}
               </span>
             </div>
           )}
@@ -713,9 +729,9 @@ const SmartSchedulerModal = ({
           {/* Matrix error */}
           {matrixError && (
             <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg mb-2">
-              <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
+              <TriangleAlertIcon className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0" />
               <span className="text-sm text-red-700 dark:text-red-300">
-                {matrixError}. Using estimated travel times.
+                {t('scheduler.matrixError', { error: matrixError })}
               </span>
             </div>
           )}
@@ -723,9 +739,9 @@ const SmartSchedulerModal = ({
           {/* Fallback notice */}
           {!isLoadingMatrix && !matrixError && effectiveMatrix?.fallback_used && (
             <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg mb-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <TriangleAlertIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
               <span className="text-sm text-amber-700 dark:text-amber-300">
-                Using estimated travel times (ORS API unavailable).
+                {t('scheduler.fallbackNotice')}
               </span>
             </div>
           )}
@@ -735,7 +751,7 @@ const SmartSchedulerModal = ({
             <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg mb-2">
               <Loader2 className="w-4 h-4 text-blue-600 dark:text-blue-400 animate-spin" />
               <span className="text-sm text-blue-700 dark:text-blue-300">
-                Loading accommodation info...
+                {t('scheduler.loadingAccommodation')}
               </span>
             </div>
           )}
@@ -756,8 +772,8 @@ const SmartSchedulerModal = ({
                 {errorWarnings.length > 0 && (
                   <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg mb-2">
                     <div className="flex items-center gap-2 text-sm font-medium text-red-700 dark:text-red-300 mb-1">
-                      <AlertTriangle className="w-4 h-4" />
-                      {noTimeLimit ? 'Food Budget Exceeded' : 'Time/Food Budget Exceeded'}
+                      <TriangleAlertIcon className="w-4 h-4" />
+                      {noTimeLimit ? t('scheduler.foodBudgetExceeded') : t('scheduler.timeFoodBudgetExceeded')}
                     </div>
                     <div className="space-y-0.5">
                       {errorWarnings.map((warning, idx) => (
@@ -774,8 +790,8 @@ const SmartSchedulerModal = ({
                 {warningWarnings.length > 0 && (
                   <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg mb-2">
                     <div className="flex items-center gap-2 text-sm font-medium text-amber-700 dark:text-amber-300 mb-1">
-                      <AlertTriangle className="w-4 h-4" />
-                      Distribution Warnings
+                      <TriangleAlertIcon className="w-4 h-4" />
+                      {t('scheduler.distributionWarnings')}
                     </div>
                     <div className="space-y-0.5">
                       {warningWarnings.map((warning, idx) => (
@@ -794,10 +810,9 @@ const SmartSchedulerModal = ({
           {/* Warning banner for days without accommodation */}
           {!isLoadingAccom && daysWithoutAccommodation.length > 0 && (
             <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg mb-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+              <TriangleAlertIcon className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
               <span className="text-sm text-amber-700 dark:text-amber-300">
-                {daysWithoutAccommodation.length} day{daysWithoutAccommodation.length !== 1 ? 's have' : ' has'} no accommodation set.
-                Routes will start from city center.
+                {t('scheduler.daysWithoutAccommodation', { count: daysWithoutAccommodation.length })}
               </span>
             </div>
           )}
@@ -805,8 +820,8 @@ const SmartSchedulerModal = ({
           {poisToSchedule.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
               <MapPin className="w-10 h-10 mb-3 opacity-50" />
-              <p className="font-medium">No POIs to schedule</p>
-              <p className="text-sm mt-1">Add some POIs first, or toggle to include scheduled ones</p>
+              <p className="font-medium">{t('scheduler.noPOIsToSchedule')}</p>
+              <p className="text-sm mt-1">{t('scheduler.addPOIsFirst')}</p>
             </div>
           ) : (
             schedulePreview.map((dayPreview) => (
@@ -817,6 +832,7 @@ const SmartSchedulerModal = ({
                 onToggle={() => toggleDay(dayPreview.date)}
                 showTravelTime={hasMatrix}
                 noTimeLimit={noTimeLimit}
+                t={t}
               />
             ))
           )}
@@ -824,24 +840,23 @@ const SmartSchedulerModal = ({
 
         {/* Summary Stats */}
         {hasChanges && (
-          <div className="px-6 py-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-t border-gray-200 dark:border-gray-700">
+          <div className="px-6 py-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-center gap-6 text-sm">
               <span className="text-gray-600 dark:text-gray-300">
-                <span className="font-bold text-indigo-600 dark:text-indigo-400">{stats.distributedPOIs}</span> POIs across{' '}
-                <span className="font-bold text-indigo-600 dark:text-indigo-400">{stats.daysUsed}</span> days
+                {t('scheduler.poisAcrossDays', { pois: stats.distributedPOIs, days: stats.daysUsed })}
               </span>
               {stats.anchoredCount > 0 && (
                 <>
                   <span className="text-gray-400 dark:text-gray-500">•</span>
                   <span className="text-gray-600 dark:text-gray-300 flex items-center gap-1">
                     <Lock className="w-3.5 h-3.5" />
-                    <span className="font-bold text-amber-600 dark:text-amber-400">{stats.anchoredCount}</span> anchored
+                    {t('scheduler.anchored', { count: stats.anchoredCount })}
                   </span>
                 </>
               )}
               <span className="text-gray-400 dark:text-gray-500">•</span>
               <span className="text-gray-600 dark:text-gray-300">
-                Avg <span className="font-bold text-indigo-600 dark:text-indigo-400">{stats.avgHoursPerDay}h</span>/day
+                {t('scheduler.avgPerDay', { hours: stats.avgHoursPerDay })}
               </span>
             </div>
           </div>
@@ -854,22 +869,22 @@ const SmartSchedulerModal = ({
             disabled={isApplying}
             className="modal-btn modal-btn-secondary px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleApply}
             disabled={isApplying || !hasChanges}
-            className="modal-btn modal-btn-primary flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-500 hover:to-indigo-500 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all"
+            className="modal-btn modal-btn-primary flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-gradient-to-r from-[#D97706] to-[#EA580C] text-white hover:from-[#B45309] hover:to-[#C2410C] disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed shadow-sm hover:shadow-md transition-all"
           >
             {isApplying ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Applying...</span>
+                <span>{t('scheduler.applying')}</span>
               </>
             ) : (
               <>
-                <Check className="w-4 h-4" />
-                <span>Apply Schedule</span>
+                <CheckedIcon className="w-4 h-4" />
+                <span>{t('scheduler.applySchedule')}</span>
               </>
             )}
           </button>

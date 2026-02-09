@@ -1,7 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Calendar, Moon, Pencil, Trash2 } from 'lucide-react';
+import { GripVertical, Calendar, Moon } from 'lucide-react';
+import PenIcon from '@/components/icons/pen-icon';
+import TrashIcon from '@/components/icons/trash-icon';
 import { formatDateShort } from '../../utils/dateFormat';
 
 const SortableDestinationItem = ({
@@ -12,6 +15,7 @@ const SortableDestinationItem = ({
   onEdit,
   onDelete,
 }) => {
+  const { t } = useTranslation();
   const {
     attributes,
     listeners,
@@ -36,15 +40,15 @@ const SortableDestinationItem = ({
       <div
         onClick={() => onSelect(destination.id)}
         className={`
-          relative pl-6 py-3 pr-2 cursor-pointer transition-all duration-200
-          ${isSelected ? 'bg-indigo-50 dark:bg-indigo-900/30 rounded-lg' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}
+          relative pl-6 py-3 pr-3 cursor-pointer transition-all duration-200
+          ${isSelected ? 'bg-amber-50 dark:bg-amber-900/20 rounded-lg' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}
           ${isDragging ? 'rounded-lg bg-white dark:bg-gray-800' : ''}
         `}
       >
         {/* Node marker */}
         <span className={`
           absolute left-0 top-4 w-3 h-3 rounded-full border-2 z-10
-          ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white dark:bg-gray-800 border-indigo-400'}
+          ${isSelected ? 'bg-[#D97706] border-[#D97706]' : 'bg-white dark:bg-gray-800 border-[#D97706]/60'}
         `}></span>
 
         <div className="flex items-start justify-between">
@@ -59,7 +63,7 @@ const SortableDestinationItem = ({
           </div>
 
           <div className="flex-1 min-w-0">
-            <h3 className={`font-medium ${isSelected ? 'text-indigo-900 dark:text-indigo-300' : 'text-gray-900 dark:text-white'}`}>
+            <h3 className={`font-medium ${isSelected ? 'text-amber-900 dark:text-amber-300' : 'text-gray-900 dark:text-white'}`}>
               {destination.name || destination.city_name}
             </h3>
             <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -68,9 +72,9 @@ const SortableDestinationItem = ({
               <span className="mx-1">-</span>
               <span>{formatDateShort(destination.departure_date)}</span>
             </div>
-            <div className="flex items-center text-xs font-medium text-indigo-600 dark:text-indigo-400 mt-1">
+            <div className="flex items-center text-xs font-medium text-[#D97706] dark:text-amber-400 mt-1">
               <Moon className="w-3 h-3 mr-1" />
-              {nights} nights
+              {t('common.nightCount', { count: nights })}
             </div>
           </div>
 
@@ -84,9 +88,9 @@ const SortableDestinationItem = ({
                     onEdit(destination);
                   }}
                   className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-                  title="Edit destination"
+                  title={t('timeline.editDestination')}
                 >
-                  <Pencil className="w-3 h-3 text-gray-500 dark:text-gray-400" />
+                  <PenIcon className="w-3 h-3 text-gray-500 dark:text-gray-400" />
                 </button>
               )}
               {onDelete && (
@@ -96,9 +100,9 @@ const SortableDestinationItem = ({
                     onDelete(destination.id);
                   }}
                   className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded"
-                  title="Delete destination"
+                  title={t('timeline.deleteDestination')}
                 >
-                  <Trash2 className="w-3 h-3 text-red-500 dark:text-red-400" />
+                  <TrashIcon className="w-3 h-3 text-red-500 dark:text-red-400" />
                 </button>
               )}
             </div>
@@ -109,4 +113,17 @@ const SortableDestinationItem = ({
   );
 };
 
-export default SortableDestinationItem;
+// Custom comparison function for React.memo to prevent unnecessary re-renders
+const arePropsEqual = (prevProps, nextProps) => {
+  return (
+    prevProps.destination.id === nextProps.destination.id &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.nights === nextProps.nights &&
+    // Compare arrival and departure dates for date changes
+    prevProps.destination.arrival_date === nextProps.destination.arrival_date &&
+    prevProps.destination.departure_date === nextProps.destination.departure_date &&
+    prevProps.destination.name === nextProps.destination.name
+  );
+};
+
+export default React.memo(SortableDestinationItem, arePropsEqual);

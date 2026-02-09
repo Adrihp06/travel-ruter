@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { X, Copy, Calendar, FileText, MapPin, Building, Image as ImageIcon } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Calendar, MapPin, Building, Image as ImageIcon } from 'lucide-react';
+import XIcon from '@/components/icons/x-icon';
+import CopyIcon from '@/components/icons/copy-icon';
+import FileDescriptionIcon from '@/components/icons/file-description-icon';
 import DateRangePicker from '../common/DateRangePicker';
 
 const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: '',
     start_date: '',
@@ -69,22 +74,22 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
     const newErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = 'Trip name is required';
+      newErrors.name = t('trips.tripNameRequired');
     }
 
     if (!formData.start_date) {
-      newErrors.start_date = 'Start date is required';
+      newErrors.start_date = t('trips.startDateRequired');
     }
 
     if (!formData.end_date) {
-      newErrors.end_date = 'End date is required';
+      newErrors.end_date = t('trips.endDateRequired');
     }
 
     if (formData.start_date && formData.end_date) {
       const start = new Date(formData.start_date);
       const end = new Date(formData.end_date);
       if (end < start) {
-        newErrors.end_date = 'End date must be on or after start date';
+        newErrors.end_date = t('trips.endAfterStart');
       }
     }
 
@@ -105,7 +110,7 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
       await onDuplicate(formData);
       onClose();
     } catch (error) {
-      setErrors({ submit: error.message || 'Failed to duplicate trip' });
+      setErrors({ submit: error.message || t('trips.failedDuplicate') });
     } finally {
       setIsSubmitting(false);
     }
@@ -120,14 +125,14 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
         <div className="modal-header flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
           <div className="flex items-center gap-3">
             <div className="modal-icon-container primary">
-              <Copy className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <CopyIcon className="w-5 h-5 text-[#D97706] dark:text-amber-400" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-                Duplicate Trip
+                {t('trips.duplicateTrip')}
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Create a copy of "{trip?.name || trip?.title}"
+                {t('trips.createCopyOf', { name: trip?.name || trip?.title })}
               </p>
             </div>
           </div>
@@ -135,7 +140,7 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
             onClick={onClose}
             className="modal-close-btn p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
           >
-            <X className="w-5 h-5" />
+            <XIcon className="w-5 h-5" />
           </button>
         </div>
 
@@ -145,7 +150,7 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
             {/* Trip Name */}
             <div>
               <label className="modal-label">
-                Trip Name <span className="text-red-500">*</span>
+                {t('trips.tripName')} <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -154,7 +159,7 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
                 className={`modal-input w-full px-4 py-2.5 rounded-xl dark:bg-gray-700 dark:text-white ${
                   errors.name ? 'border-red-500 focus:border-red-500' : ''
                 }`}
-                placeholder="Enter trip name"
+                placeholder={t('trips.enterTripName')}
               />
               {errors.name && (
                 <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1">
@@ -168,7 +173,7 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
             <div>
               <label className="modal-label">
                 <Calendar className="w-4 h-4" />
-                Trip Dates <span className="text-red-500">*</span>
+                {t('trips.tripDates')} <span className="text-red-500">*</span>
               </label>
               <DateRangePicker
                 startDate={formData.start_date}
@@ -187,7 +192,7 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
           {/* Duplication Options */}
           <div className="modal-section space-y-4">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-              What to Include
+              {t('trips.whatToInclude')}
             </h3>
 
             <div className="space-y-3 bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 border border-gray-100 dark:border-gray-700/50">
@@ -198,18 +203,18 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
                     type="checkbox"
                     checked={formData.include_destinations}
                     onChange={() => handleCheckboxChange('include_destinations')}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                    className="w-4 h-4 text-[#D97706] border-gray-300 rounded focus:ring-[#D97706]/50 dark:border-gray-600 dark:bg-gray-700"
                   />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
-                    <MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <MapPin className="w-4 h-4 text-[#D97706] dark:text-amber-400" />
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      Destinations
+                      {t('trips.includeDestinations')}
                     </span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Copy all destinations and their basic information
+                    {t('trips.includeDestinationsDesc')}
                   </p>
                 </div>
               </label>
@@ -224,18 +229,18 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
                     checked={formData.include_pois}
                     onChange={() => handleCheckboxChange('include_pois')}
                     disabled={!formData.include_destinations}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 disabled:cursor-not-allowed"
+                    className="w-4 h-4 text-[#D97706] border-gray-300 rounded focus:ring-[#D97706]/50 dark:border-gray-600 dark:bg-gray-700 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
                     <MapPin className="w-4 h-4 text-green-600 dark:text-green-400" />
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      Points of Interest
+                      {t('trips.includePois')}
                     </span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Copy all POIs with estimated costs (actual costs reset to zero)
+                    {t('trips.includePoisDesc')}
                   </p>
                 </div>
               </label>
@@ -250,18 +255,18 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
                     checked={formData.include_accommodations}
                     onChange={() => handleCheckboxChange('include_accommodations')}
                     disabled={!formData.include_destinations}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 disabled:cursor-not-allowed"
+                    className="w-4 h-4 text-[#D97706] border-gray-300 rounded focus:ring-[#D97706]/50 dark:border-gray-600 dark:bg-gray-700 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
                     <Building className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      Accommodations
+                      {t('trips.includeAccommodations')}
                     </span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Copy accommodation details (booking references and payment status will be reset)
+                    {t('trips.includeAccommodationsDesc')}
                   </p>
                 </div>
               </label>
@@ -273,34 +278,34 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
                     type="checkbox"
                     checked={formData.include_documents}
                     onChange={() => handleCheckboxChange('include_documents')}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                    className="w-4 h-4 text-[#D97706] border-gray-300 rounded focus:ring-[#D97706]/50 dark:border-gray-600 dark:bg-gray-700"
                   />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center space-x-2">
-                    <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <FileDescriptionIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      Documents
+                      {t('trips.includeDocuments')}
                     </span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Copy document references (files will be shared between trips)
+                    {t('trips.includeDocumentsDesc')}
                   </p>
                 </div>
               </label>
             </div>
 
-            <div className="text-xs text-gray-500 dark:text-gray-400 bg-gradient-to-br from-blue-50 to-indigo-50/50 dark:from-blue-900/20 dark:to-indigo-900/10 rounded-xl p-4 border border-blue-200/70 dark:border-blue-800/50">
-              <p className="font-semibold text-blue-900 dark:text-blue-300 mb-2 flex items-center gap-1.5">
+            <div className="text-xs text-gray-500 dark:text-gray-400 bg-gradient-to-br from-amber-50 to-orange-50/50 dark:from-amber-900/20 dark:to-orange-900/10 rounded-xl p-4 border border-amber-200/70 dark:border-amber-800/50">
+              <p className="font-semibold text-amber-900 dark:text-amber-300 mb-2 flex items-center gap-1.5">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
-                Note
+                {t('trips.duplicateNote')}
               </p>
-              <ul className="space-y-1.5 list-disc list-inside text-blue-800 dark:text-blue-300/80">
-                <li>The new trip will always have status set to "Planning"</li>
-                <li>All dates will be automatically adjusted based on the new start date</li>
-                <li>POI engagement metrics (likes/vetoes) will be reset</li>
+              <ul className="space-y-1.5 list-disc list-inside text-amber-800 dark:text-amber-300/80">
+                <li>{t('trips.duplicateNoteStatus')}</li>
+                <li>{t('trips.duplicateNoteDates')}</li>
+                <li>{t('trips.duplicateNotePoi')}</li>
               </ul>
             </div>
           </div>
@@ -324,7 +329,7 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
               className="modal-btn modal-btn-secondary"
               disabled={isSubmitting}
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
@@ -334,12 +339,12 @@ const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {
               {isSubmitting ? (
                 <>
                   <span className="modal-spinner" />
-                  <span>Duplicating...</span>
+                  <span>{t('trips.duplicating')}</span>
                 </>
               ) : (
                 <>
-                  <Copy className="w-4 h-4" />
-                  <span>Duplicate Trip</span>
+                  <CopyIcon className="w-4 h-4" />
+                  <span>{t('trips.duplicateTrip')}</span>
                 </>
               )}
             </button>
