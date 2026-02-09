@@ -82,6 +82,9 @@ services:
       MAPBOX_ACCESS_TOKEN: ${MAPBOX_ACCESS_TOKEN:-}
       OPENROUTESERVICE_API_KEY: ${OPENROUTESERVICE_API_KEY:-}
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      # Amadeus API (Hotels)
+      AMADEUS_CLIENT_ID: ${AMADEUS_CLIENT_ID:-}
+      AMADEUS_CLIENT_SECRET: ${AMADEUS_CLIENT_SECRET:-}
     networks:
       - travel-ruter-network
     depends_on:
@@ -103,6 +106,62 @@ services:
           memory: 256M
 
   # ===========================================
+  # AI Orchestrator (Python/PydanticAI)
+  # ===========================================
+  orchestrator:
+    build:
+      context: ./orchestrator
+      dockerfile: Dockerfile
+    image: travel_ruter_orchestrator:latest
+    container_name: travel_ruter_orchestrator
+    restart: unless-stopped
+    ports:
+      - "${ORCHESTRATOR_PORT:-3001}:3001"
+    environment:
+      PORT: 3001
+      # MCP Server configuration
+      PYTHONPATH: /app
+      # Database (for MCP server)
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-travel_ruter}
+      # Provider API keys (optional - reads from mounted credentials)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
+      GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-us-central1}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+      # Travel API keys (forwarded to MCP server subprocess)
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      OPENROUTESERVICE_API_KEY: ${OPENROUTESERVICE_API_KEY:-}
+    volumes:
+      # Mount Claude credentials (read-only)
+      - ${HOME}/.claude:/root/.claude:ro
+      # Mount Google Cloud credentials (read-only)
+      - ${HOME}/.config/gcloud:/home/appuser/.config/gcloud:ro
+      # Mount MCP server code
+      - ./mcp_server:/app/mcp_server:ro
+      # Mount backend app code (MCP server imports app.services.*)
+      - ./app:/app/app:ro
+    networks:
+      - travel-ruter-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+
+  # ===========================================
   # React Frontend (Nginx)
   # ===========================================
   frontend:
@@ -112,6 +171,7 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_MAPBOX_ACCESS_TOKEN: ${VITE_MAPBOX_ACCESS_TOKEN:-}
+        VITE_ORCHESTRATOR_URL: ${VITE_ORCHESTRATOR_URL:-http://localhost:3001}
     image: travel_ruter_frontend:latest
     container_name: travel_ruter_frontend
     restart: unless-stopped
