@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { User, Map, DollarSign, Sun, Moon, Monitor, Download, Upload, Save, Check, Route, Calendar, Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { User, Map, Sun, Monitor, Download, Upload, Save, Route, Calendar } from 'lucide-react';
+import CurrencyDollarIcon from '@/components/icons/currency-dollar-icon';
+import MoonIcon from '@/components/icons/moon-icon';
+import CheckedIcon from '@/components/icons/checked-icon';
+import MagnifierIcon from '@/components/icons/magnifier-icon';
+import GlobeIcon from '@/components/icons/globe-icon';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { useTheme } from '../contexts/ThemeContext';
-import { dateLocales } from '../utils/dateFormat';
+import { dateLocales, invalidateLocaleCache } from '../utils/dateFormat';
 import Spinner from '../components/UI/Spinner';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
@@ -31,8 +37,16 @@ const defaultSettings = {
   dateFormat: {
     locale: '', // Empty string means use browser default
   },
+  language: {
+    current: 'en',
+  },
   theme: {
     mode: 'light',
+  },
+  ai: {
+    enabled: true,
+    orchestratorUrl: '',
+    defaultModel: '',
   },
 };
 
@@ -48,6 +62,7 @@ const currencies = [
 ];
 
 const SettingsPage = () => {
+  const { t, i18n } = useTranslation();
   const [settings, setSettings] = useState(defaultSettings);
   const [savedMessage, setSavedMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -75,12 +90,15 @@ const SettingsPage = () => {
     setTimeout(() => {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 
+      // Invalidate cached date locale so new format takes effect immediately
+      invalidateLocaleCache();
+
       // If mapbox token is set, also store it separately for the MapboxContext
       if (settings.map.mapboxToken) {
         localStorage.setItem('mapbox-access-token', settings.map.mapboxToken);
       }
 
-      setSavedMessage('Settings saved successfully!');
+      setSavedMessage(t('settings.settingsSaved'));
       setIsSaving(false);
       setTimeout(() => setSavedMessage(''), 3000);
     }, 600);
@@ -128,11 +146,11 @@ const SettingsPage = () => {
         if (imported.settings) {
           setSettings({ ...defaultSettings, ...imported.settings });
           localStorage.setItem(SETTINGS_KEY, JSON.stringify(imported.settings));
-          setSavedMessage('Settings imported successfully!');
+          setSavedMessage(t('settings.settingsImported'));
           setTimeout(() => setSavedMessage(''), 3000);
         }
       } catch {
-        alert('Invalid backup file format');
+        alert(t('settings.invalidBackup'));
       }
     };
     reader.readAsText(file);
@@ -144,20 +162,28 @@ const SettingsPage = () => {
     updateSetting('theme', 'mode', mode);
   };
 
+  const handleLanguageChange = (lang) => {
+    i18n.changeLanguage(lang);
+    updateSetting('language', 'current', lang);
+    // Also persist to the dedicated localStorage key for i18n detector
+    localStorage.setItem('travel-ruter-language', lang);
+  };
+
   const getThemeIcon = () => {
     if (themeMode === 'system') return Monitor;
-    return isDark ? Moon : Sun;
+    return isDark ? MoonIcon : Sun;
   };
 
   const sections = [
-    { id: 'profile', name: 'Profile', icon: User },
-    { id: 'map', name: 'Map Settings', icon: Map },
-    { id: 'routing', name: 'Routing', icon: Route },
-    { id: 'geocoding', name: 'Geocoding', icon: Search },
-    { id: 'currency', name: 'Currency', icon: DollarSign },
-    { id: 'dateFormat', name: 'Date Format', icon: Calendar },
-    { id: 'theme', name: 'Theme', icon: getThemeIcon() },
-    { id: 'export', name: 'Export/Import', icon: Download },
+    { id: 'profile', name: t('settings.sections.profile'), icon: User },
+    { id: 'map', name: t('settings.sections.map'), icon: Map },
+    { id: 'routing', name: t('settings.sections.routing'), icon: Route },
+    { id: 'geocoding', name: t('settings.sections.geocoding'), icon: MagnifierIcon },
+    { id: 'currency', name: t('settings.sections.currency'), icon: CurrencyDollarIcon },
+    { id: 'dateFormat', name: t('settings.sections.dateFormat'), icon: Calendar },
+    { id: 'language', name: t('settings.sections.language'), icon: GlobeIcon },
+    { id: 'theme', name: t('settings.sections.theme'), icon: getThemeIcon() },
+    { id: 'export', name: t('settings.sections.export'), icon: Download },
   ];
 
   return (
@@ -170,20 +196,20 @@ const SettingsPage = () => {
 
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('settings.title')}</h1>
           <button
             onClick={saveSettings}
             disabled={isSaving}
-            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+            className="flex items-center space-x-2 px-4 py-2 bg-[#D97706] text-white rounded-lg hover:bg-[#B45309] transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isSaving ? <Spinner className="text-white" /> : <Save className="w-5 h-5" />}
-            <span>{isSaving ? 'Saving...' : 'Save Settings'}</span>
+            <span>{isSaving ? t('common.saving') : t('settings.saveSettings')}</span>
           </button>
         </div>
 
         {savedMessage && (
           <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg flex items-center text-green-700 dark:text-green-300">
-            <Check className="w-5 h-5 mr-2" />
+            <CheckedIcon className="w-5 h-5 mr-2" />
             {savedMessage}
           </div>
         )}
@@ -198,7 +224,7 @@ const SettingsPage = () => {
                   onClick={() => setActiveSection(section.id)}
                   className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
                     activeSection === section.id
-                      ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
+                      ? 'bg-amber-50 dark:bg-amber-900/30 text-[#D97706] dark:text-amber-300'
                       : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
                 >
@@ -214,47 +240,47 @@ const SettingsPage = () => {
             {/* Profile Settings */}
             {activeSection === 'profile' && (
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Profile Settings</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('settings.profile.title')}</h2>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Name
+                    {t('settings.profile.name')}
                   </label>
                   <input
                     type="text"
                     value={settings.profile.name}
                     onChange={(e) => updateSetting('profile', 'name', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
-                    placeholder="Your name"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                    placeholder={t('settings.profile.namePlaceholder')}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email
+                    {t('settings.profile.email')}
                   </label>
                   <input
                     type="email"
                     value={settings.profile.email}
                     onChange={(e) => updateSetting('profile', 'email', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
-                    placeholder="your@email.com"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                    placeholder={t('settings.profile.emailPlaceholder')}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Avatar URL
+                    {t('settings.profile.avatarUrl')}
                   </label>
                   <input
                     type="url"
                     value={settings.profile.avatar}
                     onChange={(e) => updateSetting('profile', 'avatar', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
-                    placeholder="https://example.com/avatar.jpg"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                    placeholder={t('settings.profile.avatarPlaceholder')}
                   />
                   {settings.profile.avatar && (
                     <div className="mt-3">
                       <img
                         src={settings.profile.avatar}
-                        alt="Avatar preview"
+                        alt={t('settings.profile.avatarPreview')}
                         className="w-16 h-16 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
                         onError={(e) => {
                           e.target.style.display = 'none';
@@ -269,34 +295,33 @@ const SettingsPage = () => {
             {/* Map Settings */}
             {activeSection === 'map' && (
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Map Settings</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('settings.map.title')}</h2>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Mapbox Access Token
+                    {t('settings.map.mapboxToken')}
                   </label>
                   <input
                     type="text"
                     value={settings.map.mapboxToken}
                     onChange={(e) => updateSetting('map', 'mapboxToken', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700"
-                    placeholder="pk.eyJ1Ijoi..."
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] font-mono text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                    placeholder={t('settings.map.mapboxTokenPlaceholder')}
                   />
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    Get your token from{' '}
+                    {t('settings.map.getToken')}{' '}
                     <a
                       href="https://account.mapbox.com/access-tokens/"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                      className="text-[#D97706] dark:text-amber-400 hover:text-[#B45309] dark:hover:text-amber-300"
                     >
-                      Mapbox Account
+                      {t('settings.map.mapboxAccount')}
                     </a>
                   </p>
                 </div>
                 <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg">
                   <p className="text-sm text-amber-800 dark:text-amber-300">
-                    <strong>Note:</strong> After saving your Mapbox token, you may need to refresh
-                    the page for maps to load with the new token.
+                    <strong>Note:</strong> {t('settings.map.refreshNote')}
                   </p>
                 </div>
               </div>
@@ -305,14 +330,14 @@ const SettingsPage = () => {
             {/* Routing Settings */}
             {activeSection === 'routing' && (
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Routing Settings</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('settings.routing.title')}</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Configure which routing service to use for calculating routes between destinations.
+                  {t('settings.routing.description')}
                 </p>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-                    Routing Service Preference
+                    {t('settings.routing.preference')}
                   </label>
                   <div className="space-y-3">
                     <label className="flex items-start p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 border-gray-200 dark:border-gray-600">
@@ -322,14 +347,14 @@ const SettingsPage = () => {
                         value="default"
                         checked={settings.routing?.preference === 'default'}
                         onChange={(e) => updateSetting('routing', 'preference', e.target.value)}
-                        className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                        className="mt-1 h-4 w-4 text-[#D97706] focus:ring-[#D97706] border-gray-300"
                       />
                       <div className="ml-3">
                         <span className="block text-sm font-medium text-gray-900 dark:text-white">
-                          Default (OpenRouteService)
+                          {t('settings.routing.defaultOrs')}
                         </span>
                         <span className="block text-sm text-gray-500 dark:text-gray-400">
-                          Use OpenRouteService for all routing. Train/bus routes use road geometry as approximation.
+                          {t('settings.routing.defaultOrsDesc')}
                         </span>
                       </div>
                     </label>
@@ -341,14 +366,14 @@ const SettingsPage = () => {
                         value="google_public_transport"
                         checked={settings.routing?.preference === 'google_public_transport'}
                         onChange={(e) => updateSetting('routing', 'preference', e.target.value)}
-                        className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                        className="mt-1 h-4 w-4 text-[#D97706] focus:ring-[#D97706] border-gray-300"
                       />
                       <div className="ml-3">
                         <span className="block text-sm font-medium text-gray-900 dark:text-white">
-                          Google Maps for Public Transport Only
+                          {t('settings.routing.googlePublicTransport')}
                         </span>
                         <span className="block text-sm text-gray-500 dark:text-gray-400">
-                          Use Google Maps Routes API for train/bus routes (shows actual rail/bus geometry). Other modes use OpenRouteService.
+                          {t('settings.routing.googlePublicTransportDesc')}
                         </span>
                       </div>
                     </label>
@@ -360,14 +385,14 @@ const SettingsPage = () => {
                         value="google_everything"
                         checked={settings.routing?.preference === 'google_everything'}
                         onChange={(e) => updateSetting('routing', 'preference', e.target.value)}
-                        className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                        className="mt-1 h-4 w-4 text-[#D97706] focus:ring-[#D97706] border-gray-300"
                       />
                       <div className="ml-3">
                         <span className="block text-sm font-medium text-gray-900 dark:text-white">
-                          Google Maps for Everything
+                          {t('settings.routing.googleEverything')}
                         </span>
                         <span className="block text-sm text-gray-500 dark:text-gray-400">
-                          Use Google Maps Routes API for all transport modes (car, train, bus, walk, bike).
+                          {t('settings.routing.googleEverythingDesc')}
                         </span>
                       </div>
                     </label>
@@ -376,33 +401,32 @@ const SettingsPage = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Google Maps API Key
+                    {t('settings.routing.googleApiKey')}
                   </label>
                   <input
                     type="text"
                     value={settings.routing?.googleMapsApiKey || ''}
                     onChange={(e) => updateSetting('routing', 'googleMapsApiKey', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700"
-                    placeholder="AIza..."
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] font-mono text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                    placeholder={t('settings.routing.googleApiKeyPlaceholder')}
                   />
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    Get your API key from{' '}
+                    {t('settings.routing.getApiKey')}{' '}
                     <a
                       href="https://console.cloud.google.com/apis/credentials"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                      className="text-[#D97706] dark:text-amber-400 hover:text-[#B45309] dark:hover:text-amber-300"
                     >
-                      Google Cloud Console
+                      {t('settings.routing.googleConsole')}
                     </a>
-                    . Enable the "Routes API" for your project.
+                    . {t('settings.routing.enableRoutesApi')}
                   </p>
                 </div>
 
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <p className="text-sm text-blue-800 dark:text-blue-300">
-                    <strong>Note:</strong> Google Maps Routes API requires billing to be enabled but includes
-                    a free tier. If no API key is configured, the system falls back to OpenRouteService.
+                    <strong>Note:</strong> {t('settings.routing.googleBillingNote')}
                   </p>
                 </div>
 
@@ -411,8 +435,7 @@ const SettingsPage = () => {
                   !settings.routing?.googleMapsApiKey && (
                   <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg">
                     <p className="text-sm text-amber-800 dark:text-amber-300">
-                      <strong>Warning:</strong> You have selected a Google Maps routing option but haven't
-                      provided an API key. Routes will fall back to OpenRouteService.
+                      <strong>Warning:</strong> {t('settings.routing.googleNoKeyWarning')}
                     </p>
                   </div>
                 )}
@@ -422,14 +445,14 @@ const SettingsPage = () => {
             {/* Geocoding Settings */}
             {activeSection === 'geocoding' && (
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Geocoding Settings</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('settings.geocoding.title')}</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Configure which service to use for location search (autocomplete). This affects how fast search results appear.
+                  {t('settings.geocoding.description')}
                 </p>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-                    Geocoding Provider
+                    {t('settings.geocoding.provider')}
                   </label>
                   <div className="space-y-3">
                     <label className="flex items-start p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 border-gray-200 dark:border-gray-600">
@@ -439,14 +462,14 @@ const SettingsPage = () => {
                         value="nominatim"
                         checked={settings.geocoding?.provider === 'nominatim'}
                         onChange={(e) => updateSetting('geocoding', 'provider', e.target.value)}
-                        className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                        className="mt-1 h-4 w-4 text-[#D97706] focus:ring-[#D97706] border-gray-300"
                       />
                       <div className="ml-3">
                         <span className="block text-sm font-medium text-gray-900 dark:text-white">
-                          Nominatim (OpenStreetMap)
+                          {t('settings.geocoding.nominatim')}
                         </span>
                         <span className="block text-sm text-gray-500 dark:text-gray-400">
-                          Free, open-source. Latency: ~400-600ms per search.
+                          {t('settings.geocoding.nominatimDesc')}
                         </span>
                       </div>
                     </label>
@@ -458,14 +481,14 @@ const SettingsPage = () => {
                         value="mapbox"
                         checked={settings.geocoding?.provider === 'mapbox'}
                         onChange={(e) => updateSetting('geocoding', 'provider', e.target.value)}
-                        className="mt-1 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                        className="mt-1 h-4 w-4 text-[#D97706] focus:ring-[#D97706] border-gray-300"
                       />
                       <div className="ml-3">
                         <span className="block text-sm font-medium text-gray-900 dark:text-white">
-                          Mapbox Geocoding
+                          {t('settings.geocoding.mapbox')}
                         </span>
                         <span className="block text-sm text-gray-500 dark:text-gray-400">
-                          Fast, reliable. Latency: ~50-150ms per search. Uses your Mapbox token from Map Settings.
+                          {t('settings.geocoding.mapboxDesc')}
                         </span>
                       </div>
                     </label>
@@ -475,16 +498,14 @@ const SettingsPage = () => {
                 {settings.geocoding?.provider === 'mapbox' && !settings.map?.mapboxToken && (
                   <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg">
                     <p className="text-sm text-amber-800 dark:text-amber-300">
-                      <strong>Warning:</strong> You have selected Mapbox Geocoding but haven&apos;t configured a Mapbox
-                      token in Map Settings. Searches will fall back to Nominatim.
+                      <strong>Warning:</strong> {t('settings.geocoding.noTokenWarning')}
                     </p>
                   </div>
                 )}
 
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <p className="text-sm text-blue-800 dark:text-blue-300">
-                    <strong>Note:</strong> Results are cached locally for 24 hours to improve performance.
-                    Repeated searches for the same location will be instant regardless of provider.
+                    <strong>Note:</strong> {t('settings.geocoding.cacheNote')}
                   </p>
                 </div>
               </div>
@@ -493,15 +514,15 @@ const SettingsPage = () => {
             {/* Currency Settings */}
             {activeSection === 'currency' && (
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Currency Settings</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('settings.currency.title')}</h2>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Default Currency
+                    {t('settings.currency.default')}
                   </label>
                   <select
                     value={settings.currency.default}
                     onChange={(e) => updateSetting('currency', 'default', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] text-gray-900 dark:text-white bg-white dark:bg-gray-700"
                   >
                     {currencies.map((currency) => (
                       <option key={currency.code} value={currency.code}>
@@ -516,17 +537,17 @@ const SettingsPage = () => {
             {/* Date Format Settings */}
             {activeSection === 'dateFormat' && (
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Date Format Settings</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('settings.dateFormat.title')}</h2>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Date Locale
+                    {t('settings.dateFormat.locale')}
                   </label>
                   <select
                     value={settings.dateFormat?.locale || ''}
                     onChange={(e) => updateSetting('dateFormat', 'locale', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] text-gray-900 dark:text-white bg-white dark:bg-gray-700"
                   >
-                    <option value="">Auto (Browser Default)</option>
+                    <option value="">{t('settings.dateFormat.auto')}</option>
                     {dateLocales.map((locale) => (
                       <option key={locale.code} value={locale.code}>
                         {locale.name} - {locale.example}
@@ -534,8 +555,46 @@ const SettingsPage = () => {
                     ))}
                   </select>
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    Choose how dates are displayed throughout the application.
-                    &quot;Auto&quot; uses your browser&apos;s language settings.
+                    {t('settings.dateFormat.description')}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Language Settings */}
+            {activeSection === 'language' && (
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('settings.language.title')}</h2>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
+                    {t('settings.language.select')}
+                  </label>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={() => handleLanguageChange('en')}
+                      className={`flex items-center space-x-2 px-4 py-3 rounded-lg border-2 transition-colors ${
+                        i18n.language === 'en' || i18n.language?.startsWith('en')
+                          ? 'border-[#D97706] bg-amber-50 text-[#D97706] dark:bg-amber-900/30 dark:text-amber-300'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 dark:text-gray-300'
+                      }`}
+                    >
+                      <span className="text-lg">🇬🇧</span>
+                      <span>English</span>
+                    </button>
+                    <button
+                      onClick={() => handleLanguageChange('es')}
+                      className={`flex items-center space-x-2 px-4 py-3 rounded-lg border-2 transition-colors ${
+                        i18n.language === 'es' || i18n.language?.startsWith('es')
+                          ? 'border-[#D97706] bg-amber-50 text-[#D97706] dark:bg-amber-900/30 dark:text-amber-300'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 dark:text-gray-300'
+                      }`}
+                    >
+                      <span className="text-lg">🇪🇸</span>
+                      <span>Español</span>
+                    </button>
+                  </div>
+                  <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                    {t('settings.language.description')}
                   </p>
                 </div>
               </div>
@@ -544,48 +603,48 @@ const SettingsPage = () => {
             {/* Theme Settings */}
             {activeSection === 'theme' && (
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Theme Settings</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('settings.theme.title')}</h2>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-4">
-                    Appearance
+                    {t('settings.theme.appearance')}
                   </label>
                   <div className="flex flex-wrap items-center gap-3">
                     <button
                       onClick={() => handleThemeChange('light')}
                       className={`flex items-center space-x-2 px-4 py-3 rounded-lg border-2 transition-colors ${
                         themeMode === 'light'
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                          ? 'border-[#D97706] bg-amber-50 text-[#D97706] dark:bg-amber-900/30 dark:text-amber-300'
                           : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 dark:text-gray-300'
                       }`}
                     >
                       <Sun className="w-5 h-5" />
-                      <span>Light</span>
+                      <span>{t('settings.theme.light')}</span>
                     </button>
                     <button
                       onClick={() => handleThemeChange('dark')}
                       className={`flex items-center space-x-2 px-4 py-3 rounded-lg border-2 transition-colors ${
                         themeMode === 'dark'
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                          ? 'border-[#D97706] bg-amber-50 text-[#D97706] dark:bg-amber-900/30 dark:text-amber-300'
                           : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 dark:text-gray-300'
                       }`}
                     >
-                      <Moon className="w-5 h-5" />
-                      <span>Dark</span>
+                      <MoonIcon className="w-5 h-5" />
+                      <span>{t('settings.theme.dark')}</span>
                     </button>
                     <button
                       onClick={() => handleThemeChange('system')}
                       className={`flex items-center space-x-2 px-4 py-3 rounded-lg border-2 transition-colors ${
                         themeMode === 'system'
-                          ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300'
+                          ? 'border-[#D97706] bg-amber-50 text-[#D97706] dark:bg-amber-900/30 dark:text-amber-300'
                           : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 dark:text-gray-300'
                       }`}
                     >
                       <Monitor className="w-5 h-5" />
-                      <span>System</span>
+                      <span>{t('settings.theme.system')}</span>
                     </button>
                   </div>
                   <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                    Choose your preferred appearance. System will follow your device settings.
+                    {t('settings.theme.description')}
                   </p>
                 </div>
               </div>
@@ -594,30 +653,30 @@ const SettingsPage = () => {
             {/* Export/Import Settings */}
             {activeSection === 'export' && (
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Export & Import</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('settings.exportImport.title')}</h2>
 
                 <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-                  <h3 className="font-medium text-gray-900 dark:text-white mb-2">Export Settings</h3>
+                  <h3 className="font-medium text-gray-900 dark:text-white mb-2">{t('settings.exportImport.exportTitle')}</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Download a backup of your settings and preferences.
+                    {t('settings.exportImport.exportDescription')}
                   </p>
                   <button
                     onClick={handleExport}
                     className="flex items-center space-x-2 px-4 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors text-gray-900 dark:text-white"
                   >
                     <Download className="w-5 h-5" />
-                    <span>Export Backup</span>
+                    <span>{t('settings.exportImport.exportBackup')}</span>
                   </button>
                 </div>
 
                 <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
-                  <h3 className="font-medium text-gray-900 dark:text-white mb-2">Import Settings</h3>
+                  <h3 className="font-medium text-gray-900 dark:text-white mb-2">{t('settings.exportImport.importTitle')}</h3>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Restore settings from a previously exported backup file.
+                    {t('settings.exportImport.importDescription')}
                   </p>
                   <label className="flex items-center space-x-2 px-4 py-2 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors cursor-pointer w-fit text-gray-900 dark:text-white">
                     <Upload className="w-5 h-5" />
-                    <span>Import Backup</span>
+                    <span>{t('settings.exportImport.importBackup')}</span>
                     <input
                       type="file"
                       accept=".json"
@@ -629,8 +688,7 @@ const SettingsPage = () => {
 
                 <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg">
                   <p className="text-sm text-amber-800 dark:text-amber-300">
-                    <strong>Note:</strong> Importing will overwrite your current settings.
-                    Make sure to export a backup first if needed.
+                    <strong>Note:</strong> {t('settings.exportImport.importWarning')}
                   </p>
                 </div>
               </div>

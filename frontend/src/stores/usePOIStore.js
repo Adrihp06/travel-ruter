@@ -270,6 +270,10 @@ const usePOIStore = create((set, get) => ({
 
   // Bulk update POI schedules (for drag-and-drop)
   updatePOISchedules: async (destinationId, updates) => {
+    // Capture state before optimistic update for rollback
+    const previousPOIs = get().pois;
+    const previousPoisById = get().poisById;
+
     // Optimistic update
     set((state) => {
       const updatedPOIs = state.pois.map(group => ({
@@ -319,9 +323,8 @@ const usePOIStore = create((set, get) => ({
 
       return updatedPOIs;
     } catch (error) {
-      // Revert on error by refetching
-      get().fetchPOIsByDestination(destinationId);
-      set({ error: error.message });
+      // Revert to captured state instead of refetching (faster, preserves local state)
+      set({ pois: previousPOIs, poisById: previousPoisById, error: error.message });
       throw error;
     }
   },
@@ -543,7 +546,7 @@ const usePOIStore = create((set, get) => ({
   },
 
   // Apply smart schedule with optional route optimization
-  applySmartSchedule: async (destinationId, assignments, optimizeRoutes = true) => {
+  applySmartSchedule: async (destinationId, assignments, optimizeRoutes = true, arrivalDate = null) => {
     set({ isLoading: true, error: null });
 
     try {
@@ -563,18 +566,37 @@ const usePOIStore = create((set, get) => ({
           }
         });
 
+        // Helper to parse date string in local timezone (avoid UTC issues)
+        const parseDateLocal = (dateStr) => {
+          if (!dateStr) return null;
+          const [year, month, day] = dateStr.split('-').map(Number);
+          return new Date(year, month - 1, day);
+        };
+
+        // Get the trip arrival date for day number calculation
+        const tripArrivalDate = parseDateLocal(arrivalDate);
+
         // Get day numbers for dates that have 2+ POIs
         const daysToOptimize = Object.entries(poisByDate)
           .filter(([, pois]) => pois.length >= 2)
           .map(([date]) => {
-            // Calculate day number from date (assumes dates are sequential starting from 1)
-            const dateObj = new Date(date);
-            return { date, dateObj };
+            const dateObj = parseDateLocal(date);
+            // Calculate actual day number from arrival date
+            let dayNumber;
+            if (tripArrivalDate && dateObj) {
+              const diffMs = dateObj - tripArrivalDate;
+              dayNumber = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1;
+            } else {
+              // Fallback: use date sorting if no arrival date provided
+              dayNumber = null;
+            }
+            return { date, dateObj, dayNumber };
           })
           .sort((a, b) => a.dateObj - b.dateObj)
           .map((item, index) => ({
             date: item.date,
-            dayNumber: index + 1,
+            // Use calculated day number if available, otherwise fall back to index
+            dayNumber: item.dayNumber !== null ? item.dayNumber : index + 1,
           }));
 
         // Optimize routes for each qualifying day

@@ -61,7 +61,7 @@ function isFoodCategory(category) {
  * @param {Array} pois - Array of POI objects with latitude/longitude
  * @returns {{ lat: number, lon: number } | null}
  */
-function calculateCentroid(pois) {
+function _calculateCentroid(pois) {
   if (!pois || pois.length === 0) return null;
 
   const validPois = pois.filter(p => p.latitude && p.longitude);
@@ -95,6 +95,52 @@ function countFoodPOIs(pois) {
 }
 
 /**
+ * Validate that a travel matrix has all required entries for the given locations.
+ * @param {Object|null} matrix - Travel matrix from ORS { durations: { fromId: { toId: seconds } } }
+ * @param {Array<string>} locationIds - Array of location IDs (e.g., ['poi_1', 'poi_2', 'accom_1'])
+ * @returns {{ isComplete: boolean, missing: Array<{from: string, to: string}>, coverage: number }}
+ */
+export function validateTravelMatrix(matrix, locationIds) {
+  const missing = [];
+
+  if (!matrix || !matrix.durations || !locationIds || locationIds.length === 0) {
+    return {
+      isComplete: false,
+      missing: locationIds?.length > 1
+        ? locationIds.flatMap((from, i) =>
+            locationIds.slice(i + 1).map(to => ({ from, to }))
+          )
+        : [],
+      coverage: 0,
+    };
+  }
+
+  let totalPairs = 0;
+  let foundPairs = 0;
+
+  for (const from of locationIds) {
+    for (const to of locationIds) {
+      if (from !== to) {
+        totalPairs++;
+        if (matrix.durations[from]?.[to] !== undefined) {
+          foundPairs++;
+        } else {
+          missing.push({ from, to });
+        }
+      }
+    }
+  }
+
+  const coverage = totalPairs > 0 ? (foundPairs / totalPairs) * 100 : 100;
+
+  return {
+    isComplete: missing.length === 0,
+    missing,
+    coverage: Math.round(coverage * 10) / 10, // Round to 1 decimal
+  };
+}
+
+/**
  * Get travel time between two locations from the matrix.
  * Falls back to Haversine estimation if matrix not available.
  * @param {string} fromId - Source location ID
@@ -103,7 +149,7 @@ function countFoodPOIs(pois) {
  * @param {string} profile - Transport profile (for fallback estimation)
  * @returns {number} Travel time in seconds
  */
-function getTravelTime(fromId, toId, matrix, profile = 'foot-walking') {
+function getTravelTime(fromId, toId, matrix, _profile = 'foot-walking') {
   if (matrix && matrix.durations && matrix.durations[fromId]?.[toId] !== undefined) {
     return matrix.durations[fromId][toId];
   }

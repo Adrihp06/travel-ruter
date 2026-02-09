@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import useWeatherStore from '../stores/useWeatherStore';
 
 /**
@@ -8,7 +8,15 @@ import useWeatherStore from '../stores/useWeatherStore';
  * @returns {object} - { weather, isLoading, error }
  */
 const useDestinationWeather = (destinationId, month = null) => {
-  const { fetchWeather, getWeather, isLoading, getError } = useWeatherStore();
+  // Use granular selectors to avoid re-renders from unrelated store changes
+  const cacheKey = useMemo(
+    () => destinationId ? `${destinationId}-${month || 'default'}` : null,
+    [destinationId, month]
+  );
+  const fetchWeather = useWeatherStore((state) => state.fetchWeather);
+  const weather = useWeatherStore((state) => cacheKey ? state.weatherData[cacheKey] || null : null);
+  const loading = useWeatherStore((state) => cacheKey ? state.loadingStates[cacheKey] || false : false);
+  const error = useWeatherStore((state) => cacheKey ? state.errors[cacheKey] || null : null);
 
   useEffect(() => {
     if (destinationId) {
@@ -17,9 +25,9 @@ const useDestinationWeather = (destinationId, month = null) => {
   }, [destinationId, month, fetchWeather]);
 
   return {
-    weather: destinationId ? getWeather(destinationId, month) : null,
-    isLoading: destinationId ? isLoading(destinationId, month) : false,
-    error: destinationId ? getError(destinationId, month) : null
+    weather,
+    isLoading: loading,
+    error,
   };
 };
 

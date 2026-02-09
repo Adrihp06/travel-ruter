@@ -4,11 +4,75 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Travel Ruter</title>
+
+    <!-- Primary Meta Tags -->
+    <title>Travel Ruter - Smart Trip Planning & Itinerary Builder</title>
+    <meta name="title" content="Travel Ruter - Smart Trip Planning & Itinerary Builder" />
+    <meta name="description" content="Plan your perfect trip with interactive maps, smart POI scheduling, accommodation booking, and day-by-day itinerary management. Your all-in-one travel companion." />
+    <meta name="keywords" content="travel planner, trip itinerary, route planning, vacation planner, travel app, POI, points of interest, hotel booking, travel organizer" />
+    <meta name="author" content="Travel Ruter" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://travel-ruter.app/" />
+    <meta property="og:title" content="Travel Ruter - Smart Trip Planning & Itinerary Builder" />
+    <meta property="og:description" content="Plan your perfect trip with interactive maps, smart POI scheduling, accommodation booking, and day-by-day itinerary management." />
+    <meta property="og:image" content="https://travel-ruter.app/og-image.png" />
+    <meta property="og:site_name" content="Travel Ruter" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://travel-ruter.app/" />
+    <meta property="twitter:title" content="Travel Ruter - Smart Trip Planning & Itinerary Builder" />
+    <meta property="twitter:description" content="Plan your perfect trip with interactive maps, smart POI scheduling, accommodation booking, and day-by-day itinerary management." />
+    <meta property="twitter:image" content="https://travel-ruter.app/twitter-image.png" />
+
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Travel Ruter" />
+    <meta name="theme-color" content="#4f46e5" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Preconnect to external domains -->
+    <link rel="preconnect" href="https://api.mapbox.com" />
+    <link rel="preconnect" href="https://events.mapbox.com" />
+
+    <!-- Structured Data (JSON-LD) for SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Travel Ruter",
+      "description": "Smart trip planning and itinerary builder with interactive maps and booking integration",
+      "url": "https://travel-ruter.app",
+      "applicationCategory": "TravelApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Interactive trip planning",
+        "POI scheduling",
+        "Accommodation booking",
+        "Day-by-day itineraries",
+        "Offline support"
+      ]
+    }
+    </script>
   </head>
   <body>
+    <!-- Noscript fallback -->
+    <noscript>
+      <div style="padding: 20px; text-align: center; font-family: system-ui, sans-serif;">
+        <h1>Travel Ruter</h1>
+        <p>JavaScript is required to run this application. Please enable JavaScript in your browser settings.</p>
+      </div>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

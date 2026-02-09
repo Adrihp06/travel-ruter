@@ -22,24 +22,38 @@ export const dateLocales = [
   { code: 'nl-NL', name: 'Dutch', example: '10 mrt 2026' },
 ];
 
+// Cached locale to avoid repeated localStorage reads
+let cachedLocale = null;
+
 /**
  * Get the user's preferred date locale from settings
- * Falls back to browser locale if not set
+ * Falls back to browser locale if not set.
+ * Caches the result to avoid repeated localStorage reads during renders.
  */
 export const getDateLocale = () => {
+  if (cachedLocale) return cachedLocale;
   try {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (stored) {
       const settings = JSON.parse(stored);
       if (settings.dateFormat?.locale) {
-        return settings.dateFormat.locale;
+        cachedLocale = settings.dateFormat.locale;
+        return cachedLocale;
       }
     }
   } catch {
     // Ignore errors
   }
   // Fall back to browser locale or 'en-US'
-  return navigator.language || 'en-US';
+  cachedLocale = navigator.language || 'en-US';
+  return cachedLocale;
+};
+
+/**
+ * Invalidate the cached locale (call when user changes locale in settings)
+ */
+export const invalidateLocaleCache = () => {
+  cachedLocale = null;
 };
 
 /**
@@ -136,10 +150,6 @@ export const formatDateRange = (startDateStr, endDateStr) => {
 
   if (sameMonth && sameYear) {
     // Compact format: "Mar 10 - 15, 2026"
-    const monthYear = startDate.toLocaleDateString(locale, {
-      month: 'short',
-      year: 'numeric',
-    });
     const startDay = startDate.getDate();
     const endDay = endDate.getDate();
     return `${startDate.toLocaleDateString(locale, { month: 'short' })} ${startDay} - ${endDay}, ${startDate.getFullYear()}`;
@@ -256,4 +266,64 @@ export const findDateCollisions = (arrivalDate, departureDate, existingDestinati
       dest.departure_date
     );
   });
+};
+
+/**
+ * Parse a date string (YYYY-MM-DD) into a Date object in local timezone.
+ * This avoids timezone issues that occur when using new Date(dateStr) which
+ * parses as UTC and can cause off-by-one day errors.
+ * @param {string} dateStr - Date string in YYYY-MM-DD format
+ * @returns {Date|null} Date object in local timezone, or null if invalid
+ */
+export const parseDateString = (dateStr) => {
+  if (!dateStr) return null;
+
+  // Handle Date objects that might be passed in
+  if (dateStr instanceof Date) {
+    return isNaN(dateStr.getTime()) ? null : dateStr;
+  }
+
+  // Parse YYYY-MM-DD format
+  const parts = String(dateStr).split('-');
+  if (parts.length !== 3) return null;
+
+  const [year, month, day] = parts.map(Number);
+
+  // Validate parts
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+  if (month < 1 || month > 12) return null;
+  if (day < 1 || day > 31) return null;
+
+  // Create date in local timezone (month is 0-indexed)
+  const date = new Date(year, month - 1, day);
+
+  // Validate the date is real (handles cases like Feb 30)
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
+    return null;
+  }
+
+  return date;
+};
+
+/**
+ * Calculate the day number for a given date relative to a start date.
+ * Day 1 is the start date itself.
+ * @param {string|Date} targetDate - The date to calculate day number for
+ * @param {string|Date} startDate - The start/arrival date of the trip
+ * @returns {number|null} Day number (1-based), or null if invalid
+ */
+export const calculateDayNumber = (targetDate, startDate) => {
+  const target = parseDateString(targetDate);
+  const start = parseDateString(startDate);
+
+  if (!target || !start) return null;
+
+  // Reset time components to midnight for accurate day calculation
+  const targetMidnight = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+  const startMidnight = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+
+  const diffMs = targetMidnight - startMidnight;
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  return diffDays + 1; // Day 1 is the start date
 };
