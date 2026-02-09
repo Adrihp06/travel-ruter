@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     # Enable "Routes API" in Google Cloud Console
     GOOGLE_MAPS_API_KEY: Optional[str] = None
 
+    # Amadeus API (Hotels & Flights)
+    AMADEUS_CLIENT_ID: Optional[str] = None
+    AMADEUS_CLIENT_SECRET: Optional[str] = None
+    AMADEUS_BASE_URL: str = "https://test.api.amadeus.com"
+
     # Geocoding Cache
     GEOCODING_CACHE_TTL_HOURS: int = 24
     GEOCODING_CACHE_MAX_SIZE: int = 1000

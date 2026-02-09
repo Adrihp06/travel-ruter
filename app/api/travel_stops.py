@@ -127,6 +127,7 @@ async def create_stop(
         stop_date=stop_data.stop_date,
         duration_minutes=stop_data.duration_minutes,
         arrival_time=stop_data.arrival_time,
+        travel_mode=stop_data.travel_mode,
         order_index=order_index
     )
     db.add(stop)
@@ -183,6 +184,7 @@ async def create_stops_bulk(
             stop_date=stop_data.stop_date,
             duration_minutes=stop_data.duration_minutes,
             arrival_time=stop_data.arrival_time,
+            travel_mode=stop_data.travel_mode,
             order_index=current_max + 1 + i
         )
         db.add(stop)
@@ -225,8 +227,12 @@ async def update_stop(
     # Update fields if provided
     update_data = stop_data.model_dump(exclude_unset=True)
 
-    # Check if location changed (requires route recalculation)
-    location_changed = ('latitude' in update_data or 'longitude' in update_data)
+    # Check if location or travel_mode changed (requires route recalculation)
+    location_changed = (
+        'latitude' in update_data
+        or 'longitude' in update_data
+        or 'travel_mode' in update_data
+    )
     segment_id = stop.travel_segment_id
 
     for field, value in update_data.items():

@@ -94,8 +94,23 @@ async def get_cover_image(filename: str):
     """Serve a cover image file"""
     from fastapi.responses import FileResponse
 
+    # Validate filename to prevent path traversal attacks
+    if '/' in filename or '\\' in filename or '..' in filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid filename"
+        )
+
     covers_dir = os.path.join(settings.DOCUMENTS_UPLOAD_PATH, "covers")
-    file_path = os.path.join(covers_dir, filename)
+    file_path = os.path.abspath(os.path.join(covers_dir, filename))
+    expected_dir = os.path.abspath(covers_dir)
+
+    # Ensure the resolved path is within the expected directory
+    if not file_path.startswith(expected_dir):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied"
+        )
 
     if not os.path.exists(file_path):
         raise HTTPException(

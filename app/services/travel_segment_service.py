@@ -478,12 +478,28 @@ class TravelSegmentService:
         existing = await cls.get_segment(db, from_destination_id, to_destination_id)
 
         if existing:
-            # Update existing segment
+            # Check if the segment has travel stops — if so, delegate to
+            # recalculate_segment_with_waypoints which handles per-leg routing
+            stop_result = await db.execute(
+                select(TravelStop)
+                .where(TravelStop.travel_segment_id == existing.id)
+                .limit(1)
+            )
+            has_stops = stop_result.scalar_one_or_none() is not None
+
+            if has_stops:
+                existing.travel_mode = mode.value
+                await db.flush()
+                result = await cls.recalculate_segment_with_waypoints(db, existing.id)
+                return result or existing
+
+            # Update existing segment (no stops — simple A→B route)
             existing.travel_mode = mode.value
             existing.distance_km = distance_km
             existing.duration_minutes = duration_minutes
             existing.geometry = geometry_wkt
             existing.is_fallback = is_fallback
+            existing.route_legs = None
             await db.flush()
             await db.refresh(existing)
             return existing
@@ -671,6 +687,9 @@ class TravelSegmentService:
         This should be called when waypoints or travel stops are added, updated,
         reordered, or deleted. Both RouteWaypoint and TravelStop records are
         included in the route calculation.
+
+        When travel stops have per-stop travel_mode, routes each leg independently
+        and stores per-leg data in segment.route_legs.
         """
         # Get the segment
         segment = await cls.get_segment_by_id(db, segment_id)
@@ -714,25 +733,55 @@ class TravelSegmentService:
         )
         travel_stops = list(stop_result.scalars().all())
 
+        segment_mode = TravelMode(segment.travel_mode)
+
+        # Check if any stop has a custom travel_mode (per-leg routing needed)
+        has_per_leg_modes = any(stop.travel_mode for stop in travel_stops)
+
+        if has_per_leg_modes and travel_stops:
+            # Per-leg routing: each leg gets its own travel mode
+            await cls._recalculate_per_leg(
+                db, segment, from_dest, to_dest,
+                route_waypoints, travel_stops, segment_mode
+            )
+        else:
+            # Standard routing: single mode for the whole segment
+            await cls._recalculate_single_mode(
+                db, segment, from_dest, to_dest,
+                route_waypoints, travel_stops, segment_mode
+            )
+            # Clear route_legs when not using per-leg routing
+            segment.route_legs = None
+
+        await db.flush()
+        await db.refresh(segment)
+
+        logger.info(f"Recalculated segment {segment_id} with {len(route_waypoints)} waypoints and {len(travel_stops)} stops")
+        return segment
+
+    @classmethod
+    async def _recalculate_single_mode(
+        cls,
+        db: AsyncSession,
+        segment: TravelSegment,
+        from_dest,
+        to_dest,
+        route_waypoints: list,
+        travel_stops: list,
+        mode: TravelMode
+    ) -> None:
+        """Recalculate segment with a single travel mode (original behavior)."""
         # Combine all waypoint coordinates, interleaved by order_index
-        # Both RouteWaypoints and TravelStops use order_index to determine their position
-        # along the route. We merge them sorted by order_index so stops are visited
-        # in the correct order between destinations.
         all_points: list[tuple[int, float, float]] = []
         for wp in route_waypoints:
             all_points.append((wp.order_index, wp.longitude, wp.latitude))
         for stop in travel_stops:
             all_points.append((stop.order_index, stop.longitude, stop.latitude))
 
-        # Sort by order_index and extract just the coordinates
         all_points.sort(key=lambda x: x[0])
         waypoint_coords: list[tuple[float, float]] = [(p[1], p[2]) for p in all_points]
 
-        mode = TravelMode(segment.travel_mode)
-        total_waypoint_count = len(waypoint_coords)
-
         if waypoint_coords:
-            # Fetch route with waypoints
             route_geometry, distance_km, duration_min, is_fallback = await cls._fetch_route_with_waypoints(
                 from_dest.latitude, from_dest.longitude,
                 to_dest.latitude, to_dest.longitude,
@@ -740,14 +789,12 @@ class TravelSegmentService:
                 mode
             )
         else:
-            # No waypoints - use standard routing
             route_geometry, distance_km, duration_min, is_fallback = await cls._fetch_route_geometry(
                 from_dest.latitude, from_dest.longitude,
                 to_dest.latitude, to_dest.longitude,
                 mode
             )
 
-        # Update segment with new route
         if route_geometry and distance_km is not None and duration_min is not None:
             if route_geometry.get("type") == "LineString":
                 coords = route_geometry.get("coordinates", [])
@@ -756,21 +803,18 @@ class TravelSegmentService:
             else:
                 geometry_wkt = f"LINESTRING({from_dest.longitude} {from_dest.latitude}, {to_dest.longitude} {to_dest.latitude})"
 
-            # Add stop durations to total duration
             total_stop_duration = sum(stop.duration_minutes or 0 for stop in travel_stops)
             segment.distance_km = distance_km
             segment.duration_minutes = duration_min + total_stop_duration
             segment.geometry = geometry_wkt
             segment.is_fallback = is_fallback
         else:
-            # Fallback to heuristic calculation
             distance_km, duration_minutes = cls.calculate_travel_time(
                 from_dest.latitude, from_dest.longitude,
                 to_dest.latitude, to_dest.longitude,
                 mode
             )
 
-            # Build geometry through waypoints as straight line segments
             coords = [(from_dest.longitude, from_dest.latitude)]
             coords.extend(waypoint_coords)
             coords.append((to_dest.longitude, to_dest.latitude))
@@ -778,18 +822,132 @@ class TravelSegmentService:
             wkt_coords = ", ".join(f"{c[0]} {c[1]}" for c in coords)
             geometry_wkt = f"LINESTRING({wkt_coords})"
 
-            # Add stop durations to total duration
             total_stop_duration = sum(stop.duration_minutes or 0 for stop in travel_stops)
             segment.distance_km = distance_km
             segment.duration_minutes = duration_minutes + total_stop_duration
             segment.geometry = geometry_wkt
             segment.is_fallback = is_fallback if is_fallback else cls._is_public_transport(mode)
 
-        await db.flush()
-        await db.refresh(segment)
+    @classmethod
+    async def _recalculate_per_leg(
+        cls,
+        db: AsyncSession,
+        segment: TravelSegment,
+        from_dest,
+        to_dest,
+        route_waypoints: list,
+        travel_stops: list,
+        segment_mode: TravelMode
+    ) -> None:
+        """
+        Recalculate segment with per-leg travel modes.
 
-        logger.info(f"Recalculated segment {segment_id} with {len(route_waypoints)} waypoints and {len(travel_stops)} stops")
-        return segment
+        Each travel stop's travel_mode defines how to reach that stop.
+        The segment's travel_mode defines the mode for the last leg (last stop → to_dest).
+        Stops without a travel_mode inherit the segment's mode.
+        """
+        # Build ordered list of legs: (from_lat, from_lon, to_lat, to_lon, mode)
+        # The sorted stops define the intermediate points
+        sorted_stops = sorted(travel_stops, key=lambda s: s.order_index)
+
+        # Build points list: [from_dest, stop1, stop2, ..., to_dest]
+        points = []
+        points.append((from_dest.latitude, from_dest.longitude))
+        for stop in sorted_stops:
+            points.append((stop.latitude, stop.longitude))
+        points.append((to_dest.latitude, to_dest.longitude))
+
+        # Build leg modes: stop's travel_mode means "mode to arrive at this stop"
+        leg_modes = []
+        for i, stop in enumerate(sorted_stops):
+            mode_str = stop.travel_mode or segment_mode.value
+            try:
+                leg_modes.append(TravelMode(mode_str))
+            except ValueError:
+                leg_modes.append(segment_mode)
+        # Last leg uses segment's travel_mode
+        leg_modes.append(segment_mode)
+
+        # Route each leg independently
+        route_legs_data = []
+        all_coordinates = []
+        total_distance = 0.0
+        total_duration = 0
+        any_fallback = False
+
+        for i in range(len(points) - 1):
+            from_lat, from_lon = points[i]
+            to_lat, to_lon = points[i + 1]
+            leg_mode = leg_modes[i]
+
+            route_geometry, distance_km, duration_min, is_fallback = await cls._fetch_route_geometry(
+                from_lat, from_lon,
+                to_lat, to_lon,
+                leg_mode
+            )
+
+            leg_data = {
+                "travel_mode": leg_mode.value,
+                "geometry": None,
+                "distance_km": 0.0,
+                "duration_minutes": 0,
+            }
+
+            if route_geometry and distance_km is not None and duration_min is not None:
+                leg_data["geometry"] = route_geometry
+                leg_data["distance_km"] = round(distance_km, 2)
+                leg_data["duration_minutes"] = duration_min
+                total_distance += distance_km
+                total_duration += duration_min
+                if is_fallback:
+                    any_fallback = True
+
+                # Collect coordinates for combined geometry
+                if route_geometry.get("type") == "LineString":
+                    leg_coords = route_geometry.get("coordinates", [])
+                    if all_coordinates and leg_coords:
+                        # Skip first point to avoid duplicates at junctions
+                        all_coordinates.extend(leg_coords[1:])
+                    else:
+                        all_coordinates.extend(leg_coords)
+            else:
+                # Fallback to heuristic
+                h_distance, h_duration = cls.calculate_travel_time(
+                    from_lat, from_lon, to_lat, to_lon, leg_mode
+                )
+                fallback_geom = {
+                    "type": "LineString",
+                    "coordinates": [[from_lon, from_lat], [to_lon, to_lat]]
+                }
+                leg_data["geometry"] = fallback_geom
+                leg_data["distance_km"] = round(h_distance, 2)
+                leg_data["duration_minutes"] = h_duration
+                total_distance += h_distance
+                total_duration += h_duration
+                any_fallback = True
+
+                if all_coordinates:
+                    all_coordinates.append([to_lon, to_lat])
+                else:
+                    all_coordinates.extend([[from_lon, from_lat], [to_lon, to_lat]])
+
+            route_legs_data.append(leg_data)
+
+        # Build combined geometry for backward compatibility
+        if len(all_coordinates) >= 2:
+            wkt_coords = ", ".join(f"{c[0]} {c[1]}" for c in all_coordinates)
+            geometry_wkt = f"LINESTRING({wkt_coords})"
+        else:
+            geometry_wkt = f"LINESTRING({from_dest.longitude} {from_dest.latitude}, {to_dest.longitude} {to_dest.latitude})"
+
+        # Add stop durations to total
+        total_stop_duration = sum(stop.duration_minutes or 0 for stop in travel_stops)
+
+        segment.distance_km = round(total_distance, 2)
+        segment.duration_minutes = total_duration + total_stop_duration
+        segment.geometry = geometry_wkt
+        segment.is_fallback = any_fallback
+        segment.route_legs = route_legs_data
 
     @classmethod
     async def calculate_origin_return_segments(

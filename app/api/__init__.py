@@ -12,6 +12,7 @@ from app.api.route_waypoints import router as route_waypoints_router
 from app.api.travel_stops import router as travel_stops_router
 from app.api.notes import router as notes_router
 from app.api.google_places import router as google_places_router
+from app.api.hotels import router as hotels_router
 
 api_router = APIRouter()
 
@@ -23,6 +24,7 @@ api_router.include_router(pois_router, tags=["pois"])
 api_router.include_router(weather_router, tags=["weather"])
 api_router.include_router(documents_router, tags=["documents"])
 api_router.include_router(accommodations_router, tags=["accommodations"])
+api_router.include_router(hotels_router, tags=["hotels"])
 api_router.include_router(geocoding_router, prefix="/geocoding", tags=["geocoding"])
 api_router.include_router(travel_segments_router, tags=["travel-segments"])
 api_router.include_router(route_waypoints_router, tags=["route-waypoints"])

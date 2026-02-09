@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, Float, UniqueConstraint, Boolean
+from sqlalchemy import Column, String, Integer, ForeignKey, Float, UniqueConstraint, Boolean, JSON
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry
 from geoalchemy2.shape import to_shape
@@ -34,6 +34,11 @@ class TravelSegment(BaseModel):
         nullable=False,
         default=False,
         comment="True if route is from fallback service (e.g., car route when transit unavailable)"
+    )
+    route_legs = Column(
+        JSON,
+        nullable=True,
+        comment="Per-leg route data when stops have different travel modes"
     )
 
     # Relationships

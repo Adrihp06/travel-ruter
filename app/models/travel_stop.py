@@ -70,6 +70,13 @@ class TravelStop(BaseModel):
         comment="Planned arrival time (HH:MM format)"
     )
 
+    # Transport mode for reaching this stop (null = inherit from segment)
+    travel_mode = Column(
+        String(50),
+        nullable=True,
+        comment="Transport mode to reach this stop (null = inherit from segment)"
+    )
+
     # Ordering within the segment
     order_index = Column(
         Integer,
@@ -105,6 +112,7 @@ class TravelStop(BaseModel):
             "stop_date": self.stop_date.isoformat() if self.stop_date else None,
             "duration_minutes": self.duration_minutes,
             "arrival_time": self.arrival_time,
+            "travel_mode": self.travel_mode,
             "order_index": self.order_index,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

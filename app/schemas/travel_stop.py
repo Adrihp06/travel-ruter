@@ -18,6 +18,11 @@ class TravelStopBase(BaseModel):
         pattern=r"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",
         description="Planned arrival time (HH:MM format)"
     )
+    travel_mode: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Transport mode to reach this stop (null = inherit from segment)"
+    )
 
 
 class TravelStopCreate(TravelStopBase):
@@ -41,6 +46,11 @@ class TravelStopUpdate(BaseModel):
         description="Planned arrival time (HH:MM format)"
     )
     order_index: Optional[int] = Field(None, ge=0, description="Order within segment")
+    travel_mode: Optional[str] = Field(
+        None,
+        max_length=50,
+        description="Transport mode to reach this stop (null = inherit from segment)"
+    )
 
 
 class TravelStopResponse(TravelStopBase):
