@@ -13,7 +13,7 @@ const CustomInput = forwardRef(({ value, onClick, placeholder, hasError, classNa
       onClick={onClick}
       readOnly
       placeholder={placeholder}
-      className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-gray-900 dark:text-white bg-white dark:bg-gray-700 cursor-pointer ${
+      className={`w-full px-3 py-2 pr-10 border rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] text-gray-900 dark:text-white bg-white dark:bg-gray-700 cursor-pointer ${
         hasError ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
       } ${className || ''}`}
     />
@@ -146,12 +146,12 @@ const DateRangePicker = ({
 
       {/* Duration display */}
       {duration && (
-        <div className="mt-3 flex items-center space-x-2 p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
-          <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-          <span className="text-sm text-indigo-700 dark:text-indigo-300">
+        <div className="mt-3 flex items-center space-x-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+          <Calendar className="w-5 h-5 text-[#D97706] dark:text-amber-400" />
+          <span className="text-sm text-[#D97706] dark:text-amber-300">
             <span className="font-medium">{duration.days} day{duration.days !== 1 ? 's' : ''}</span>
             {duration.nights > 0 && (
-              <span className="text-indigo-600 dark:text-indigo-400">
+              <span className="text-[#D97706] dark:text-amber-400">
                 {' '}({duration.nights} night{duration.nights !== 1 ? 's' : ''})
               </span>
             )}
