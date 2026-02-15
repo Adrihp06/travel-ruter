@@ -9,6 +9,13 @@ from app.models.travel_segment import TravelSegment
 from app.models.route_waypoint import RouteWaypoint
 from app.models.travel_stop import TravelStop
 from app.models.note import Note, NoteType
+from app.models.user import User
+from app.models.trip_member import TripMember
+from app.models.notification import Notification
+from app.models.trip_api_key import TripApiKey
+from app.models.poi_vote import POIVote
+from app.models.activity_log import ActivityLog
+from app.models.comment import Comment
 
 __all__ = [
     "BaseModel",
@@ -24,4 +31,11 @@ __all__ = [
     "TravelStop",
     "Note",
     "NoteType",
+    "User",
+    "TripMember",
+    "Notification",
+    "TripApiKey",
+    "POIVote",
+    "ActivityLog",
+    "Comment",
 ]

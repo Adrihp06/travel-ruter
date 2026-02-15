@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Optional
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, func
@@ -7,12 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from geoalchemy2.functions import ST_SetSRID, ST_MakePoint, ST_X, ST_Y
 
 from app.core.database import get_db
-from app.api.deps import PaginationParams
+from app.api.deps import PaginationParams, get_optional_user
 
 logger = logging.getLogger(__name__)
 from app.models import POI, Destination, Accommodation
+from app.models.user import User
+from app.models.poi_vote import POIVote as POIVoteModel
 from app.schemas.poi import (
-    POICreate, POIUpdate, POIResponse, POIsByCategory, POIVote,
+    POICreate, POIUpdate, POIResponse, POIsByCategory, POIVote, POIVoteResponse,
     POIBulkScheduleUpdate, POIOptimizationRequest, POIOptimizationResponse, OptimizedPOI,
     PaginatedPOIsByCategoryResponse,
 )
@@ -271,13 +273,14 @@ async def delete_poi(
 
     return None
 
-@router.post("/pois/{id}/vote", response_model=POIResponse)
+@router.post("/pois/{id}/vote", response_model=POIVoteResponse)
 async def vote_poi(
     id: int,
     vote: POIVote,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: Optional[User] = Depends(get_optional_user),
 ):
-    """Vote for a POI (like or veto)"""
+    """Vote for a POI (like or veto) with per-user deduplication."""
     result = await db.execute(select(POI).where(POI.id == id))
     db_poi = result.scalar_one_or_none()
 
@@ -287,26 +290,62 @@ async def vote_poi(
             detail=f"POI with id {id} not found"
         )
 
-    if vote.type == 'like':
-        db_poi.likes += 1
-    elif vote.type == 'veto':
-        db_poi.vetoes += 1
+    current_user_vote = None
 
-    await db.flush()
-
-    # Re-query to get the coordinates properly extracted
-    result = await db.execute(
-        select(
-            POI,
-            ST_Y(POI.coordinates).label('latitude'),
-            ST_X(POI.coordinates).label('longitude')
+    if user:
+        # Check for existing vote
+        existing = await db.execute(
+            select(POIVoteModel).where(
+                POIVoteModel.poi_id == id,
+                POIVoteModel.user_id == user.id,
+            )
         )
-        .where(POI.id == id)
-    )
-    row = result.one()
-    updated_poi, lat, lng = row
+        existing_vote = existing.scalar_one_or_none()
 
-    return poi_to_response(updated_poi, lat, lng)
+        if existing_vote:
+            if existing_vote.vote_type == vote.vote_type:
+                # Toggle off — same vote again
+                await db.delete(existing_vote)
+                current_user_vote = None
+            else:
+                # Switch vote type
+                existing_vote.vote_type = vote.vote_type
+                current_user_vote = vote.vote_type
+        else:
+            # New vote
+            new_vote = POIVoteModel(poi_id=id, user_id=user.id, vote_type=vote.vote_type)
+            db.add(new_vote)
+            current_user_vote = vote.vote_type
+
+        await db.flush()
+
+        # Recount from poi_votes table
+        likes_count = await db.execute(
+            select(func.count()).select_from(POIVoteModel).where(
+                POIVoteModel.poi_id == id, POIVoteModel.vote_type == "like"
+            )
+        )
+        vetoes_count = await db.execute(
+            select(func.count()).select_from(POIVoteModel).where(
+                POIVoteModel.poi_id == id, POIVoteModel.vote_type == "veto"
+            )
+        )
+        db_poi.likes = likes_count.scalar()
+        db_poi.vetoes = vetoes_count.scalar()
+        await db.flush()
+    else:
+        # Anonymous legacy: simple increment
+        if vote.vote_type == "like":
+            db_poi.likes += 1
+        elif vote.vote_type == "veto":
+            db_poi.vetoes += 1
+        await db.flush()
+
+    return POIVoteResponse(
+        likes=db_poi.likes,
+        vetoes=db_poi.vetoes,
+        current_user_vote=current_user_vote,
+    )
 
 
 @router.put("/destinations/{destination_id}/pois/schedule", response_model=List[POIResponse])

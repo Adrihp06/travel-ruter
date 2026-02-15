@@ -91,6 +91,7 @@ class TripUpdate(BaseModel):
 class TripResponse(TripBase):
     """Schema for trip response - includes computed fields"""
     id: int
+    user_id: Optional[int] = Field(None, description="Owner user ID")
     nights: int = Field(..., description="Number of nights (automatically calculated)")
     tags: Optional[List[str]] = Field(default_factory=list, description="Trip tags/categories")
     created_at: datetime

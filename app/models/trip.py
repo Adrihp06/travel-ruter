@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Numeric, Date, Text, Float, Index
+from sqlalchemy import Column, String, Numeric, Date, Text, Float, Integer, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -9,6 +9,7 @@ class Trip(BaseModel):
     __tablename__ = "trips"
 
     name = Column(String(255), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     location = Column(String(255), nullable=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
@@ -37,6 +38,7 @@ class Trip(BaseModel):
 
     # Relationships
     destinations = relationship("Destination", back_populates="trip", cascade="all, delete-orphan")
+    members = relationship("TripMember", foreign_keys="TripMember.trip_id", cascade="all, delete-orphan")
 
     # Composite indexes for common query patterns
     __table_args__ = (

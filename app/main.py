@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.core.http_client import close_http_client
@@ -47,6 +48,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add session middleware for OAuth state
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
 # Add gzip compression for responses > 500 bytes
 app.add_middleware(GZipMiddleware, minimum_size=500)

@@ -1,13 +1,15 @@
 import os
 import uuid
 import aiofiles
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.config import settings
+from app.models.user import User
 from app.schemas.trip import TripCreate, TripUpdate, TripResponse, TripWithDestinationsResponse, BudgetSummary, POIStats, CoverImageUploadResponse, TripDuplicateRequest, TripSummaryItem, TripsSummaryResponse
 from app.services.trip_service import TripService
+from app.api.deps import get_optional_user
 
 router = APIRouter()
 
@@ -130,10 +132,11 @@ async def get_cover_image(filename: str):
 )
 async def create_trip(
     trip_data: TripCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: Optional[User] = Depends(get_optional_user),
 ) -> TripResponse:
     """Create a new trip"""
-    trip = await TripService.create_trip(db, trip_data)
+    trip = await TripService.create_trip(db, trip_data, user_id=user.id if user else None)
     return TripResponse.model_validate(trip)
 
 
@@ -146,10 +149,11 @@ async def create_trip(
 async def get_trips(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: Optional[User] = Depends(get_optional_user),
 ) -> List[TripResponse]:
-    """Get all trips with pagination"""
-    trips = await TripService.get_trips(db, skip=skip, limit=limit)
+    """Get all trips with pagination. Authenticated users see only their trips."""
+    trips = await TripService.get_trips(db, skip=skip, limit=limit, user_id=user.id if user else None)
     return [TripResponse.model_validate(trip) for trip in trips]
 
 
@@ -162,10 +166,13 @@ async def get_trips(
 async def get_trips_summary(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: Optional[User] = Depends(get_optional_user),
 ) -> TripsSummaryResponse:
     """Get all trips with destinations and POI stats in one query"""
-    trips_with_summary, total_count = await TripService.get_trips_with_summary(db, skip=skip, limit=limit)
+    trips_with_summary, total_count = await TripService.get_trips_with_summary(
+        db, skip=skip, limit=limit, user_id=user.id if user else None
+    )
 
     trip_items = []
     for item in trips_with_summary:
@@ -173,6 +180,7 @@ async def get_trips_summary(
         # Build the response with all trip fields + destinations + poi_stats
         trip_item = TripSummaryItem(
             id=trip.id,
+            user_id=trip.user_id,
             name=trip.name,
             location=trip.location,
             latitude=trip.latitude,
@@ -282,6 +290,32 @@ async def delete_trip(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Trip with id {trip_id} not found"
         )
+
+
+@router.post(
+    "/{trip_id}/claim",
+    response_model=TripResponse,
+    summary="Claim an orphan trip",
+    description="Assign ownership of a trip that has no owner (user_id IS NULL) to the current user"
+)
+async def claim_trip(
+    trip_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_optional_user),
+) -> TripResponse:
+    """Claim an orphan trip"""
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required to claim a trip"
+        )
+    trip = await TripService.claim_trip(db, trip_id, user.id)
+    if not trip:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Trip not found or already owned"
+        )
+    return TripResponse.model_validate(trip)
 
 
 @router.get(

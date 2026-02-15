@@ -23,6 +23,8 @@ from app.models.poi import POI
 from app.models.accommodation import Accommodation
 from app.models.document import Document
 from app.models.route import Route
+from app.models.user import User
+from app.models.trip_member import TripMember
 
 
 # Test database URL - use SQLite for unit tests, PostgreSQL for integration tests
@@ -270,6 +272,119 @@ async def created_accommodation(
     await db.flush()
     await db.refresh(acc)
     return acc
+
+
+# ============================================================================
+# Auth Fixtures
+# ============================================================================
+
+@pytest.fixture
+async def created_user(db: AsyncSession) -> User:
+    """Create a test user and return it."""
+    user = User(
+        email="test@example.com",
+        name="Test User",
+        oauth_provider="google",
+        oauth_id="123",
+        is_active=True,
+    )
+    db.add(user)
+    await db.flush()
+    await db.refresh(user)
+    return user
+
+
+@pytest.fixture
+async def second_user(db: AsyncSession) -> User:
+    """Create a second test user for collaboration tests."""
+    user = User(
+        email="other@example.com",
+        name="Other User",
+        oauth_provider="github",
+        oauth_id="456",
+        is_active=True,
+    )
+    db.add(user)
+    await db.flush()
+    await db.refresh(user)
+    return user
+
+
+@pytest.fixture
+async def inactive_user(db: AsyncSession) -> User:
+    """Create an inactive test user."""
+    user = User(
+        email="inactive@example.com",
+        name="Inactive User",
+        oauth_provider="google",
+        oauth_id="789",
+        is_active=False,
+    )
+    db.add(user)
+    await db.flush()
+    await db.refresh(user)
+    return user
+
+
+@pytest.fixture
+def auth_token(created_user: User) -> str:
+    """Generate a valid JWT for the test user."""
+    from app.services.auth_service import create_access_token
+    return create_access_token(created_user.id)
+
+
+@pytest.fixture
+def second_auth_token(second_user: User) -> str:
+    """Generate a valid JWT for the second test user."""
+    from app.services.auth_service import create_access_token
+    return create_access_token(second_user.id)
+
+
+@pytest.fixture
+def auth_headers(auth_token: str) -> dict:
+    """HTTP headers with valid Bearer token."""
+    return {"Authorization": f"Bearer {auth_token}"}
+
+
+@pytest.fixture
+def second_auth_headers(second_auth_token: str) -> dict:
+    """HTTP headers with valid Bearer token for second user."""
+    return {"Authorization": f"Bearer {second_auth_token}"}
+
+
+@pytest.fixture
+async def authenticated_client(client: AsyncClient, auth_headers: dict) -> AsyncClient:
+    """AsyncClient that sends authenticated requests."""
+    client.headers.update(auth_headers)
+    return client
+
+
+@pytest.fixture
+async def trip_with_owner(db: AsyncSession, created_user: User, sample_trip_data: dict) -> Trip:
+    """Create a trip with the test user as owner."""
+    trip = Trip(
+        name=sample_trip_data["name"],
+        description=sample_trip_data["description"],
+        start_date=date.fromisoformat(sample_trip_data["start_date"]),
+        end_date=date.fromisoformat(sample_trip_data["end_date"]),
+        total_budget=Decimal(sample_trip_data["total_budget"]),
+        currency=sample_trip_data["currency"],
+        status=sample_trip_data["status"],
+        user_id=created_user.id,
+    )
+    db.add(trip)
+    await db.flush()
+
+    member = TripMember(
+        trip_id=trip.id,
+        user_id=created_user.id,
+        role="owner",
+        status="accepted",
+    )
+    db.add(member)
+    await db.flush()
+    await db.refresh(trip)
+    return trip
 
 
 # ============================================================================

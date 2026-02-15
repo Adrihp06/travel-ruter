@@ -1,5 +1,28 @@
+import os
+
 from pydantic_settings import BaseSettings
 from typing import Optional
+
+
+def _parse_cors_origins() -> list[str]:
+    """Merge CORS_ORIGINS env var with built-in defaults.
+
+    In production set CORS_ORIGINS=https://travelruter.com to restrict access.
+    When the env var is set, *only* those origins are allowed (no localhost).
+    """
+    env_val = os.environ.get("CORS_ORIGINS", "").strip()
+    if env_val:
+        return [o.strip() for o in env_val.split(",") if o.strip()]
+    # Development defaults
+    return [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://localhost:8000",
+        "https://travelruter.com",
+        "http://travelruter.com",
+    ]
 
 
 class Settings(BaseSettings):
@@ -11,19 +34,26 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@db:5432/travel_ruter"
 
-    # CORS
-    BACKEND_CORS_ORIGINS: list[str] = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://localhost:8000"
-    ]
+    # CORS — populated from CORS_ORIGINS env var (see _parse_cors_origins)
+    BACKEND_CORS_ORIGINS: list[str] = _parse_cors_origins()
 
     # JWT
     SECRET_KEY: str = "your-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # OAuth
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GITHUB_CLIENT_ID: Optional[str] = None
+    GITHUB_CLIENT_SECRET: Optional[str] = None
+    FRONTEND_URL: str = "http://localhost"
+    # Public base URL for OAuth callbacks (e.g. http://localhost for nginx, https://travelruter.com for prod)
+    PUBLIC_URL: Optional[str] = None
+
+    # Encryption (for per-trip API keys)
+    FERNET_KEY: Optional[str] = None
 
     # Document Storage (The Vault)
     DOCUMENTS_UPLOAD_PATH: str = "/app/documents"

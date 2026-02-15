@@ -300,13 +300,15 @@ class TestPOIVoting:
         """Test POST /api/v1/pois/{id}/vote - like a POI."""
         response = await client.post(
             f"/api/v1/pois/{created_poi.id}/vote",
-            json={"type": "like"}
+            json={"vote_type": "like"}
         )
 
         assert response.status_code == 200
         data = response.json()
+        # Anonymous vote: simple increment
         assert data["likes"] == created_poi.likes + 1
         assert data["vetoes"] == created_poi.vetoes
+        assert data["current_user_vote"] is None
 
     @pytest.mark.asyncio
     async def test_vote_veto(
@@ -317,13 +319,15 @@ class TestPOIVoting:
         """Test POST /api/v1/pois/{id}/vote - veto a POI."""
         response = await client.post(
             f"/api/v1/pois/{created_poi.id}/vote",
-            json={"type": "veto"}
+            json={"vote_type": "veto"}
         )
 
         assert response.status_code == 200
         data = response.json()
+        # Anonymous vote: simple increment
         assert data["vetoes"] == created_poi.vetoes + 1
         assert data["likes"] == created_poi.likes
+        assert data["current_user_vote"] is None
 
     @pytest.mark.asyncio
     async def test_vote_multiple_times(
@@ -345,7 +349,7 @@ class TestPOIVoting:
         for _ in range(3):
             response = await client.post(
                 f"/api/v1/pois/{poi.id}/vote",
-                json={"type": "like"}
+                json={"vote_type": "like"}
             )
             assert response.status_code == 200
 
@@ -353,7 +357,7 @@ class TestPOIVoting:
         for _ in range(2):
             response = await client.post(
                 f"/api/v1/pois/{poi.id}/vote",
-                json={"type": "veto"}
+                json={"vote_type": "veto"}
             )
             assert response.status_code == 200
 
@@ -372,7 +376,7 @@ class TestPOIVoting:
         """Test voting with invalid type fails."""
         response = await client.post(
             f"/api/v1/pois/{created_poi.id}/vote",
-            json={"type": "invalid"}
+            json={"vote_type": "invalid"}
         )
 
         assert response.status_code == 422
@@ -382,7 +386,7 @@ class TestPOIVoting:
         """Test voting on non-existent POI returns 404."""
         response = await client.post(
             "/api/v1/pois/99999/vote",
-            json={"type": "like"}
+            json={"vote_type": "like"}
         )
 
         assert response.status_code == 404

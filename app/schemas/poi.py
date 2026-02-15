@@ -57,7 +57,13 @@ class POIUpdate(BaseModel):
 
 
 class POIVote(BaseModel):
-    type: str = Field(..., pattern="^(like|veto)$", description="Vote type: 'like' or 'veto'")
+    vote_type: str = Field(..., pattern="^(like|veto)$", description="Vote type: 'like' or 'veto'")
+
+
+class POIVoteResponse(BaseModel):
+    likes: int = Field(..., description="Total like count")
+    vetoes: int = Field(..., description="Total veto count")
+    current_user_vote: Optional[str] = Field(None, description="Current user's vote (like, veto, or null)")
 
 
 class POIResponse(POIBase):

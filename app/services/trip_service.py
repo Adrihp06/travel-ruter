@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import List, Optional
 from datetime import timedelta
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from geoalchemy2.elements import WKTElement
@@ -10,6 +10,7 @@ from app.models.destination import Destination
 from app.models.poi import POI
 from app.models.accommodation import Accommodation
 from app.models.document import Document
+from app.models.trip_member import TripMember
 from app.schemas.trip import TripCreate, TripUpdate, BudgetSummary, TripDuplicateRequest
 
 
@@ -17,11 +18,26 @@ class TripService:
     """Service for Trip CRUD operations"""
 
     @staticmethod
-    async def create_trip(db: AsyncSession, trip_data: TripCreate) -> Trip:
-        """Create a new trip"""
-        trip = Trip(**trip_data.model_dump())
+    async def create_trip(db: AsyncSession, trip_data: TripCreate, user_id: int | None = None) -> Trip:
+        """Create a new trip. If user_id is provided, sets ownership and creates owner member."""
+        data = trip_data.model_dump()
+        if user_id:
+            data["user_id"] = user_id
+        trip = Trip(**data)
         db.add(trip)
         await db.flush()
+
+        # Auto-create owner membership
+        if user_id:
+            member = TripMember(
+                trip_id=trip.id,
+                user_id=user_id,
+                role="owner",
+                status="accepted",
+            )
+            db.add(member)
+            await db.flush()
+
         await db.refresh(trip)
         return trip
 
@@ -43,32 +59,59 @@ class TripService:
 
     @staticmethod
     async def get_trips(
-        db: AsyncSession, skip: int = 0, limit: int = 100
+        db: AsyncSession, skip: int = 0, limit: int = 100, user_id: int | None = None
     ) -> List[Trip]:
-        """Get all trips with pagination"""
-        result = await db.execute(select(Trip).offset(skip).limit(limit))
+        """Get trips with pagination. When user_id is provided, only returns
+        trips owned by or shared with that user."""
+        query = select(Trip)
+        if user_id is not None:
+            query = (
+                query.outerjoin(TripMember, TripMember.trip_id == Trip.id)
+                .where(
+                    or_(
+                        Trip.user_id == user_id,
+                        (TripMember.user_id == user_id) & (TripMember.status == "accepted"),
+                    )
+                )
+                .distinct()
+            )
+        result = await db.execute(query.offset(skip).limit(limit))
         return list(result.scalars().all())
 
     @staticmethod
     async def get_trips_with_summary(
-        db: AsyncSession, skip: int = 0, limit: int = 100
+        db: AsyncSession, skip: int = 0, limit: int = 100, user_id: int | None = None
     ) -> tuple[List[dict], int]:
         """
         Get all trips with destinations and POI stats in a single query.
         Returns trips with eager-loaded destinations and batch-queried POI stats.
         This eliminates the N+1 problem by fetching everything in 2 queries.
+        When user_id is provided, only returns trips owned by or shared with that user.
         """
-        # Query 1: Get all trips with destinations eagerly loaded
-        trips_result = await db.execute(
-            select(Trip)
-            .options(selectinload(Trip.destinations))
-            .offset(skip)
-            .limit(limit)
-        )
+        # Query 1: Get trips with destinations eagerly loaded
+        base_query = select(Trip).options(selectinload(Trip.destinations))
+        count_query = select(func.count(Trip.id))
+
+        if user_id is not None:
+            user_filter = (
+                or_(
+                    Trip.user_id == user_id,
+                    Trip.id.in_(
+                        select(TripMember.trip_id).where(
+                            TripMember.user_id == user_id,
+                            TripMember.status == "accepted",
+                        )
+                    ),
+                )
+            )
+            base_query = base_query.where(user_filter)
+            count_query = count_query.where(user_filter)
+
+        trips_result = await db.execute(base_query.offset(skip).limit(limit))
         trips = list(trips_result.scalars().all())
 
         # Get total count
-        count_result = await db.execute(select(func.count(Trip.id)))
+        count_result = await db.execute(count_query)
         total_count = count_result.scalar()
 
         if not trips:
@@ -137,6 +180,30 @@ class TripService:
         await db.delete(trip)
         await db.flush()
         return True
+
+    @staticmethod
+    async def claim_trip(db: AsyncSession, trip_id: int, user_id: int) -> Optional[Trip]:
+        """Claim an orphan trip (user_id IS NULL) by assigning ownership."""
+        trip = await TripService.get_trip(db, trip_id)
+        if not trip:
+            return None
+        if trip.user_id is not None:
+            return None  # Already owned
+
+        trip.user_id = user_id
+        await db.flush()
+
+        # Create owner membership
+        member = TripMember(
+            trip_id=trip.id,
+            user_id=user_id,
+            role="owner",
+            status="accepted",
+        )
+        db.add(member)
+        await db.flush()
+        await db.refresh(trip)
+        return trip
 
     @staticmethod
     async def get_poi_stats(db: AsyncSession, trip_id: int) -> dict:
