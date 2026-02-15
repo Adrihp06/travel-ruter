@@ -1,5 +1,5 @@
 # Travel Bridge Orchestrator Dockerfile
-# Pure Python / PydanticAI (no Node.js)
+# Build context: repo root (.)
 
 # ============================================
 # Stage 1: Install dependencies
@@ -7,8 +7,13 @@
 FROM python:3.12-slim AS builder
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Install both orchestrator and root requirements
+COPY orchestrator/requirements.txt /app/orchestrator-requirements.txt
+COPY requirements.txt /app/root-requirements.txt
+RUN pip install --no-cache-dir --prefix=/install \
+    -r /app/orchestrator-requirements.txt \
+    -r /app/root-requirements.txt
 
 # ============================================
 # Stage 2: Production
@@ -22,8 +27,10 @@ WORKDIR /app
 # Copy installed Python packages
 COPY --from=builder /install /usr/local
 
-# Copy orchestrator source
-COPY . /app/orchestrator/
+# Copy orchestrator, MCP server, and shared app code
+COPY ./orchestrator /app/orchestrator/
+COPY ./mcp_server /app/mcp_server/
+COPY ./app /app/app/
 
 # Create non-root user
 RUN addgroup --gid 1001 appuser && \
