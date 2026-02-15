@@ -87,6 +87,7 @@ jobs:
       - name: Deploy with Docker Compose
         working-directory: ${{ env.DEPLOY_DIR }}
         run: |
+          docker compose --profile prod down --timeout 30
           docker compose --profile prod pull
           docker compose --profile prod up -d --remove-orphans
           docker compose --profile prod ps
