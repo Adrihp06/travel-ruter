@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Map, Sun, Monitor, Download, Upload, Save, Route, Calendar } from 'lucide-react';
+import { User, Map, Sun, Monitor, Download, Upload, Save, Route, Calendar, Key } from 'lucide-react';
 import CurrencyDollarIcon from '@/components/icons/currency-dollar-icon';
 import MoonIcon from '@/components/icons/moon-icon';
 import CheckedIcon from '@/components/icons/checked-icon';
@@ -10,6 +10,9 @@ import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { useTheme } from '../contexts/ThemeContext';
 import { dateLocales, invalidateLocaleCache } from '../utils/dateFormat';
 import Spinner from '../components/UI/Spinner';
+import ApiKeySettings from '../components/Settings/ApiKeySettings';
+import useTripStore from '../stores/useTripStore';
+import useAuthStore from '../stores/useAuthStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -68,6 +71,9 @@ const SettingsPage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [activeSection, setActiveSection] = useState('profile');
   const { themeMode, setThemeMode, isDark } = useTheme();
+  const { tripsWithDestinations } = useTripStore();
+  const { user: authUser, isAuthenticated } = useAuthStore();
+  const [selectedApiKeyTripId, setSelectedApiKeyTripId] = useState('');
 
   // Load settings from localStorage on mount
   useEffect(() => {
@@ -81,6 +87,21 @@ const SettingsPage = () => {
       }
     }
   }, []);
+
+  // Sync profile from OAuth when authenticated
+  useEffect(() => {
+    if (isAuthenticated && authUser) {
+      setSettings((prev) => ({
+        ...prev,
+        profile: {
+          ...prev.profile,
+          name: authUser.name || prev.profile.name,
+          email: authUser.email || prev.profile.email,
+          avatar: authUser.avatar_url || prev.profile.avatar,
+        },
+      }));
+    }
+  }, [isAuthenticated, authUser]);
 
   // Save settings to localStorage
   const saveSettings = () => {
@@ -183,6 +204,7 @@ const SettingsPage = () => {
     { id: 'dateFormat', name: t('settings.sections.dateFormat'), icon: Calendar },
     { id: 'language', name: t('settings.sections.language'), icon: GlobeIcon },
     { id: 'theme', name: t('settings.sections.theme'), icon: getThemeIcon() },
+    { id: 'apiKeys', name: t('settings.sections.apiKeys'), icon: Key },
     { id: 'export', name: t('settings.sections.export'), icon: Download },
   ];
 
@@ -241,6 +263,13 @@ const SettingsPage = () => {
             {activeSection === 'profile' && (
               <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('settings.profile.title')}</h2>
+                {isAuthenticated && (
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-sm text-blue-800 dark:text-blue-300">
+                      <strong>Signed in via Google.</strong> Name and email are managed by your Google account.
+                    </p>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     {t('settings.profile.name')}
@@ -249,7 +278,8 @@ const SettingsPage = () => {
                     type="text"
                     value={settings.profile.name}
                     onChange={(e) => updateSetting('profile', 'name', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                    readOnly={isAuthenticated}
+                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] text-gray-900 dark:text-white bg-white dark:bg-gray-700 ${isAuthenticated ? 'opacity-60 cursor-not-allowed' : ''}`}
                     placeholder={t('settings.profile.namePlaceholder')}
                   />
                 </div>
@@ -261,7 +291,8 @@ const SettingsPage = () => {
                     type="email"
                     value={settings.profile.email}
                     onChange={(e) => updateSetting('profile', 'email', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                    readOnly={isAuthenticated}
+                    className={`w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] text-gray-900 dark:text-white bg-white dark:bg-gray-700 ${isAuthenticated ? 'opacity-60 cursor-not-allowed' : ''}`}
                     placeholder={t('settings.profile.emailPlaceholder')}
                   />
                 </div>
@@ -647,6 +678,33 @@ const SettingsPage = () => {
                     {t('settings.theme.description')}
                   </p>
                 </div>
+              </div>
+            )}
+
+            {/* API Keys Settings */}
+            {activeSection === 'apiKeys' && (
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('settings.sections.apiKeys')}</h2>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    {t('trips.title')}
+                  </label>
+                  <select
+                    value={selectedApiKeyTripId}
+                    onChange={(e) => setSelectedApiKeyTripId(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                  >
+                    <option value="">{t('ai.selectTripToStart')}</option>
+                    {tripsWithDestinations.map((trip) => (
+                      <option key={trip.id} value={trip.id}>
+                        {trip.title || trip.name || t('trips.untitledTrip')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {selectedApiKeyTripId && (
+                  <ApiKeySettings tripId={Number(selectedApiKeyTripId)} />
+                )}
               </div>
             )}
 

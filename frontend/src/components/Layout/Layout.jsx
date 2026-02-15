@@ -5,6 +5,8 @@ import Sidebar from './Sidebar';
 import PageTransition from '../UI/PageTransition';
 import { AIChat } from '../AI';
 import useTripStore from '../../stores/useTripStore';
+import useAuthStore from '../../stores/useAuthStore';
+import NotificationBell from '../Notifications/NotificationBell';
 
 // Skip to main content link for keyboard navigation accessibility
 const SkipToMain = () => (
@@ -21,6 +23,7 @@ const Layout = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const location = useLocation();
   const { tripsWithDestinations } = useTripStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   // Detect itinerary view: /trips/:id (where :id is a number or UUID)
   const isItineraryView = /^\/trips\/[a-zA-Z0-9-]+$/.test(location.pathname);
@@ -73,7 +76,7 @@ const Layout = () => {
               <Menu className="w-6 h-6 text-gray-600 dark:text-gray-300" />
             </button>
             <span className="text-xl font-bold text-[#D97706] dark:text-amber-400">Travel Ruter</span>
-            <div className="w-10" />
+            {isAuthenticated ? <NotificationBell /> : <div className="w-10" />}
           </header>
         )}
 

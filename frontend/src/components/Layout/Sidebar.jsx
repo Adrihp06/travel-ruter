@@ -1,18 +1,26 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Map, Bot } from 'lucide-react';
+import { Map, Bot, LogOut } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import GearIcon from '@/components/icons/gear-icon';
 import XIcon from '@/components/icons/x-icon';
+import useAuthStore from '../../stores/useAuthStore';
+import NotificationBell from '../Notifications/NotificationBell';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
+  const { isAuthenticated, user, logout } = useAuthStore();
 
   const navItems = [
     { name: t('nav.trips'), path: '/trips', icon: Map },
     { name: t('nav.settings'), path: '/settings', icon: GearIcon },
     { name: t('nav.aiSettings'), path: '/ai-settings', icon: Bot },
   ];
+
+  const handleLogout = async () => {
+    await logout();
+    onClose();
+  };
 
   return (
     <>
@@ -26,7 +34,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
       {/* Sidebar Container */}
       <div className={`
-        fixed top-0 left-0 bottom-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-all duration-200 ease-in-out
+        fixed top-0 left-0 bottom-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-all duration-200 ease-in-out flex flex-col
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         md:translate-x-0 md:static md:inset-auto md:block
       `}>
@@ -40,7 +48,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        <nav className="p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1">
           {navItems.map((item) => (
             <NavLink
               key={item.name}
@@ -58,6 +66,35 @@ const Sidebar = ({ isOpen, onClose }) => {
             </NavLink>
           ))}
         </nav>
+
+        {/* User Profile Section - only when authenticated */}
+        {isAuthenticated && user && (
+          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+            <div className="flex items-center gap-3">
+              {user.avatar_url ? (
+                <img src={user.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-[#D97706] flex items-center justify-center text-white text-sm font-medium">
+                  {(user.display_name || user.email || '?')[0].toUpperCase()}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  {user.display_name || user.email}
+                </p>
+              </div>
+              <NotificationBell />
+              <button
+                onClick={handleLogout}
+                className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 transition-colors"
+                aria-label={t('auth.logout')}
+                title={t('auth.logout')}
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

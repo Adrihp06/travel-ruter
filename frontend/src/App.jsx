@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { MapboxProvider } from './contexts/MapboxContext';
 import { ItineraryUIProvider } from './contexts/ItineraryUIContext';
@@ -10,8 +10,24 @@ import GlobalTripView from './pages/GlobalTripView';
 import DetailView from './pages/DetailView';
 import SettingsPage from './pages/SettingsPage';
 import AISettingsPage from './pages/AISettingsPage';
+import LoginPage from './pages/LoginPage';
+import AuthCallbackPage from './pages/AuthCallbackPage';
+import ProtectedRoute from './components/common/ProtectedRoute';
+import useAuthStore from './stores/useAuthStore';
+
+const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED === 'true';
 
 function App() {
+  useEffect(() => {
+    if (AUTH_ENABLED) {
+      useAuthStore.getState().initialize();
+    }
+  }, []);
+
+  const layoutElement = AUTH_ENABLED
+    ? <ProtectedRoute><Layout /></ProtectedRoute>
+    : <Layout />;
+
   return (
     <ErrorBoundary message="The application encountered an unexpected error. Please refresh the page or try again.">
       <ThemeProvider>
@@ -20,7 +36,9 @@ function App() {
             <MapboxProvider>
               <Router>
                 <Routes>
-                  <Route path="/" element={<Layout />}>
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/auth/callback" element={<AuthCallbackPage />} />
+                  <Route path="/" element={layoutElement}>
                     <Route index element={<Navigate to="/trips" replace />} />
                     <Route path="trips" element={<GlobalTripView />} />
                     <Route path="trips/:id" element={<DetailView />} />

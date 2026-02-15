@@ -112,6 +112,14 @@ export default defineConfig({
     // Increase chunk size warning limit
     chunkSizeWarningLimit: 1000
   },
+  server: {
+    proxy: {
+      '/api/v1': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
+  },
   // Optimize dependencies
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom', 'zustand']

@@ -21,7 +21,6 @@ import useRouteStore from '../../stores/useRouteStore';
 import useWaypointStore from '../../stores/useWaypointStore';
 import useTravelStopStore from '../../stores/useTravelStopStore';
 import SegmentNavigator from './SegmentNavigator';
-import MapSkeleton from './MapSkeleton';
 import RouteInfoBar from '../Routes/RouteInfoBar';
 import { formatDateRangeShort } from '../../utils/dateFormat';
 import { BRAND_COLORS, ROUTE_STYLES, getTransportModeStyle } from './mapStyles';
@@ -348,7 +347,6 @@ const TripMap = ({
     zoom: 5,
   });
   const [showFallbackWarning, setShowFallbackWarning] = useState(true);
-  const [isMapTilesLoaded, setIsMapTilesLoaded] = useState(false);
 
   // Travel segments store for segment-based routing
   const { segments, originSegment, returnSegment, fetchTripSegments, clearSegments, isLoading: isSegmentsLoading, hasFetchedInitial } = useTravelSegmentStore();
@@ -392,7 +390,6 @@ const TripMap = ({
   useEffect(() => {
     return () => {
       clearSegments();
-      setIsMapTilesLoaded(false);
     };
   }, [tripId, clearSegments]);
 
@@ -1028,7 +1025,6 @@ const TripMap = ({
         {...viewState}
         onMove={(evt) => setViewState(evt.viewState)}
         onClick={handleMapClick}
-        onLoad={() => setIsMapTilesLoaded(true)}
         mapboxAccessToken={mapboxAccessToken}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/streets-v12"
@@ -1331,26 +1327,6 @@ const TripMap = ({
         )}
 
       </Map>
-
-      {/* Skeleton overlay - fades out when map tiles and segments are ready */}
-      {(() => {
-        const isFullyReady = isMapTilesLoaded && (!tripId || hasFetchedInitial);
-        return (
-          <div
-            className={`absolute inset-0 z-30 pointer-events-none transition-opacity duration-500 ${
-              isFullyReady ? 'opacity-0' : 'opacity-100'
-            }`}
-            onTransitionEnd={(e) => {
-              // Remove from DOM after fade completes to avoid blocking interactions
-              if (e.propertyName === 'opacity' && isFullyReady) {
-                e.currentTarget.style.display = 'none';
-              }
-            }}
-          >
-            <MapSkeleton height="100%" />
-          </div>
-        );
-      })()}
 
       {/* Waypoint adding mode hint */}
       {addingWaypointMode && (

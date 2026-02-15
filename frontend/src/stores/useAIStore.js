@@ -2,15 +2,32 @@
  * AI Chat Store - Manages AI chat sessions and model selection
  *
  * Uses WebSocket for streaming responses and REST for session management.
+ * Persists conversations to localStorage for cross-session continuity.
  */
 
 import { create } from 'zustand';
 import usePOIStore from './usePOIStore';
 import useDestinationStore from './useDestinationStore';
 import useTripStore from './useTripStore';
+import {
+  saveConversation,
+  loadConversation,
+  listConversations,
+  deleteConversation as deleteConversationStorage,
+  getActiveConversationId,
+  setActiveConversationId,
+} from '../utils/conversationStorage';
 
 const ORCHESTRATOR_URL = import.meta.env.VITE_ORCHESTRATOR_URL || 'http://localhost:3001';
-const WS_URL = ORCHESTRATOR_URL.replace(/^http/, 'ws');
+
+// Build WebSocket URL — handles both absolute (http://...) and relative (/chat) paths
+let WS_URL;
+if (ORCHESTRATOR_URL.startsWith('http')) {
+  WS_URL = ORCHESTRATOR_URL.replace(/^http/, 'ws');
+} else {
+  const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  WS_URL = `${wsProto}//${window.location.host}${ORCHESTRATOR_URL}`;
+}
 const SETTINGS_KEY = 'travel-ruter-settings';
 
 // Tools that mutate data and require frontend store invalidation
@@ -38,6 +55,7 @@ const DEFAULT_AGENT_CONFIG = {
     calculate_budget: true,
   },
   externalTools: {
+    perplexity_search: true,
     web_search: true,
     weather_forecast: true,
     currency_conversion: true,
@@ -54,6 +72,7 @@ const DEFAULT_AGENT_CONFIG = {
  *   toolCalls?: Array<{ id, name, arguments }>,
  *   toolResults?: Array<{ toolCallId, content, isError }>,
  *   isStreaming?: boolean,
+ *   isContextChange?: boolean,  // Visual divider for destination switches
  * }
  */
 
@@ -82,6 +101,11 @@ const useAIStore = create((set, get) => ({
   isLoading: false,
   streamingMessageId: null,
 
+  // Conversation persistence
+  conversationId: null,
+  conversations: [],
+  showHistory: false,
+
   // Model selection
   models: [],
   selectedModelId: null,
@@ -102,6 +126,7 @@ const useAIStore = create((set, get) => ({
   _reconnectAttempts: 0,
   _reconnectTimer: null,
   _maxReconnectAttempts: 5,
+  _refetchTimer: null,
 
   // Actions
 
@@ -165,53 +190,332 @@ const useAIStore = create((set, get) => ({
 
   /**
    * Set rich destination context (POIs, accommodations, coordinates, dates).
-   * Resets sessionId when context changes so next message creates a fresh session.
+   * Instead of clearing messages, PATCHes the backend session context and
+   * inserts a visual divider so the user sees the switch inline.
    */
   setDestinationContext: (context) => {
-    const { sessionId } = get();
-    if (sessionId) {
-      set({ destinationContext: context, sessionId: null });
+    const { sessionId, tripContext, destinationContext: prev } = get();
+
+    // If no session yet, just store context
+    if (!sessionId) {
+      set({ destinationContext: context });
+      return;
+    }
+
+    // PATCH backend session context
+    const enrichedContext = tripContext
+      ? { ...tripContext, destination: context }
+      : { destination: context };
+
+    fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tripContext: enrichedContext }),
+    }).catch((err) => console.warn('Failed to PATCH session context:', err));
+
+    // Insert a visual divider message if destination actually changed
+    const prevName = prev?.name || prev?.city;
+    const newName = context?.name || context?.city;
+    if (prevName && newName && prevName !== newName) {
+      const divider = {
+        id: `ctx_${Date.now()}`,
+        role: 'system',
+        isContextChange: true,
+        content: newName,
+        timestamp: new Date(),
+      };
+      set((state) => ({
+        destinationContext: context,
+        messages: [...state.messages, divider],
+      }));
     } else {
       set({ destinationContext: context });
     }
   },
 
   /**
-   * Select a trip for the chat context
+   * Select a trip for the chat context.
+   * Auto-saves the current conversation and attempts to restore the
+   * most recent conversation for the target trip.
    */
-  selectTripForChat: (tripId, tripData = null) => {
+  selectTripForChat: async (tripId, tripData = null) => {
+    // Auto-save current conversation before switching
+    await get()._autoSaveConversation();
+
+    const chatMode = tripId ? 'existing' : 'new';
+
+    // Check if there's a saved conversation for this trip
+    const activeId = getActiveConversationId(tripId);
+    if (activeId) {
+      const saved = loadConversation(activeId);
+      if (saved) {
+        set({
+          selectedTripId: tripId,
+          tripContext: tripData,
+          chatMode,
+          conversationId: saved.id,
+          messages: saved.messages || [],
+          destinationContext: saved.destinationContext || null,
+          sessionId: null, // Will create new backend session on next message
+        });
+        get().loadConversationsList();
+        return;
+      }
+    }
+
+    // No saved conversation — start fresh
     set({
       selectedTripId: tripId,
       tripContext: tripData,
-      chatMode: tripId ? 'existing' : 'new',
-      messages: [], // Clear messages when switching trips
-      sessionId: null, // Reset session
+      chatMode,
+      messages: [],
+      sessionId: null,
+      conversationId: null,
     });
+    get().loadConversationsList();
   },
 
   /**
    * Start a new trip planning session (fresh start)
    */
   startNewTripChat: () => {
+    get()._autoSaveConversation();
     set({
       selectedTripId: null,
       tripContext: null,
       chatMode: 'new',
       messages: [],
       sessionId: null,
+      conversationId: null,
     });
   },
 
   /**
-   * Go back to trip selection
+   * Go back to trip selection — auto-save before leaving
    */
   backToTripSelection: () => {
+    get()._autoSaveConversation();
     set({
       chatMode: null,
-      messages: [],
-      sessionId: null,
+      showHistory: false,
     });
   },
+
+  // ---------------------------------------------------------------------------
+  // Conversation persistence actions
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Auto-save the current conversation to localStorage.
+   * Fetches backend history for AI memory continuity when available.
+   */
+  _autoSaveConversation: async () => {
+    const {
+      messages, sessionId, selectedTripId, selectedModelId,
+      tripContext, destinationContext,
+    } = get();
+
+    if (!messages.length) return;
+
+    const convId = get().conversationId || crypto.randomUUID();
+    if (!get().conversationId) {
+      set({ conversationId: convId });
+    }
+
+    // Fetch backend history for AI memory
+    let backendHistory = null;
+    if (sessionId) {
+      try {
+        const res = await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/history`);
+        if (res.ok) {
+          const data = await res.json();
+          backendHistory = data.messageHistory;
+        }
+      } catch {
+        // Non-critical — save without backend history
+      }
+    }
+
+    saveConversation({
+      id: convId,
+      tripId: selectedTripId,
+      messages,
+      backendHistory,
+      modelId: selectedModelId,
+      tripContext,
+      destinationContext,
+    });
+
+    setActiveConversationId(selectedTripId, convId);
+  },
+
+  /**
+   * Load a saved conversation by ID. Creates a new backend session
+   * with restored message history for AI memory continuity.
+   */
+  loadConversation: async (id) => {
+    const saved = loadConversation(id);
+    if (!saved) return;
+
+    set({
+      conversationId: saved.id,
+      messages: saved.messages || [],
+      destinationContext: saved.destinationContext || null,
+      sessionId: null,
+      showHistory: false,
+    });
+
+    // Create a new backend session pre-seeded with saved history
+    if (saved.backendHistory?.length) {
+      try {
+        const { selectedModelId, tripContext, destinationContext, agentConfig, chatMode } = get();
+        const enrichedContext = tripContext
+          ? { ...tripContext, ...(destinationContext && { destination: destinationContext }) }
+          : destinationContext ? { destination: destinationContext } : null;
+
+        const res = await fetch(`${ORCHESTRATOR_URL}/api/sessions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            modelId: selectedModelId,
+            tripContext: enrichedContext,
+            agentConfig: {
+              name: agentConfig.name,
+              systemPrompt: agentConfig.systemPrompt,
+              enabledTools: [
+                ...Object.entries(agentConfig.appTools || {}).filter(([, v]) => v).map(([k]) => k),
+                ...Object.entries(agentConfig.externalTools || {}).filter(([, v]) => v).map(([k]) => k),
+              ],
+            },
+            chatMode,
+            messageHistory: saved.backendHistory,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          set({ sessionId: data.sessionId, connectionError: null });
+        }
+      } catch (err) {
+        console.warn('Failed to restore backend session:', err);
+      }
+    }
+
+    setActiveConversationId(saved.tripId, saved.id);
+  },
+
+  /**
+   * Start a new conversation — saves current one first.
+   */
+  startNewConversation: async () => {
+    await get()._autoSaveConversation();
+    set({
+      messages: [],
+      sessionId: null,
+      conversationId: null,
+      showHistory: false,
+    });
+    get().loadConversationsList();
+  },
+
+  /**
+   * Load the conversation list for the current trip from localStorage.
+   */
+  loadConversationsList: () => {
+    const { selectedTripId } = get();
+    const list = listConversations(selectedTripId);
+    set({ conversations: list });
+  },
+
+  /**
+   * Toggle the history panel visibility.
+   */
+  toggleHistory: () => {
+    const { showHistory } = get();
+    if (!showHistory) {
+      get().loadConversationsList();
+    }
+    set({ showHistory: !showHistory });
+  },
+
+  /**
+   * Load a conversation from the selection screen (before chat mode is set).
+   * Restores chatMode, tripContext, and messages from the saved conversation.
+   */
+  loadConversationFromHistory: async (id) => {
+    const saved = loadConversation(id);
+    if (!saved) return;
+
+    const chatMode = saved.tripId ? 'existing' : 'new';
+
+    set({
+      conversationId: saved.id,
+      messages: saved.messages || [],
+      destinationContext: saved.destinationContext || null,
+      tripContext: saved.tripContext || null,
+      selectedTripId: saved.tripId || null,
+      chatMode,
+      sessionId: null,
+      showHistory: false,
+    });
+
+    // Create a new backend session pre-seeded with saved history
+    if (saved.backendHistory?.length) {
+      try {
+        const { selectedModelId, tripContext, destinationContext, agentConfig } = get();
+        const enrichedContext = tripContext
+          ? { ...tripContext, ...(destinationContext && { destination: destinationContext }) }
+          : destinationContext ? { destination: destinationContext } : null;
+
+        const res = await fetch(`${ORCHESTRATOR_URL}/api/sessions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            modelId: selectedModelId,
+            tripContext: enrichedContext,
+            agentConfig: {
+              name: agentConfig.name,
+              systemPrompt: agentConfig.systemPrompt,
+              enabledTools: [
+                ...Object.entries(agentConfig.appTools || {}).filter(([, v]) => v).map(([k]) => k),
+                ...Object.entries(agentConfig.externalTools || {}).filter(([, v]) => v).map(([k]) => k),
+              ],
+            },
+            chatMode,
+            messageHistory: saved.backendHistory,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          set({ sessionId: data.sessionId, connectionError: null });
+        }
+      } catch (err) {
+        console.warn('Failed to restore backend session:', err);
+      }
+    }
+
+    setActiveConversationId(saved.tripId, saved.id);
+    get().loadConversationsList();
+  },
+
+  /**
+   * Remove a conversation from localStorage and state.
+   */
+  removeConversation: (id) => {
+    deleteConversationStorage(id);
+
+    const { conversationId } = get();
+    if (conversationId === id) {
+      set({ messages: [], sessionId: null, conversationId: null });
+    }
+
+    get().loadConversationsList();
+  },
+
+  // ---------------------------------------------------------------------------
+  // Agent configuration
+  // ---------------------------------------------------------------------------
 
   /**
    * Update agent configuration
@@ -261,6 +565,10 @@ const useAIStore = create((set, get) => ({
     }
   },
 
+  // ---------------------------------------------------------------------------
+  // Session management
+  // ---------------------------------------------------------------------------
+
   /**
    * Create a new chat session
    */
@@ -294,9 +602,13 @@ const useAIStore = create((set, get) => ({
       if (!response.ok) throw new Error('Failed to create session');
 
       const data = await response.json();
+
+      // Assign a conversation ID if we don't have one yet
+      const convId = get().conversationId || crypto.randomUUID();
+
       set({
         sessionId: data.sessionId,
-        messages: [],
+        conversationId: convId,
         connectionError: null,
       });
 
@@ -307,6 +619,10 @@ const useAIStore = create((set, get) => ({
       throw error;
     }
   },
+
+  // ---------------------------------------------------------------------------
+  // WebSocket
+  // ---------------------------------------------------------------------------
 
   /**
    * Connect WebSocket for streaming with auto-reconnect
@@ -343,7 +659,9 @@ const useAIStore = create((set, get) => ({
           const delay = Math.min(1000 * Math.pow(2, _reconnectAttempts), 30000);
           console.log(`Reconnecting in ${delay}ms (attempt ${_reconnectAttempts + 1})`);
           const timer = setTimeout(() => {
-            set({ _reconnectAttempts: _reconnectAttempts + 1 });
+            const { chatMode, _reconnectAttempts: currentAttempts } = get();
+            if (!chatMode) return; // Don't reconnect if chat closed
+            set({ _reconnectAttempts: currentAttempts + 1 });
             get().connectWebSocket();
           }, delay);
           set({ _reconnectTimer: timer });
@@ -483,23 +801,34 @@ const useAIStore = create((set, get) => ({
           isLoading: false,
         }));
 
-        // Trigger refetches on affected stores
-        if (storesToRefresh.size > 0) {
-          const { selectedTripId, destinationContext } = get();
-          const destinationId = destinationContext?.id || destinationContext?.destinationId;
+        // Auto-save conversation after each completed exchange
+        setTimeout(() => get()._autoSaveConversation(), 500);
 
-          if (storesToRefresh.has('poi') && destinationId) {
-            usePOIStore.getState().fetchPOIsByDestination(destinationId);
+        // Trigger refetches on affected stores (debounced to batch multiple tool calls)
+        if (storesToRefresh.size > 0) {
+          // Clear any pending refetch timer
+          if (get()._refetchTimer) {
+            clearTimeout(get()._refetchTimer);
           }
-          if (storesToRefresh.has('destination') && selectedTripId) {
-            useDestinationStore.getState().fetchDestinations(selectedTripId);
-          }
-          if (storesToRefresh.has('trip')) {
-            useTripStore.getState().fetchTripsSummary();
-            if (selectedTripId) {
-              useTripStore.getState().fetchTripDetails(selectedTripId);
+          const timer = setTimeout(() => {
+            const { selectedTripId, destinationContext } = get();
+            const destinationId = destinationContext?.id || destinationContext?.destinationId;
+
+            if (storesToRefresh.has('poi') && destinationId) {
+              usePOIStore.getState().fetchPOIsByDestination(destinationId);
             }
-          }
+            if (storesToRefresh.has('destination') && selectedTripId) {
+              useDestinationStore.getState().fetchDestinations(selectedTripId);
+            }
+            if (storesToRefresh.has('trip')) {
+              useTripStore.getState().fetchTripsSummary();
+              if (selectedTripId) {
+                useTripStore.getState().fetchTripDetails(selectedTripId);
+              }
+            }
+            set({ _refetchTimer: null });
+          }, 300);
+          set({ _refetchTimer: timer });
         }
         break;
       }
@@ -612,13 +941,14 @@ const useAIStore = create((set, get) => ({
    * Clear chat history
    */
   clearMessages: () => {
-    set({ messages: [], sessionId: null });
+    set({ messages: [], sessionId: null, conversationId: null });
   },
 
   /**
-   * Disconnect and cleanup
+   * Disconnect and cleanup — auto-save before closing
    */
   disconnect: () => {
+    get()._autoSaveConversation();
     const { _ws, _reconnectTimer } = get();
     if (_reconnectTimer) {
       clearTimeout(_reconnectTimer);
@@ -692,6 +1022,9 @@ const useAIStore = create((set, get) => ({
         _messageIdCounter: state._messageIdCounter + 1,
         isLoading: false,
       }));
+
+      // Auto-save after sync message
+      setTimeout(() => get()._autoSaveConversation(), 500);
 
       return data.response;
     } catch (error) {

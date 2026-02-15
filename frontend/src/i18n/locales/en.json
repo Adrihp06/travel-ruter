@@ -218,7 +218,8 @@
       "dateFormat": "Date Format",
       "language": "Language",
       "theme": "Theme",
-      "export": "Export/Import"
+      "export": "Export/Import",
+      "apiKeys": "API Keys"
     },
     "profile": {
       "title": "Profile Settings",
@@ -693,6 +694,20 @@
     "searchingWeb": "Searching web...",
     "checkingWeather": "Checking weather...",
     "convertingCurrency": "Converting currency...",
+    "conversationHistory": "Conversation History",
+    "chatHistory": "Chat History",
+    "viewPastConversations": "View and resume past conversations",
+    "allConversations": "All your past conversations",
+    "justNow": "Just now",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago",
+    "newConversation": "New Conversation",
+    "noConversations": "No previous conversations",
+    "deleteConversation": "Delete conversation",
+    "nowViewing": "Now viewing: {{name}}",
+    "messagesCount": "{{count}} message",
+    "messagesCount_plural": "{{count}} messages",
     "tool": "Tool",
     "processing": "Processing...",
     "settings": {
@@ -732,6 +747,7 @@
       "providerOpenAI": "GPT-5.2 — Most advanced frontier model",
       "providerGemini": "Gemini 3 Flash (Vertex AI) — Frontier intelligence at lightning speed",
       "providerOllama": "Local models — Private, no API key needed",
+      "providerPerplexity": "Powers intelligent POI search with web-sourced travel recommendations",
       "addApiKeysHint": "Add your API keys above to enable each provider. You only need one active provider to use the AI assistant."
     },
     "agent": {
@@ -773,30 +789,30 @@
       },
       "toolNames": {
         "searchDestinations": "Search Destinations",
+        "destinationManagement": "Destination Management",
         "poiSuggestions": "POI Suggestions",
+        "poiManagement": "POI Management",
         "routeCalculator": "Route Calculator",
         "travelMatrix": "Travel Matrix",
         "tripManagement": "Trip Management",
-        "destinationManagement": "Destination Management",
-        "poiManagement": "POI Management",
-        "poiScheduler": "POI Scheduler",
         "smartScheduler": "Smart Scheduler",
         "budgetCalculator": "Budget Calculator",
+        "perplexitySearch": "Perplexity AI Search",
         "webSearch": "Web Search",
         "weatherForecast": "Weather Forecast",
         "currencyConversion": "Currency Conversion"
       },
-      "toolDescs": {
-        "searchDestinations": "Find and validate locations for your trip",
-        "poiSuggestions": "Discover attractions, restaurants, and activities",
-        "routeCalculator": "Calculate routes between destinations",
-        "travelMatrix": "Get travel times between multiple points",
+      "toolDescriptions": {
+        "searchDestinations": "Geocode and validate locations for your trip",
+        "destinationManagement": "Add, update, and remove destinations within trips",
+        "poiSuggestions": "Discover attractions, restaurants, and activities nearby",
+        "poiManagement": "Create, update, schedule, and manage points of interest",
+        "routeCalculator": "Calculate routes and directions between two points",
+        "travelMatrix": "Get travel times and distances between multiple points",
         "tripManagement": "Create, update, and manage your trips",
-        "destinationManagement": "Add, update, and manage destinations within trips",
-        "poiManagement": "Create, update, and manage points of interest",
-        "poiScheduler": "Assign POIs to specific dates and times",
-        "smartScheduler": "Auto-generate optimized daily schedules",
-        "budgetCalculator": "Estimate and track trip expenses",
+        "smartScheduler": "Auto-generate optimized daily itineraries",
+        "budgetCalculator": "Estimate costs and track trip expenses",
+        "perplexitySearch": "AI-powered search for curated POI recommendations from the web",
         "webSearch": "Search the web for travel information",
         "weatherForecast": "Get weather predictions for destinations",
         "currencyConversion": "Convert between currencies"
@@ -1095,6 +1111,70 @@
     "notYetScheduled": "Not yet scheduled",
     "highlightedOnMap": "{{count}} POI highlighted on map",
     "highlightedOnMap_plural": "{{count}} POIs highlighted on map"
+  },
+
+  "auth": {
+    "loginSubtitle": "Sign in to plan your trips",
+    "googleLogin": "Continue with Google",
+    "githubLogin": "Continue with GitHub",
+    "logout": "Log out",
+    "profile": "Profile"
+  },
+
+  "collaboration": {
+    "members": "Members",
+    "invite": "Invite",
+    "inviteMember": "Invite Member",
+    "emailPlaceholder": "Enter email address",
+    "role": "Role",
+    "owner": "Owner",
+    "editor": "Editor",
+    "viewer": "Viewer",
+    "pending": "Pending",
+    "accepted": "Accepted",
+    "accept": "Accept",
+    "reject": "Reject",
+    "removeMember": "Remove",
+    "online": "Online"
+  },
+
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "noNotifications": "No notifications",
+    "unread": "unread"
+  },
+
+  "activity": {
+    "title": "Activity",
+    "created": "created",
+    "updated": "updated",
+    "deleted": "deleted",
+    "noActivity": "No activity yet"
+  },
+
+  "comments": {
+    "title": "Comments",
+    "addComment": "Add a comment...",
+    "reply": "Reply",
+    "edit": "Edit",
+    "delete": "Delete",
+    "noComments": "No comments yet"
+  },
+
+  "apiKeys": {
+    "title": "API Keys",
+    "addKey": "Add Key",
+    "service": "Service",
+    "masked": "Masked",
+    "lastUsed": "Last used",
+    "delete": "Delete",
+    "saved": "Key saved"
+  },
+
+  "votes": {
+    "like": "Like",
+    "veto": "Veto"
   },
 
   "errors": {

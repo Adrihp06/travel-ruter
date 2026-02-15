@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
-import { Plus, MapPin, Calendar, Compass, TrendingUp } from 'lucide-react';
+import { Plus, MapPin, Calendar, Compass, TrendingUp, UserPlus } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
+import useAuthStore from '../stores/useAuthStore';
 import MacroMap from '../components/Map/MacroMap';
-import MapSkeleton from '../components/Map/MapSkeleton';
+import MapPlaceholder from '../components/Map/MapPlaceholder';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { DeleteTripDialog, UndoToast, TripCard, TripSearchFilter } from '../components/Trip';
 import TripCardSkeleton from '../components/Trip/TripCardSkeleton';
@@ -22,6 +23,7 @@ const GlobalTripView = () => {
     restoreTrip,
     confirmDeleteTrip,
     duplicateTrip,
+    claimTrip,
     isLoading,
     // Filter state and actions
     searchQuery,
@@ -36,6 +38,7 @@ const GlobalTripView = () => {
     getFilteredTrips,
     getActiveFiltersCount,
   } = useTripStore();
+  const { isAuthenticated } = useAuthStore();
 
   // Use tripsWithDestinations as the single source of truth
   const trips = tripsWithDestinations;
@@ -169,6 +172,14 @@ const GlobalTripView = () => {
     });
   }, []);
 
+  const handleClaimTrip = useCallback(async (tripId) => {
+    try {
+      await claimTrip(tripId);
+    } catch (error) {
+      console.error('Failed to claim trip:', error);
+    }
+  }, [claimTrip]);
+
   const handleExportTrip = useCallback((trip) => {
     // Export trip data as JSON
     const tripData = {
@@ -270,7 +281,7 @@ const GlobalTripView = () => {
         {/* Hero Section with Map - Skeleton */}
         <div className="relative">
           <div className="h-[500px] lg:h-[550px] relative">
-            <MapSkeleton height="100%" />
+            <MapPlaceholder height="100%" />
             {/* Bottom gradient only - less intrusive */}
             <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-stone-50 dark:from-stone-900 to-transparent pointer-events-none" />
           </div>
@@ -479,19 +490,29 @@ const GlobalTripView = () => {
                 {filteredTrips.map((trip) => {
                   const poiStats = getPOIStats(trip.id);
                   return (
-                    <TripCard
-                      key={trip.id}
-                      trip={trip}
-                      onEdit={handleEditTrip}
-                      onDelete={handleDeleteClick}
-                      onDuplicate={handleDuplicateClick}
-                      onStatusChange={handleStatusChange}
-                      onShare={handleShareTrip}
-                      onExport={handleExportTrip}
-                      destinationCount={getDestinationCount(trip.id)}
-                      totalPOIs={poiStats.total_pois}
-                      scheduledPOIs={poiStats.scheduled_pois}
-                    />
+                    <div key={trip.id} className="relative">
+                      <TripCard
+                        trip={trip}
+                        onEdit={handleEditTrip}
+                        onDelete={handleDeleteClick}
+                        onDuplicate={handleDuplicateClick}
+                        onStatusChange={handleStatusChange}
+                        onShare={handleShareTrip}
+                        onExport={handleExportTrip}
+                        destinationCount={getDestinationCount(trip.id)}
+                        totalPOIs={poiStats.total_pois}
+                        scheduledPOIs={poiStats.scheduled_pois}
+                      />
+                      {isAuthenticated && trip.user_id == null && (
+                        <button
+                          onClick={() => handleClaimTrip(trip.id)}
+                          className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg shadow-md transition-colors"
+                        >
+                          <UserPlus className="w-3.5 h-3.5" />
+                          Claim
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>

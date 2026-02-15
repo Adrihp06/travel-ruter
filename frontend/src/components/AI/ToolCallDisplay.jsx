@@ -190,6 +190,7 @@ const formatArguments = (args) => {
 const ToolCallItem = ({ toolCall, isStreaming, result, isError }) => {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showFullResult, setShowFullResult] = useState(false);
 
   const toolInfo = TOOL_INFO[toolCall.name] || { ...DEFAULT_TOOL, nameKey: toolCall.name };
   const Icon = toolInfo.icon;
@@ -285,12 +286,21 @@ const ToolCallItem = ({ toolCall, isStreaming, result, isError }) => {
           {result && (
             <div>
               <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('ai.result')}</p>
-              <pre className="text-xs bg-white/60 dark:bg-gray-800/60 rounded p-2 overflow-x-auto max-h-32 text-gray-700 dark:text-gray-300">
-                {typeof result === 'string'
-                  ? result.slice(0, 500) + (result.length > 500 ? '...' : '')
-                  : JSON.stringify(result, null, 2).slice(0, 500)
-                }
+              <pre className="text-xs bg-white/60 dark:bg-gray-800/60 rounded p-2 overflow-x-auto max-h-48 text-gray-700 dark:text-gray-300">
+                {(() => {
+                  const text = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+                  if (text.length <= 500 || showFullResult) return text;
+                  return text.slice(0, 500) + '...';
+                })()}
               </pre>
+              {((typeof result === 'string' ? result : JSON.stringify(result, null, 2)).length > 500) && (
+                <button
+                  onClick={() => setShowFullResult(!showFullResult)}
+                  className="mt-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  {showFullResult ? (t('ai.showLess') || 'Show less') : (t('ai.showMore') || 'Show more')}
+                </button>
+              )}
             </div>
           )}
         </div>

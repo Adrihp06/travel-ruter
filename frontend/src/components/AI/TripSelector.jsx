@@ -3,20 +3,23 @@
  * Shows list of existing trips or option to start fresh
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Plus, Calendar } from 'lucide-react';
+import { MapPin, Plus, Calendar, Clock, MessageSquare, Trash2, ArrowLeft } from 'lucide-react';
 import RightChevron from '@/components/icons/right-chevron';
 import AirplaneIcon from '@/components/icons/airplane-icon';
 import SparklesIcon from '@/components/icons/sparkles-icon';
 import GlobeIcon from '@/components/icons/globe-icon';
 import useTripStore from '../../stores/useTripStore';
 import useAIStore from '../../stores/useAIStore';
+import { listConversations } from '../../utils/conversationStorage';
 
 const TripSelector = () => {
   const { t } = useTranslation();
   const { tripsWithDestinations, fetchTripsSummary, isLoading } = useTripStore();
-  const { selectTripForChat, startNewTripChat, agentConfig } = useAIStore();
+  const { selectTripForChat, startNewTripChat, agentConfig, loadConversationFromHistory, removeConversation } = useAIStore();
+  const [showChatHistory, setShowChatHistory] = useState(false);
+  const [allConversations, setAllConversations] = useState([]);
 
   // Fetch trips on mount
   useEffect(() => {
@@ -73,6 +76,121 @@ const TripSelector = () => {
     return null;
   };
 
+  const handleShowHistory = () => {
+    const convs = listConversations();
+    setAllConversations(convs);
+    setShowChatHistory(true);
+  };
+
+  const handleSelectConversation = (conv) => {
+    loadConversationFromHistory(conv.id);
+  };
+
+  const handleDeleteConversation = (e, conv) => {
+    e.stopPropagation();
+    removeConversation(conv.id);
+    setAllConversations((prev) => prev.filter((c) => c.id !== conv.id));
+  };
+
+  const formatTimeAgo = (dateStr) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return t('ai.justNow');
+    if (diffMins < 60) return t('ai.minutesAgo', { count: diffMins });
+    if (diffHours < 24) return t('ai.hoursAgo', { count: diffHours });
+    if (diffDays < 7) return t('ai.daysAgo', { count: diffDays });
+    return date.toLocaleDateString();
+  };
+
+  // Chat History View
+  if (showChatHistory) {
+    return (
+      <div className="h-full flex flex-col">
+        {/* History Header */}
+        <div className="px-4 pt-4 pb-3">
+          <button
+            onClick={() => setShowChatHistory(false)}
+            className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors mb-3"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            {t('common.back')}
+          </button>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#D97706]/10 flex items-center justify-center">
+              <Clock className="w-5 h-5 text-[#D97706]" />
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t('ai.chatHistory')}
+              </h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {t('ai.allConversations')}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Conversation List */}
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          {allConversations.length === 0 ? (
+            <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+              <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-4">
+                <MessageSquare className="w-8 h-8 text-gray-300 dark:text-gray-600" />
+              </div>
+              <p className="font-medium text-gray-600 dark:text-gray-300">{t('ai.noConversations')}</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {allConversations.map((conv) => (
+                <button
+                  key={conv.id}
+                  onClick={() => handleSelectConversation(conv)}
+                  className="w-full group flex items-start gap-3 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-[#D97706]/50 dark:hover:border-[#D97706]/50 hover:shadow-md transition-all text-left"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center flex-shrink-0">
+                    <MessageSquare className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {conv.title}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {t('ai.messagesCount', { count: conv.messageCount })}
+                      </span>
+                      <span className="text-gray-300 dark:text-gray-600">·</span>
+                      <span className="text-xs text-gray-400 dark:text-gray-500">
+                        {formatTimeAgo(conv.updatedAt)}
+                      </span>
+                    </div>
+                    {conv.tripId && conv.tripContext?.name && (
+                      <div className="flex items-center gap-1 mt-1">
+                        <MapPin className="w-3 h-3 text-[#D97706]" />
+                        <span className="text-[11px] text-[#D97706]">{conv.tripContext.name}</span>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={(e) => handleDeleteConversation(e, conv)}
+                    className="p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-all flex-shrink-0"
+                    title={t('ai.deleteConversation')}
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                  </button>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
@@ -102,6 +220,23 @@ const TripSelector = () => {
             <p className="text-sm text-gray-500 dark:text-gray-400">{t('ai.startFresh')}</p>
           </div>
           <RightChevron className="w-5 h-5 text-gray-400 group-hover:text-[#D97706] group-hover:translate-x-0.5 transition-all" />
+        </button>
+      </div>
+
+      {/* Chat History Button */}
+      <div className="px-4 pb-3">
+        <button
+          onClick={handleShowHistory}
+          className="w-full flex items-center p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-[#D97706]/50 dark:hover:border-[#D97706]/50 hover:shadow-md transition-all group"
+        >
+          <div className="w-10 h-10 rounded-lg bg-[#D97706]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[#D97706]/20 transition-colors">
+            <Clock className="w-5 h-5 text-[#D97706]" />
+          </div>
+          <div className="ml-3 text-left flex-1">
+            <p className="font-medium text-gray-900 dark:text-white text-sm">{t('ai.chatHistory')}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('ai.viewPastConversations')}</p>
+          </div>
+          <RightChevron className="w-5 h-5 text-gray-300 dark:text-gray-600 group-hover:text-[#D97706] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
         </button>
       </div>
 

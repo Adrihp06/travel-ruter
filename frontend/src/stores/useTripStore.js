@@ -1,7 +1,20 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/shallow';
+import useAuthStore from './useAuthStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
+// Authenticated fetch helper — injects Bearer token when available
+const authFetch = (url, options = {}) => {
+  const token = useAuthStore.getState().getToken();
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+};
 
 // Helper to get trip status priority for default sorting
 // Order: ongoing/in progress > planning/upcoming > completed
@@ -227,7 +240,7 @@ const useTripStore = create((set, get) => ({
   fetchTrips: async () => {
     set({ isLoading: true });
     try {
-      const response = await fetch(`${API_BASE_URL}/trips`);
+      const response = await authFetch(`${API_BASE_URL}/trips`);
       if (!response.ok) throw new Error('Failed to fetch trips');
       const trips = await response.json();
       // Fetch destinations for all trips, then update single source of truth
@@ -251,7 +264,7 @@ const useTripStore = create((set, get) => ({
   fetchTripsSummary: async () => {
     set({ isLoading: true });
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/summary`);
+      const response = await authFetch(`${API_BASE_URL}/trips/summary`);
       if (!response.ok) throw new Error('Failed to fetch trips summary');
       const data = await response.json();
 
@@ -280,8 +293,8 @@ const useTripStore = create((set, get) => ({
           try {
             // Fetch destinations and POI stats in parallel
             const [destResponse, statsResponse] = await Promise.all([
-              fetch(`${API_BASE_URL}/trips/${trip.id}/destinations`),
-              fetch(`${API_BASE_URL}/trips/${trip.id}/poi-stats`)
+              authFetch(`${API_BASE_URL}/trips/${trip.id}/destinations`),
+              authFetch(`${API_BASE_URL}/trips/${trip.id}/poi-stats`)
             ]);
             const destData = destResponse.ok ? await destResponse.json() : { items: [] };
             const destinations = destData.items || [];
@@ -309,8 +322,8 @@ const useTripStore = create((set, get) => ({
     try {
       // Fetch trip details and destinations in parallel
       const [tripResponse, destinationsResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/trips/${tripId}`),
-        fetch(`${API_BASE_URL}/trips/${tripId}/destinations`)
+        authFetch(`${API_BASE_URL}/trips/${tripId}`),
+        authFetch(`${API_BASE_URL}/trips/${tripId}/destinations`)
       ]);
 
       if (!tripResponse.ok) throw new Error('Failed to fetch trip details');
@@ -352,7 +365,7 @@ const useTripStore = create((set, get) => ({
   fetchTripBudget: async (tripId) => {
     set({ isBudgetLoading: true });
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}/budget`);
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/budget`);
       if (!response.ok) throw new Error('Failed to fetch budget');
       const budget = await response.json();
       set({ budget, isBudgetLoading: false });
@@ -375,7 +388,7 @@ const useTripStore = create((set, get) => ({
   createTrip: async (tripData) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/trips`, {
+      const response = await authFetch(`${API_BASE_URL}/trips`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tripData),
@@ -414,7 +427,7 @@ const useTripStore = create((set, get) => ({
   updateTrip: async (tripId, tripData) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}`, {
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tripData),
@@ -448,7 +461,7 @@ const useTripStore = create((set, get) => ({
   deleteTrip: async (tripId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}`, {
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}`, {
         method: 'DELETE',
       });
 
@@ -500,7 +513,7 @@ const useTripStore = create((set, get) => ({
   confirmDeleteTrip: async (tripId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}`, {
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}`, {
         method: 'DELETE',
       });
 
@@ -524,7 +537,7 @@ const useTripStore = create((set, get) => ({
   duplicateTrip: async (tripId, duplicateOptions) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}/duplicate`, {
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/duplicate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(duplicateOptions),
@@ -543,8 +556,8 @@ const useTripStore = create((set, get) => ({
       let poiStats = { total_pois: 0, scheduled_pois: 0 };
       try {
         const [destResponse, statsResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/trips/${newTrip.id}/destinations`),
-          fetch(`${API_BASE_URL}/trips/${newTrip.id}/poi-stats`)
+          authFetch(`${API_BASE_URL}/trips/${newTrip.id}/destinations`),
+          authFetch(`${API_BASE_URL}/trips/${newTrip.id}/poi-stats`)
         ]);
         destinations = destResponse.ok ? await destResponse.json() : [];
         poiStats = statsResponse.ok ? await statsResponse.json() : { total_pois: 0, scheduled_pois: 0 };
@@ -572,6 +585,24 @@ const useTripStore = create((set, get) => ({
       set({ error: message, isLoading: false });
       throw new Error(message);
     }
+  },
+
+  // Claim an orphan trip (assign to current user)
+  claimTrip: async (tripId) => {
+    const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/claim`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to claim trip');
+    }
+    const claimed = await response.json();
+    set((state) => ({
+      tripsWithDestinations: state.tripsWithDestinations.map((t) =>
+        t.id === tripId ? { ...t, user_id: claimed.user_id } : t
+      ),
+    }));
+    return claimed;
   },
 
   // Get destination count for a trip

@@ -7,6 +7,7 @@ import Map, {
 } from 'react-map-gl';
 import { MapPin } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
+import MapPlaceholder from './MapPlaceholder';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 /**
@@ -139,12 +140,13 @@ const DestinationMap = ({
 
   if (!viewState) {
     return (
-      <div
-        className={`flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg ${className}`}
-        style={{ height }}
-      >
-        <p className="text-gray-400 dark:text-gray-500 text-sm">Loading map...</p>
-      </div>
+      <MapPlaceholder
+        longitude={coords?.lng}
+        latitude={coords?.lat}
+        zoom={zoom}
+        height={height}
+        className={`rounded-lg ${className}`}
+      />
     );
   }
 

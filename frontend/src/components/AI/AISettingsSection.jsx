@@ -14,7 +14,11 @@ import EyeOffIcon from '@/components/icons/eye-off-icon';
 import ExternalLinkIcon from '@/components/icons/external-link-icon';
 import useAIStore from '../../stores/useAIStore';
 
-const ORCHESTRATOR_URL = import.meta.env.VITE_ORCHESTRATOR_URL || 'http://localhost:3001';
+const _RAW_ORCHESTRATOR_URL = import.meta.env.VITE_ORCHESTRATOR_URL || 'http://localhost:3001';
+// Resolve relative paths (e.g. "/chat") to an absolute URL for fetch calls
+const ORCHESTRATOR_URL = _RAW_ORCHESTRATOR_URL.startsWith('http')
+  ? _RAW_ORCHESTRATOR_URL
+  : `${window.location.origin}${_RAW_ORCHESTRATOR_URL}`;
 
 // Provider configurations
 const PROVIDERS = [
@@ -38,13 +42,22 @@ const PROVIDERS = [
   },
   {
     id: 'google',
-    name: 'Google (Gemini via Vertex AI)',
-    envKey: 'GOOGLE_CLOUD_PROJECT',
-    keyPrefix: '',
-    getKeyUrl: 'https://console.cloud.google.com',
+    name: 'Google (Gemini)',
+    envKey: 'GOOGLE_API_KEY',
+    keyPrefix: 'AIza',
+    getKeyUrl: 'https://aistudio.google.com/apikey',
     models: ['Gemini 3 Flash', 'Gemini 3 Pro', 'Gemini 2.5 Pro', 'Gemini 2.5 Flash'],
     color: 'blue',
-    isProjectId: true,
+  },
+  {
+    id: 'perplexity',
+    name: 'Perplexity AI (POI Search)',
+    envKey: 'PERPLEXITY_API_KEY',
+    keyPrefix: 'pplx-',
+    getKeyUrl: 'https://www.perplexity.ai/settings/api',
+    models: ['Sonar', 'Sonar Pro'],
+    color: 'purple',
+    description: 'Used for intelligent POI discovery. When configured, the AI assistant uses Perplexity to find curated points of interest.',
   },
 ];
 
@@ -274,12 +287,18 @@ const AISettingsSection = ({ settings, updateSetting }) => {
                   <span className={`px-2 py-1 text-xs rounded-full ${
                     provider.color === 'orange' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
                     provider.color === 'green' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                    provider.color === 'purple' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
                     'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                   }`}>
                     {t('ai.settings.configured')}
                   </span>
                 )}
               </div>
+              {provider.description && (
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  {provider.description}
+                </p>
+              )}
               {provider.isProjectId && (
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                   Requires <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">gcloud auth application-default login</code> for authentication.
@@ -460,6 +479,7 @@ const AISettingsSection = ({ settings, updateSetting }) => {
           <li><strong>OpenAI:</strong> {t('ai.settings.providerOpenAI')}</li>
           <li><strong>Gemini:</strong> {t('ai.settings.providerGemini')}</li>
           <li><strong>Ollama:</strong> {t('ai.settings.providerOllama')}</li>
+          <li><strong>Perplexity:</strong> {t('ai.settings.providerPerplexity', 'Powers intelligent POI search with web-sourced travel recommendations')}</li>
         </ul>
         <p className="mt-3 text-xs text-blue-600 dark:text-blue-400">
           {t('ai.settings.addApiKeysHint')}

@@ -16,6 +16,9 @@ import {
   Cloud,
   ChevronDown,
   ChevronUp,
+  Map,
+  ListChecks,
+  Compass,
 } from 'lucide-react';
 import GlobeIcon from '@/components/icons/globe-icon';
 import MagnifierIcon from '@/components/icons/magnifier-icon';
@@ -24,7 +27,7 @@ import RefreshIcon from '@/components/icons/refresh-icon';
 import InfoCircleIcon from '@/components/icons/info-circle-icon';
 import useAIStore from '../../stores/useAIStore';
 
-// App tools configuration
+// App tools configuration — must match MCP server tools in mcp_server/tools/
 const APP_TOOLS = [
   {
     id: 'search_destinations',
@@ -33,10 +36,22 @@ const APP_TOOLS = [
     icon: MagnifierIcon,
   },
   {
+    id: 'manage_destination',
+    nameKey: 'ai.agent.toolNames.destinationManagement',
+    descriptionKey: 'ai.agent.toolDescriptions.destinationManagement',
+    icon: Map,
+  },
+  {
     id: 'get_poi_suggestions',
     nameKey: 'ai.agent.toolNames.poiSuggestions',
     descriptionKey: 'ai.agent.toolDescriptions.poiSuggestions',
     icon: MapPin,
+  },
+  {
+    id: 'manage_poi',
+    nameKey: 'ai.agent.toolNames.poiManagement',
+    descriptionKey: 'ai.agent.toolDescriptions.poiManagement',
+    icon: ListChecks,
   },
   {
     id: 'calculate_route',
@@ -48,7 +63,7 @@ const APP_TOOLS = [
     id: 'get_travel_matrix',
     nameKey: 'ai.agent.toolNames.travelMatrix',
     descriptionKey: 'ai.agent.toolDescriptions.travelMatrix',
-    icon: Calendar,
+    icon: Compass,
   },
   {
     id: 'manage_trip',
@@ -72,6 +87,12 @@ const APP_TOOLS = [
 
 // External tools configuration
 const EXTERNAL_TOOLS = [
+  {
+    id: 'perplexity_search',
+    nameKey: 'ai.agent.toolNames.perplexitySearch',
+    descriptionKey: 'ai.agent.toolDescriptions.perplexitySearch',
+    icon: MagnifierIcon,
+  },
   {
     id: 'web_search',
     nameKey: 'ai.agent.toolNames.webSearch',

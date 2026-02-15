@@ -218,7 +218,8 @@
       "dateFormat": "Formato de fecha",
       "language": "Idioma",
       "theme": "Tema",
-      "export": "Exportar/Importar"
+      "export": "Exportar/Importar",
+      "apiKeys": "Claves API"
     },
     "profile": {
       "title": "Ajustes de perfil",
@@ -693,6 +694,20 @@
     "searchingWeb": "Buscando en la web...",
     "checkingWeather": "Consultando el clima...",
     "convertingCurrency": "Convirtiendo moneda...",
+    "conversationHistory": "Historial de conversaciones",
+    "chatHistory": "Historial de chats",
+    "viewPastConversations": "Ver y retomar conversaciones anteriores",
+    "allConversations": "Todas tus conversaciones anteriores",
+    "justNow": "Ahora mismo",
+    "minutesAgo": "Hace {{count}}m",
+    "hoursAgo": "Hace {{count}}h",
+    "daysAgo": "Hace {{count}}d",
+    "newConversation": "Nueva conversación",
+    "noConversations": "Sin conversaciones anteriores",
+    "deleteConversation": "Eliminar conversación",
+    "nowViewing": "Viendo ahora: {{name}}",
+    "messagesCount": "{{count}} mensaje",
+    "messagesCount_plural": "{{count}} mensajes",
     "tool": "Herramienta",
     "processing": "Procesando...",
     "settings": {
@@ -732,6 +747,7 @@
       "providerOpenAI": "GPT-5.2 — El modelo frontera más avanzado",
       "providerGemini": "Gemini 3 Flash (Vertex AI) — Inteligencia frontera a velocidad relámpago",
       "providerOllama": "Modelos locales — Privados, sin necesidad de clave API",
+      "providerPerplexity": "Impulsa la búsqueda inteligente de POIs con recomendaciones de viajes obtenidas de la web",
       "addApiKeysHint": "Añade tus claves API arriba para habilitar cada proveedor. Solo necesitas un proveedor activo para usar el asistente IA."
     },
     "agent": {
@@ -773,30 +789,30 @@
       },
       "toolNames": {
         "searchDestinations": "Buscar destinos",
+        "destinationManagement": "Gestión de destinos",
         "poiSuggestions": "Sugerencias de POIs",
+        "poiManagement": "Gestión de POIs",
         "routeCalculator": "Calculador de rutas",
         "travelMatrix": "Matriz de viaje",
         "tripManagement": "Gestión de viajes",
-        "destinationManagement": "Gestión de destinos",
-        "poiManagement": "Gestión de POIs",
-        "poiScheduler": "Programador de POIs",
         "smartScheduler": "Programador inteligente",
         "budgetCalculator": "Calculador de presupuesto",
+        "perplexitySearch": "Búsqueda Perplexity AI",
         "webSearch": "Búsqueda web",
         "weatherForecast": "Pronóstico del tiempo",
         "currencyConversion": "Conversión de moneda"
       },
-      "toolDescs": {
-        "searchDestinations": "Buscar y validar ubicaciones para tu viaje",
-        "poiSuggestions": "Descubrir atracciones, restaurantes y actividades",
-        "routeCalculator": "Calcular rutas entre destinos",
-        "travelMatrix": "Obtener tiempos de viaje entre múltiples puntos",
+      "toolDescriptions": {
+        "searchDestinations": "Geocodificar y validar ubicaciones para tu viaje",
+        "destinationManagement": "Añadir, actualizar y eliminar destinos dentro de viajes",
+        "poiSuggestions": "Descubrir atracciones, restaurantes y actividades cercanas",
+        "poiManagement": "Crear, actualizar, programar y gestionar puntos de interés",
+        "routeCalculator": "Calcular rutas y direcciones entre dos puntos",
+        "travelMatrix": "Obtener tiempos y distancias de viaje entre múltiples puntos",
         "tripManagement": "Crear, actualizar y gestionar tus viajes",
-        "destinationManagement": "Añadir, actualizar y gestionar destinos dentro de viajes",
-        "poiManagement": "Crear, actualizar y gestionar puntos de interés",
-        "poiScheduler": "Asignar POIs a fechas y horarios específicos",
-        "smartScheduler": "Generar horarios diarios optimizados automáticamente",
-        "budgetCalculator": "Estimar y rastrear gastos del viaje",
+        "smartScheduler": "Generar itinerarios diarios optimizados automáticamente",
+        "budgetCalculator": "Estimar costos y rastrear gastos del viaje",
+        "perplexitySearch": "Búsqueda inteligente de POIs con recomendaciones curadas de la web",
         "webSearch": "Buscar información de viajes en la web",
         "weatherForecast": "Obtener pronósticos del tiempo para destinos",
         "currencyConversion": "Convertir entre monedas"
@@ -1099,11 +1115,75 @@
     "highlightedOnMap_plural": "{{count}} POIs resaltados en el mapa"
   },
 
+  "auth": {
+    "loginSubtitle": "Inicia sesión para planificar tus viajes",
+    "googleLogin": "Continuar con Google",
+    "githubLogin": "Continuar con GitHub",
+    "logout": "Cerrar sesión",
+    "profile": "Perfil"
+  },
+
+  "collaboration": {
+    "members": "Miembros",
+    "invite": "Invitar",
+    "inviteMember": "Invitar miembro",
+    "emailPlaceholder": "Ingresa el correo electrónico",
+    "role": "Rol",
+    "owner": "Propietario",
+    "editor": "Editor",
+    "viewer": "Visor",
+    "pending": "Pendiente",
+    "accepted": "Aceptado",
+    "accept": "Aceptar",
+    "reject": "Rechazar",
+    "removeMember": "Eliminar",
+    "online": "En línea"
+  },
+
+  "notifications": {
+    "title": "Notificaciones",
+    "markAllRead": "Marcar todo como leído",
+    "noNotifications": "Sin notificaciones",
+    "unread": "sin leer"
+  },
+
+  "activity": {
+    "title": "Actividad",
+    "created": "creó",
+    "updated": "actualizó",
+    "deleted": "eliminó",
+    "noActivity": "Sin actividad aún"
+  },
+
+  "comments": {
+    "title": "Comentarios",
+    "addComment": "Añadir un comentario...",
+    "reply": "Responder",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "noComments": "Sin comentarios aún"
+  },
+
+  "apiKeys": {
+    "title": "Claves API",
+    "addKey": "Añadir clave",
+    "service": "Servicio",
+    "masked": "Enmascarada",
+    "lastUsed": "Último uso",
+    "delete": "Eliminar",
+    "saved": "Clave guardada"
+  },
+
+  "votes": {
+    "like": "Me gusta",
+    "veto": "Veto"
+  },
+
   "errors": {
-    "somethingWentWrong": "Algo sali\u00f3 mal",
-    "unexpectedError": "Lo sentimos, ocurri\u00f3 algo inesperado. Por favor int\u00e9ntalo de nuevo.",
+    "somethingWentWrong": "Algo salió mal",
+    "unexpectedError": "Lo sentimos, ocurrió algo inesperado. Por favor inténtalo de nuevo.",
     "errorDetails": "Detalles del error",
-    "networkError": "Error de red. Por favor verifica tu conexi\u00f3n.",
+    "networkError": "Error de red. Por favor verifica tu conexión.",
     "notFound": "No encontrado",
     "unauthorized": "No autorizado",
     "serverError": "Error del servidor",

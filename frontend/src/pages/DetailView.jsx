@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, Users, Activity } from 'lucide-react';
 import XIcon from '@/components/icons/x-icon';
 import PenIcon from '@/components/icons/pen-icon';
 import useTripStore from '../stores/useTripStore';
@@ -11,6 +11,12 @@ import useDestinationStore from '../stores/useDestinationStore';
 import useAccommodationStore from '../stores/useAccommodationStore';
 import useNoteStore from '../stores/useNoteStore';
 import useAIStore from '../stores/useAIStore';
+import useAuthStore from '../stores/useAuthStore';
+import PresenceBar from '../components/Collaboration/PresenceBar';
+import TripMemberList from '../components/Collaboration/TripMemberList';
+import InviteMemberModal from '../components/Collaboration/InviteMemberModal';
+import ActivityFeed from '../components/Activity/ActivityFeed';
+import CommentThread from '../components/Comments/CommentThread';
 import { DestinationFormModal } from '../components/Destination';
 import { AccommodationFormModal, AccommodationList, AccommodationTimeline } from '../components/Accommodation';
 import { formatDateWithWeekday, parseDateString } from '../utils/dateFormat';
@@ -36,7 +42,7 @@ import DailyItinerary from '../components/Itinerary/DailyItinerary';
 import { MicroMap } from '../components/Map';
 import Skeleton from '../components/UI/Skeleton';
 import DestinationTimelineSkeleton from '../components/Itinerary/DestinationTimelineSkeleton';
-import MapSkeleton from '../components/Map/MapSkeleton';
+import MapPlaceholder from '../components/Map/MapPlaceholder';
 import DailyItinerarySkeleton from '../components/Itinerary/DailyItinerarySkeleton';
 import Spinner from '../components/UI/Spinner';
 
@@ -137,25 +143,12 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location, isSaving }) => {
           </button>
         </div>
 
-        {/* Location info from reverse geocoding */}
-        {location && (
+        {/* Location info - shown only when resolved */}
+        {location && locationInfo && (
           <div className="px-4 pt-4">
-            <div className="bg-amber-50 dark:bg-amber-900/30 text-[#D97706] dark:text-amber-300 p-3 rounded-lg text-sm">
-              {isLoadingLocation ? (
-                <span className="flex items-center">
-                  <span className="animate-pulse mr-2">...</span> {t('destinations.lookingUpLocation')}
-                </span>
-              ) : locationInfo ? (
-                <div>
-                  <p className="font-medium">{locationInfo.display_name}</p>
-                  <p className="text-xs text-[#D97706]/70 dark:text-amber-400 mt-1">
-                    {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
-                  </p>
-                </div>
-              ) : (
-                <p>{location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</p>
-              )}
-            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {locationInfo.display_name} · {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+            </p>
           </div>
         )}
 
@@ -492,25 +485,12 @@ const TripMapPOIModal = ({ isOpen, onClose, onSubmit, location, destinations = [
           </button>
         </div>
 
-        {/* Location info from reverse geocoding */}
-        {location && (
+        {/* Location info - shown only when resolved */}
+        {location && locationInfo && (
           <div className="px-4 pt-4">
-            <div className="bg-amber-50 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-300 p-3 rounded-lg text-sm">
-              {isLoadingLocation ? (
-                <span className="flex items-center">
-                  <span className="animate-pulse mr-2">...</span> {t('destinations.lookingUpLocation')}
-                </span>
-              ) : locationInfo ? (
-                <div>
-                  <p className="font-medium">{locationInfo.display_name}</p>
-                  <p className="text-xs text-[#D97706]/60 dark:text-amber-400/60 mt-1">
-                    {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
-                  </p>
-                </div>
-              ) : (
-                <p>{location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</p>
-              )}
-            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {locationInfo.display_name} · {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+            </p>
           </div>
         )}
 
@@ -668,6 +648,7 @@ const DetailViewContent = () => {
   const { accommodations, accommodationsByDestination, fetchAccommodations, fetchAccommodationsForTrip, deleteAccommodation, isLoading: isAccLoading } = useAccommodationStore();
   const { noteStats, fetchNoteStats } = useNoteStore();
   const setDestinationContext = useAIStore(state => state.setDestinationContext);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { isSidebarVisible, isVaultVisible, isCalendarVisible, isJournalVisible, toggleSidebar, toggleVault, toggleCalendar, toggleJournal } = useItineraryUI();
 
   // State
@@ -695,6 +676,11 @@ const DetailViewContent = () => {
   // Note form modal state (for quick-add from daily schedule)
   const [showNoteFormModal, setShowNoteFormModal] = useState(false);
   const [noteFormPreFill, setNoteFormPreFill] = useState(null);
+
+  // Collaboration & Activity panel state
+  const [showMembersPanel, setShowMembersPanel] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showActivityPanel, setShowActivityPanel] = useState(false);
 
   // Derived state
   const viewLevel = selectedDestinationId ? 2 : 1;
@@ -1082,7 +1068,7 @@ const DetailViewContent = () => {
          <div className="flex flex-1 overflow-hidden">
              <DestinationTimelineSkeleton />
              <div className="flex-1 relative p-4">
-                <MapSkeleton className="h-full rounded-xl shadow-inner border border-gray-200 dark:border-gray-700" />
+                <MapPlaceholder className="h-full rounded-xl shadow-inner border border-gray-200 dark:border-gray-700" />
              </div>
          </div>
       </div>
@@ -1109,8 +1095,29 @@ const DetailViewContent = () => {
           </div>
         </div>
 
-        {/* Right: Journal, Calendar & Vault Toggles */}
+        {/* Right: Collaboration, Activity, Journal, Calendar & Vault Toggles */}
         <div className="flex items-center gap-2">
+          {isAuthenticated && <PresenceBar />}
+          {isAuthenticated && (
+            <button
+              onClick={() => setShowMembersPanel(prev => !prev)}
+              className={`p-2 rounded-lg transition-colors ${showMembersPanel ? 'bg-amber-50 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+              aria-label={t('collaboration.members')}
+              title={t('collaboration.members')}
+            >
+              <Users className="w-5 h-5" />
+            </button>
+          )}
+          {isAuthenticated && (
+            <button
+              onClick={() => setShowActivityPanel(prev => !prev)}
+              className={`p-2 rounded-lg transition-colors ${showActivityPanel ? 'bg-amber-50 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+              aria-label={t('activity.title')}
+              title={t('activity.title')}
+            >
+              <Activity className="w-5 h-5" />
+            </button>
+          )}
           <JournalToggle onClick={toggleJournal} noteCount={noteStats?.total_notes || 0} />
           <CalendarViewToggle onClick={toggleCalendar} isActive={isCalendarVisible} />
           <VaultToggle onClick={toggleVault} documentCount={documents?.length || 0} />
@@ -1209,8 +1216,8 @@ const DetailViewContent = () => {
               returnPoint={returnPoint}
             />
           ) : !isMapReady ? (
-            // Only show skeleton if we don't have destination coordinates yet
-            <MapSkeleton height="100%" />
+            // Only show placeholder if we don't have destination coordinates yet
+            <MapPlaceholder height="100%" />
           ) : (
             // Map renders immediately, data loads progressively
             <div className="relative h-full">
@@ -1266,6 +1273,64 @@ const DetailViewContent = () => {
         pois={pois}
         isOpen={isJournalVisible}
         onClose={toggleJournal}
+      />
+
+      {/* Members Panel */}
+      {showMembersPanel && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowMembersPanel(false)} />
+          <div className="absolute right-0 top-0 h-full w-80 bg-white dark:bg-gray-800 shadow-2xl transform transition-transform duration-200 ease-in-out overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('collaboration.members')}</h2>
+              <button
+                onClick={() => setShowMembersPanel(false)}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+              >
+                <XIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <TripMemberList tripId={Number(id)} />
+              <button
+                onClick={() => setShowInviteModal(true)}
+                className="w-full px-4 py-2 text-sm bg-[#D97706] text-white rounded-lg hover:bg-[#B45309] transition-colors"
+              >
+                {t('collaboration.invite')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activity Panel */}
+      {showActivityPanel && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowActivityPanel(false)} />
+          <div className="absolute right-0 top-0 h-full w-80 bg-white dark:bg-gray-800 shadow-2xl transform transition-transform duration-200 ease-in-out overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('activity.title')}</h2>
+              <button
+                onClick={() => setShowActivityPanel(false)}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+              >
+                <XIcon className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+            <div className="p-4 space-y-6">
+              <ActivityFeed tripId={Number(id)} />
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <CommentThread tripId={Number(id)} entityType="trip" entityId={Number(id)} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Member Modal */}
+      <InviteMemberModal
+        tripId={Number(id)}
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
       />
 
       {/* Calendar View Panel */}
