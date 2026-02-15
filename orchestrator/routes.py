@@ -104,6 +104,57 @@ async def list_models(request: Request) -> dict:
         return JSONResponse({"error": "Failed to list models"}, status_code=500)
 
 
+# ---------------------------------------------------------------------------
+# Provider key management (runtime — set env vars without restart)
+# ---------------------------------------------------------------------------
+
+# Map frontend provider IDs to the env vars they control
+_PROVIDER_ENV_MAP = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "google": "GOOGLE_API_KEY",
+    "perplexity": "PERPLEXITY_API_KEY",
+}
+
+
+@router.get("/api/providers/status")
+async def provider_status() -> dict:
+    """Return which providers have API keys configured (no values exposed)."""
+    import os
+    providers = {}
+    for provider_id, env_var in _PROVIDER_ENV_MAP.items():
+        val = os.environ.get(env_var, "")
+        providers[provider_id] = bool(val)
+    return {"providers": providers}
+
+
+@router.post("/api/providers/keys")
+async def save_provider_keys(request: Request) -> dict:
+    """Set provider API keys at runtime (takes effect immediately for new sessions).
+
+    Keys are NOT persisted to disk — use the .env file for persistence across restarts.
+    """
+    import os
+    body = await request.json()
+    keys = body.get("keys", {})
+    updated = []
+
+    for provider_id, value in keys.items():
+        env_var = _PROVIDER_ENV_MAP.get(provider_id)
+        if not env_var:
+            continue
+        value = (value or "").strip()
+        if value:
+            os.environ[env_var] = value
+            updated.append(provider_id)
+        elif env_var in os.environ:
+            del os.environ[env_var]
+            updated.append(provider_id)
+
+    logger.info("Updated provider keys: %s", updated)
+    return {"updated": updated}
+
+
 @router.post("/api/sessions")
 async def create_session(body: CreateSessionRequest, request: Request) -> dict:
     try:

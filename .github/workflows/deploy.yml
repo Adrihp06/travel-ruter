@@ -10,6 +10,7 @@ env:
   BACKEND_IMAGE: adrihp06/travel-ruter-backend
   FRONTEND_IMAGE: adrihp06/travel-ruter-frontend
   ORCHESTRATOR_IMAGE: adrihp06/travel-ruter-orchestrator
+  DEPLOY_DIR: /opt/travel-ruter
 
 # Only allow one deployment at a time; cancel in-progress runs on new pushes
 concurrency:
@@ -78,15 +79,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Pull latest images
+      - name: Sync compose file to deploy directory
         run: |
-          docker pull ${{ env.BACKEND_IMAGE }}:latest
-          docker pull ${{ env.FRONTEND_IMAGE }}:latest
-          docker pull ${{ env.ORCHESTRATOR_IMAGE }}:latest
+          mkdir -p ${{ env.DEPLOY_DIR }}
+          cp docker-compose.yml ${{ env.DEPLOY_DIR }}/docker-compose.yml
 
       - name: Deploy with Docker Compose
+        working-directory: ${{ env.DEPLOY_DIR }}
         run: |
-          cd /opt/travel-ruter
           docker compose --profile prod pull
           docker compose --profile prod up -d --remove-orphans
           docker compose --profile prod ps
@@ -102,6 +102,6 @@ jobs:
 # 5. Create /opt/travel-ruter/ and place your .env file there
 #
 # Required GitHub Secrets:
-#   DOCKERHUB_USERNAME      — Docker Hub username (adrihp06)
-#   DOCKERHUB_TOKEN         — Docker Hub access token (not password)
+#   DOCKERHUB_USERNAME       — Docker Hub username (adrihp06)
+#   DOCKERHUB_TOKEN          — Docker Hub access token (not password)
 #   VITE_MAPBOX_ACCESS_TOKEN — Mapbox token baked into frontend build
