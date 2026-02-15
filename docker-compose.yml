@@ -48,7 +48,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: travel_ruter_backend:latest
+    image: adrihp06/travel-ruter-backend:latest
     container_name: travel_ruter_backend
     restart: unless-stopped
     volumes:
@@ -76,8 +76,17 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-30}
+      # OAuth providers
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost}
+      # Encryption (per-trip API keys)
+      FERNET_KEY: ${FERNET_KEY:-}
       # CORS
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:80}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:80}
       # External APIs
       MAPBOX_ACCESS_TOKEN: ${MAPBOX_ACCESS_TOKEN:-}
       OPENROUTESERVICE_API_KEY: ${OPENROUTESERVICE_API_KEY:-}
@@ -112,7 +121,7 @@ services:
     build:
       context: ./orchestrator
       dockerfile: Dockerfile
-    image: travel_ruter_orchestrator:latest
+    image: adrihp06/travel-ruter-orchestrator:latest
     container_name: travel_ruter_orchestrator
     restart: unless-stopped
     ports:
@@ -126,20 +135,27 @@ services:
       # Provider API keys (optional - reads from mounted credentials)
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
       GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-us-central1}
       OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+      # JWT (for validating auth tokens from frontend)
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       # Travel API keys (forwarded to MCP server subprocess)
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
       OPENROUTESERVICE_API_KEY: ${OPENROUTESERVICE_API_KEY:-}
+      PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY:-}
+      # CORS (restrict in production)
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173,http://localhost:80}
     volumes:
       # Mount Claude credentials (read-only)
       - ${HOME}/.claude:/root/.claude:ro
       # Mount Google Cloud credentials (read-only)
       - ${HOME}/.config/gcloud:/home/appuser/.config/gcloud:ro
-      # Mount MCP server code
+      # Dev overrides — source code is baked into the Docker image for production.
+      # These mounts allow live-reload during local development.
       - ./mcp_server:/app/mcp_server:ro
-      # Mount backend app code (MCP server imports app.services.*)
       - ./app:/app/app:ro
     networks:
       - travel-ruter-network
@@ -171,8 +187,9 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_MAPBOX_ACCESS_TOKEN: ${VITE_MAPBOX_ACCESS_TOKEN:-}
-        VITE_ORCHESTRATOR_URL: ${VITE_ORCHESTRATOR_URL:-http://localhost:3001}
-    image: travel_ruter_frontend:latest
+        VITE_ORCHESTRATOR_URL: ${VITE_ORCHESTRATOR_URL:-/chat}
+        VITE_AUTH_ENABLED: ${VITE_AUTH_ENABLED:-false}
+    image: adrihp06/travel-ruter-frontend:latest
     container_name: travel_ruter_frontend
     restart: unless-stopped
     ports:
@@ -204,6 +221,34 @@ services:
         reservations:
           cpus: "0.1"
           memory: 64M
+
+  # ===========================================
+  # Cloudflare Tunnel (Production only)
+  # ===========================================
+  # Activated with: docker compose --profile prod up
+  # Configure the tunnel to point to http://frontend:80 in the Cloudflare dashboard.
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: travel_ruter_tunnel
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - travel-ruter-network
+    depends_on:
+      frontend:
+        condition: service_healthy
+    profiles:
+      - prod
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+        reservations:
+          cpus: "0.05"
+          memory: 32M
 
 # ===========================================
 # Volumes
