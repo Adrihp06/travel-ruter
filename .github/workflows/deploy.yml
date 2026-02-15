@@ -10,7 +10,7 @@ env:
   BACKEND_IMAGE: adrihp06/travel-ruter-backend
   FRONTEND_IMAGE: adrihp06/travel-ruter-frontend
   ORCHESTRATOR_IMAGE: adrihp06/travel-ruter-orchestrator
-  DEPLOY_DIR: /opt/travel-ruter
+  DEPLOY_DIR: /volume1/00_Docker/travelruter
 
 # Only allow one deployment at a time; cancel in-progress runs on new pushes
 concurrency:
@@ -99,7 +99,7 @@ jobs:
 # 3. Install the runner as a service:
 #      sudo ./svc.sh install && sudo ./svc.sh start
 # 4. Ensure Docker and Docker Compose are available on the NAS
-# 5. Create /opt/travel-ruter/ and place your .env file there
+# 5. Place your .env file at /volume1/00_Docker/travelruter/.env
 #
 # Required GitHub Secrets:
 #   DOCKERHUB_USERNAME       — Docker Hub username (adrihp06)
