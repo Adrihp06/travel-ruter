@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.config import settings
+from app.api.deps import get_current_user
+from app.models.user import User
 from app.models import Trip, Destination, Note
 from app.services.note_service import NoteService
 from app.schemas.note import (
@@ -34,7 +36,8 @@ router = APIRouter()
 async def create_note(
     trip_id: int,
     note_data: NoteCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new note for a trip"""
     # Ensure trip_id in path matches body
@@ -64,7 +67,8 @@ async def list_trip_notes(
     is_pinned: Optional[bool] = Query(None, description="Filter by pinned status"),
     skip: int = Query(0, ge=0, description="Number of items to skip"),
     limit: int = Query(100, ge=1, le=500, description="Number of items to return"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """List all notes for a trip with optional filtering"""
     # Verify trip exists
@@ -101,7 +105,8 @@ async def list_trip_notes(
 @router.get("/trips/{trip_id}/notes/grouped", response_model=GroupedNotesResponse)
 async def list_trip_notes_grouped(
     trip_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """List all notes for a trip, grouped by destination"""
     try:
@@ -116,7 +121,8 @@ async def list_trip_notes_grouped(
 @router.get("/trips/{trip_id}/notes/stats")
 async def get_trip_note_stats(
     trip_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get statistics about notes for a trip"""
     # Verify trip exists
@@ -135,7 +141,8 @@ async def get_trip_note_stats(
 async def search_trip_notes(
     trip_id: int,
     search_request: NoteSearchRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Search notes within a trip"""
     # Verify trip exists
@@ -167,7 +174,8 @@ async def search_trip_notes(
 async def export_trip_notes_markdown(
     trip_id: int,
     note_ids: Optional[str] = Query(None, description="Comma-separated note IDs to export"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Export notes to markdown format"""
     # Verify trip exists
@@ -212,7 +220,8 @@ async def list_destination_notes(
     destination_id: int,
     day_number: Optional[int] = Query(None, ge=1, description="Filter by day number"),
     note_type: Optional[NoteTypeEnum] = Query(None, description="Filter by note type"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """List all notes for a destination"""
     # Verify destination exists
@@ -238,7 +247,8 @@ async def list_destination_notes(
 @router.get("/destinations/{destination_id}/notes/by-day", response_model=NotesByDayResponse)
 async def list_destination_notes_by_day(
     destination_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """List all notes for a destination, grouped by day"""
     # Verify destination exists
@@ -258,7 +268,8 @@ async def list_destination_notes_by_day(
 @router.get("/notes/{note_id}", response_model=NoteResponse)
 async def get_note(
     note_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a note by ID"""
     note = await NoteService.get_note(db, note_id)
@@ -274,7 +285,8 @@ async def get_note(
 async def update_note(
     note_id: int,
     note_data: NoteUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Update a note"""
     try:
@@ -295,7 +307,8 @@ async def update_note(
 @router.delete("/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_note(
     note_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a note"""
     deleted = await NoteService.delete_note(db, note_id)
@@ -310,7 +323,8 @@ async def delete_note(
 @router.post("/notes/{note_id}/toggle-pin", response_model=NoteResponse)
 async def toggle_note_pin(
     note_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Toggle the pinned status of a note"""
     note = await NoteService.toggle_pin(db, note_id)
@@ -328,7 +342,8 @@ async def toggle_note_pin(
 async def upload_note_media(
     note_id: int,
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Upload a media file to a note"""
     # Validate file type
@@ -373,7 +388,8 @@ async def upload_note_media(
 async def delete_note_media(
     note_id: int,
     filename: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Remove a media file from a note"""
     try:
@@ -395,7 +411,8 @@ async def delete_note_media(
 async def get_note_media(
     note_id: int,
     filename: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a media file from a note"""
     note = await NoteService.get_note(db, note_id)

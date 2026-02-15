@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from geoalchemy2.functions import ST_SetSRID, ST_MakePoint, ST_X, ST_Y
 
 from app.core.database import get_db
-from app.api.deps import PaginationParams, get_optional_user
+from app.api.deps import PaginationParams, get_current_user, get_optional_user
 
 logger = logging.getLogger(__name__)
 from app.models import POI, Destination, Accommodation
@@ -67,7 +67,8 @@ def poi_to_response(poi: POI, latitude: float | None = None, longitude: float | 
 @router.post("/pois", response_model=POIResponse, status_code=status.HTTP_201_CREATED)
 async def create_poi(
     poi: POICreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new POI"""
     # Verify that the destination exists
@@ -117,7 +118,8 @@ async def create_poi(
 async def list_pois_by_destination(
     destination_id: int,
     pagination: PaginationParams = Depends(),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get POIs for a specific destination, grouped by category, with pagination"""
     # Verify that the destination exists
@@ -181,7 +183,8 @@ async def list_pois_by_destination(
 @router.get("/pois/{id}", response_model=POIResponse)
 async def get_poi(
     id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a specific POI by ID"""
     result = await db.execute(
@@ -208,7 +211,8 @@ async def get_poi(
 async def update_poi(
     id: int,
     poi_update: POIUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Update a POI"""
     result = await db.execute(select(POI).where(POI.id == id))
@@ -257,7 +261,8 @@ async def update_poi(
 @router.delete("/pois/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_poi(
     id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a POI"""
     result = await db.execute(select(POI).where(POI.id == id))
@@ -352,7 +357,8 @@ async def vote_poi(
 async def bulk_update_poi_schedule(
     destination_id: int,
     schedule_update: POIBulkScheduleUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Bulk update POI schedules for drag-and-drop functionality"""
     # Verify that the destination exists
@@ -434,7 +440,8 @@ def estimate_travel_time(distance_meters: float, profile: str) -> float:
 async def get_travel_matrix(
     destination_id: int,
     request: TravelMatrixRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> TravelMatrixResponse:
     """
     Compute travel time matrix for Smart Scheduler.
@@ -532,7 +539,8 @@ async def get_travel_matrix(
 async def optimize_day_route(
     destination_id: int,
     request: POIOptimizationRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Optimize the order of POIs for a specific day to minimize travel time.
@@ -690,7 +698,8 @@ async def optimize_day_route(
 async def get_accommodation_for_day(
     destination_id: int,
     day_number: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get the accommodation for a specific day of a destination.
@@ -784,7 +793,8 @@ async def get_poi_suggestions(
     category_filter: str | None = None,
     trip_type: str | None = None,
     max_results: int = 20,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get POI suggestions for a destination using Google Places API.
@@ -948,7 +958,8 @@ async def get_poi_suggestions(
 async def bulk_add_suggested_pois(
     destination_id: int,
     request: BulkAddPOIsRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Add multiple suggested POIs to a destination at once.

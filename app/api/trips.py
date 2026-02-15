@@ -1,7 +1,7 @@
 import os
 import uuid
 import aiofiles
-from typing import List, Optional
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.models.user import User
 from app.schemas.trip import TripCreate, TripUpdate, TripResponse, TripWithDestinationsResponse, BudgetSummary, POIStats, CoverImageUploadResponse, TripDuplicateRequest, TripSummaryItem, TripsSummaryResponse
 from app.services.trip_service import TripService
-from app.api.deps import get_optional_user
+from app.api.deps import get_current_user
 
 router = APIRouter()
 
@@ -54,6 +54,7 @@ async def validate_file_size(file: UploadFile, max_size: int) -> bytes:
 )
 async def upload_cover_image(
     file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
 ) -> CoverImageUploadResponse:
     """Upload a cover image and return its URL"""
     # Validate file type
@@ -92,7 +93,7 @@ async def upload_cover_image(
     summary="Get a cover image",
     description="Retrieve an uploaded cover image by filename"
 )
-async def get_cover_image(filename: str):
+async def get_cover_image(filename: str, current_user: User = Depends(get_current_user)):
     """Serve a cover image file"""
     from fastapi.responses import FileResponse
 
@@ -133,10 +134,10 @@ async def get_cover_image(filename: str):
 async def create_trip(
     trip_data: TripCreate,
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_optional_user),
+    current_user: User = Depends(get_current_user),
 ) -> TripResponse:
     """Create a new trip"""
-    trip = await TripService.create_trip(db, trip_data, user_id=user.id if user else None)
+    trip = await TripService.create_trip(db, trip_data, user_id=current_user.id)
     return TripResponse.model_validate(trip)
 
 
@@ -150,10 +151,10 @@ async def get_trips(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_optional_user),
+    current_user: User = Depends(get_current_user),
 ) -> List[TripResponse]:
     """Get all trips with pagination. Authenticated users see only their trips."""
-    trips = await TripService.get_trips(db, skip=skip, limit=limit, user_id=user.id if user else None)
+    trips = await TripService.get_trips(db, skip=skip, limit=limit, user_id=current_user.id)
     return [TripResponse.model_validate(trip) for trip in trips]
 
 
@@ -167,11 +168,11 @@ async def get_trips_summary(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
     db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_optional_user),
+    current_user: User = Depends(get_current_user),
 ) -> TripsSummaryResponse:
     """Get all trips with destinations and POI stats in one query"""
     trips_with_summary, total_count = await TripService.get_trips_with_summary(
-        db, skip=skip, limit=limit, user_id=user.id if user else None
+        db, skip=skip, limit=limit, user_id=current_user.id
     )
 
     trip_items = []
@@ -218,7 +219,8 @@ async def get_trips_summary(
 )
 async def get_trip(
     trip_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> TripWithDestinationsResponse:
     """Get a specific trip by ID with destinations"""
     trip = await TripService.get_trip_with_destinations(db, trip_id)
@@ -239,7 +241,8 @@ async def get_trip(
 async def update_trip(
     trip_id: int,
     trip_data: TripUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> TripResponse:
     """Update a trip"""
     trip = await TripService.update_trip(db, trip_id, trip_data)
@@ -261,7 +264,8 @@ async def update_trip(
 async def duplicate_trip(
     trip_id: int,
     duplicate_request: TripDuplicateRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> TripResponse:
     """Duplicate a trip with specified options"""
     new_trip = await TripService.duplicate_trip(db, trip_id, duplicate_request)
@@ -281,7 +285,8 @@ async def duplicate_trip(
 )
 async def delete_trip(
     trip_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> None:
     """Delete a trip"""
     success = await TripService.delete_trip(db, trip_id)
@@ -301,15 +306,10 @@ async def delete_trip(
 async def claim_trip(
     trip_id: int,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_optional_user),
+    current_user: User = Depends(get_current_user),
 ) -> TripResponse:
     """Claim an orphan trip"""
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required to claim a trip"
-        )
-    trip = await TripService.claim_trip(db, trip_id, user.id)
+    trip = await TripService.claim_trip(db, trip_id, current_user.id)
     if not trip:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -326,7 +326,8 @@ async def claim_trip(
 )
 async def get_trip_budget(
     trip_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> BudgetSummary:
     """Get budget summary for a trip"""
     budget = await TripService.get_budget_summary(db, trip_id)
@@ -346,7 +347,8 @@ async def get_trip_budget(
 )
 async def get_trip_poi_stats(
     trip_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> POIStats:
     """Get POI statistics for a trip"""
     # Verify trip exists

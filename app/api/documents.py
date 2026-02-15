@@ -11,6 +11,8 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.config import settings
+from app.api.deps import get_current_user
+from app.models.user import User
 from app.models import POI, Trip, Document, Destination
 from app.schemas.document import (
     DocumentResponse,
@@ -90,7 +92,8 @@ async def upload_poi_document(
     document_type: DocumentTypeEnum = Form(default=DocumentTypeEnum.OTHER),
     title: Optional[str] = Form(default=None),
     description: Optional[str] = Form(default=None),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Upload a document and link it to a POI"""
     # Verify POI exists
@@ -141,7 +144,8 @@ async def upload_trip_document(
     description: Optional[str] = Form(default=None),
     destination_id: Optional[int] = Form(default=None),
     day_number: Optional[int] = Form(default=None),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Upload a document and link it to a Trip, optionally to a destination and day"""
     # Verify Trip exists
@@ -216,7 +220,8 @@ async def upload_trip_document(
 @router.get("/pois/{poi_id}/documents", response_model=DocumentListResponse)
 async def list_poi_documents(
     poi_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """List all documents for a specific POI"""
     # Verify POI exists
@@ -246,7 +251,8 @@ async def list_trip_documents(
     destination_id: Optional[int] = Query(None, description="Filter by destination"),
     day: Optional[int] = Query(None, ge=1, description="Filter by day number (requires destination_id)"),
     document_type: Optional[DocumentTypeEnum] = Query(None, description="Filter by document type"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """List all documents for a specific Trip with optional filtering"""
     # Verify Trip exists
@@ -292,7 +298,8 @@ async def list_trip_documents(
 @router.get("/trips/{trip_id}/documents/grouped", response_model=GroupedDocumentsResponse)
 async def list_trip_documents_grouped(
     trip_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """List all documents for a trip, grouped by destination"""
     # Verify Trip exists
@@ -352,7 +359,8 @@ async def list_trip_documents_grouped(
 @router.get("/documents/{document_id}", response_model=DocumentResponse)
 async def get_document(
     document_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get document metadata by ID"""
     result = await db.execute(select(Document).where(Document.id == document_id))
@@ -370,7 +378,8 @@ async def get_document(
 @router.get("/documents/{document_id}/download")
 async def download_document(
     document_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Download a document file"""
     result = await db.execute(select(Document).where(Document.id == document_id))
@@ -398,7 +407,8 @@ async def download_document(
 @router.get("/documents/{document_id}/view")
 async def view_document(
     document_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """View a document file inline (for PDFs and images)"""
     result = await db.execute(select(Document).where(Document.id == document_id))
@@ -427,7 +437,8 @@ async def view_document(
 async def update_document(
     document_id: int,
     document_update: DocumentUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Update document metadata including destination and day assignment"""
     result = await db.execute(select(Document).where(Document.id == document_id))
@@ -483,7 +494,8 @@ async def update_document(
 @router.delete("/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document(
     document_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a document (metadata and file)"""
     result = await db.execute(select(Document).where(Document.id == document_id))
@@ -510,7 +522,8 @@ async def list_destination_documents(
     destination_id: int,
     day: Optional[int] = Query(None, ge=1, description="Filter by day number"),
     document_type: Optional[DocumentTypeEnum] = Query(None, description="Filter by document type"),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """List all documents for a specific destination with optional day filtering"""
     # Verify Destination exists
@@ -547,7 +560,8 @@ async def list_destination_documents(
 @router.get("/destinations/{destination_id}/documents/by-day", response_model=DocumentsByDayResponse)
 async def list_destination_documents_by_day(
     destination_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """List all documents for a destination, grouped by day"""
     # Verify Destination exists

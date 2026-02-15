@@ -8,7 +8,8 @@ from geoalchemy2.functions import ST_SetSRID, ST_MakePoint
 from app.core.database import get_db
 from app.models import Destination, Trip, TravelSegment
 from app.schemas import DestinationCreate, DestinationUpdate, DestinationResponse, DestinationReorderRequest, PaginatedResponse
-from app.api.deps import PaginationParams
+from app.api.deps import PaginationParams, get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -16,7 +17,8 @@ router = APIRouter()
 @router.post("/destinations", response_model=DestinationResponse, status_code=status.HTTP_201_CREATED)
 async def create_destination(
     destination: DestinationCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new destination"""
     # Verify that the trip exists
@@ -50,7 +52,8 @@ async def create_destination(
 async def list_destinations_by_trip(
     trip_id: int,
     pagination: PaginationParams = Depends(),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get all destinations for a specific trip with pagination"""
     # Verify that the trip exists
@@ -90,7 +93,8 @@ async def list_destinations_by_trip(
 @router.get("/destinations/{id}", response_model=DestinationResponse)
 async def get_destination(
     id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a specific destination by ID"""
     result = await db.execute(select(Destination).where(Destination.id == id))
@@ -109,7 +113,8 @@ async def get_destination(
 async def update_destination(
     id: int,
     destination_update: DestinationUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Update a destination"""
     result = await db.execute(select(Destination).where(Destination.id == id))
@@ -143,7 +148,8 @@ async def update_destination(
 @router.delete("/destinations/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_destination(
     id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a destination and its related travel segments"""
     result = await db.execute(select(Destination).where(Destination.id == id))
@@ -176,7 +182,8 @@ async def delete_destination(
 async def reorder_destinations(
     trip_id: int,
     reorder_request: DestinationReorderRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Reorder destinations within a trip by providing destination IDs in new order.
 

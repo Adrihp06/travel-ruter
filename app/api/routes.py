@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
+from app.api.deps import get_current_user
+from app.models.user import User
 from app.schemas.routing import RoutingRequest, RoutingResponse
 from app.schemas.route import RouteRequest, RouteResponse
 from app.schemas.mapbox import (
@@ -55,49 +57,49 @@ router = APIRouter()
 
 
 @router.post("/routes/inter-city", response_model=RoutingResponse)
-async def calculate_inter_city_route(request: RoutingRequest):
+async def calculate_inter_city_route(request: RoutingRequest, current_user: User = Depends(get_current_user)):
     """Calculate route between two cities"""
     return RouteService.calculate_inter_city_route(request)
 
 
 @router.post("/routes/intra-city", response_model=RouteResponse)
-async def calculate_intra_city_route(request: RouteRequest):
+async def calculate_intra_city_route(request: RouteRequest, current_user: User = Depends(get_current_user)):
     """Calculate intra-city route with ETA"""
     return RouteService.calculate_intra_city_route(request)
 
 
 @router.get("/routes")
-async def get_routes(db: AsyncSession = Depends(get_db)):
+async def get_routes(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get all routes"""
     return {"message": "Get all routes", "data": []}
 
 
 @router.get("/routes/{route_id}")
-async def get_route(route_id: int, db: AsyncSession = Depends(get_db)):
+async def get_route(route_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Get a specific route by ID"""
     return {"message": f"Get route {route_id}", "data": None}
 
 
 @router.post("/routes")
-async def create_route(db: AsyncSession = Depends(get_db)):
+async def create_route(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Create a new route"""
     return {"message": "Create route", "data": None}
 
 
 @router.put("/routes/{route_id}")
-async def update_route(route_id: int, db: AsyncSession = Depends(get_db)):
+async def update_route(route_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Update a route"""
     return {"message": f"Update route {route_id}", "data": None}
 
 
 @router.delete("/routes/{route_id}")
-async def delete_route(route_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_route(route_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Delete a route"""
     return {"message": f"Delete route {route_id}", "data": None}
 
 
 @router.post("/routes/mapbox", response_model=MapboxRouteResponse)
-async def get_mapbox_route(request: MapboxRouteRequest):
+async def get_mapbox_route(request: MapboxRouteRequest, current_user: User = Depends(get_current_user)):
     """
     Get route using Mapbox Directions API.
 
@@ -139,7 +141,7 @@ async def get_mapbox_route(request: MapboxRouteRequest):
 
 
 @router.post("/routes/mapbox/multi-waypoint", response_model=MapboxRouteResponse)
-async def get_mapbox_multi_waypoint_route(request: MapboxMultiWaypointRequest):
+async def get_mapbox_multi_waypoint_route(request: MapboxMultiWaypointRequest, current_user: User = Depends(get_current_user)):
     """
     Get route through multiple waypoints using Mapbox Directions API.
 
@@ -172,7 +174,7 @@ async def get_mapbox_multi_waypoint_route(request: MapboxMultiWaypointRequest):
 
 
 @router.post("/routes/export/google-maps", response_model=GoogleMapsExportResponse)
-async def export_to_google_maps(request: GoogleMapsExportRequest):
+async def export_to_google_maps(request: GoogleMapsExportRequest, current_user: User = Depends(get_current_user)):
     """
     Export a route to Google Maps.
 
@@ -193,7 +195,7 @@ async def export_to_google_maps(request: GoogleMapsExportRequest):
 
 
 @router.get("/routes/ors/status", response_model=ORSServiceStatus)
-async def get_ors_status():
+async def get_ors_status(current_user: User = Depends(get_current_user)):
     """
     Check if OpenRouteService is configured and available.
 
@@ -214,7 +216,7 @@ async def get_ors_status():
 
 
 @router.post("/routes/ors", response_model=ORSRouteResponse)
-async def get_ors_route(request: ORSRouteRequest):
+async def get_ors_route(request: ORSRouteRequest, current_user: User = Depends(get_current_user)):
     """
     Get route using OpenRouteService Directions API.
 
@@ -265,7 +267,7 @@ async def get_ors_route(request: ORSRouteRequest):
 
 
 @router.post("/routes/ors/multi-waypoint", response_model=ORSRouteResponse)
-async def get_ors_multi_waypoint_route(request: ORSMultiWaypointRequest):
+async def get_ors_multi_waypoint_route(request: ORSMultiWaypointRequest, current_user: User = Depends(get_current_user)):
     """
     Get route through multiple waypoints using OpenRouteService Directions API.
 
@@ -307,7 +309,7 @@ async def get_ors_multi_waypoint_route(request: ORSMultiWaypointRequest):
 
 
 @router.get("/routes/google-maps/status", response_model=GoogleMapsStatusResponse)
-async def get_google_maps_status():
+async def get_google_maps_status(current_user: User = Depends(get_current_user)):
     """
     Check if Google Maps Routes API is configured and available.
 
@@ -328,7 +330,7 @@ async def get_google_maps_status():
 
 
 @router.post("/routes/google-maps", response_model=GoogleMapsRoutesResponse)
-async def get_google_maps_route(request: GoogleMapsRoutesRequest):
+async def get_google_maps_route(request: GoogleMapsRoutesRequest, current_user: User = Depends(get_current_user)):
     """
     Get route using Google Maps Routes API.
 
@@ -389,7 +391,7 @@ async def get_google_maps_route(request: GoogleMapsRoutesRequest):
 
 
 @router.post("/routes/google-maps/multi-waypoint", response_model=GoogleMapsRoutesResponse)
-async def get_google_maps_multi_waypoint_route(request: GoogleMapsMultiWaypointRequest):
+async def get_google_maps_multi_waypoint_route(request: GoogleMapsMultiWaypointRequest, current_user: User = Depends(get_current_user)):
     """
     Get route through multiple waypoints using Google Maps Routes API.
 
@@ -430,7 +432,7 @@ _current_routing_preference = RoutingPreference.DEFAULT
 
 
 @router.get("/routes/preferences", response_model=RoutingPreferencesResponse)
-async def get_routing_preferences():
+async def get_routing_preferences(current_user: User = Depends(get_current_user)):
     """
     Get current routing preferences.
 
@@ -448,7 +450,7 @@ async def get_routing_preferences():
 
 
 @router.put("/routes/preferences", response_model=RoutingPreferencesResponse)
-async def update_routing_preferences(request: RoutingPreferencesRequest):
+async def update_routing_preferences(request: RoutingPreferencesRequest, current_user: User = Depends(get_current_user)):
     """
     Update routing preferences.
 

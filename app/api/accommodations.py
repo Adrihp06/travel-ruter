@@ -8,7 +8,8 @@ from geoalchemy2.functions import ST_SetSRID, ST_MakePoint, ST_X, ST_Y
 from app.core.database import get_db
 from app.models import Accommodation, Destination
 from app.schemas import AccommodationCreate, AccommodationUpdate, AccommodationResponse, PaginatedResponse
-from app.api.deps import PaginationParams
+from app.api.deps import PaginationParams, get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
@@ -98,7 +99,8 @@ def accommodation_to_response(acc: Accommodation, latitude: float | None = None,
 @router.post("/accommodations", response_model=AccommodationResponse, status_code=status.HTTP_201_CREATED)
 async def create_accommodation(
     accommodation: AccommodationCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new accommodation for a destination"""
     # Verify that the destination exists
@@ -190,7 +192,8 @@ async def create_accommodation(
 async def list_accommodations_by_destination(
     destination_id: int,
     pagination: PaginationParams = Depends(),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get accommodations for a specific destination with pagination"""
     # Verify that the destination exists
@@ -234,7 +237,8 @@ async def list_accommodations_by_destination(
 @router.get("/accommodations/{id}", response_model=AccommodationResponse)
 async def get_accommodation(
     id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a specific accommodation by ID"""
     result = await db.execute(
@@ -261,7 +265,8 @@ async def get_accommodation(
 async def update_accommodation(
     id: int,
     accommodation_update: AccommodationUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Update an accommodation"""
     result = await db.execute(select(Accommodation).where(Accommodation.id == id))
@@ -367,7 +372,8 @@ async def update_accommodation(
 @router.delete("/accommodations/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_accommodation(
     id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete an accommodation"""
     result = await db.execute(select(Accommodation).where(Accommodation.id == id))
