@@ -84,15 +84,23 @@ jobs:
           mkdir -p ${{ env.DEPLOY_DIR }}
           cp docker-compose.yml ${{ env.DEPLOY_DIR }}/docker-compose.yml
 
+      - name: Debug deploy directory
+        run: |
+          echo "=== Runner user ==="
+          whoami
+          id
+          echo "=== Deploy dir contents ==="
+          ls -la ${{ env.DEPLOY_DIR }}/
+          echo "=== Looking for .env ==="
+          file ${{ env.DEPLOY_DIR }}/.env 2>&1 || echo ".env not found by runner"
+
       - name: Deploy with Docker Compose
         working-directory: ${{ env.DEPLOY_DIR }}
         run: |
-          echo "=== Verifying .env file ==="
-          cat .env | grep POSTGRES_PORT || echo "POSTGRES_PORT not set in .env"
-          docker compose --env-file .env --profile prod down --timeout 30 || true
-          docker compose --env-file .env --profile prod pull
-          docker compose --env-file .env --profile prod up -d --remove-orphans
-          docker compose --env-file .env --profile prod ps
+          docker compose --profile prod down --timeout 30 || true
+          docker compose --profile prod pull
+          docker compose --profile prod up -d --remove-orphans
+          docker compose --profile prod ps
 
 # =============================================================================
 # Self-hosted runner setup (NAS)
