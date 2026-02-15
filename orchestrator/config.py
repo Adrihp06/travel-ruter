@@ -22,6 +22,7 @@ class OrchestratorSettings(BaseSettings):
     # Provider API keys
     anthropic_api_key: str = ""
     openai_api_key: str = ""
+    google_api_key: str = ""
     google_cloud_project: str = ""
     google_cloud_location: str = "us-central1"
 
@@ -49,6 +50,16 @@ class OrchestratorSettings(BaseSettings):
 
     # Database (passed through to MCP server env)
     database_url: str = ""
+
+    # Perplexity (for POI suggestions)
+    perplexity_api_key: str = ""
+
+    # JWT Auth
+    JWT_SECRET_KEY: str = "change-me-in-production"
+    JWT_ALGORITHM: str = "HS256"
+
+    # CORS — restrict in production via CORS_ORIGINS env var
+    cors_origins: str = "https://travelruter.com,http://localhost:5173"
 
 
 settings = OrchestratorSettings()
@@ -100,6 +111,8 @@ def ensure_provider_env() -> None:
     elif settings.anthropic_api_key:
         os.environ.setdefault("ANTHROPIC_API_KEY", settings.anthropic_api_key)
 
+    if settings.google_api_key:
+        os.environ.setdefault("GOOGLE_API_KEY", settings.google_api_key)
     if settings.google_cloud_project:
         os.environ.setdefault("GOOGLE_CLOUD_PROJECT", settings.google_cloud_project)
     if settings.google_cloud_location:
@@ -152,7 +165,8 @@ You operate using a Reason → Act → Observe → Reason cycle:
 - When the user says "do it", "schedule it", "add it", "find it" — **take action immediately**. Use the tools, get the data, and present results.
 - Chain multiple tool calls in sequence when needed. For example, to schedule a POI: read the trip → find/create the POI → update the schedule → confirm what you did.
 - If a tool call fails, try alternative approaches before giving up. Use your knowledge to suggest alternatives.
-- You already have the trip context in your system prompt (destination, POIs, accommodations, dates, coordinates). Use this data directly instead of making redundant tool calls.
+- If trip context is available in your system prompt (under "## Current Context"), use that data directly — don't re-fetch what you already have.
+- **If trip context is NOT available or incomplete, ALWAYS use your tools to fetch it.** Call `manage_trip(operation="list")` to see the user's trips, then `manage_trip(operation="read", trip_id=...)` to get full details including destinations, dates, and POIs. NEVER tell the user you don't have their trip info — look it up yourself.
 - When you have coordinates from context, use them directly for searches — don't re-geocode what you already know.
 
 ## Workflow: New Trip
@@ -164,7 +178,7 @@ You operate using a Reason → Act → Observe → Reason cycle:
 6. `calculate_budget` → cost summary
 
 ## Workflow: Existing Trip
-1. Use the context already available (trip ID, destinations, POIs, coordinates from system prompt)
+1. Check if trip context is available in the system prompt. If not, use `manage_trip(operation="read", trip_id=...)` to fetch the trip details first.
 2. Identify what to improve (gaps in schedule, missing categories, budget)
 3. Use targeted tools to fill gaps — chain calls as needed
 4. Report what you did and what changed
@@ -335,10 +349,11 @@ _MODEL_MAP: dict[str, ModelInfo] = {m.id: m for m in STATIC_MODELS}
 
 def _provider_available(provider: str) -> bool:
     """Check if the env var for a provider is set."""
+    if provider == "gemini":
+        return bool(os.environ.get("GOOGLE_API_KEY") or os.environ.get("GOOGLE_CLOUD_PROJECT"))
     env_map = {
         "claude": "ANTHROPIC_API_KEY",
         "openai": "OPENAI_API_KEY",
-        "gemini": "GOOGLE_CLOUD_PROJECT",
     }
     var = env_map.get(provider)
     return bool(os.environ.get(var)) if var else False

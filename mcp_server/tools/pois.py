@@ -10,7 +10,7 @@ from datetime import date, time
 
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.context import get_google_places_service, get_db_session
+from mcp_server.context import get_google_places_service, get_db_session, get_perplexity_service
 from mcp_server.schemas.pois import (
     GetPOISuggestionsInput,
     POISuggestion,
@@ -136,7 +136,63 @@ def register_tools(server: FastMCP):
             min_rating=min_rating,
         )
 
-        # Get Google Places service
+        # Try Perplexity first (cheaper, better curation)
+        perplexity_service = get_perplexity_service()
+        if perplexity_service and perplexity_service._has_api_key:
+            try:
+                # Build location name from coordinates for better search
+                location_name = f"{validated.latitude}, {validated.longitude}"
+                perplexity_results = await perplexity_service.search_pois(
+                    latitude=validated.latitude,
+                    longitude=validated.longitude,
+                    location_name=location_name,
+                    category=validated.category,
+                    trip_type=validated.trip_type,
+                    max_results=validated.max_results,
+                )
+                if perplexity_results:
+                    suggestions = []
+                    for raw in perplexity_results:
+                        metadata = POIMetadata(
+                            rating=raw.get("rating"),
+                            user_ratings_total=None,
+                            price_level=None,
+                            types=[],
+                            photos=[],
+                            business_status=None,
+                            opening_hours=None,
+                        )
+                        suggestion = POISuggestion(
+                            name=raw.get("name", "Unknown"),
+                            category=raw.get("category", "Sights"),
+                            address=raw.get("address"),
+                            latitude=raw.get("latitude", 0),
+                            longitude=raw.get("longitude", 0),
+                            external_id=None,
+                            external_source="perplexity",
+                            metadata=metadata,
+                            rating_display=None,
+                            price_display=raw.get("estimated_cost_usd"),
+                        )
+                        suggestions.append(suggestion)
+
+                    output = GetPOISuggestionsOutput(
+                        suggestions=suggestions,
+                        center={"latitude": latitude, "longitude": longitude},
+                        radius=validated.radius,
+                        count=len(suggestions),
+                        filters_applied={k: v for k, v in {
+                            "category": validated.category,
+                            "trip_type": validated.trip_type,
+                            "source": "perplexity",
+                        }.items() if v},
+                    )
+                    logger.info(f"get_poi_suggestions returned {output.count} suggestions via Perplexity")
+                    return output.model_dump()
+            except Exception as e:
+                logger.warning(f"Perplexity search failed, falling back to Google: {e}")
+
+        # Fallback: Google Places (existing behavior)
         places_service = get_google_places_service()
 
         # Check if API key is available
@@ -405,7 +461,12 @@ def register_tools(server: FastMCP):
                         select(POI, ST_Y(POI.coordinates).label('lat'), ST_X(POI.coordinates).label('lng'))
                         .where(POI.id == db_poi.id)
                     )
-                    row = result.one()
+                    row = result.one_or_none()
+                    if not row:
+                        return ManagePOIOutput(
+                            operation=operation, success=False,
+                            message=f"Failed to retrieve created POI (ID {db_poi.id})",
+                        ).model_dump()
                     created_poi, lat, lng = row
 
                     poi_result = await _poi_to_result(created_poi, lat, lng)
@@ -499,7 +560,12 @@ def register_tools(server: FastMCP):
                         select(POI, ST_Y(POI.coordinates).label('lat'), ST_X(POI.coordinates).label('lng'))
                         .where(POI.id == poi_id)
                     )
-                    row = result.one()
+                    row = result.one_or_none()
+                    if not row:
+                        return ManagePOIOutput(
+                            operation=operation, success=False,
+                            message=f"Failed to retrieve updated POI (ID {poi_id})",
+                        ).model_dump()
                     updated_poi, lat, lng = row
 
                     poi_result = await _poi_to_result(updated_poi, lat, lng)

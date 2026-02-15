@@ -137,3 +137,16 @@ def get_geocoding_service():
     from app.services.geocoding_service import GeocodingService
 
     return GeocodingService
+
+
+def get_perplexity_service():
+    """Get or create PerplexitySearchService instance."""
+    from app.services.perplexity_service import PerplexitySearchService
+
+    ctx = get_context()
+    if "perplexity" not in ctx._services_cache:
+        ctx._services_cache["perplexity"] = PerplexitySearchService(
+            api_key=mcp_settings.PERPLEXITY_API_KEY or "",
+            model=mcp_settings.PERPLEXITY_MODEL,
+        )
+    return ctx._services_cache["perplexity"]

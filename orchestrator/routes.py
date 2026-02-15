@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import JSONResponse
+from jose import JWTError, jwt as jose_jwt
 
+from pydantic import TypeAdapter
 from pydantic_ai import Agent
 from pydantic_ai import (
     AgentStreamEvent,
@@ -22,6 +25,9 @@ from pydantic_ai import (
     TextPartDelta,
     ToolCallPartDelta,
 )
+from pydantic_ai.messages import ModelMessage
+
+_msg_adapter = TypeAdapter(list[ModelMessage])
 
 from orchestrator.agent import build_instructions, resolve_model_name
 from orchestrator.config import get_available_models, settings
@@ -37,6 +43,7 @@ from orchestrator.schemas import (
     SessionListItem,
     SessionListResponse,
     ToolCallInfo,
+    UpdateSessionRequest,
 )
 from orchestrator.session import SessionManager
 
@@ -63,10 +70,14 @@ def _sessions(request: Request) -> SessionManager:
 
 @router.get("/health")
 async def health(request: Request) -> dict:
+    mcp_connected = getattr(request.app.state, 'mcp_connected', False)
+    sm = _sessions(request)
     return {
         "status": "healthy",
         "version": settings.version,
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "mcpConnected": mcp_connected,
+        "activeSessions": len(sm.list_sessions()),
     }
 
 
@@ -98,9 +109,19 @@ async def create_session(body: CreateSessionRequest, request: Request) -> dict:
     try:
         sm = _sessions(request)
         trip_ctx = body.trip_context.model_dump(by_alias=True) if body.trip_context else None
+
+        # Deserialize restored message history if provided
+        restored_history = None
+        if body.message_history:
+            try:
+                restored_history = _msg_adapter.validate_python(body.message_history)
+            except Exception:
+                logger.warning("Failed to deserialize messageHistory, starting fresh")
+
         session = await sm.create_session(
             model_id=body.model_id,
             trip_context=trip_ctx,
+            message_history=restored_history,
         )
         return {
             "sessionId": session.id,
@@ -141,6 +162,26 @@ async def delete_session(session_id: str, request: Request) -> dict:
     return JSONResponse({"error": "Session not found"}, status_code=404)
 
 
+@router.get("/api/sessions/{session_id}/history")
+async def get_session_history(session_id: str, request: Request) -> dict:
+    sm = _sessions(request)
+    session = sm.get_session(session_id)
+    if not session:
+        return JSONResponse({"error": "Session not found"}, status_code=404)
+    serialized = json.loads(_msg_adapter.dump_json(session.message_history))
+    return {"sessionId": session_id, "messageHistory": serialized}
+
+
+@router.patch("/api/sessions/{session_id}")
+async def update_session(session_id: str, body: UpdateSessionRequest, request: Request) -> dict:
+    sm = _sessions(request)
+    trip_ctx = body.trip_context.model_dump(by_alias=True)
+    session = sm.update_context(session_id, trip_ctx)
+    if not session:
+        return JSONResponse({"error": "Session not found"}, status_code=404)
+    return {"success": True}
+
+
 @router.post("/api/chat")
 async def chat(body: ChatRequest, request: Request) -> dict:
     sm = _sessions(request)
@@ -153,20 +194,23 @@ async def chat(body: ChatRequest, request: Request) -> dict:
     if not session:
         return JSONResponse({"error": "Session not found"}, status_code=404)
 
+    request_id = str(uuid4())
     try:
         instructions = build_instructions(session.trip_context)
         sm.truncate_history(session)
 
-        result = await agent.run(
-            body.message,
-            model=session.pydantic_ai_model,
-            message_history=session.message_history,
-            instructions=instructions,
-            model_settings={"max_tokens": settings.max_output_tokens},
-        )
-
-        # Update session history with new messages
-        session.message_history = result.all_messages()
+        async with session.lock:
+            result = await asyncio.wait_for(
+                agent.run(
+                    body.message,
+                    model=session.pydantic_ai_model,
+                    message_history=session.message_history,
+                    instructions=instructions,
+                    model_settings={"max_tokens": settings.max_output_tokens},
+                ),
+                timeout=120,
+            )
+            session.message_history = result.all_messages()
 
         # Extract tool calls from the result messages
         tool_calls: list[dict] = []
@@ -181,12 +225,15 @@ async def chat(body: ChatRequest, request: Request) -> dict:
                         })
 
         return {
+            "requestId": request_id,
             "sessionId": body.session_id,
             "response": result.output,
             "toolCalls": tool_calls if tool_calls else None,
         }
+    except asyncio.TimeoutError:
+        return JSONResponse({"error": "Request timed out after 120 seconds"}, status_code=504)
     except Exception as exc:
-        logger.exception("Error in chat")
+        logger.exception("Error in chat (request_id=%s)", request_id)
         return JSONResponse({"error": "Chat failed"}, status_code=500)
 
 
@@ -198,6 +245,29 @@ async def chat(body: ChatRequest, request: Request) -> dict:
 async def websocket_chat_stream(ws: WebSocket) -> None:
     await ws.accept()
     logger.info("WebSocket client connected")
+
+    # --- JWT authentication handshake ---
+    try:
+        auth_raw = await asyncio.wait_for(ws.receive_text(), timeout=10)
+        auth_data = json.loads(auth_raw)
+        if auth_data.get("type") != "auth" or not auth_data.get("token"):
+            await ws.close(code=4001, reason="Invalid auth message")
+            return
+        payload = jose_jwt.decode(
+            auth_data["token"],
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
+        user_id = int(payload["sub"])
+        logger.info("WebSocket authenticated for user_id=%s", user_id)
+    except (asyncio.TimeoutError, json.JSONDecodeError, JWTError, KeyError, ValueError) as exc:
+        logger.warning("WebSocket auth failed: %s", exc)
+        await ws.close(code=4001, reason="Authentication failed")
+        return
+
+    mcp_connected = getattr(ws.app.state, 'mcp_connected', True)
+    if not mcp_connected:
+        await ws.send_json({"type": "warning", "message": "AI tools are currently unavailable. Responses may be limited."})
 
     # Get shared state from the app
     agent: Agent = ws.app.state.agent
@@ -221,6 +291,12 @@ async def websocket_chat_stream(ws: WebSocket) -> None:
                 continue
 
             if msg_type == "chat":
+                # Attach authenticated user_id to session if available
+                session_id = data.get("sessionId")
+                if session_id:
+                    session = sm.get_session(session_id)
+                    if session and session.user_id is None:
+                        session.user_id = user_id
                 await _handle_chat(ws, data, agent, sm)
                 continue
 
@@ -232,6 +308,7 @@ async def websocket_chat_stream(ws: WebSocket) -> None:
         logger.exception("WebSocket error")
         try:
             await ws.send_json({"type": "error", "error": str(exc)})
+            await ws.close()
         except Exception:
             pass
 
@@ -349,25 +426,36 @@ async def _handle_chat(
                         },
                     })
 
+                else:
+                    logger.debug("Unhandled event type: %s", type(event).__name__)
+
         # run() completes the full multi-turn loop (model → tool → model → final answer).
         # The event_stream_handler streams all events (text deltas, tool calls, results)
         # to the WebSocket in real-time.
-        result = await agent.run(
-            user_message,
-            model=session.pydantic_ai_model,
-            message_history=session.message_history,
-            instructions=instructions,
-            event_stream_handler=event_handler,
-            model_settings={"max_tokens": settings.max_output_tokens},
-        )
-
-        # Update session history
-        session.message_history = result.all_messages()
+        async with session.lock:
+            result = await asyncio.wait_for(
+                agent.run(
+                    user_message,
+                    model=session.pydantic_ai_model,
+                    message_history=session.message_history,
+                    instructions=instructions,
+                    event_stream_handler=event_handler,
+                    model_settings={"max_tokens": settings.max_output_tokens},
+                ),
+                timeout=120,
+            )
+            session.message_history = result.all_messages()
 
         await ws.send_json({"type": "end", "messageId": message_id})
 
+    except asyncio.TimeoutError:
+        logger.warning("Chat timed out (message_id=%s)", message_id)
+        await ws.send_json({
+            "type": "error",
+            "error": "Request timed out after 120 seconds",
+        })
     except Exception as exc:
-        logger.exception("Streaming error")
+        logger.exception("Streaming error (message_id=%s)", message_id)
         await ws.send_json({
             "type": "error",
             "error": str(exc),

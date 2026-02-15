@@ -22,6 +22,8 @@ def create_mcp_server() -> MCPServerStdio:
         env["GOOGLE_MAPS_API_KEY"] = settings.google_maps_api_key
     if settings.openrouteservice_api_key:
         env["OPENROUTESERVICE_API_KEY"] = settings.openrouteservice_api_key
+    if settings.perplexity_api_key:
+        env["PERPLEXITY_API_KEY"] = settings.perplexity_api_key
 
     return MCPServerStdio(
         settings.mcp_python_path,
@@ -57,8 +59,15 @@ def resolve_model_name(frontend_model_id: str) -> str:
     info = _MODEL_MAP.get(frontend_model_id)
     if info:
         return info.pydantic_ai_name
-    # Unknown model – assume Ollama local
-    return f"ollama:{frontend_model_id}"
+    # Check if it looks like an Ollama model (contains ":" like "llama3.2:latest")
+    if ":" in frontend_model_id:
+        return f"ollama:{frontend_model_id}"
+    valid_ids = sorted(_MODEL_MAP.keys())
+    raise ValueError(
+        f"Unknown model ID '{frontend_model_id}'. "
+        f"Valid model IDs: {valid_ids}. "
+        f"For Ollama models, use the format 'model:tag' (e.g., 'llama3.2:latest')."
+    )
 
 
 def build_instructions(trip_context: dict | None) -> str:

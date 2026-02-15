@@ -15,17 +15,21 @@ class MCPSettings(BaseSettings):
     MCP_SERVER_NAME: str = "travel-bridge"
     MCP_SERVER_VERSION: str = "1.0.0"
 
-    # Backend API connection
-    BACKEND_URL: str = "http://localhost:8000"
+    # Backend API connection (uses Docker network hostname; overridable via env)
+    BACKEND_URL: str = "http://backend:8000"
     BACKEND_API_PREFIX: str = "/api/v1"
 
-    # Database (can override main app settings)
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/travel_ruter"
+    # Database (uses Docker network hostname; overridable via env)
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@db:5432/travel_ruter"
 
     # External APIs (inherited from main app)
     GOOGLE_MAPS_API_KEY: Optional[str] = None
     OPENROUTESERVICE_API_KEY: Optional[str] = None
     MAPBOX_ACCESS_TOKEN: Optional[str] = None
+
+    # Perplexity AI (for POI suggestions)
+    PERPLEXITY_API_KEY: Optional[str] = None
+    PERPLEXITY_MODEL: str = "sonar"
 
     # MCP-specific settings
     ENABLE_CACHING: bool = True

@@ -15,7 +15,7 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # ============================================
 FROM python:3.12-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl libgeos-dev libproj-dev libpq-dev && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 

@@ -24,8 +24,10 @@ class Session:
     message_history: list[ModelMessage] = field(default_factory=list)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     last_activity: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    user_id: int | None = None
     trip_context: dict[str, Any] | None = None
-    cancel_event: asyncio.Event = field(default_factory=asyncio.Event)
+    cancel_event: asyncio.Event = field(default_factory=lambda: asyncio.Event())
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
 class SessionManager:
@@ -51,6 +53,7 @@ class SessionManager:
         model_id: str | None = None,
         trip_context: dict[str, Any] | None = None,
         pydantic_ai_model: str | None = None,
+        message_history: list[ModelMessage] | None = None,
     ) -> Session:
         from orchestrator.agent import resolve_model_name
 
@@ -67,8 +70,19 @@ class SessionManager:
             pydantic_ai_model=pai_model,
             trip_context=trip_context,
         )
+        if message_history:
+            session.message_history = message_history
         self._sessions[session.id] = session
-        logger.info("Created session %s with model %s", session.id, model_id)
+        logger.info("Created session %s with model %s (restored_messages=%d)", session.id, model_id, len(session.message_history))
+        return session
+
+    def update_context(self, session_id: str, trip_context: dict[str, Any]) -> Session | None:
+        session = self._sessions.get(session_id)
+        if not session:
+            return None
+        session.trip_context = trip_context
+        session.last_activity = datetime.now(timezone.utc)
+        logger.info("Updated context for session %s", session_id)
         return session
 
     def get_session(self, session_id: str) -> Session | None:
@@ -131,5 +145,8 @@ class SessionManager:
                 if (now - s.last_activity).total_seconds() > timeout_s
             ]
             for sid in expired:
-                logger.info("Cleaning up expired session %s", sid)
-                self.delete_session(sid)
+                try:
+                    logger.info("Cleaning up expired session %s", sid)
+                    self.delete_session(sid)
+                except Exception:
+                    logger.exception("Failed to clean up session %s", sid)

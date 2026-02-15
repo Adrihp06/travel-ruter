@@ -80,6 +80,11 @@ class CreateSessionRequest(CamelModel):
     trip_context: TripContext | None = Field(default=None, alias="tripContext")
     agent_config: dict[str, Any] | None = Field(default=None, alias="agentConfig")
     chat_mode: str | None = Field(default=None, alias="chatMode")
+    message_history: list[dict[str, Any]] | None = Field(default=None, alias="messageHistory")
+
+
+class UpdateSessionRequest(CamelModel):
+    trip_context: TripContext = Field(alias="tripContext")
 
 
 class CreateSessionResponse(CamelModel):

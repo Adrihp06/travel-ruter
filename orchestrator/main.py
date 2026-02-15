@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -37,6 +38,7 @@ async def lifespan(app: FastAPI):
     try:
         await mcp.__aenter__()
         logger.info("MCP server connected")
+        app.state.mcp_connected = True
         # Log available tools for debugging
         tools = getattr(mcp, '_tools', None) or getattr(mcp, 'tools', None)
         if tools:
@@ -44,6 +46,7 @@ async def lifespan(app: FastAPI):
             logger.info("Available MCP tools: %s", tool_names)
     except Exception as exc:
         logger.warning("MCP server connection failed, tools will be unavailable: %s", exc)
+        app.state.mcp_connected = False
 
     # Create PydanticAI agent
     agent = create_agent(mcp)
@@ -77,10 +80,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Travel Bridge Orchestrator", lifespan=lifespan)
 
-# CORS – allow all origins (same as Express ``cors()`` with defaults)
+# CORS – configurable origins from environment
+_cors_raw = os.environ.get("CORS_ORIGINS", "*")
+_cors_origins = [o.strip() for o in _cors_raw.split(",")] if _cors_raw != "*" else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
