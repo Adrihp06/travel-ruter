@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -14,7 +15,7 @@ const useAccommodationStore = create((set, get) => ({
   fetchAccommodations: async (destinationId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/destinations/${destinationId}/accommodations`
       );
 
@@ -36,7 +37,7 @@ const useAccommodationStore = create((set, get) => ({
   createAccommodation: async (accommodationData) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/accommodations`, {
+      const response = await authFetch(`${API_BASE_URL}/accommodations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(accommodationData),
@@ -63,7 +64,7 @@ const useAccommodationStore = create((set, get) => ({
   updateAccommodation: async (accommodationId, accommodationData) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/accommodations/${accommodationId}`,
         {
           method: 'PUT',
@@ -99,7 +100,7 @@ const useAccommodationStore = create((set, get) => ({
   deleteAccommodation: async (accommodationId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/accommodations/${accommodationId}`,
         { method: 'DELETE' }
       );
@@ -151,7 +152,7 @@ const useAccommodationStore = create((set, get) => ({
       await Promise.all(
         destinations.map(async (dest) => {
           try {
-            const response = await fetch(
+            const response = await authFetch(
               `${API_BASE_URL}/destinations/${dest.id}/accommodations`
             );
             if (response.ok) {

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
@@ -27,7 +28,7 @@ const useWeatherStore = create((set, get) => ({
         url.searchParams.set('month', month);
       }
 
-      const response = await fetch(url.toString());
+      const response = await authFetch(url.toString());
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/shallow';
+import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -34,7 +35,7 @@ const usePOIStore = create((set, get) => ({
   fetchPOIsByDestination: async (destinationId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/destinations/${destinationId}/pois`);
+      const response = await authFetch(`${API_BASE_URL}/destinations/${destinationId}/pois`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch POIs');
@@ -52,7 +53,7 @@ const usePOIStore = create((set, get) => ({
   createPOI: async (poiData) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/pois`, {
+      const response = await authFetch(`${API_BASE_URL}/pois`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -133,7 +134,7 @@ const usePOIStore = create((set, get) => ({
     });
 
     try {
-      const response = await fetch(`${API_BASE_URL}/pois/${poiId}/vote`, {
+      const response = await authFetch(`${API_BASE_URL}/pois/${poiId}/vote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vote_type: voteType }),
@@ -179,7 +180,7 @@ const usePOIStore = create((set, get) => ({
   updatePOI: async (poiId, poiData) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/pois/${poiId}`, {
+      const response = await authFetch(`${API_BASE_URL}/pois/${poiId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(poiData),
@@ -211,7 +212,7 @@ const usePOIStore = create((set, get) => ({
   deletePOI: async (poiId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/pois/${poiId}`, {
+      const response = await authFetch(`${API_BASE_URL}/pois/${poiId}`, {
         method: 'DELETE',
       });
 
@@ -294,7 +295,7 @@ const usePOIStore = create((set, get) => ({
     });
 
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/destinations/${destinationId}/pois/schedule`,
         {
           method: 'PUT',
@@ -331,7 +332,7 @@ const usePOIStore = create((set, get) => ({
 
   // Get accommodation/start location for a day
   getAccommodationForDay: async (destinationId, dayNumber) => {
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/destinations/${destinationId}/accommodation-for-day?day_number=${dayNumber}`
     );
 
@@ -348,7 +349,7 @@ const usePOIStore = create((set, get) => ({
     set({ isOptimizing: true, optimizationError: null, optimizationResult: null });
 
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/destinations/${destinationId}/pois/optimize-day`,
         {
           method: 'POST',
@@ -407,7 +408,7 @@ const usePOIStore = create((set, get) => ({
       if (params.trip_type) queryParams.append('trip_type', params.trip_type);
       if (params.max_results) queryParams.append('max_results', params.max_results);
 
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/destinations/${destinationId}/pois/suggestions?${queryParams.toString()}`
       );
 
@@ -428,7 +429,7 @@ const usePOIStore = create((set, get) => ({
   // Add a single suggested POI to the destination
   addSuggestedPOI: async (poiData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/pois`, {
+      const response = await authFetch(`${API_BASE_URL}/pois`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(poiData),
@@ -476,7 +477,7 @@ const usePOIStore = create((set, get) => ({
   // Bulk add multiple suggested POIs
   bulkAddSuggestedPOIs: async (destinationId, placeIds) => {
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/destinations/${destinationId}/pois/suggestions/bulk-add`,
         {
           method: 'POST',
@@ -528,7 +529,7 @@ const usePOIStore = create((set, get) => ({
 
   // Fetch travel time matrix for Smart Scheduler
   fetchTravelMatrix: async (destinationId, locations, profile = 'foot-walking') => {
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/destinations/${destinationId}/travel-matrix`,
       {
         method: 'POST',

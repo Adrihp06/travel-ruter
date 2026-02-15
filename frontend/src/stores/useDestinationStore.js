@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/shallow';
+import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -22,7 +23,7 @@ const useDestinationStore = create((set, get) => ({
   fetchDestinations: async (tripId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}/destinations`);
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/destinations`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch destinations');
@@ -40,7 +41,7 @@ const useDestinationStore = create((set, get) => ({
   createDestination: async (destinationData) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/destinations`, {
+      const response = await authFetch(`${API_BASE_URL}/destinations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(destinationData),
@@ -69,7 +70,7 @@ const useDestinationStore = create((set, get) => ({
   updateDestination: async (destinationId, destinationData) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/destinations/${destinationId}`, {
+      const response = await authFetch(`${API_BASE_URL}/destinations/${destinationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(destinationData),
@@ -101,7 +102,7 @@ const useDestinationStore = create((set, get) => ({
   deleteDestination: async (destinationId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/destinations/${destinationId}`, {
+      const response = await authFetch(`${API_BASE_URL}/destinations/${destinationId}`, {
         method: 'DELETE',
       });
 
@@ -135,7 +136,7 @@ const useDestinationStore = create((set, get) => ({
     set({ destinations: reorderedDestinations });
 
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}/destinations/reorder`, {
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/destinations/reorder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ destination_ids: destinationIds }),

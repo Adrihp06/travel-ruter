@@ -9,6 +9,8 @@ import { create } from 'zustand';
 import usePOIStore from './usePOIStore';
 import useDestinationStore from './useDestinationStore';
 import useTripStore from './useTripStore';
+import useAuthStore from './useAuthStore';
+import authFetch from '../utils/authFetch';
 import {
   saveConversation,
   loadConversation,
@@ -137,7 +139,7 @@ const useAIStore = create((set, get) => ({
     set({ modelsLoading: true });
 
     try {
-      const response = await fetch(`${ORCHESTRATOR_URL}/api/models`);
+      const response = await authFetch(`${ORCHESTRATOR_URL}/api/models`);
       if (!response.ok) throw new Error('Failed to fetch models');
 
       const data = await response.json();
@@ -207,7 +209,7 @@ const useAIStore = create((set, get) => ({
       ? { ...tripContext, destination: context }
       : { destination: context };
 
-    fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}`, {
+    authFetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tripContext: enrichedContext }),
@@ -326,7 +328,7 @@ const useAIStore = create((set, get) => ({
     let backendHistory = null;
     if (sessionId) {
       try {
-        const res = await fetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/history`);
+        const res = await authFetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}/history`);
         if (res.ok) {
           const data = await res.json();
           backendHistory = data.messageHistory;
@@ -373,7 +375,7 @@ const useAIStore = create((set, get) => ({
           ? { ...tripContext, ...(destinationContext && { destination: destinationContext }) }
           : destinationContext ? { destination: destinationContext } : null;
 
-        const res = await fetch(`${ORCHESTRATOR_URL}/api/sessions`, {
+        const res = await authFetch(`${ORCHESTRATOR_URL}/api/sessions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -467,7 +469,7 @@ const useAIStore = create((set, get) => ({
           ? { ...tripContext, ...(destinationContext && { destination: destinationContext }) }
           : destinationContext ? { destination: destinationContext } : null;
 
-        const res = await fetch(`${ORCHESTRATOR_URL}/api/sessions`, {
+        const res = await authFetch(`${ORCHESTRATOR_URL}/api/sessions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -581,7 +583,7 @@ const useAIStore = create((set, get) => ({
       : destinationContext ? { destination: destinationContext } : null;
 
     try {
-      const response = await fetch(`${ORCHESTRATOR_URL}/api/sessions`, {
+      const response = await authFetch(`${ORCHESTRATOR_URL}/api/sessions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -645,6 +647,11 @@ const useAIStore = create((set, get) => ({
 
     ws.onopen = () => {
       console.log('WebSocket connected');
+      // Send JWT auth handshake
+      const token = useAuthStore?.getState()?.token;
+      if (token) {
+        ws.send(JSON.stringify({ type: 'auth', token }));
+      }
       set({ isConnected: true, connectionError: null, _reconnectAttempts: 0 });
     };
 
@@ -995,7 +1002,7 @@ const useAIStore = create((set, get) => ({
     });
 
     try {
-      const response = await fetch(`${ORCHESTRATOR_URL}/api/chat`, {
+      const response = await authFetch(`${ORCHESTRATOR_URL}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

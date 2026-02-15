@@ -1,19 +1,7 @@
 import { create } from 'zustand';
-import useAuthStore from './useAuthStore';
+import authFetch from '../utils/authFetch';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-
-const authFetch = async (url, options = {}) => {
-  const token = useAuthStore.getState().getToken();
-  return fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
-};
 
 const useCollaborationStore = create((set, get) => ({
   members: [],

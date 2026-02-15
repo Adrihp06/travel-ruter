@@ -1,20 +1,8 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/shallow';
-import useAuthStore from './useAuthStore';
+import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-
-// Authenticated fetch helper — injects Bearer token when available
-const authFetch = (url, options = {}) => {
-  const token = useAuthStore.getState().getToken();
-  return fetch(url, {
-    ...options,
-    headers: {
-      ...(options.headers || {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-};
 
 // Helper to get trip status priority for default sorting
 // Order: ongoing/in progress > planning/upcoming > completed

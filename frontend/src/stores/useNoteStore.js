@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -36,7 +37,7 @@ const useNoteStore = create((set, get) => ({
       const queryString = params.toString();
       const url = `${API_BASE_URL}/trips/${tripId}/notes${queryString ? `?${queryString}` : ''}`;
 
-      const response = await fetch(url);
+      const response = await authFetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch notes');
       }
@@ -53,7 +54,7 @@ const useNoteStore = create((set, get) => ({
   fetchTripNotesGrouped: async (tripId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}/notes/grouped`);
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/notes/grouped`);
       if (!response.ok) {
         throw new Error('Failed to fetch grouped notes');
       }
@@ -84,7 +85,7 @@ const useNoteStore = create((set, get) => ({
       const queryString = params.toString();
       const url = `${API_BASE_URL}/destinations/${destinationId}/notes${queryString ? `?${queryString}` : ''}`;
 
-      const response = await fetch(url);
+      const response = await authFetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch destination notes');
       }
@@ -101,7 +102,7 @@ const useNoteStore = create((set, get) => ({
   fetchDestinationNotesByDay: async (destinationId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/destinations/${destinationId}/notes/by-day`);
+      const response = await authFetch(`${API_BASE_URL}/destinations/${destinationId}/notes/by-day`);
       if (!response.ok) {
         throw new Error('Failed to fetch notes by day');
       }
@@ -117,7 +118,7 @@ const useNoteStore = create((set, get) => ({
   // Fetch note stats for a trip
   fetchNoteStats: async (tripId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}/notes/stats`);
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/notes/stats`);
       if (!response.ok) {
         throw new Error('Failed to fetch note stats');
       }
@@ -134,7 +135,7 @@ const useNoteStore = create((set, get) => ({
   fetchNote: async (noteId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/notes/${noteId}`);
+      const response = await authFetch(`${API_BASE_URL}/notes/${noteId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch note');
       }
@@ -151,7 +152,7 @@ const useNoteStore = create((set, get) => ({
   createNote: async (tripId, noteData) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}/notes`, {
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/notes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -186,7 +187,7 @@ const useNoteStore = create((set, get) => ({
   updateNote: async (noteId, updates) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/notes/${noteId}`, {
+      const response = await authFetch(`${API_BASE_URL}/notes/${noteId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -220,7 +221,7 @@ const useNoteStore = create((set, get) => ({
   deleteNote: async (noteId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/notes/${noteId}`, {
+      const response = await authFetch(`${API_BASE_URL}/notes/${noteId}`, {
         method: 'DELETE',
       });
 
@@ -244,7 +245,7 @@ const useNoteStore = create((set, get) => ({
   // Toggle pin status
   togglePin: async (noteId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/notes/${noteId}/toggle-pin`, {
+      const response = await authFetch(`${API_BASE_URL}/notes/${noteId}/toggle-pin`, {
         method: 'POST',
       });
 
@@ -272,7 +273,7 @@ const useNoteStore = create((set, get) => ({
   searchNotes: async (tripId, query, filters = {}) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}/notes/search`, {
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/notes/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -303,7 +304,7 @@ const useNoteStore = create((set, get) => ({
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(`${API_BASE_URL}/notes/${noteId}/media`, {
+      const response = await authFetch(`${API_BASE_URL}/notes/${noteId}/media`, {
         method: 'POST',
         body: formData,
       });
@@ -334,7 +335,7 @@ const useNoteStore = create((set, get) => ({
   deleteMedia: async (noteId, filename) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/notes/${noteId}/media/${filename}`, {
+      const response = await authFetch(`${API_BASE_URL}/notes/${noteId}/media/${filename}`, {
         method: 'DELETE',
       });
 

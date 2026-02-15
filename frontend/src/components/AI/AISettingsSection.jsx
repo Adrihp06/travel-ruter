@@ -13,6 +13,7 @@ import EyeIcon from '@/components/icons/eye-icon';
 import EyeOffIcon from '@/components/icons/eye-off-icon';
 import ExternalLinkIcon from '@/components/icons/external-link-icon';
 import useAIStore from '../../stores/useAIStore';
+import authFetch from '../../utils/authFetch';
 
 const _RAW_ORCHESTRATOR_URL = import.meta.env.VITE_ORCHESTRATOR_URL || 'http://localhost:3001';
 // Resolve relative paths (e.g. "/chat") to an absolute URL for fetch calls
@@ -82,7 +83,7 @@ const AISettingsSection = ({ settings, updateSetting }) => {
     setTestMessage('Testing connection...');
 
     try {
-      const response = await fetch(`${ORCHESTRATOR_URL}/health`);
+      const response = await authFetch(`${ORCHESTRATOR_URL}/health`);
       if (response.ok) {
         const data = await response.json();
         setTestStatus('success');
@@ -142,7 +143,7 @@ const AISettingsSection = ({ settings, updateSetting }) => {
   useEffect(() => {
     const loadApiKeysStatus = async () => {
       try {
-        const response = await fetch(`${ORCHESTRATOR_URL}/api/providers/status`);
+        const response = await authFetch(`${ORCHESTRATOR_URL}/api/providers/status`);
         if (response.ok) {
           const data = await response.json();
           // Don't store actual keys, just status
@@ -171,7 +172,7 @@ const AISettingsSection = ({ settings, updateSetting }) => {
     setKeySaveStatus(null);
 
     try {
-      const response = await fetch(`${ORCHESTRATOR_URL}/api/providers/keys`, {
+      const response = await authFetch(`${ORCHESTRATOR_URL}/api/providers/keys`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keys: apiKeys }),
