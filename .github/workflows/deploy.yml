@@ -100,7 +100,19 @@ jobs:
           docker compose --profile prod down --timeout 30 || true
           docker compose --profile prod pull
           docker compose --profile prod up -d --remove-orphans
+          sleep 10
+          echo "=== Container status ==="
           docker compose --profile prod ps
+          echo "=== Frontend logs ==="
+          docker logs travel_ruter_frontend 2>&1 || true
+          echo "=== Backend logs ==="
+          docker logs travel_ruter_backend 2>&1 | tail -30 || true
+          echo "=== Orchestrator logs ==="
+          docker logs travel_ruter_orchestrator 2>&1 | tail -30 || true
+          echo "=== DB logs ==="
+          docker logs travel_ruter_db 2>&1 | tail -15 || true
+          # Check if frontend is healthy
+          docker inspect --format='{{.State.Health.Status}}' travel_ruter_frontend
 
 # =============================================================================
 # Self-hosted runner setup (NAS)
