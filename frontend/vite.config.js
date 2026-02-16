@@ -47,6 +47,9 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // Exclude /api/ paths from the SPA navigation fallback so that
+        // OAuth redirects (/api/auth/google, /api/auth/github) reach the server.
+        navigateFallbackDenylist: [/^\/api\//],
         // Cache strategies for different resource types
         runtimeCaching: [
           {
