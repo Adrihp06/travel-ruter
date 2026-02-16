@@ -11,6 +11,7 @@ Tools:
 - trips: manage_trip (CRUD operations)
 - budget: calculate_budget
 - scheduler: generate_smart_schedule
+- accommodations: manage_accommodation (CRUD operations)
 """
 
 from mcp_server.tools.destinations import register_tools as register_destination_tools
@@ -19,6 +20,7 @@ from mcp_server.tools.routes import register_tools as register_route_tools
 from mcp_server.tools.trips import register_tools as register_trip_tools
 from mcp_server.tools.budget import register_tools as register_budget_tools
 from mcp_server.tools.scheduler import register_tools as register_scheduler_tools
+from mcp_server.tools.accommodations import register_tools as register_accommodation_tools
 
 __all__ = [
     "register_destination_tools",
@@ -27,4 +29,5 @@ __all__ = [
     "register_trip_tools",
     "register_budget_tools",
     "register_scheduler_tools",
+    "register_accommodation_tools",
 ]

@@ -36,6 +36,11 @@ from mcp_server.schemas.scheduler import (
     GenerateSmartScheduleInput,
     SmartScheduleResult,
 )
+from mcp_server.schemas.accommodations import (
+    AccommodationOperation,
+    AccommodationResult,
+    ManageAccommodationOutput,
+)
 
 __all__ = [
     "SearchDestinationsInput",
@@ -57,4 +62,7 @@ __all__ = [
     "BudgetResult",
     "GenerateSmartScheduleInput",
     "SmartScheduleResult",
+    "AccommodationOperation",
+    "AccommodationResult",
+    "ManageAccommodationOutput",
 ]
