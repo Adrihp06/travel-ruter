@@ -1,3 +1,4 @@
+# check=skip=SecretsUsedInArgOrEnv
 # Build stage
 FROM node:20-alpine AS builder
 
@@ -12,7 +13,7 @@ RUN npm ci
 # Copy source files
 COPY . .
 
-# Build arguments for environment variables
+# Build arguments — Vite inlines VITE_* at build time (all public client-side values)
 ARG VITE_API_URL
 ARG VITE_MAPBOX_ACCESS_TOKEN
 ARG VITE_ORCHESTRATOR_URL
