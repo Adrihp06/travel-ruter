@@ -73,7 +73,6 @@ services:
       DOCUMENTS_UPLOAD_PATH: /app/documents
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
       # JWT Authentication
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-30}
       # OAuth providers
@@ -143,8 +142,8 @@ services:
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
       GOOGLE_CLOUD_LOCATION: ${GOOGLE_CLOUD_LOCATION:-us-central1}
       OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
-      # JWT (for validating auth tokens from frontend)
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-production}
+      # JWT (must match backend SECRET_KEY so orchestrator can verify JWTs)
+      JWT_SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       # Travel API keys (forwarded to MCP server subprocess)
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
