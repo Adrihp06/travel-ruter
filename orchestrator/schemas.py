@@ -77,6 +77,7 @@ class TripContext(CamelModel):
 
 class CreateSessionRequest(CamelModel):
     model_id: str | None = Field(default=None, alias="modelId")
+    trip_id: int | None = Field(default=None, alias="tripId")
     trip_context: TripContext | None = Field(default=None, alias="tripContext")
     agent_config: dict[str, Any] | None = Field(default=None, alias="agentConfig")
     chat_mode: str | None = Field(default=None, alias="chatMode")

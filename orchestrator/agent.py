@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 import os
 
 from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerStdio
+from pydantic_ai.models.anthropic import AnthropicModel
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.gemini import GeminiModel
 
 from orchestrator.config import SYSTEM_PROMPT, _MODEL_MAP, settings
+
+logger = logging.getLogger("orchestrator.agent")
 
 
 def create_mcp_server() -> MCPServerStdio:
@@ -68,6 +74,49 @@ def resolve_model_name(frontend_model_id: str) -> str:
         f"Valid model IDs: {valid_ids}. "
         f"For Ollama models, use the format 'model:tag' (e.g., 'llama3.2:latest')."
     )
+
+
+def provider_from_model_id(model_id: str) -> str | None:
+    """Derive the AI provider service name from a frontend model ID."""
+    info = _MODEL_MAP.get(model_id)
+    if info:
+        prov = info.provider
+        if prov == "claude":
+            return "anthropic"
+        if prov == "openai":
+            return "openai"
+        if prov == "gemini":
+            return "google_ai"
+        return None
+    # Ollama models don't need external API keys
+    return None
+
+
+def resolve_model_with_key(pydantic_ai_model: str, api_key: str | None):
+    """Return a model instance with an explicit API key, or the string name for env var fallback.
+
+    When ``api_key`` is ``None``, returns the plain model string so pydantic-ai
+    reads from environment variables as before.
+    """
+    if not api_key:
+        return pydantic_ai_model
+
+    # Parse provider prefix from pydantic_ai_model (e.g. "anthropic:claude-...")
+    if pydantic_ai_model.startswith("anthropic:"):
+        model_name = pydantic_ai_model.split(":", 1)[1]
+        logger.info("Creating AnthropicModel with explicit key for %s", model_name)
+        return AnthropicModel(model_name, api_key=api_key)
+    if pydantic_ai_model.startswith("openai:"):
+        model_name = pydantic_ai_model.split(":", 1)[1]
+        logger.info("Creating OpenAIModel with explicit key for %s", model_name)
+        return OpenAIModel(model_name, api_key=api_key)
+    if pydantic_ai_model.startswith("google-vertex:") or pydantic_ai_model.startswith("google-gla:"):
+        model_name = pydantic_ai_model.split(":", 1)[1]
+        logger.info("Creating GeminiModel with explicit key for %s", model_name)
+        return GeminiModel(model_name, api_key=api_key)
+
+    # Unknown provider — fall back to string (env var)
+    return pydantic_ai_model
 
 
 def build_instructions(trip_context: dict | None) -> str:

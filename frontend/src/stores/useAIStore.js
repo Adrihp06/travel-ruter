@@ -575,7 +575,7 @@ const useAIStore = create((set, get) => ({
    * Create a new chat session
    */
   createSession: async () => {
-    const { selectedModelId, tripContext, destinationContext, agentConfig, chatMode } = get();
+    const { selectedModelId, selectedTripId, tripContext, destinationContext, agentConfig, chatMode } = get();
 
     // Merge destination context into trip context for the orchestrator
     const enrichedContext = tripContext
@@ -588,6 +588,7 @@ const useAIStore = create((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           modelId: selectedModelId,
+          tripId: selectedTripId || null,
           tripContext: enrichedContext,
           agentConfig: {
             name: agentConfig.name,
@@ -648,7 +649,7 @@ const useAIStore = create((set, get) => ({
     ws.onopen = () => {
       console.log('WebSocket connected');
       // Send JWT auth handshake
-      const token = useAuthStore?.getState()?.token;
+      const token = useAuthStore?.getState()?.accessToken;
       if (token) {
         ws.send(JSON.stringify({ type: 'auth', token }));
       }

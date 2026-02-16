@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
+from app.services import api_key_service
 from app.schemas.routing import RoutingRequest, RoutingResponse
 from app.schemas.route import RouteRequest, RouteResponse
 from app.schemas.mapbox import (
@@ -99,7 +102,12 @@ async def delete_route(route_id: int, db: AsyncSession = Depends(get_db), curren
 
 
 @router.post("/routes/mapbox", response_model=MapboxRouteResponse)
-async def get_mapbox_route(request: MapboxRouteRequest, current_user: User = Depends(get_current_user)):
+async def get_mapbox_route(
+    request: MapboxRouteRequest,
+    trip_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Get route using Mapbox Directions API.
 
@@ -110,7 +118,8 @@ async def get_mapbox_route(request: MapboxRouteRequest, current_user: User = Dep
     - cycling: Bicycle routing
     """
     try:
-        service = MapboxService()
+        access_token = await api_key_service.get_key(db, trip_id, "mapbox") if trip_id else None
+        service = MapboxService(access_token=access_token)
         profile = MapboxRoutingProfile(request.profile.value)
 
         # Convert optional waypoints
@@ -141,14 +150,20 @@ async def get_mapbox_route(request: MapboxRouteRequest, current_user: User = Dep
 
 
 @router.post("/routes/mapbox/multi-waypoint", response_model=MapboxRouteResponse)
-async def get_mapbox_multi_waypoint_route(request: MapboxMultiWaypointRequest, current_user: User = Depends(get_current_user)):
+async def get_mapbox_multi_waypoint_route(
+    request: MapboxMultiWaypointRequest,
+    trip_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Get route through multiple waypoints using Mapbox Directions API.
 
     Requires at least 2 waypoints. Routes are calculated in order.
     """
     try:
-        service = MapboxService()
+        access_token = await api_key_service.get_key(db, trip_id, "mapbox") if trip_id else None
+        service = MapboxService(access_token=access_token)
         profile = MapboxRoutingProfile(request.profile.value)
 
         waypoints = [(wp.lon, wp.lat) for wp in request.waypoints]
@@ -195,14 +210,19 @@ async def export_to_google_maps(request: GoogleMapsExportRequest, current_user: 
 
 
 @router.get("/routes/ors/status", response_model=ORSServiceStatus)
-async def get_ors_status(current_user: User = Depends(get_current_user)):
+async def get_ors_status(
+    trip_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Check if OpenRouteService is configured and available.
 
     Returns the status of the OpenRouteService API configuration.
     If not available, provides instructions on how to configure it.
     """
-    service = OpenRouteServiceService()
+    api_key = await api_key_service.get_key(db, trip_id, "openrouteservice") if trip_id else None
+    service = OpenRouteServiceService(api_key=api_key)
     if service.is_available():
         return ORSServiceStatus(
             available=True,
@@ -216,7 +236,12 @@ async def get_ors_status(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/routes/ors", response_model=ORSRouteResponse)
-async def get_ors_route(request: ORSRouteRequest, current_user: User = Depends(get_current_user)):
+async def get_ors_route(
+    request: ORSRouteRequest,
+    trip_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Get route using OpenRouteService Directions API.
 
@@ -235,7 +260,8 @@ async def get_ors_route(request: ORSRouteRequest, current_user: User = Depends(g
     https://openrouteservice.org/dev/#/signup
     """
     try:
-        service = OpenRouteServiceService()
+        api_key = await api_key_service.get_key(db, trip_id, "openrouteservice") if trip_id else None
+        service = OpenRouteServiceService(api_key=api_key)
         profile = ORSRoutingProfile(request.profile.value)
 
         # Convert optional waypoints
@@ -267,7 +293,12 @@ async def get_ors_route(request: ORSRouteRequest, current_user: User = Depends(g
 
 
 @router.post("/routes/ors/multi-waypoint", response_model=ORSRouteResponse)
-async def get_ors_multi_waypoint_route(request: ORSMultiWaypointRequest, current_user: User = Depends(get_current_user)):
+async def get_ors_multi_waypoint_route(
+    request: ORSMultiWaypointRequest,
+    trip_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Get route through multiple waypoints using OpenRouteService Directions API.
 
@@ -277,7 +308,8 @@ async def get_ors_multi_waypoint_route(request: ORSMultiWaypointRequest, current
     and durations along actual roads.
     """
     try:
-        service = OpenRouteServiceService()
+        api_key = await api_key_service.get_key(db, trip_id, "openrouteservice") if trip_id else None
+        service = OpenRouteServiceService(api_key=api_key)
         profile = ORSRoutingProfile(request.profile.value)
 
         waypoints = [(wp.lon, wp.lat) for wp in request.waypoints]
@@ -309,14 +341,19 @@ async def get_ors_multi_waypoint_route(request: ORSMultiWaypointRequest, current
 
 
 @router.get("/routes/google-maps/status", response_model=GoogleMapsStatusResponse)
-async def get_google_maps_status(current_user: User = Depends(get_current_user)):
+async def get_google_maps_status(
+    trip_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Check if Google Maps Routes API is configured and available.
 
     Returns the status of the Google Maps API configuration.
     If not available, provides instructions on how to configure it.
     """
-    service = GoogleMapsRoutesService()
+    api_key = await api_key_service.get_key(db, trip_id, "google_maps") if trip_id else None
+    service = GoogleMapsRoutesService(api_key=api_key)
     if service.is_available():
         return GoogleMapsStatusResponse(
             available=True,
@@ -330,7 +367,12 @@ async def get_google_maps_status(current_user: User = Depends(get_current_user))
 
 
 @router.post("/routes/google-maps", response_model=GoogleMapsRoutesResponse)
-async def get_google_maps_route(request: GoogleMapsRoutesRequest, current_user: User = Depends(get_current_user)):
+async def get_google_maps_route(
+    request: GoogleMapsRoutesRequest,
+    trip_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Get route using Google Maps Routes API.
 
@@ -347,7 +389,8 @@ async def get_google_maps_route(request: GoogleMapsRoutesRequest, current_user: 
     Get a key at https://console.cloud.google.com/apis/credentials
     """
     try:
-        service = GoogleMapsRoutesService()
+        api_key = await api_key_service.get_key(db, trip_id, "google_maps") if trip_id else None
+        service = GoogleMapsRoutesService(api_key=api_key)
         travel_mode = GoogleMapsRouteTravelMode(request.travel_mode.value)
 
         # Convert optional waypoints
@@ -391,7 +434,12 @@ async def get_google_maps_route(request: GoogleMapsRoutesRequest, current_user: 
 
 
 @router.post("/routes/google-maps/multi-waypoint", response_model=GoogleMapsRoutesResponse)
-async def get_google_maps_multi_waypoint_route(request: GoogleMapsMultiWaypointRequest, current_user: User = Depends(get_current_user)):
+async def get_google_maps_multi_waypoint_route(
+    request: GoogleMapsMultiWaypointRequest,
+    trip_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Get route through multiple waypoints using Google Maps Routes API.
 
@@ -400,7 +448,8 @@ async def get_google_maps_multi_waypoint_route(request: GoogleMapsMultiWaypointR
     Supports all travel modes including TRANSIT for public transport.
     """
     try:
-        service = GoogleMapsRoutesService()
+        api_key = await api_key_service.get_key(db, trip_id, "google_maps") if trip_id else None
+        service = GoogleMapsRoutesService(api_key=api_key)
         travel_mode = GoogleMapsRouteTravelMode(request.travel_mode.value)
 
         waypoints = [(wp.lon, wp.lat) for wp in request.waypoints]
@@ -432,15 +481,21 @@ _current_routing_preference = RoutingPreference.DEFAULT
 
 
 @router.get("/routes/preferences", response_model=RoutingPreferencesResponse)
-async def get_routing_preferences(current_user: User = Depends(get_current_user)):
+async def get_routing_preferences(
+    trip_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Get current routing preferences.
 
     Returns which routing service is configured to be used and
     the availability status of each service.
     """
-    google_service = GoogleMapsRoutesService()
-    ors_service = OpenRouteServiceService()
+    google_key = await api_key_service.get_key(db, trip_id, "google_maps") if trip_id else None
+    ors_key = await api_key_service.get_key(db, trip_id, "openrouteservice") if trip_id else None
+    google_service = GoogleMapsRoutesService(api_key=google_key)
+    ors_service = OpenRouteServiceService(api_key=ors_key)
 
     return RoutingPreferencesResponse(
         preference=_current_routing_preference,
@@ -450,7 +505,12 @@ async def get_routing_preferences(current_user: User = Depends(get_current_user)
 
 
 @router.put("/routes/preferences", response_model=RoutingPreferencesResponse)
-async def update_routing_preferences(request: RoutingPreferencesRequest, current_user: User = Depends(get_current_user)):
+async def update_routing_preferences(
+    request: RoutingPreferencesRequest,
+    trip_id: Optional[int] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Update routing preferences.
 
@@ -465,8 +525,10 @@ async def update_routing_preferences(request: RoutingPreferencesRequest, current
     global _current_routing_preference
     _current_routing_preference = request.preference
 
-    google_service = GoogleMapsRoutesService()
-    ors_service = OpenRouteServiceService()
+    google_key = await api_key_service.get_key(db, trip_id, "google_maps") if trip_id else None
+    ors_key = await api_key_service.get_key(db, trip_id, "openrouteservice") if trip_id else None
+    google_service = GoogleMapsRoutesService(api_key=google_key)
+    ors_service = OpenRouteServiceService(api_key=ors_key)
 
     return RoutingPreferencesResponse(
         preference=_current_routing_preference,

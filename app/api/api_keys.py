@@ -46,6 +46,20 @@ async def delete_api_key(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Key not found")
 
 
+@router.get("/trips/{trip_id}/api-keys/{service}/value")
+async def get_api_key_value(
+    trip_id: int,
+    service: str,
+    user: User = Depends(require_viewer),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return decrypted key value (or env var fallback). Used by orchestrator."""
+    key = await api_key_service.get_key(db, trip_id, service)
+    if not key:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No key configured")
+    return {"service_name": service, "key": key}
+
+
 @router.post("/trips/{trip_id}/api-keys/{service}/test", response_model=ApiKeyTestResult)
 async def test_api_key(
     trip_id: int,

@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
+import httpx
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import JSONResponse
 from jose import JWTError, jwt as jose_jwt
@@ -29,7 +31,7 @@ from pydantic_ai.messages import ModelMessage
 
 _msg_adapter = TypeAdapter(list[ModelMessage])
 
-from orchestrator.agent import build_instructions, resolve_model_name
+from orchestrator.agent import build_instructions, provider_from_model_id, resolve_model_name, resolve_model_with_key
 from orchestrator.config import get_available_models, settings
 from orchestrator.schemas import (
     ChatRequest,
@@ -45,7 +47,7 @@ from orchestrator.schemas import (
     ToolCallInfo,
     UpdateSessionRequest,
 )
-from orchestrator.session import SessionManager
+from orchestrator.session import Session, SessionManager
 
 logger = logging.getLogger("orchestrator.routes")
 
@@ -62,6 +64,55 @@ def _agent(request: Request) -> Agent:
 
 def _sessions(request: Request) -> SessionManager:
     return request.app.state.session_manager
+
+
+# ---------------------------------------------------------------------------
+# Trip-level API key resolution
+# ---------------------------------------------------------------------------
+
+# Backend URL for internal calls (same Docker network)
+_BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:8000")
+
+
+async def _resolve_trip_api_key(
+    session: "Session",
+    jwt_token: str | None = None,
+) -> str | None:
+    """Fetch the AI provider API key for a session's model from the backend.
+
+    Returns the key string or None (meaning fall back to env var).
+    Uses a cached value on the session to avoid repeated lookups.
+    """
+    if session._resolved_api_key is not None:
+        return session._resolved_api_key
+
+    if not session.trip_id:
+        return None
+
+    provider = provider_from_model_id(session.model_id)
+    if not provider:
+        return None
+
+    if not jwt_token:
+        return None
+
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(
+                f"{_BACKEND_URL}/api/v1/trips/{session.trip_id}/api-keys/{provider}/value",
+                headers={"Authorization": f"Bearer {jwt_token}"},
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                key = data.get("key")
+                if key:
+                    session._resolved_api_key = key
+                    logger.info("Resolved trip-level %s key for trip_id=%s", provider, session.trip_id)
+                    return key
+    except Exception as exc:
+        logger.debug("Could not fetch trip-level key for %s: %s", provider, exc)
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -171,6 +222,7 @@ async def create_session(body: CreateSessionRequest, request: Request) -> dict:
 
         session = await sm.create_session(
             model_id=body.model_id,
+            trip_id=body.trip_id,
             trip_context=trip_ctx,
             message_history=restored_history,
         )
@@ -250,11 +302,16 @@ async def chat(body: ChatRequest, request: Request) -> dict:
         instructions = build_instructions(session.trip_context)
         sm.truncate_history(session)
 
+        # Resolve trip-level API key for the AI provider
+        jwt_token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip() or None
+        trip_api_key = await _resolve_trip_api_key(session, jwt_token)
+        model = resolve_model_with_key(session.pydantic_ai_model, trip_api_key)
+
         async with session.lock:
             result = await asyncio.wait_for(
                 agent.run(
                     body.message,
-                    model=session.pydantic_ai_model,
+                    model=model,
                     message_history=session.message_history,
                     instructions=instructions,
                     model_settings={"max_tokens": settings.max_output_tokens},
@@ -310,6 +367,7 @@ async def websocket_chat_stream(ws: WebSocket) -> None:
             algorithms=[settings.JWT_ALGORITHM],
         )
         user_id = int(payload["sub"])
+        ws_jwt_token = auth_data["token"]
         logger.info("WebSocket authenticated for user_id=%s", user_id)
     except (asyncio.TimeoutError, json.JSONDecodeError, JWTError, KeyError, ValueError) as exc:
         logger.warning("WebSocket auth failed: %s", exc)
@@ -348,7 +406,7 @@ async def websocket_chat_stream(ws: WebSocket) -> None:
                     session = sm.get_session(session_id)
                     if session and session.user_id is None:
                         session.user_id = user_id
-                await _handle_chat(ws, data, agent, sm)
+                await _handle_chat(ws, data, agent, sm, jwt_token=ws_jwt_token)
                 continue
 
             await ws.send_json({"type": "error", "error": f"Unknown message type: {msg_type}"})
@@ -369,6 +427,7 @@ async def _handle_chat(
     data: dict,
     agent: Agent,
     sm: SessionManager,
+    jwt_token: str | None = None,
 ) -> None:
     """Stream a chat response over WebSocket.
 
@@ -400,6 +459,10 @@ async def _handle_chat(
 
         instructions = build_instructions(session.trip_context)
         sm.truncate_history(session)
+
+        # Resolve trip-level API key for the AI provider
+        trip_api_key = await _resolve_trip_api_key(session, jwt_token)
+        model = resolve_model_with_key(session.pydantic_ai_model, trip_api_key)
 
         async def event_handler(ctx, event_stream):
             """Forward ALL events to WebSocket — text, tool calls, and tool results.
@@ -487,7 +550,7 @@ async def _handle_chat(
             result = await asyncio.wait_for(
                 agent.run(
                     user_message,
-                    model=session.pydantic_ai_model,
+                    model=model,
                     message_history=session.message_history,
                     instructions=instructions,
                     event_stream_handler=event_handler,

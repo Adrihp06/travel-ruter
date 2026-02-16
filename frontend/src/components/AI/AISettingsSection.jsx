@@ -9,9 +9,6 @@ import { Bot, Key } from 'lucide-react';
 import RefreshIcon from '@/components/icons/refresh-icon';
 import CheckedIcon from '@/components/icons/checked-icon';
 import InfoCircleIcon from '@/components/icons/info-circle-icon';
-import EyeIcon from '@/components/icons/eye-icon';
-import EyeOffIcon from '@/components/icons/eye-off-icon';
-import ExternalLinkIcon from '@/components/icons/external-link-icon';
 import useAIStore from '../../stores/useAIStore';
 import authFetch from '../../utils/authFetch';
 
@@ -21,45 +18,12 @@ const ORCHESTRATOR_URL = _RAW_ORCHESTRATOR_URL.startsWith('http')
   ? _RAW_ORCHESTRATOR_URL
   : `${window.location.origin}${_RAW_ORCHESTRATOR_URL}`;
 
-// Provider configurations
+// Provider info for display (no key input — keys are managed per-trip)
 const PROVIDERS = [
-  {
-    id: 'anthropic',
-    name: 'Anthropic (Claude)',
-    envKey: 'ANTHROPIC_API_KEY',
-    keyPrefix: 'sk-ant-',
-    getKeyUrl: 'https://console.anthropic.com/settings/keys',
-    models: ['Claude Opus 4.6', 'Claude Sonnet 4.5', 'Claude Haiku 4.5'],
-    color: 'orange',
-  },
-  {
-    id: 'openai',
-    name: 'OpenAI',
-    envKey: 'OPENAI_API_KEY',
-    keyPrefix: 'sk-',
-    getKeyUrl: 'https://platform.openai.com/api-keys',
-    models: ['GPT-5.2', 'GPT-5.2 Codex', 'o3', 'o4-mini', 'GPT-4.1'],
-    color: 'green',
-  },
-  {
-    id: 'google',
-    name: 'Google (Gemini)',
-    envKey: 'GOOGLE_API_KEY',
-    keyPrefix: 'AIza',
-    getKeyUrl: 'https://aistudio.google.com/apikey',
-    models: ['Gemini 3 Flash', 'Gemini 3 Pro', 'Gemini 2.5 Pro', 'Gemini 2.5 Flash'],
-    color: 'blue',
-  },
-  {
-    id: 'perplexity',
-    name: 'Perplexity AI (POI Search)',
-    envKey: 'PERPLEXITY_API_KEY',
-    keyPrefix: 'pplx-',
-    getKeyUrl: 'https://www.perplexity.ai/settings/api',
-    models: ['Sonar', 'Sonar Pro'],
-    color: 'purple',
-    description: 'Used for intelligent POI discovery. When configured, the AI assistant uses Perplexity to find curated points of interest.',
-  },
+  { id: 'anthropic', name: 'Anthropic (Claude)', models: ['Claude Opus 4.6', 'Claude Sonnet 4.5', 'Claude Haiku 4.5'] },
+  { id: 'openai', name: 'OpenAI', models: ['GPT-5.2', 'GPT-5.2 Codex', 'o3', 'o4-mini', 'GPT-4.1'] },
+  { id: 'google', name: 'Google (Gemini)', models: ['Gemini 3 Flash', 'Gemini 3 Pro', 'Gemini 2.5 Pro', 'Gemini 2.5 Flash'] },
+  { id: 'perplexity', name: 'Perplexity AI (POI Search)', models: ['Sonar', 'Sonar Pro'] },
 ];
 
 const AISettingsSection = ({ settings, updateSetting }) => {
@@ -67,15 +31,28 @@ const AISettingsSection = ({ settings, updateSetting }) => {
   const { models, selectedModelId, selectModel, modelsLoading, initialize, connectionError } = useAIStore();
   const [testStatus, setTestStatus] = useState(null); // null | 'testing' | 'success' | 'error'
   const [testMessage, setTestMessage] = useState('');
-  const [apiKeys, setApiKeys] = useState({});
-  const [showKeys, setShowKeys] = useState({});
-  const [savingKeys, setSavingKeys] = useState(false);
-  const [keySaveStatus, setKeySaveStatus] = useState(null);
+  const [providerStatus, setProviderStatus] = useState({});
 
   // Initialize models on mount
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  // Load provider status on mount
+  useEffect(() => {
+    const loadProviderStatus = async () => {
+      try {
+        const response = await authFetch(`${ORCHESTRATOR_URL}/api/providers/status`);
+        if (response.ok) {
+          const data = await response.json();
+          setProviderStatus(data.providers || {});
+        }
+      } catch {
+        // ignore
+      }
+    };
+    loadProviderStatus();
+  }, []);
 
   // Test connection to orchestrator
   const handleTestConnection = async () => {
@@ -103,15 +80,6 @@ const AISettingsSection = ({ settings, updateSetting }) => {
     }, 5000);
   };
 
-  // Read current saved default from localStorage
-  const savedDefaultModel = (() => {
-    try {
-      const stored = localStorage.getItem('travel-ruter-settings');
-      if (stored) return JSON.parse(stored).ai?.defaultModel || null;
-    } catch { /* ignore */ }
-    return null;
-  })();
-
   // Handle model selection — persists as user default
   const handleModelChange = (modelId) => {
     selectModel(modelId);
@@ -137,60 +105,6 @@ const AISettingsSection = ({ settings, updateSetting }) => {
     gemini: 'Gemini (Google)',
     ollama: 'Ollama (Local)',
     other: 'Other',
-  };
-
-  // Load API keys status on mount
-  useEffect(() => {
-    const loadApiKeysStatus = async () => {
-      try {
-        const response = await authFetch(`${ORCHESTRATOR_URL}/api/providers/status`);
-        if (response.ok) {
-          const data = await response.json();
-          // Don't store actual keys, just status
-          setApiKeys(data.providers || {});
-        }
-      } catch (error) {
-        console.log('Could not fetch provider status');
-      }
-    };
-    loadApiKeysStatus();
-  }, []);
-
-  // Toggle key visibility
-  const toggleShowKey = (providerId) => {
-    setShowKeys(prev => ({ ...prev, [providerId]: !prev[providerId] }));
-  };
-
-  // Handle API key change
-  const handleApiKeyChange = (providerId, value) => {
-    setApiKeys(prev => ({ ...prev, [providerId]: value }));
-  };
-
-  // Save API keys to orchestrator
-  const handleSaveApiKeys = async () => {
-    setSavingKeys(true);
-    setKeySaveStatus(null);
-
-    try {
-      const response = await authFetch(`${ORCHESTRATOR_URL}/api/providers/keys`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ keys: apiKeys }),
-      });
-
-      if (response.ok) {
-        setKeySaveStatus('success');
-        // Refresh models after saving keys
-        initialize();
-      } else {
-        setKeySaveStatus('error');
-      }
-    } catch (error) {
-      setKeySaveStatus('error');
-    }
-
-    setSavingKeys(false);
-    setTimeout(() => setKeySaveStatus(null), 3000);
   };
 
   return (
@@ -226,119 +140,45 @@ const AISettingsSection = ({ settings, updateSetting }) => {
         </button>
       </div>
 
-      {/* API Keys Section */}
+      {/* API Keys — managed per-trip */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Key className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('ai.settings.apiKeys')}</h3>
-          </div>
+        <div className="flex items-center space-x-2">
+          <Key className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">{t('ai.settings.apiKeys')}</h3>
         </div>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          {t('ai.settings.apiKeysDescription')}
-        </p>
 
-        <div className="space-y-4">
+        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+          <p className="text-sm text-amber-800 dark:text-amber-300 font-medium mb-2">
+            API keys are now managed per-trip
+          </p>
+          <p className="text-sm text-amber-700 dark:text-amber-400">
+            AI provider keys (Anthropic, OpenAI, Google AI) and service keys (Mapbox, OpenRouteService) are stored
+            securely at the trip level and shared among trip members. Go to your trip settings to add or manage API keys.
+          </p>
+        </div>
+
+        {/* Provider status overview */}
+        <div className="grid grid-cols-2 gap-3">
           {PROVIDERS.map((provider) => (
             <div
               key={provider.id}
-              className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800"
+              className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
             >
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h4 className="font-medium text-gray-900 dark:text-white">{provider.name}</h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Models: {provider.models.join(', ')}
-                  </p>
-                </div>
-                <a
-                  href={provider.getKeyUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center text-sm text-[#D97706] dark:text-amber-400 hover:underline"
-                >
-                  {t('ai.settings.getApiKey')}
-                  <ExternalLinkIcon className="w-3 h-3 ml-1" />
-                </a>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="relative flex-1">
-                  <input
-                    type={provider.isProjectId ? 'text' : (showKeys[provider.id] ? 'text' : 'password')}
-                    value={apiKeys[provider.id] || ''}
-                    onChange={(e) => handleApiKeyChange(provider.id, e.target.value)}
-                    placeholder={provider.isProjectId ? 'my-gcp-project-id' : `${provider.keyPrefix}...`}
-                    className="w-full px-4 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] font-mono text-sm text-gray-900 dark:text-white bg-white dark:bg-gray-700"
-                  />
-                  {!provider.isProjectId && (
-                    <button
-                      type="button"
-                      onClick={() => toggleShowKey(provider.id)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    >
-                      {showKeys[provider.id] ? (
-                        <EyeOffIcon className="w-4 h-4" />
-                      ) : (
-                        <EyeIcon className="w-4 h-4" />
-                      )}
-                    </button>
-                  )}
-                </div>
-                {apiKeys[provider.id] && (
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    provider.color === 'orange' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                    provider.color === 'green' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                    provider.color === 'purple' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' :
-                    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                  }`}>
-                    {t('ai.settings.configured')}
-                  </span>
-                )}
-              </div>
-              {provider.description && (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  {provider.description}
+              <div>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">{provider.name}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {provider.models.slice(0, 2).join(', ')}{provider.models.length > 2 ? '...' : ''}
                 </p>
-              )}
-              {provider.isProjectId && (
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Requires <code className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">gcloud auth application-default login</code> for authentication.
-                </p>
-              )}
+              </div>
+              <span className={`px-2 py-0.5 text-xs rounded-full ${
+                providerStatus[provider.id]
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+              }`}>
+                {providerStatus[provider.id] ? 'Active' : 'No key'}
+              </span>
             </div>
           ))}
-        </div>
-
-        {/* Save Keys Button */}
-        <div className="flex items-center justify-between pt-2">
-          <div>
-            {keySaveStatus === 'success' && (
-              <span className="flex items-center text-sm text-green-600 dark:text-green-400">
-                <CheckedIcon className="w-4 h-4 mr-1" />
-                {t('ai.settings.keysSaved')}
-              </span>
-            )}
-            {keySaveStatus === 'error' && (
-              <span className="flex items-center text-sm text-red-600 dark:text-red-400">
-                <InfoCircleIcon className="w-4 h-4 mr-1" />
-                {t('ai.settings.keysSaveFailed')}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={handleSaveApiKeys}
-            disabled={savingKeys}
-            className="px-4 py-2 bg-[#D97706] hover:bg-[#B45309] text-white rounded-lg transition-colors disabled:opacity-50 flex items-center"
-          >
-            {savingKeys ? (
-              <>
-                <RefreshIcon className="w-4 h-4 mr-2 animate-spin" />
-                {t('common.saving')}
-              </>
-            ) : (
-              t('ai.settings.saveApiKeys')
-            )}
-          </button>
         </div>
       </div>
 

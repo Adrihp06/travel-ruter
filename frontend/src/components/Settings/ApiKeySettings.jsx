@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import useAuthStore from '../../stores/useAuthStore';
+import authFetch from '../../utils/authFetch';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -9,22 +9,21 @@ const SERVICES = [
   { name: 'openrouteservice', label: 'OpenRouteService' },
   { name: 'google_maps', label: 'Google Maps' },
   { name: 'perplexity', label: 'Perplexity' },
+  { name: 'anthropic', label: 'Anthropic (Claude)' },
+  { name: 'openai', label: 'OpenAI' },
+  { name: 'google_ai', label: 'Google AI (Gemini)' },
 ];
 
 export default function ApiKeySettings({ tripId }) {
   const { t } = useTranslation();
-  const getToken = useAuthStore((s) => s.getToken);
   const [keys, setKeys] = useState([]);
   const [newKey, setNewKey] = useState({ service: '', key: '' });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
   const fetchKeys = async () => {
-    const token = getToken();
     try {
-      const resp = await fetch(`${API_BASE}/trips/${tripId}/api-keys`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const resp = await authFetch(`${API_BASE}/trips/${tripId}/api-keys`);
       if (resp.ok) setKeys(await resp.json());
     } catch {
       // ignore
@@ -40,13 +39,9 @@ export default function ApiKeySettings({ tripId }) {
     if (!newKey.service || !newKey.key) return;
     setLoading(true);
     try {
-      const token = getToken();
-      const resp = await fetch(`${API_BASE}/trips/${tripId}/api-keys/${newKey.service}`, {
+      const resp = await authFetch(`${API_BASE}/trips/${tripId}/api-keys/${newKey.service}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: newKey.key }),
       });
       if (resp.ok) {
@@ -63,10 +58,8 @@ export default function ApiKeySettings({ tripId }) {
   };
 
   const handleDelete = async (service) => {
-    const token = getToken();
-    await fetch(`${API_BASE}/trips/${tripId}/api-keys/${service}`, {
+    await authFetch(`${API_BASE}/trips/${tripId}/api-keys/${service}`, {
       method: 'DELETE',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     fetchKeys();
   };

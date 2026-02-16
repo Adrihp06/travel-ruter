@@ -25,9 +25,11 @@ class Session:
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     last_activity: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     user_id: int | None = None
+    trip_id: int | None = None
     trip_context: dict[str, Any] | None = None
     cancel_event: asyncio.Event = field(default_factory=lambda: asyncio.Event())
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    _resolved_api_key: str | None = field(default=None, repr=False)
 
 
 class SessionManager:
@@ -51,6 +53,7 @@ class SessionManager:
     async def create_session(
         self,
         model_id: str | None = None,
+        trip_id: int | None = None,
         trip_context: dict[str, Any] | None = None,
         pydantic_ai_model: str | None = None,
         message_history: list[ModelMessage] | None = None,
@@ -68,12 +71,13 @@ class SessionManager:
             id=str(uuid4()),
             model_id=model_id,
             pydantic_ai_model=pai_model,
+            trip_id=trip_id,
             trip_context=trip_context,
         )
         if message_history:
             session.message_history = message_history
         self._sessions[session.id] = session
-        logger.info("Created session %s with model %s (restored_messages=%d)", session.id, model_id, len(session.message_history))
+        logger.info("Created session %s with model %s trip_id=%s (restored_messages=%d)", session.id, model_id, trip_id, len(session.message_history))
         return session
 
     def update_context(self, session_id: str, trip_context: dict[str, Any]) -> Session | None:

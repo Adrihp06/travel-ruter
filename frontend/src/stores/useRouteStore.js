@@ -1,8 +1,19 @@
 import { create } from 'zustand';
 import authFetch from '../utils/authFetch';
+import useTripStore from './useTripStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 const SETTINGS_KEY = 'travel-ruter-settings';
+
+// Append trip_id query parameter to URL when a trip is selected
+const withTripId = (url) => {
+  const tripId = useTripStore.getState()?.selectedTrip?.id;
+  if (tripId) {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}trip_id=${tripId}`;
+  }
+  return url;
+};
 
 // Transport mode options
 export const TRANSPORT_MODES = {
@@ -116,7 +127,7 @@ const useRouteStore = create((set, get) => ({
     if (orsAvailable !== null) return orsAvailable;
 
     try {
-      const response = await authFetch(`${API_BASE_URL}/routes/ors/status`);
+      const response = await authFetch(withTripId(`${API_BASE_URL}/routes/ors/status`));
       if (response.ok) {
         const data = await response.json();
         set({ orsAvailable: data.available });
@@ -135,7 +146,7 @@ const useRouteStore = create((set, get) => ({
     if (googleMapsAvailable !== null) return googleMapsAvailable;
 
     try {
-      const response = await authFetch(`${API_BASE_URL}/routes/google-maps/status`);
+      const response = await authFetch(withTripId(`${API_BASE_URL}/routes/google-maps/status`));
       if (response.ok) {
         const data = await response.json();
         set({ googleMapsAvailable: data.available });
@@ -168,7 +179,7 @@ const useRouteStore = create((set, get) => ({
         throw new Error('Need at least 2 valid waypoints');
       }
 
-      const response = await authFetch(`${API_BASE_URL}/routes/google-maps/multi-waypoint`, {
+      const response = await authFetch(withTripId(`${API_BASE_URL}/routes/google-maps/multi-waypoint`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -222,7 +233,7 @@ const useRouteStore = create((set, get) => ({
         throw new Error('Need at least 2 valid waypoints');
       }
 
-      const response = await authFetch(`${API_BASE_URL}/routes/ors/multi-waypoint`, {
+      const response = await authFetch(withTripId(`${API_BASE_URL}/routes/ors/multi-waypoint`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -276,7 +287,7 @@ const useRouteStore = create((set, get) => ({
         throw new Error('Need at least 2 valid waypoints');
       }
 
-      const response = await authFetch(`${API_BASE_URL}/routes/mapbox/multi-waypoint`, {
+      const response = await authFetch(withTripId(`${API_BASE_URL}/routes/mapbox/multi-waypoint`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
