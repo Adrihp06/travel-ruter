@@ -94,6 +94,10 @@ services:
       # Amadeus API (Hotels)
       AMADEUS_CLIENT_ID: ${AMADEUS_CLIENT_ID:-}
       AMADEUS_CLIENT_SECRET: ${AMADEUS_CLIENT_SECRET:-}
+      # Cloudflare Access (Zero Trust)
+      CF_ACCESS_ENABLED: ${CF_ACCESS_ENABLED:-false}
+      CF_ACCESS_DOMAIN: ${CF_ACCESS_DOMAIN:-}
+      CF_ACCESS_AUD: ${CF_ACCESS_AUD:-}
     networks:
       - travel-ruter-network
     depends_on:
@@ -180,6 +184,7 @@ services:
         VITE_MAPBOX_ACCESS_TOKEN: ${VITE_MAPBOX_ACCESS_TOKEN:-}
         VITE_ORCHESTRATOR_URL: ${VITE_ORCHESTRATOR_URL:-/chat}
         VITE_AUTH_ENABLED: ${VITE_AUTH_ENABLED:-false}
+        VITE_CF_ACCESS_ENABLED: ${VITE_CF_ACCESS_ENABLED:-false}
     image: adrihp06/travel-ruter-frontend:latest
     container_name: travel_ruter_frontend
     restart: unless-stopped

@@ -90,3 +90,29 @@ async def get_or_create_user(
     await db.flush()
     await db.refresh(user)
     return user
+
+
+async def get_or_create_cf_user(db: AsyncSession, email: str) -> User:
+    """Get existing user by email (any provider) or create a Cloudflare Access user.
+
+    Unlike get_or_create_user, this looks up by email regardless of provider,
+    so users who previously logged in via Google/GitHub are matched seamlessly.
+    """
+    stmt = select(User).where(User.email == email)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+
+    if user:
+        return user
+
+    user = User(
+        email=email,
+        name=email.split("@")[0],
+        oauth_provider="cloudflare",
+        oauth_id=email,
+        is_active=True,
+    )
+    db.add(user)
+    await db.flush()
+    await db.refresh(user)
+    return user

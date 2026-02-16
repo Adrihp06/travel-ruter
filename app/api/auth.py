@@ -11,6 +11,7 @@ from app.services.auth_service import (
     create_refresh_token,
     decode_token,
     get_or_create_user,
+    get_or_create_cf_user,
 )
 from app.api.deps import get_current_user
 
@@ -181,3 +182,53 @@ async def refresh_tokens(
 async def logout(response: Response):
     response.delete_cookie(key="refresh_token", path="/api/v1/auth")
     return {"message": "Logged out"}
+
+
+@router.post("/cloudflare-access")
+async def cloudflare_access_login(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Authenticate via Cloudflare Access JWT.
+
+    Reads the Cf-Access-Jwt-Assertion header injected by Cloudflare,
+    validates it against Cloudflare's JWKS, and returns app tokens.
+    """
+    if not settings.CF_ACCESS_ENABLED:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Cloudflare Access authentication is not enabled",
+        )
+
+    cf_token = request.headers.get("Cf-Access-Jwt-Assertion")
+    if not cf_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing Cf-Access-Jwt-Assertion header",
+        )
+
+    from app.services.cf_access_service import validate_cf_access_token
+
+    try:
+        payload = await validate_cf_access_token(cf_token)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Cloudflare Access token",
+        )
+
+    email = payload.get("email")
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No email in Cloudflare Access token",
+        )
+
+    user = await get_or_create_cf_user(db, email)
+
+    access_token = create_access_token(user.id)
+    refresh_token = create_refresh_token(user.id)
+    _set_refresh_cookie(response, refresh_token)
+
+    return {"access_token": access_token, "token_type": "bearer"}

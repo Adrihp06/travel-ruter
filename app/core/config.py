@@ -52,6 +52,11 @@ class Settings(BaseSettings):
     # Public base URL for OAuth callbacks (e.g. http://localhost for nginx, https://travelruter.com for prod)
     PUBLIC_URL: Optional[str] = None
 
+    # Cloudflare Access (Zero Trust)
+    CF_ACCESS_ENABLED: bool = False
+    CF_ACCESS_DOMAIN: Optional[str] = None  # e.g. "travelruter.com"
+    CF_ACCESS_AUD: Optional[str] = None
+
     # Encryption (for per-trip API keys)
     FERNET_KEY: Optional[str] = None
 

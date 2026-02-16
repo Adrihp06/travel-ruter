@@ -1,9 +1,27 @@
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const CF_ACCESS_ENABLED = import.meta.env.VITE_CF_ACCESS_ENABLED === 'true';
 
 export default function LoginPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (CF_ACCESS_ENABLED) {
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
+
+  if (CF_ACCESS_ENABLED) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">

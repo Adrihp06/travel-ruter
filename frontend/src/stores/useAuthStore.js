@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const CF_ACCESS_ENABLED = import.meta.env.VITE_CF_ACCESS_ENABLED === 'true';
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -10,6 +11,12 @@ const useAuthStore = create((set, get) => ({
   error: null,
 
   initialize: async () => {
+    // If Cloudflare Access is enabled, try auto-login first
+    if (CF_ACCESS_ENABLED) {
+      const success = await get().loginWithCloudflareAccess();
+      if (success) return;
+    }
+
     const token = localStorage.getItem('accessToken');
     if (!token) {
       set({ isLoading: false, isAuthenticated: false });
@@ -32,6 +39,23 @@ const useAuthStore = create((set, get) => ({
     } catch {
       set({ isLoading: false, isAuthenticated: false, accessToken: null });
       localStorage.removeItem('accessToken');
+    }
+  },
+
+  loginWithCloudflareAccess: async () => {
+    try {
+      const resp = await fetch(`${API_BASE}/auth/cloudflare-access`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!resp.ok) return false;
+      const data = await resp.json();
+      localStorage.setItem('accessToken', data.access_token);
+      set({ accessToken: data.access_token });
+      await get().fetchUser();
+      return true;
+    } catch {
+      return false;
     }
   },
 
@@ -73,6 +97,11 @@ const useAuthStore = create((set, get) => ({
       set({ accessToken: data.access_token });
       await get().fetchUser();
     } catch {
+      // If refresh fails and CF Access is active, try CF Access as fallback
+      if (CF_ACCESS_ENABLED) {
+        const success = await get().loginWithCloudflareAccess();
+        if (success) return;
+      }
       set({ isLoading: false, isAuthenticated: false, accessToken: null, user: null });
       localStorage.removeItem('accessToken');
     }
