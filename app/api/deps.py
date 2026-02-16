@@ -1,6 +1,8 @@
+import os
+from hmac import compare_digest
 from typing import Optional
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, ExpiredSignatureError
 from sqlalchemy import select
@@ -9,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models.user import User
 from app.services.auth_service import decode_token
+
+_INTERNAL_SERVICE_KEY = os.environ.get("INTERNAL_SERVICE_KEY", "")
 
 
 class PaginationParams:
@@ -26,10 +30,35 @@ security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Require valid JWT and return the User. Raises 401 on any failure."""
+    """Require valid JWT and return the User. Raises 401 on any failure.
+
+    Also accepts internal service auth (X-Internal-Key + X-User-Id) for
+    trusted orchestrator → backend calls on the Docker network.
+    """
+    # Check for internal service auth first (orchestrator → backend)
+    internal_key = request.headers.get("X-Internal-Key")
+    user_id_header = request.headers.get("X-User-Id")
+    if internal_key and user_id_header and _INTERNAL_SERVICE_KEY:
+        if not compare_digest(internal_key, _INTERNAL_SERVICE_KEY):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid service key")
+        try:
+            uid = int(user_id_header)
+            if uid <= 0:
+                raise ValueError
+        except (ValueError, OverflowError):
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user ID")
+        stmt = select(User).where(User.id == uid, User.is_active == True)
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        return user
+
+    # Normal JWT path
     if not credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     try:

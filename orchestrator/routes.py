@@ -77,12 +77,12 @@ _BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:8000")
 
 async def _resolve_trip_api_key(
     session: "Session",
-    jwt_token: str | None = None,
 ) -> str | None:
     """Fetch the AI provider API key for a session's model from the backend.
 
     Returns the key string or None (meaning fall back to env var).
     Uses a cached value on the session to avoid repeated lookups.
+    Uses internal service auth (X-Internal-Key) instead of user JWT.
     """
     if session._resolved_api_key is not None:
         return session._resolved_api_key
@@ -94,14 +94,17 @@ async def _resolve_trip_api_key(
     if not provider:
         return None
 
-    if not jwt_token:
+    if not session.user_id:
         return None
 
     try:
         async with httpx.AsyncClient(timeout=5) as client:
             resp = await client.get(
                 f"{_BACKEND_URL}/api/v1/trips/{session.trip_id}/api-keys/{provider}/value",
-                headers={"Authorization": f"Bearer {jwt_token}"},
+                headers={
+                    "X-Internal-Key": settings.INTERNAL_SERVICE_KEY,
+                    "X-User-Id": str(session.user_id),
+                },
             )
             if resp.status_code == 200:
                 data = resp.json()
@@ -304,8 +307,7 @@ async def chat(body: ChatRequest, request: Request) -> dict:
         sm.truncate_history(session)
 
         # Resolve trip-level API key for the AI provider
-        jwt_token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip() or None
-        trip_api_key = await _resolve_trip_api_key(session, jwt_token)
+        trip_api_key = await _resolve_trip_api_key(session)
         model = resolve_model_with_key(session.pydantic_ai_model, trip_api_key)
 
         usage_limits = UsageLimits(request_limit=25)
@@ -369,9 +371,9 @@ async def websocket_chat_stream(ws: WebSocket) -> None:
             auth_data["token"],
             settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM],
+            options={"verify_exp": False},
         )
         user_id = int(payload["sub"])
-        ws_jwt_token = auth_data["token"]
         logger.info("WebSocket authenticated for user_id=%s", user_id)
     except (asyncio.TimeoutError, json.JSONDecodeError, JWTError, KeyError, ValueError) as exc:
         logger.warning("WebSocket auth failed: %s", exc)
@@ -407,13 +409,13 @@ async def websocket_chat_stream(ws: WebSocket) -> None:
                 continue
 
             if msg_type == "chat":
-                # Attach authenticated user_id to session if available
+                # Always update session user_id from WS auth
                 session_id = data.get("sessionId")
                 if session_id:
                     session = sm.get_session(session_id)
-                    if session and session.user_id is None:
+                    if session:
                         session.user_id = user_id
-                await _handle_chat(ws, data, agent, sm, jwt_token=ws_jwt_token)
+                await _handle_chat(ws, data, agent, sm)
                 continue
 
             await ws.send_json({"type": "error", "error": f"Unknown message type: {msg_type}"})
@@ -434,7 +436,6 @@ async def _handle_chat(
     data: dict,
     agent: Agent,
     sm: SessionManager,
-    jwt_token: str | None = None,
 ) -> None:
     """Stream a chat response over WebSocket.
 
@@ -468,7 +469,7 @@ async def _handle_chat(
         sm.truncate_history(session)
 
         # Resolve trip-level API key for the AI provider
-        trip_api_key = await _resolve_trip_api_key(session, jwt_token)
+        trip_api_key = await _resolve_trip_api_key(session)
         model = resolve_model_with_key(session.pydantic_ai_model, trip_api_key)
 
         async def event_handler(ctx, event_stream):

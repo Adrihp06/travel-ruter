@@ -58,6 +58,9 @@ class OrchestratorSettings(BaseSettings):
     JWT_SECRET_KEY: str = "change-me-in-production"
     JWT_ALGORITHM: str = "HS256"
 
+    # Internal service auth (orchestrator → backend)
+    INTERNAL_SERVICE_KEY: str = ""
+
     # CORS — restrict in production via CORS_ORIGINS env var
     cors_origins: str = "https://travelruter.com,http://localhost:5173"
 
