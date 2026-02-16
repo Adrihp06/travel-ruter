@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -168,7 +169,7 @@ const useDayRoutesStore = create((set, get) => ({
             profile: mode === 'driving' ? 'driving' : mode,
           };
 
-          const response = await fetch(`${API_BASE_URL}/routes/mapbox/multi-waypoint`, {
+          const response = await authFetch(`${API_BASE_URL}/routes/mapbox/multi-waypoint`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody),
@@ -394,7 +395,7 @@ const useDayRoutesStore = create((set, get) => ({
     const waypoints = dayRoute.pois.slice(1, -1);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/routes/export/google-maps`, {
+      const response = await authFetch(`${API_BASE_URL}/routes/export/google-maps`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
