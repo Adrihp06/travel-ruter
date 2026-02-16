@@ -16,6 +16,7 @@ from app.models.trip_api_key import TripApiKey
 from app.models.poi_vote import POIVote
 from app.models.activity_log import ActivityLog
 from app.models.comment import Comment
+from app.models.conversation import Conversation
 
 __all__ = [
     "BaseModel",
@@ -38,4 +39,5 @@ __all__ = [
     "POIVote",
     "ActivityLog",
     "Comment",
+    "Conversation",
 ]

@@ -20,6 +20,7 @@ from app.api.api_keys import router as api_keys_router
 from app.api.websocket import router as websocket_router
 from app.api.comments import router as comments_router
 from app.api.activity import router as activity_router
+from app.api.conversations import router as conversations_router
 
 api_router = APIRouter()
 
@@ -45,5 +46,6 @@ api_router.include_router(api_keys_router, tags=["api-keys"])
 api_router.include_router(websocket_router, tags=["websocket"])
 api_router.include_router(comments_router, tags=["comments"])
 api_router.include_router(activity_router, tags=["activity"])
+api_router.include_router(conversations_router, tags=["conversations"])
 
 __all__ = ["api_router"]

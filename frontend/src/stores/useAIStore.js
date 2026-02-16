@@ -249,7 +249,7 @@ const useAIStore = create((set, get) => ({
     // Check if there's a saved conversation for this trip
     const activeId = getActiveConversationId(tripId);
     if (activeId) {
-      const saved = loadConversation(activeId);
+      const saved = await loadConversation(activeId);
       if (saved) {
         set({
           selectedTripId: tripId,
@@ -260,7 +260,7 @@ const useAIStore = create((set, get) => ({
           destinationContext: saved.destinationContext || null,
           sessionId: null, // Will create new backend session on next message
         });
-        get().loadConversationsList();
+        await get().loadConversationsList();
         return;
       }
     }
@@ -274,14 +274,14 @@ const useAIStore = create((set, get) => ({
       sessionId: null,
       conversationId: null,
     });
-    get().loadConversationsList();
+    await get().loadConversationsList();
   },
 
   /**
    * Start a new trip planning session (fresh start)
    */
-  startNewTripChat: () => {
-    get()._autoSaveConversation();
+  startNewTripChat: async () => {
+    await get()._autoSaveConversation();
     set({
       selectedTripId: null,
       tripContext: null,
@@ -295,8 +295,8 @@ const useAIStore = create((set, get) => ({
   /**
    * Go back to trip selection — auto-save before leaving
    */
-  backToTripSelection: () => {
-    get()._autoSaveConversation();
+  backToTripSelection: async () => {
+    await get()._autoSaveConversation();
     set({
       chatMode: null,
       showHistory: false,
@@ -308,21 +308,16 @@ const useAIStore = create((set, get) => ({
   // ---------------------------------------------------------------------------
 
   /**
-   * Auto-save the current conversation to localStorage.
+   * Auto-save the current conversation to the backend API (with localStorage fallback).
    * Fetches backend history for AI memory continuity when available.
    */
   _autoSaveConversation: async () => {
     const {
       messages, sessionId, selectedTripId, selectedModelId,
-      tripContext, destinationContext,
+      tripContext, destinationContext, conversationId,
     } = get();
 
     if (!messages.length) return;
-
-    const convId = get().conversationId || crypto.randomUUID();
-    if (!get().conversationId) {
-      set({ conversationId: convId });
-    }
 
     // Fetch backend history for AI memory
     let backendHistory = null;
@@ -338,8 +333,8 @@ const useAIStore = create((set, get) => ({
       }
     }
 
-    saveConversation({
-      id: convId,
+    const saved = await saveConversation({
+      id: conversationId,
       tripId: selectedTripId,
       messages,
       backendHistory,
@@ -348,7 +343,12 @@ const useAIStore = create((set, get) => ({
       destinationContext,
     });
 
-    setActiveConversationId(selectedTripId, convId);
+    // Update conversationId with the DB integer id after first save
+    if (saved?.id && saved.id !== conversationId) {
+      set({ conversationId: saved.id });
+    }
+
+    setActiveConversationId(selectedTripId, saved?.id || conversationId);
   },
 
   /**
@@ -356,7 +356,7 @@ const useAIStore = create((set, get) => ({
    * with restored message history for AI memory continuity.
    */
   loadConversation: async (id) => {
-    const saved = loadConversation(id);
+    const saved = await loadConversation(id);
     if (!saved) return;
 
     set({
@@ -417,15 +417,15 @@ const useAIStore = create((set, get) => ({
       conversationId: null,
       showHistory: false,
     });
-    get().loadConversationsList();
+    await get().loadConversationsList();
   },
 
   /**
    * Load the conversation list for the current trip from localStorage.
    */
-  loadConversationsList: () => {
+  loadConversationsList: async () => {
     const { selectedTripId } = get();
-    const list = listConversations(selectedTripId);
+    const list = await listConversations(selectedTripId);
     set({ conversations: list });
   },
 
@@ -445,7 +445,7 @@ const useAIStore = create((set, get) => ({
    * Restores chatMode, tripContext, and messages from the saved conversation.
    */
   loadConversationFromHistory: async (id) => {
-    const saved = loadConversation(id);
+    const saved = await loadConversation(id);
     if (!saved) return;
 
     const chatMode = saved.tripId ? 'existing' : 'new';
@@ -498,21 +498,21 @@ const useAIStore = create((set, get) => ({
     }
 
     setActiveConversationId(saved.tripId, saved.id);
-    get().loadConversationsList();
+    await get().loadConversationsList();
   },
 
   /**
-   * Remove a conversation from localStorage and state.
+   * Remove a conversation from storage and state.
    */
-  removeConversation: (id) => {
-    deleteConversationStorage(id);
+  removeConversation: async (id) => {
+    await deleteConversationStorage(id);
 
     const { conversationId } = get();
     if (conversationId === id) {
       set({ messages: [], sessionId: null, conversationId: null });
     }
 
-    get().loadConversationsList();
+    await get().loadConversationsList();
   },
 
   // ---------------------------------------------------------------------------
@@ -606,12 +606,8 @@ const useAIStore = create((set, get) => ({
 
       const data = await response.json();
 
-      // Assign a conversation ID if we don't have one yet
-      const convId = get().conversationId || crypto.randomUUID();
-
       set({
         sessionId: data.sessionId,
-        conversationId: convId,
         connectionError: null,
       });
 
