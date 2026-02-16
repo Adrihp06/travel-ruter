@@ -5,7 +5,7 @@ import useAuthStore from '../stores/useAuthStore';
  * Drop-in replacement for fetch() in all stores.
  */
 const authFetch = async (url, options = {}) => {
-  const token = useAuthStore.getState().token;
+  const token = useAuthStore.getState().accessToken;
   const headers = { ...(options.headers || {}) };
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
