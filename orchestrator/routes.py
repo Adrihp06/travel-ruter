@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -16,7 +17,7 @@ from fastapi.responses import JSONResponse
 from jose import JWTError, jwt as jose_jwt
 
 from pydantic import TypeAdapter
-from pydantic_ai import Agent
+from pydantic_ai import Agent, UsageLimits
 from pydantic_ai import (
     AgentStreamEvent,
     FinalResultEvent,
@@ -307,6 +308,8 @@ async def chat(body: ChatRequest, request: Request) -> dict:
         trip_api_key = await _resolve_trip_api_key(session, jwt_token)
         model = resolve_model_with_key(session.pydantic_ai_model, trip_api_key)
 
+        usage_limits = UsageLimits(request_limit=25)
+
         async with session.lock:
             result = await asyncio.wait_for(
                 agent.run(
@@ -315,6 +318,7 @@ async def chat(body: ChatRequest, request: Request) -> dict:
                     message_history=session.message_history,
                     instructions=instructions,
                     model_settings={"max_tokens": settings.max_output_tokens},
+                    usage_limits=usage_limits,
                 ),
                 timeout=120,
             )
@@ -474,6 +478,8 @@ async def _handle_chat(
             ensures the full multi-turn ReAct loop completes: model → tool → model → ...
             stream_text() would exit on the first text output, preventing tool execution.
             """
+            tool_timings: dict[str, float] = {}
+
             async for event in event_stream:
                 if session.cancel_event.is_set():
                     return
@@ -505,7 +511,8 @@ async def _handle_chat(
                         "name": event.part.tool_name,
                         "arguments": event.part.args if isinstance(event.part.args, dict) else {},
                     }
-                    logger.info("Tool call: %s (id=%s)", event.part.tool_name, tool_call_info["id"])
+                    tool_timings[tool_call_info["id"]] = time.monotonic()
+                    logger.info("Tool call START: %s (id=%s)", event.part.tool_name, tool_call_info["id"])
                     await ws.send_json({
                         "type": "chunk",
                         "messageId": message_id,
@@ -532,7 +539,9 @@ async def _handle_chat(
                     else:
                         result_content = str(raw_content)
                     is_error = getattr(event.result, "is_error", False) if hasattr(event.result, "is_error") else False
-                    logger.info("Tool result for call_id=%s (error=%s, length=%d)", tool_call_id, is_error, len(result_content))
+                    start_t = tool_timings.pop(tool_call_id, None)
+                    elapsed = f"{time.monotonic() - start_t:.1f}s" if start_t else "unknown"
+                    logger.info("Tool call END: %s (id=%s, elapsed=%s, error=%s, length=%d)", tool_call_id, tool_call_id, elapsed, is_error, len(result_content))
                     await ws.send_json({
                         "type": "chunk",
                         "messageId": message_id,
@@ -549,6 +558,8 @@ async def _handle_chat(
         # run() completes the full multi-turn loop (model → tool → model → final answer).
         # The event_stream_handler streams all events (text deltas, tool calls, results)
         # to the WebSocket in real-time.
+        usage_limits = UsageLimits(request_limit=25)
+
         async with session.lock:
             result = await asyncio.wait_for(
                 agent.run(
@@ -558,6 +569,7 @@ async def _handle_chat(
                     instructions=instructions,
                     event_stream_handler=event_handler,
                     model_settings={"max_tokens": settings.max_output_tokens},
+                    usage_limits=usage_limits,
                 ),
                 timeout=120,
             )

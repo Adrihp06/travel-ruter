@@ -9,7 +9,8 @@ from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerStdio
 from pydantic_ai.models.anthropic import AnthropicModel
 from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.models.gemini import GeminiModel
+from pydantic_ai.models.google import GoogleModel
+from pydantic_ai.providers.google import GoogleProvider
 
 from orchestrator.config import SYSTEM_PROMPT, _MODEL_MAP, settings
 
@@ -35,7 +36,7 @@ def create_mcp_server() -> MCPServerStdio:
         settings.mcp_python_path,
         args=["-m", "mcp_server"],
         env=env,
-        timeout=30,
+        timeout=60,
     )
 
 
@@ -110,10 +111,15 @@ def resolve_model_with_key(pydantic_ai_model: str, api_key: str | None):
         model_name = pydantic_ai_model.split(":", 1)[1]
         logger.info("Creating OpenAIModel with explicit key for %s", model_name)
         return OpenAIModel(model_name, api_key=api_key)
-    if pydantic_ai_model.startswith("google-vertex:") or pydantic_ai_model.startswith("google-gla:"):
+    if pydantic_ai_model.startswith("google-vertex:"):
+        # Vertex AI uses project credentials (ADC), not API keys.
+        # Return string so PydanticAI resolves via GOOGLE_CLOUD_PROJECT + ADC.
+        logger.info("Vertex AI model %s — ignoring trip-level key, using ADC", pydantic_ai_model)
+        return pydantic_ai_model
+    if pydantic_ai_model.startswith("google-gla:"):
         model_name = pydantic_ai_model.split(":", 1)[1]
-        logger.info("Creating GeminiModel with explicit key for %s", model_name)
-        return GeminiModel(model_name, api_key=api_key)
+        logger.info("Creating GoogleModel with explicit key for %s", model_name)
+        return GoogleModel(model_name, provider=GoogleProvider(api_key=api_key))
 
     # Unknown provider — fall back to string (env var)
     return pydantic_ai_model
