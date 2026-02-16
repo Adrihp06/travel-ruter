@@ -27,7 +27,10 @@ const useCollaborationStore = create((set, get) => ({
       method: 'POST',
       body: JSON.stringify({ email, role }),
     });
-    if (!resp.ok) throw new Error('Failed to invite member');
+    if (!resp.ok) {
+      const errorData = await resp.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to invite member');
+    }
     const member = await resp.json();
     set((state) => ({ members: [...state.members, member] }));
     return member;
