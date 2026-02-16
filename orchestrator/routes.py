@@ -374,6 +374,9 @@ async def websocket_chat_stream(ws: WebSocket) -> None:
         await ws.close(code=4001, reason="Authentication failed")
         return
 
+    # Confirm auth succeeded so the client knows it can send messages
+    await ws.send_json({"type": "auth_ok"})
+
     mcp_connected = getattr(ws.app.state, 'mcp_connected', True)
     if not mcp_connected:
         await ws.send_json({"type": "warning", "message": "AI tools are currently unavailable. Responses may be limited."})

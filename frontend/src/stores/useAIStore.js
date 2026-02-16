@@ -647,18 +647,26 @@ const useAIStore = create((set, get) => ({
     const ws = new WebSocket(`${WS_URL}/api/chat/stream`);
 
     ws.onopen = () => {
-      console.log('WebSocket connected');
-      // Send JWT auth handshake
+      console.log('WebSocket connected, sending auth...');
+      // Send JWT auth handshake — don't mark as connected until auth_ok
       const token = useAuthStore?.getState()?.accessToken;
       if (token) {
         ws.send(JSON.stringify({ type: 'auth', token }));
+      } else {
+        console.warn('No auth token available for WebSocket');
+        ws.close(1000, 'No auth token');
       }
-      set({ isConnected: true, connectionError: null, _reconnectAttempts: 0 });
     };
 
     ws.onclose = (event) => {
       console.log('WebSocket disconnected', event.code);
       set({ isConnected: false, _ws: null });
+
+      // Auth failure (4001) — don't reconnect, show error
+      if (event.code === 4001) {
+        set({ connectionError: 'Authentication failed. Please reload the page.' });
+        return;
+      }
 
       // Auto-reconnect with exponential backoff (skip if intentional close)
       if (event.code !== 1000) {
@@ -700,6 +708,12 @@ const useAIStore = create((set, get) => ({
    */
   _handleWebSocketMessage: (data) => {
     switch (data.type) {
+      case 'auth_ok': {
+        console.log('WebSocket authenticated');
+        set({ isConnected: true, connectionError: null, _reconnectAttempts: 0 });
+        break;
+      }
+
       case 'start': {
         const newMessage = {
           id: data.messageId,
