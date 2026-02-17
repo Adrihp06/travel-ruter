@@ -57,7 +57,6 @@ jobs:
             VITE_API_URL=/api
             VITE_ORCHESTRATOR_URL=/chat
             VITE_AUTH_ENABLED=true
-            VITE_MAPBOX_ACCESS_TOKEN=${{ secrets.VITE_MAPBOX_ACCESS_TOKEN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -127,4 +126,4 @@ jobs:
 # Required GitHub Secrets:
 #   DOCKERHUB_USERNAME       — Docker Hub username (adrihp06)
 #   DOCKERHUB_TOKEN          — Docker Hub access token (not password)
-#   VITE_MAPBOX_ACCESS_TOKEN — Mapbox token baked into frontend build
+#   VITE_MAPBOX_ACCESS_TOKEN — Mapbox token (injected at runtime via .env on NAS)

@@ -12,7 +12,7 @@ const MapComponent = ({
   mapStyle = "mapbox://styles/mapbox/streets-v11",
   children
 }) => {
-  const mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+  const mapboxAccessToken = window.__ENV__?.VITE_MAPBOX_ACCESS_TOKEN || import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
   if (!mapboxAccessToken) {
     console.warn("VITE_MAPBOX_ACCESS_TOKEN is missing in environment variables.");

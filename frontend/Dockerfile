@@ -1,4 +1,3 @@
-# check=skip=SecretsUsedInArgOrEnv
 # Build stage
 FROM node:20-alpine AS builder
 
@@ -13,16 +12,14 @@ RUN npm ci
 # Copy source files
 COPY . .
 
-# Build arguments — Vite inlines VITE_* at build time (all public client-side values)
+# Build arguments — only non-sensitive config baked at build time.
+# VITE_MAPBOX_ACCESS_TOKEN is injected at runtime via entrypoint.sh
 ARG VITE_API_URL
-ARG VITE_MAPBOX_ACCESS_TOKEN
 ARG VITE_ORCHESTRATOR_URL
 ARG VITE_AUTH_ENABLED
 ARG VITE_CF_ACCESS_ENABLED
 
-# Set environment variables for build
 ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_MAPBOX_ACCESS_TOKEN=$VITE_MAPBOX_ACCESS_TOKEN
 ENV VITE_ORCHESTRATOR_URL=$VITE_ORCHESTRATOR_URL
 ENV VITE_AUTH_ENABLED=$VITE_AUTH_ENABLED
 ENV VITE_CF_ACCESS_ENABLED=$VITE_CF_ACCESS_ENABLED
@@ -39,6 +36,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built assets from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Copy runtime env injection script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Expose port
 EXPOSE 80
 
@@ -46,5 +47,5 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Entrypoint generates env-config.js then starts nginx
+ENTRYPOINT ["/entrypoint.sh"]

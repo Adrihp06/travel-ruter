@@ -4,8 +4,10 @@ const MapboxContext = createContext(null);
 
 export const MapboxProvider = ({ children }) => {
   const mapboxAccessToken = useMemo(() => {
-    // First check environment variable, then fallback to localStorage
-    return import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || localStorage.getItem('mapbox-access-token');
+    // Priority: runtime injection (Docker) > build-time env (Vite dev) > user setting (localStorage)
+    return window.__ENV__?.VITE_MAPBOX_ACCESS_TOKEN
+      || import.meta.env.VITE_MAPBOX_ACCESS_TOKEN
+      || localStorage.getItem('mapbox-access-token');
   }, []);
 
   const value = useMemo(() => ({

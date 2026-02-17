@@ -4,7 +4,7 @@ import { MapPin } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const LocationMapPreview = ({ latitude, longitude, height = 150 }) => {
-  const mapboxAccessToken = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+  const mapboxAccessToken = window.__ENV__?.VITE_MAPBOX_ACCESS_TOKEN || import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
 
   if (!latitude || !longitude) {
     return null;

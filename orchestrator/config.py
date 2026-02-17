@@ -55,7 +55,7 @@ class OrchestratorSettings(BaseSettings):
     perplexity_api_key: str = ""
 
     # JWT Auth
-    JWT_SECRET_KEY: str = "change-me-in-production"
+    JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
 
     # Internal service auth (orchestrator → backend)
