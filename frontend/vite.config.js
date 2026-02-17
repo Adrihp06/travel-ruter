@@ -68,7 +68,7 @@ export default defineConfig({
           },
           {
             urlPattern: /^https:\/\/.*\.mapbox\.com\/.*/i,
-            handler: 'CacheFirst',
+            handler: 'NetworkFirst',
             options: {
               cacheName: 'mapbox-cache',
               expiration: {
@@ -76,7 +76,7 @@ export default defineConfig({
                 maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
               },
               cacheableResponse: {
-                statuses: [0, 200]
+                statuses: [200]
               }
             }
           },

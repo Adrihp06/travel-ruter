@@ -51,7 +51,7 @@ Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, wri
 
 // Mock environment variables
 vi.stubEnv('VITE_API_URL', 'http://localhost:8000/api/v1');
-vi.stubEnv('VITE_MAPBOX_TOKEN', 'test-token');
+vi.stubEnv('VITE_MAPBOX_ACCESS_TOKEN', 'test-token');
 
 // Mock fetch globally
 global.fetch = vi.fn();
