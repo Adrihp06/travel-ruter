@@ -105,15 +105,17 @@ export default defineConfig({
           'vendor-mapbox': ['mapbox-gl', 'react-map-gl'],
           'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
           'vendor-utils': ['zustand', 'dompurify'],
+          'vendor-motion': ['motion'],
+          'vendor-i18n': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
         }
       }
     },
     // Generate source maps for error tracking in production
-    sourcemap: true,
+    sourcemap: 'hidden',
     // Target modern browsers for smaller bundle
     target: 'es2020',
     // Increase chunk size warning limit
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 500
   },
   server: {
     proxy: {

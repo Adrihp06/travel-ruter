@@ -324,6 +324,7 @@ const TripCard = React.memo(function TripCard({
           <img
             src={coverImage}
             alt={title}
+            loading="lazy"
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           />
         ) : (

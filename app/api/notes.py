@@ -1,5 +1,6 @@
 import os
 import uuid
+import tempfile
 import aiofiles
 from typing import Optional, List
 from datetime import datetime
@@ -10,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.config import settings
+
+CHUNK_SIZE = 8192  # 8KB chunks for streaming
 from app.api.deps import get_current_user
 from app.models.user import User
 from app.models import Trip, Destination, Note
@@ -346,24 +349,44 @@ async def upload_note_media(
     current_user: User = Depends(get_current_user),
 ):
     """Upload a media file to a note"""
-    # Validate file type
+    # Validate file type before reading any content
     if file.content_type not in NoteService.ALLOWED_MEDIA_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File type {file.content_type} not allowed. Allowed types: images, video, audio"
         )
 
-    # Read file content
-    content = await file.read()
-
-    # Validate file size
-    if len(content) > NoteService.MAX_MEDIA_SIZE:
+    # Pre-check Content-Length if available
+    if file.size and file.size > NoteService.MAX_MEDIA_SIZE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"File size exceeds maximum allowed size of {NoteService.MAX_MEDIA_SIZE // (1024 * 1024)}MB"
         )
 
+    # Stream to staging file with 8KB chunks instead of loading entirely into memory
+    staging_path = None
     try:
+        fd, staging_path = tempfile.mkstemp()
+        os.close(fd)
+
+        total_size = 0
+        async with aiofiles.open(staging_path, 'wb') as staging_file:
+            while True:
+                chunk = await file.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                total_size += len(chunk)
+                if total_size > NoteService.MAX_MEDIA_SIZE:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"File size exceeds maximum allowed size of {NoteService.MAX_MEDIA_SIZE // (1024 * 1024)}MB"
+                    )
+                await staging_file.write(chunk)
+
+        # Read staged content for add_media_to_note (service expects bytes)
+        async with aiofiles.open(staging_path, 'rb') as f:
+            content = await f.read()
+
         note = await NoteService.add_media_to_note(
             db,
             note_id,
@@ -377,11 +400,16 @@ async def upload_note_media(
                 detail=f"Note with id {note_id} not found"
             )
         return note
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+    finally:
+        if staging_path and os.path.exists(staging_path):
+            os.remove(staging_path)
 
 
 @router.delete("/notes/{note_id}/media/{filename}", response_model=NoteResponse)

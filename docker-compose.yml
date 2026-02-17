@@ -16,6 +16,13 @@ services:
       ALLOW_IP_RANGE: "0.0.0.0/0"
       # Forzar codificación correcta
       DbHost: "db"
+      # PostgreSQL tuning
+      EXTRA_CONF: |-
+        shared_buffers = 128MB
+        work_mem = 8MB
+        effective_cache_size = 384MB
+        max_connections = 50
+    shm_size: '256m'
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
@@ -36,7 +43,7 @@ services:
       resources:
         limits:
           cpus: "1.0"
-          memory: 512M
+          memory: 1G
         reservations:
           cpus: "0.25"
           memory: 256M

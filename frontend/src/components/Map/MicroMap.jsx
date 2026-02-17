@@ -1796,4 +1796,4 @@ const MicroMap = ({
   );
 };
 
-export default MicroMap;
+export default React.memo(MicroMap);

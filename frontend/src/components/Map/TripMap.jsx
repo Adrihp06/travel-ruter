@@ -1412,4 +1412,4 @@ const TripMap = ({
   );
 };
 
-export default TripMap;
+export default React.memo(TripMap);
