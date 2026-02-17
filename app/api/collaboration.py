@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -40,24 +40,36 @@ async def invite_member(
     if not invitee:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Check for duplicate
+    # Check for existing membership
     stmt = select(TripMember).where(
         TripMember.trip_id == trip_id, TripMember.user_id == invitee.id
     )
     result = await db.execute(stmt)
-    if result.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User already invited")
+    existing = result.scalar_one_or_none()
 
-    member = TripMember(
-        trip_id=trip_id,
-        user_id=invitee.id,
-        role=data.role,
-        invited_by=user.id,
-        status="pending",
-    )
-    db.add(member)
-    await db.flush()
-    await db.refresh(member)
+    if existing:
+        if existing.status == "rejected":
+            # Re-invite: reset rejected member back to pending
+            existing.status = "pending"
+            existing.role = data.role
+            existing.invited_by = user.id
+            existing.accepted_at = None
+            await db.flush()
+            await db.refresh(existing)
+            member = existing
+        else:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User already invited")
+    else:
+        member = TripMember(
+            trip_id=trip_id,
+            user_id=invitee.id,
+            role=data.role,
+            invited_by=user.id,
+            status="pending",
+        )
+        db.add(member)
+        await db.flush()
+        await db.refresh(member)
 
     # Create notification for invitee (after flush so member.id is available)
     trip = await db.get(Trip, trip_id)
@@ -192,7 +204,7 @@ async def accept_invitation(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invitation already processed")
 
     member.status = "accepted"
-    member.accepted_at = datetime.now(timezone.utc)
+    member.accepted_at = datetime.utcnow()
     await db.flush()
     await db.refresh(member)
 

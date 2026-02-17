@@ -67,6 +67,19 @@ const useCollaborationStore = create((set, get) => ({
     set({ pendingInvitations: invitations });
   },
 
+  removeMember: async (tripId, userId) => {
+    const resp = await authFetch(`${API_BASE}/trips/${tripId}/members/${userId}`, {
+      method: 'DELETE',
+    });
+    if (!resp.ok) {
+      const errorData = await resp.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to remove member');
+    }
+    set((state) => ({
+      members: state.members.filter((m) => m.user_id !== userId),
+    }));
+  },
+
   updateOnlineUsers: (users) => set({ onlineUsers: users }),
 }));
 

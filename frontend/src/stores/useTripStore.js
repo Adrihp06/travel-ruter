@@ -376,7 +376,7 @@ const useTripStore = create((set, get) => ({
   createTrip: async (tripData) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await authFetch(`${API_BASE_URL}/trips`, {
+      const response = await authFetch(`${API_BASE_URL}/trips/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tripData),
