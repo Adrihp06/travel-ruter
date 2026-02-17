@@ -191,3 +191,9 @@ This project is licensed under the [MIT License](LICENSE) with the [Commons Clau
 **You can** freely use, modify, and distribute this software for personal, educational, or internal purposes.
 
 **You cannot** sell this software or offer it as a paid product or service.
+
+## Support
+
+If you find this project useful, consider supporting its development:
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/adrihp06)
