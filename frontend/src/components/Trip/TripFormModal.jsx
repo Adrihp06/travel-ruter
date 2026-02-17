@@ -5,6 +5,7 @@ import XIcon from '@/components/icons/x-icon';
 import AirplaneIcon from '@/components/icons/airplane-icon';
 import HomeIcon from '@/components/icons/home-icon';
 import useTripStore from '../../stores/useTripStore';
+import authFetch from '../../utils/authFetch';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import LocationMapPreview from '../Location/LocationMapPreview';
 import DateRangePicker from '../common/DateRangePicker';
@@ -234,7 +235,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
         formDataUpload.append('file', imageFile);
 
         const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-        const uploadResponse = await fetch(`${API_BASE_URL}/trips/upload-cover`, {
+        const uploadResponse = await authFetch(`${API_BASE_URL}/trips/upload-cover`, {
           method: 'POST',
           body: formDataUpload,
         });

@@ -12,7 +12,7 @@ export default function NotificationPanel({ onClose }) {
   }, [fetchNotifications]);
 
   return (
-    <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-xl border dark:border-gray-700 z-50">
+    <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white dark:bg-gray-800 rounded-xl shadow-xl border dark:border-gray-700 z-50">
       <div className="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700">
         <h3 className="font-medium text-gray-900 dark:text-white">{t('notifications.title')}</h3>
         <button
