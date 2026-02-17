@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspens
 import { Plus, MapPin, Calendar, Compass, TrendingUp, UserPlus } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import useAuthStore from '../stores/useAuthStore';
+import useCollaborationStore from '../stores/useCollaborationStore';
 import MacroMap from '../components/Map/MacroMap';
 import MapPlaceholder from '../components/Map/MapPlaceholder';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
@@ -40,6 +41,7 @@ const GlobalTripView = () => {
     getActiveFiltersCount,
   } = useTripStore();
   const { isAuthenticated } = useAuthStore();
+  const { fetchPendingInvitations } = useCollaborationStore();
 
   // Use tripsWithDestinations as the single source of truth
   const trips = tripsWithDestinations;
@@ -180,6 +182,11 @@ const GlobalTripView = () => {
       console.error('Failed to claim trip:', error);
     }
   }, [claimTrip]);
+
+  const handleInvitationAccepted = useCallback(async () => {
+    await fetchTripsSummary();
+    await fetchPendingInvitations();
+  }, [fetchTripsSummary, fetchPendingInvitations]);
 
   const handleExportTrip = useCallback((trip) => {
     // Export trip data as JSON
@@ -389,7 +396,7 @@ const GlobalTripView = () => {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 lg:pt-36 pb-12">
         {/* Pending Trip Invitations */}
-        {isAuthenticated && <PendingInvitations onAccepted={fetchTripsSummary} />}
+        {isAuthenticated && <PendingInvitations onAccepted={handleInvitationAccepted} />}
 
         {/* Stats Cards */}
         {trips.length > 0 && (

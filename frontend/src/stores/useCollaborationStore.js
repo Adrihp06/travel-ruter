@@ -41,7 +41,11 @@ const useCollaborationStore = create((set, get) => ({
       method: 'POST',
     });
     if (!resp.ok) throw new Error('Failed to accept invitation');
-    return resp.json();
+    const result = await resp.json();
+    set((state) => ({
+      pendingInvitations: state.pendingInvitations.filter((inv) => inv.id !== memberId),
+    }));
+    return result;
   },
 
   rejectInvitation: async (memberId) => {
@@ -49,7 +53,11 @@ const useCollaborationStore = create((set, get) => ({
       method: 'POST',
     });
     if (!resp.ok) throw new Error('Failed to reject invitation');
-    return resp.json();
+    const result = await resp.json();
+    set((state) => ({
+      pendingInvitations: state.pendingInvitations.filter((inv) => inv.id !== memberId),
+    }));
+    return result;
   },
 
   fetchPendingInvitations: async () => {

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Mail, Check, X, Users } from 'lucide-react';
+import { Mail, Check, X, Users, AlertCircle } from 'lucide-react';
 import useCollaborationStore from '../../stores/useCollaborationStore';
 
 export default function PendingInvitations({ onAccepted }) {
   const { pendingInvitations, fetchPendingInvitations, acceptInvitation, rejectInvitation } =
     useCollaborationStore();
   const [processingIds, setProcessingIds] = useState(new Set());
-  const [dismissedIds, setDismissedIds] = useState(new Set());
+  const [errorIds, setErrorIds] = useState(new Map());
 
   useEffect(() => {
     fetchPendingInvitations().catch(() => {});
@@ -14,12 +14,12 @@ export default function PendingInvitations({ onAccepted }) {
 
   const handleAccept = async (id) => {
     setProcessingIds((prev) => new Set(prev).add(id));
+    setErrorIds((prev) => { const next = new Map(prev); next.delete(id); return next; });
     try {
       await acceptInvitation(id);
-      setDismissedIds((prev) => new Set(prev).add(id));
-      onAccepted?.();
-    } catch {
-      // keep visible on error
+      await onAccepted?.();
+    } catch (err) {
+      setErrorIds((prev) => new Map(prev).set(id, err.message || 'Failed to accept'));
     } finally {
       setProcessingIds((prev) => {
         const next = new Set(prev);
@@ -31,11 +31,11 @@ export default function PendingInvitations({ onAccepted }) {
 
   const handleReject = async (id) => {
     setProcessingIds((prev) => new Set(prev).add(id));
+    setErrorIds((prev) => { const next = new Map(prev); next.delete(id); return next; });
     try {
       await rejectInvitation(id);
-      setDismissedIds((prev) => new Set(prev).add(id));
-    } catch {
-      // keep visible on error
+    } catch (err) {
+      setErrorIds((prev) => new Map(prev).set(id, err.message || 'Failed to decline'));
     } finally {
       setProcessingIds((prev) => {
         const next = new Set(prev);
@@ -45,9 +45,7 @@ export default function PendingInvitations({ onAccepted }) {
     }
   };
 
-  const visible = pendingInvitations.filter((inv) => !dismissedIds.has(inv.id));
-
-  if (visible.length === 0) return null;
+  if (pendingInvitations.length === 0) return null;
 
   return (
     <div className="mb-8 space-y-3 animate-fade-in">
@@ -56,8 +54,9 @@ export default function PendingInvitations({ onAccepted }) {
         Pending Invitations
       </h3>
 
-      {visible.map((inv) => {
+      {pendingInvitations.map((inv) => {
         const isProcessing = processingIds.has(inv.id);
+        const error = errorIds.get(inv.id);
 
         return (
           <div
@@ -77,6 +76,12 @@ export default function PendingInvitations({ onAccepted }) {
                   {' \u00b7 '}
                   <span className="capitalize">{inv.role}</span>
                 </p>
+                {error && (
+                  <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1 mt-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {error}
+                  </p>
+                )}
               </div>
             </div>
 
