@@ -1134,8 +1134,21 @@
     "accepted": "Accepted",
     "accept": "Accept",
     "reject": "Reject",
+    "decline": "Decline",
     "removeMember": "Remove",
-    "online": "Online"
+    "online": "Online",
+    "pendingInvitations": "Pending Invitations",
+    "invitedBy": "Invited by {{name}}",
+    "youWereInvited": "You were invited",
+    "invitationAccepted": "Invitation accepted",
+    "invitationDeclined": "Invitation declined",
+    "failedAccept": "Failed to accept invitation",
+    "failedDecline": "Failed to decline invitation",
+    "inviteSent": "Invitation sent",
+    "failedInvite": "Failed to send invitation",
+    "memberRemoved": "{{name}} removed from trip",
+    "failedRemove": "Failed to remove member",
+    "confirmRemoveMessage": "Are you sure you want to remove {{name}} from this trip?"
   },
 
   "notifications": {
@@ -1175,6 +1188,31 @@
   "votes": {
     "like": "Like",
     "veto": "Veto"
+  },
+
+  "globalTripView": {
+    "title": "My Trips",
+    "newTrip": "New Trip",
+    "startPlanning": "Start planning your next adventure",
+    "tripSummary": "{{trips}} trip(s) across {{destinations}} destination(s)",
+    "totalTrips": "Total Trips",
+    "activeTrips": "Active Trips",
+    "destinations": "Destinations",
+    "upcoming": "Upcoming",
+    "emptyTitle": "Your adventures await",
+    "emptyDescription": "Every great journey begins with a single step. Create your first trip and start exploring the world!",
+    "emptyAction": "Plan Your First Trip",
+    "tripCount": "{{count}} trip",
+    "tripCount_plural": "{{count}} trips",
+    "noMatchingTrips": "No matching trips",
+    "noMatchingSearch": "We couldn't find any trips matching \"{{query}}\". Try different keywords or clear your filters.",
+    "allCompleted": "All your trips are completed or in the past. Show completed trips to see them.",
+    "noFilterResults": "No trips match your current filters. Adjust your selection or clear filters to see all trips.",
+    "showCompleted": "Show Completed Trips",
+    "clearFilters": "Clear All Filters",
+    "claim": "Claim",
+    "linkCopied": "Trip link copied to clipboard!",
+    "failedCopyLink": "Failed to copy link"
   },
 
   "errors": {

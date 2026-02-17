@@ -355,6 +355,20 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
               )}
             </div>
 
+          {/* Dates */}
+          <DateRangePicker
+            startDate={formData.start_date}
+            endDate={formData.end_date}
+            onStartChange={(date) => setFormData({ ...formData, start_date: date })}
+            onEndChange={(date) => setFormData({ ...formData, end_date: date })}
+            startLabel={t('trips.startDate')}
+            endLabel={t('trips.endDate')}
+            startError={errors.start_date}
+            endError={errors.end_date}
+            required
+            showDuration
+          />
+
           {/* Location */}
           <div>
             <label className="modal-label">
@@ -384,6 +398,205 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                 />
               </div>
             )}
+          </div>
+
+          {/* Budget */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="modal-label">
+                {t('trips.budgetField')}
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.total_budget}
+                onChange={(e) => setFormData({ ...formData, total_budget: e.target.value })}
+                className="modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                placeholder="0.00"
+              />
+            </div>
+            <div>
+              <label className="modal-label">
+                {t('trips.currency')}
+              </label>
+              <select
+                value={formData.currency}
+                onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                className="modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700 cursor-pointer"
+              >
+                {currencies.map((curr) => (
+                  <option key={curr} value={curr}>{curr}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Tags / Categories */}
+          <div className="modal-section">
+            <label className="modal-label">
+              <TagIcon className="w-4 h-4" />
+              {t('trips.tripTags')}
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {AVAILABLE_TAGS.map((tag) => (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => toggleTag(tag.id)}
+                  className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all ${
+                    formData.tags.includes(tag.id)
+                      ? `${tag.color} ring-2 ring-offset-1 ring-[#D97706] dark:ring-offset-gray-800 scale-105`
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 hover:scale-105'
+                  }`}
+                >
+                  {tag.label}
+                </button>
+              ))}
+            </div>
+            <p className="modal-helper">
+              {t('trips.selectTags')}
+            </p>
+          </div>
+
+          {/* Description */}
+          <div className="modal-section">
+            <label className="modal-label">
+              {t('common.description')}
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700 resize-none"
+              rows={3}
+              placeholder={t('common.description')}
+            />
+          </div>
+
+          {/* Cover Image */}
+          <div>
+            <label className="modal-label">
+              <Image className="w-4 h-4" />
+              {t('trips.coverImage')}
+            </label>
+
+            {/* Toggle between URL and File upload */}
+            <div className="flex gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => setImageUploadMode('url')}
+                className={`flex-1 px-3 py-2 text-sm rounded-xl font-medium transition-all ${
+                  imageUploadMode === 'url'
+                    ? 'bg-amber-100 text-[#D97706] dark:bg-amber-900/30 dark:text-amber-300 ring-2 ring-amber-500/30'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                URL
+              </button>
+              <button
+                type="button"
+                onClick={() => setImageUploadMode('file')}
+                className={`flex-1 px-3 py-2 text-sm rounded-xl font-medium transition-all flex items-center justify-center gap-1.5 ${
+                  imageUploadMode === 'file'
+                    ? 'bg-amber-100 text-[#D97706] dark:bg-amber-900/30 dark:text-amber-300 ring-2 ring-amber-500/30'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                {t('common.upload')}
+              </button>
+            </div>
+
+            {imageUploadMode === 'url' ? (
+              <>
+                <input
+                  type="url"
+                  value={formData.cover_image}
+                  onChange={(e) => setFormData({ ...formData, cover_image: e.target.value })}
+                  className="modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700"
+                  placeholder="https://example.com/image.jpg"
+                />
+                {formData.cover_image && (
+                  <div className="mt-3 rounded-xl overflow-hidden h-28 ring-1 ring-gray-200 dark:ring-gray-700">
+                    <img
+                      src={formData.cover_image}
+                      alt="Cover preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        setErrors(prev => ({ ...prev, cover_image_preview: t('trips.failedLoadPreview') }));
+                      }}
+                    />
+                  </div>
+                )}
+                {errors.cover_image_preview && (
+                  <p className="text-amber-500 dark:text-amber-400 text-xs mt-1.5 flex items-center gap-1">
+                    <span className="w-1 h-1 bg-amber-500 rounded-full"></span>
+                    {errors.cover_image_preview}
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <div
+                  className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all hover:scale-[1.01] ${
+                    imageFile
+                      ? 'border-amber-300 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-900/20'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-amber-400 dark:hover:border-[#D97706] hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                  }`}
+                  onClick={() => document.getElementById('cover-image-input').click()}
+                >
+                  <input
+                    id="cover-image-input"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  {imagePreview ? (
+                    <div className="space-y-3">
+                      <img
+                        src={imagePreview}
+                        alt="Cover preview"
+                        className="mx-auto h-24 object-cover rounded-lg ring-1 ring-gray-200 dark:ring-gray-700"
+                      />
+                      <p className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-xs mx-auto">
+                        {imageFile?.name}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setImageFile(null);
+                          setImagePreview(null);
+                        }}
+                        className="text-xs text-red-500 hover:text-red-600 font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      >
+                        {t('common.remove')}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="w-12 h-12 mx-auto bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center">
+                        <Upload className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                        {t('trips.clickToUpload')}
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                        {t('trips.imageFormats')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                {errors.cover_image && (
+                  <p className="text-red-500 dark:text-red-400 text-xs mt-1.5">{errors.cover_image}</p>
+                )}
+              </>
+            )}
+            <p className="modal-helper">
+              {t('trips.coverImageHelper')}
+            </p>
           </div>
 
           {/* Departure Point (Origin) */}
@@ -535,219 +748,6 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                   );
                 })}
               </div>
-            </div>
-          </div>
-
-          {/* Description */}
-          <div className="modal-section">
-            <label className="modal-label">
-              {t('common.description')}
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700 resize-none"
-              rows={3}
-              placeholder={t('common.description')}
-            />
-          </div>
-
-          {/* Cover Image */}
-          <div>
-            <label className="modal-label">
-              <Image className="w-4 h-4" />
-              {t('trips.coverImage')}
-            </label>
-
-            {/* Toggle between URL and File upload */}
-            <div className="flex gap-2 mb-3">
-              <button
-                type="button"
-                onClick={() => setImageUploadMode('url')}
-                className={`flex-1 px-3 py-2 text-sm rounded-xl font-medium transition-all ${
-                  imageUploadMode === 'url'
-                    ? 'bg-amber-100 text-[#D97706] dark:bg-amber-900/30 dark:text-amber-300 ring-2 ring-amber-500/30'
-                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                URL
-              </button>
-              <button
-                type="button"
-                onClick={() => setImageUploadMode('file')}
-                className={`flex-1 px-3 py-2 text-sm rounded-xl font-medium transition-all flex items-center justify-center gap-1.5 ${
-                  imageUploadMode === 'file'
-                    ? 'bg-amber-100 text-[#D97706] dark:bg-amber-900/30 dark:text-amber-300 ring-2 ring-amber-500/30'
-                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
-                }`}
-              >
-                <Upload className="w-3.5 h-3.5" />
-                {t('common.upload')}
-              </button>
-            </div>
-
-            {imageUploadMode === 'url' ? (
-              <>
-                <input
-                  type="url"
-                  value={formData.cover_image}
-                  onChange={(e) => setFormData({ ...formData, cover_image: e.target.value })}
-                  className="modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700"
-                  placeholder="https://example.com/image.jpg"
-                />
-                {formData.cover_image && (
-                  <div className="mt-3 rounded-xl overflow-hidden h-28 ring-1 ring-gray-200 dark:ring-gray-700">
-                    <img
-                      src={formData.cover_image}
-                      alt="Cover preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                        setErrors(prev => ({ ...prev, cover_image_preview: t('trips.failedLoadPreview') }));
-                      }}
-                    />
-                  </div>
-                )}
-                {errors.cover_image_preview && (
-                  <p className="text-amber-500 dark:text-amber-400 text-xs mt-1.5 flex items-center gap-1">
-                    <span className="w-1 h-1 bg-amber-500 rounded-full"></span>
-                    {errors.cover_image_preview}
-                  </p>
-                )}
-              </>
-            ) : (
-              <>
-                <div
-                  className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all hover:scale-[1.01] ${
-                    imageFile
-                      ? 'border-amber-300 bg-amber-50/50 dark:border-amber-700 dark:bg-amber-900/20'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-amber-400 dark:hover:border-[#D97706] hover:bg-gray-50 dark:hover:bg-gray-700/50'
-                  }`}
-                  onClick={() => document.getElementById('cover-image-input').click()}
-                >
-                  <input
-                    id="cover-image-input"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  {imagePreview ? (
-                    <div className="space-y-3">
-                      <img
-                        src={imagePreview}
-                        alt="Cover preview"
-                        className="mx-auto h-24 object-cover rounded-lg ring-1 ring-gray-200 dark:ring-gray-700"
-                      />
-                      <p className="text-sm text-gray-600 dark:text-gray-400 truncate max-w-xs mx-auto">
-                        {imageFile?.name}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setImageFile(null);
-                          setImagePreview(null);
-                        }}
-                        className="text-xs text-red-500 hover:text-red-600 font-medium px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                      >
-                        {t('common.remove')}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="w-12 h-12 mx-auto bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center">
-                        <Upload className="w-6 h-6 text-gray-400" />
-                      </div>
-                      <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                        {t('trips.clickToUpload')}
-                      </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">
-                        {t('trips.imageFormats')}
-                      </p>
-                    </div>
-                  )}
-                </div>
-                {errors.cover_image && (
-                  <p className="text-red-500 dark:text-red-400 text-xs mt-1.5">{errors.cover_image}</p>
-                )}
-              </>
-            )}
-            <p className="modal-helper">
-              {t('trips.coverImageHelper')}
-            </p>
-          </div>
-
-          {/* Dates */}
-          <DateRangePicker
-            startDate={formData.start_date}
-            endDate={formData.end_date}
-            onStartChange={(date) => setFormData({ ...formData, start_date: date })}
-            onEndChange={(date) => setFormData({ ...formData, end_date: date })}
-            startLabel={t('trips.startDate')}
-            endLabel={t('trips.endDate')}
-            startError={errors.start_date}
-            endError={errors.end_date}
-            required
-            showDuration
-          />
-
-          {/* Tags / Categories */}
-          <div className="modal-section">
-            <label className="modal-label">
-              <TagIcon className="w-4 h-4" />
-              {t('trips.tripTags')}
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {AVAILABLE_TAGS.map((tag) => (
-                <button
-                  key={tag.id}
-                  type="button"
-                  onClick={() => toggleTag(tag.id)}
-                  className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all ${
-                    formData.tags.includes(tag.id)
-                      ? `${tag.color} ring-2 ring-offset-1 ring-[#D97706] dark:ring-offset-gray-800 scale-105`
-                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 hover:scale-105'
-                  }`}
-                >
-                  {tag.label}
-                </button>
-              ))}
-            </div>
-            <p className="modal-helper">
-              {t('trips.selectTags')}
-            </p>
-          </div>
-
-          {/* Budget */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="modal-label">
-                {t('trips.budgetField')}
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.total_budget}
-                onChange={(e) => setFormData({ ...formData, total_budget: e.target.value })}
-                className="modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700"
-                placeholder="0.00"
-              />
-            </div>
-            <div>
-              <label className="modal-label">
-                {t('trips.currency')}
-              </label>
-              <select
-                value={formData.currency}
-                onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                className="modal-input w-full px-4 py-2.5 rounded-xl text-gray-900 dark:text-white bg-white dark:bg-gray-700 cursor-pointer"
-              >
-                {currencies.map((curr) => (
-                  <option key={curr} value={curr}>{curr}</option>
-                ))}
-              </select>
             </div>
           </div>
 

@@ -1,28 +1,29 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import useCollaborationStore from '../../stores/useCollaborationStore';
+import { useToast } from '../common/Toast';
 
 export default function InviteMemberModal({ tripId, isOpen, onClose }) {
   const { t } = useTranslation();
   const inviteMember = useCollaborationStore((s) => s.inviteMember);
+  const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('viewer');
-  const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
     setLoading(true);
     try {
       await inviteMember(tripId, email, role);
+      toast.success(t('collaboration.inviteSent'));
       setEmail('');
       setRole('viewer');
       onClose();
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message || t('collaboration.failedInvite'));
     } finally {
       setLoading(false);
     }
@@ -58,14 +59,13 @@ export default function InviteMemberModal({ tripId, isOpen, onClose }) {
               <option value="editor">{t('collaboration.editor')}</option>
             </select>
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
               className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"

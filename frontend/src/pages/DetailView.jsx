@@ -45,6 +45,7 @@ import DestinationTimelineSkeleton from '../components/Itinerary/DestinationTime
 import MapPlaceholder from '../components/Map/MapPlaceholder';
 import DailyItinerarySkeleton from '../components/Itinerary/DailyItinerarySkeleton';
 import Spinner from '../components/UI/Spinner';
+import ConfirmDialog from '../components/common/ConfirmDialog';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -677,6 +678,9 @@ const DetailViewContent = () => {
   const [showNoteFormModal, setShowNoteFormModal] = useState(false);
   const [noteFormPreFill, setNoteFormPreFill] = useState(null);
 
+  // Confirm dialog state
+  const [confirmAction, setConfirmAction] = useState(null);
+
   // Collaboration & Activity panel state
   const [showMembersPanel, setShowMembersPanel] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -870,11 +874,17 @@ const DetailViewContent = () => {
   }, [editingPOI, updatePOI]);
 
   // POI Delete handler
-  const handleDeletePOI = useCallback(async (poi) => {
-    if (window.confirm(`Delete "${poi.name}"? This action cannot be undone.`)) {
-      await deletePOI(poi.id);
-    }
-  }, [deletePOI]);
+  const handleDeletePOI = useCallback((poi) => {
+    setConfirmAction({
+      title: t('common.delete'),
+      message: `${t('common.delete')} "${poi.name}"?`,
+      variant: 'danger',
+      onConfirm: async () => {
+        await deletePOI(poi.id);
+        setConfirmAction(null);
+      },
+    });
+  }, [deletePOI, t]);
 
   // POI Vote handler
   const handleVotePOI = useCallback(async (poiId, voteType) => {
@@ -914,27 +924,37 @@ const DetailViewContent = () => {
   }, [selectedDestinationId, updatePOISchedules]);
 
   // Delete handlers
-  const handleDeleteDestination = useCallback(async (destId) => {
-    if (window.confirm('Delete this destination and all its POIs?')) {
-      try {
-        await deleteDestination(destId);
-        if (selectedDestinationId === destId) {
-          setSelectedDestinationId(null); // Return to Level 1
+  const handleDeleteDestination = useCallback((destId) => {
+    setConfirmAction({
+      title: t('timeline.deleteDestination'),
+      message: t('trips.deleteConfirmText'),
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await deleteDestination(destId);
+          if (selectedDestinationId === destId) {
+            setSelectedDestinationId(null);
+          }
+          fetchTripDetails(id);
+        } catch (error) {
+          console.error('Failed to delete destination:', error);
         }
-        // Refresh trip details
-        fetchTripDetails(id);
-      } catch (error) {
-        console.error('Failed to delete destination:', error);
-        alert('Failed to delete destination. Please try again.');
-      }
-    }
-  }, [deleteDestination, selectedDestinationId, fetchTripDetails, id]);
+        setConfirmAction(null);
+      },
+    });
+  }, [deleteDestination, selectedDestinationId, fetchTripDetails, id, t]);
 
-  const handleDeleteAccommodation = useCallback(async (accId) => {
-    if (window.confirm('Delete this accommodation?')) {
-      await deleteAccommodation(accId);
-    }
-  }, [deleteAccommodation]);
+  const handleDeleteAccommodation = useCallback((accId) => {
+    setConfirmAction({
+      title: t('accommodation.deleteAccommodation'),
+      message: t('common.confirm') + '?',
+      variant: 'danger',
+      onConfirm: async () => {
+        await deleteAccommodation(accId);
+        setConfirmAction(null);
+      },
+    });
+  }, [deleteAccommodation, t]);
 
   // Handler for adding accommodation from timeline gap
   const handleAddAccommodationForGap = useCallback((startDate, endDate) => {
@@ -1404,6 +1424,16 @@ const DetailViewContent = () => {
         onSubmit={handleEditPOISubmit}
         poi={editingPOI}
         isSaving={isPOIsLoading}
+      />
+
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={!!confirmAction}
+        onConfirm={confirmAction?.onConfirm || (() => {})}
+        onCancel={() => setConfirmAction(null)}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        variant={confirmAction?.variant || 'default'}
       />
 
       {/* Note Form Modal (Quick-add from daily schedule) */}

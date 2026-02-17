@@ -3,13 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import useCollaborationStore from '../../stores/useCollaborationStore';
 import useAuthStore from '../../stores/useAuthStore';
+import { useToast } from '../common/Toast';
+import ConfirmDialog from '../common/ConfirmDialog';
 
 export default function TripMemberList({ tripId }) {
   const { t } = useTranslation();
   const { members, isLoading, fetchMembers, removeMember } = useCollaborationStore();
   const currentUser = useAuthStore((s) => s.user);
+  const { toast } = useToast();
   const [removingId, setRemovingId] = useState(null);
-  const [error, setError] = useState(null);
+  const [memberToRemove, setMemberToRemove] = useState(null);
 
   useEffect(() => {
     if (tripId) fetchMembers(tripId);
@@ -19,15 +22,23 @@ export default function TripMemberList({ tripId }) {
     (m) => m.user_id === currentUser?.id && m.role === 'owner'
   );
 
-  const handleRemove = async (userId) => {
+  const handleRemoveClick = (member) => {
+    setMemberToRemove(member);
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!memberToRemove) return;
+    const userId = memberToRemove.user_id;
+    const name = memberToRemove.user_name || memberToRemove.user_email;
     setRemovingId(userId);
-    setError(null);
     try {
       await removeMember(tripId, userId);
+      toast.success(t('collaboration.memberRemoved', { name }));
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message || t('collaboration.failedRemove'));
     } finally {
       setRemovingId(null);
+      setMemberToRemove(null);
     }
   };
 
@@ -40,9 +51,6 @@ export default function TripMemberList({ tripId }) {
       <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
         {t('collaboration.members')}
       </h3>
-      {error && (
-        <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
-      )}
       <div className="space-y-1">
         {members.map((member) => {
           const isOwnerRow = member.role === 'owner';
@@ -78,7 +86,7 @@ export default function TripMemberList({ tripId }) {
               )}
               {canRemove && (
                 <button
-                  onClick={() => handleRemove(member.user_id)}
+                  onClick={() => handleRemoveClick(member)}
                   disabled={removingId === member.user_id}
                   className="p-1 text-gray-400 hover:text-red-500 dark:hover:text-red-400 disabled:opacity-50 transition-colors"
                   title={t('collaboration.removeMember')}
@@ -90,6 +98,18 @@ export default function TripMemberList({ tripId }) {
           );
         })}
       </div>
+
+      <ConfirmDialog
+        isOpen={!!memberToRemove}
+        onConfirm={handleConfirmRemove}
+        onCancel={() => setMemberToRemove(null)}
+        title={t('collaboration.removeMember')}
+        message={t('collaboration.confirmRemoveMessage', {
+          name: memberToRemove?.user_name || memberToRemove?.user_email || '',
+        })}
+        variant="danger"
+        isLoading={removingId !== null}
+      />
     </div>
   );
 }
