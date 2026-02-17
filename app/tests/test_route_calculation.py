@@ -1,10 +1,4 @@
 import pytest
-import sys
-import os
-
-# Add project root to sys.path so we can import app
-sys.path.append(os.getcwd())
-
 from app.schemas.route import RouteRequest, RoutePoint
 from app.services.route_service import RouteService
 

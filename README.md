@@ -186,4 +186,8 @@ alembic downgrade -1
 
 ## License
 
-MIT
+This project is licensed under the [MIT License](LICENSE) with the [Commons Clause](https://commonsclause.com/) restriction.
+
+**You can** freely use, modify, and distribute this software for personal, educational, or internal purposes.
+
+**You cannot** sell this software or offer it as a paid product or service.
