@@ -14,8 +14,6 @@ An AI-powered travel planning app with interactive maps, smart scheduling, and m
 | **Amadeus** | Self-Service tier (test environment) | Hotel search & availability |
 | **Perplexity** | Limited free requests | AI-powered POI research |
 | **Google OAuth** | Free | User login via Google |
-| **GitHub OAuth** | Free | User login via GitHub |
-| **Cloudflare Tunnel** | Free tier | Expose to internet without port forwarding |
 
 For AI providers, you need at least one key — pick whichever you prefer:
 
@@ -24,6 +22,8 @@ For AI providers, you need at least one key — pick whichever you prefer:
 | **Anthropic** (Claude) | No free tier | Recommended default |
 | **OpenAI** (GPT) | Trial credits for new accounts | |
 | **Google** (Gemini) | $300 free credits via Vertex AI | |
+
+Open Source Flexibility: As an open-source project, Travel Ruter is built to be modular. You can toggle services on or off depending on your needs or privacy preferences.
 
 ## Architecture
 
