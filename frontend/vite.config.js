@@ -50,7 +50,12 @@ export default defineConfig({
         // Exclude /api/ paths from the SPA navigation fallback so that
         // OAuth redirects (/api/auth/google, /api/auth/github) reach the server.
         navigateFallbackDenylist: [/^\/api\//],
+        // Clean up stale caches from previous SW versions on activation
+        cleanupOutdatedCaches: true,
         // Cache strategies for different resource types
+        // NOTE: Mapbox is intentionally NOT cached here — Mapbox GL JS
+        // manages its own internal tile cache. SW caching of Mapbox
+        // opaque responses causes Chrome quota bloat and broken maps.
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\./i,
@@ -63,20 +68,6 @@ export default defineConfig({
               },
               cacheableResponse: {
                 statuses: [0, 200]
-              }
-            }
-          },
-          {
-            urlPattern: /^https:\/\/.*\.mapbox\.com\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'mapbox-cache',
-              expiration: {
-                maxEntries: 500,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
-              },
-              cacheableResponse: {
-                statuses: [200]
               }
             }
           },
