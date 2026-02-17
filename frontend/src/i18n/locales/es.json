@@ -1136,8 +1136,21 @@
     "accepted": "Aceptado",
     "accept": "Aceptar",
     "reject": "Rechazar",
+    "decline": "Rechazar",
     "removeMember": "Eliminar",
-    "online": "En línea"
+    "online": "En línea",
+    "pendingInvitations": "Invitaciones pendientes",
+    "invitedBy": "Invitado por {{name}}",
+    "youWereInvited": "Fuiste invitado",
+    "invitationAccepted": "Invitación aceptada",
+    "invitationDeclined": "Invitación rechazada",
+    "failedAccept": "Error al aceptar la invitación",
+    "failedDecline": "Error al rechazar la invitación",
+    "inviteSent": "Invitación enviada",
+    "failedInvite": "Error al enviar la invitación",
+    "memberRemoved": "{{name}} eliminado del viaje",
+    "failedRemove": "Error al eliminar miembro",
+    "confirmRemoveMessage": "¿Estás seguro de que deseas eliminar a {{name}} de este viaje?"
   },
 
   "notifications": {
@@ -1177,6 +1190,31 @@
   "votes": {
     "like": "Me gusta",
     "veto": "Veto"
+  },
+
+  "globalTripView": {
+    "title": "Mis Viajes",
+    "newTrip": "Nuevo Viaje",
+    "startPlanning": "Comienza a planificar tu próxima aventura",
+    "tripSummary": "{{trips}} viaje(s) en {{destinations}} destino(s)",
+    "totalTrips": "Total de Viajes",
+    "activeTrips": "Viajes Activos",
+    "destinations": "Destinos",
+    "upcoming": "Próximos",
+    "emptyTitle": "Tus aventuras te esperan",
+    "emptyDescription": "Todo gran viaje comienza con un primer paso. ¡Crea tu primer viaje y empieza a explorar el mundo!",
+    "emptyAction": "Planifica tu Primer Viaje",
+    "tripCount": "{{count}} viaje",
+    "tripCount_plural": "{{count}} viajes",
+    "noMatchingTrips": "No se encontraron viajes",
+    "noMatchingSearch": "No encontramos viajes que coincidan con \"{{query}}\". Prueba con otras palabras clave o limpia tus filtros.",
+    "allCompleted": "Todos tus viajes están completados o en el pasado. Muestra los viajes completados para verlos.",
+    "noFilterResults": "Ningún viaje coincide con tus filtros actuales. Ajusta tu selección o limpia los filtros para ver todos los viajes.",
+    "showCompleted": "Mostrar Viajes Completados",
+    "clearFilters": "Limpiar Todos los Filtros",
+    "claim": "Reclamar",
+    "linkCopied": "¡Enlace del viaje copiado al portapapeles!",
+    "failedCopyLink": "Error al copiar el enlace"
   },
 
   "errors": {

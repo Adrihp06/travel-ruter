@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, MapPin, Calendar, Compass, TrendingUp, UserPlus } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import useAuthStore from '../stores/useAuthStore';
@@ -10,6 +11,7 @@ import { DeleteTripDialog, UndoToast, TripCard, TripSearchFilter } from '../comp
 import TripCardSkeleton from '../components/Trip/TripCardSkeleton';
 import EmptyState from '../components/UI/EmptyState';
 import PendingInvitations from '../components/Collaboration/PendingInvitations';
+import { useToast } from '../components/common/Toast';
 
 // Lazy load heavy modal components
 const TripFormModal = lazy(() => import('../components/Trip/TripFormModal'));
@@ -18,6 +20,8 @@ const TripDuplicateModal = lazy(() => import('../components/Trip/TripDuplicateMo
 const UNDO_DURATION = 5000; // 5 seconds for undo
 
 const GlobalTripView = () => {
+  const { t } = useTranslation();
+  const { toast } = useToast();
   const {
     tripsWithDestinations,
     fetchTripsSummary,
@@ -161,19 +165,18 @@ const GlobalTripView = () => {
     try {
       await useTripStore.getState().updateTrip(trip.id, { ...trip, status: newStatus });
     } catch (error) {
-      alert('Failed to update trip status: ' + error.message);
+      toast.error(error.message);
     }
-  }, []);
+  }, [toast]);
 
   const handleShareTrip = useCallback((trip) => {
-    // Copy trip link to clipboard
     const tripUrl = `${window.location.origin}/trips/${trip.id}`;
     navigator.clipboard.writeText(tripUrl).then(() => {
-      alert('Trip link copied to clipboard!');
+      toast.success(t('globalTripView.linkCopied'));
     }).catch(() => {
-      alert('Failed to copy link');
+      toast.error(t('globalTripView.failedCopyLink'));
     });
-  }, []);
+  }, [toast, t]);
 
   const handleClaimTrip = useCallback(async (tripId) => {
     try {
@@ -369,12 +372,12 @@ const GlobalTripView = () => {
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                 <div>
                   <h1 className="text-3xl lg:text-4xl font-bold text-stone-900 dark:text-stone-50 mb-2">
-                    My Trips
+                    {t('globalTripView.title')}
                   </h1>
                   <p className="text-stone-600 dark:text-stone-400 text-lg">
                     {trips.length === 0
-                      ? 'Start planning your next adventure'
-                      : `${tripStats.totalTrips} trip${tripStats.totalTrips !== 1 ? 's' : ''} across ${tripStats.totalDestinations} destination${tripStats.totalDestinations !== 1 ? 's' : ''}`}
+                      ? t('globalTripView.startPlanning')
+                      : t('globalTripView.tripSummary', { trips: tripStats.totalTrips, destinations: tripStats.totalDestinations })}
                   </p>
                 </div>
                 <button
@@ -385,7 +388,7 @@ const GlobalTripView = () => {
                   className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl shadow-lg btn-interactive btn-ripple font-semibold text-lg group"
                 >
                   <Plus className="w-5 h-5 icon-hover-rotate" />
-                  <span>New Trip</span>
+                  <span>{t('globalTripView.newTrip')}</span>
                 </button>
               </div>
             </div>
@@ -408,7 +411,7 @@ const GlobalTripView = () => {
               <div className="text-2xl lg:text-3xl font-bold text-stone-900 dark:text-stone-50">
                 {tripStats.totalTrips}
               </div>
-              <div className="text-sm text-stone-500 dark:text-stone-400">Total Trips</div>
+              <div className="text-sm text-stone-500 dark:text-stone-400">{t('globalTripView.totalTrips')}</div>
             </div>
 
             <div className="bg-white dark:bg-stone-800 rounded-xl p-5 shadow-sm border border-stone-200/50 dark:border-stone-700/50 hover-lift group">
@@ -418,7 +421,7 @@ const GlobalTripView = () => {
               <div className="text-2xl lg:text-3xl font-bold text-stone-900 dark:text-stone-50">
                 {tripStats.activeTrips}
               </div>
-              <div className="text-sm text-stone-500 dark:text-stone-400">Active Trips</div>
+              <div className="text-sm text-stone-500 dark:text-stone-400">{t('globalTripView.activeTrips')}</div>
             </div>
 
             <div className="bg-white dark:bg-stone-800 rounded-xl p-5 shadow-sm border border-stone-200/50 dark:border-stone-700/50 hover-lift group">
@@ -428,7 +431,7 @@ const GlobalTripView = () => {
               <div className="text-2xl lg:text-3xl font-bold text-stone-900 dark:text-stone-50">
                 {tripStats.totalDestinations}
               </div>
-              <div className="text-sm text-stone-500 dark:text-stone-400">Destinations</div>
+              <div className="text-sm text-stone-500 dark:text-stone-400">{t('globalTripView.destinations')}</div>
             </div>
 
             <div className="bg-white dark:bg-stone-800 rounded-xl p-5 shadow-sm border border-stone-200/50 dark:border-stone-700/50 hover-lift group">
@@ -438,7 +441,7 @@ const GlobalTripView = () => {
               <div className="text-2xl lg:text-3xl font-bold text-stone-900 dark:text-stone-50">
                 {tripStats.upcomingTrips}
               </div>
-              <div className="text-sm text-stone-500 dark:text-stone-400">Upcoming</div>
+              <div className="text-sm text-stone-500 dark:text-stone-400">{t('globalTripView.upcoming')}</div>
             </div>
           </div>
         )}
@@ -447,9 +450,9 @@ const GlobalTripView = () => {
           <EmptyState
             type="trips"
             size="lg"
-            title="Your adventures await"
-            description="Every great journey begins with a single step. Create your first trip and start exploring the world!"
-            actionLabel="Plan Your First Trip"
+            title={t('globalTripView.emptyTitle')}
+            description={t('globalTripView.emptyDescription')}
+            actionLabel={t('globalTripView.emptyAction')}
             onAction={() => {
               setEditingTrip(null);
               setShowTripModal(true);
@@ -475,7 +478,7 @@ const GlobalTripView = () => {
             <div className="flex items-center gap-4 my-8">
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-stone-300 dark:via-stone-600 to-transparent" />
               <span className="text-sm font-medium text-stone-500 dark:text-stone-400 px-3">
-                {filteredTrips.length} {filteredTrips.length === 1 ? 'trip' : 'trips'}
+                {t('globalTripView.tripCount', { count: filteredTrips.length })}
               </span>
               <div className="h-px flex-1 bg-gradient-to-r from-transparent via-stone-300 dark:via-stone-600 to-transparent" />
             </div>
@@ -485,15 +488,15 @@ const GlobalTripView = () => {
               <EmptyState
                 type="search"
                 size="lg"
-                title="No matching trips"
+                title={t('globalTripView.noMatchingTrips')}
                 description={
                   searchQuery
-                    ? `We couldn't find any trips matching "${searchQuery}". Try different keywords or clear your filters.`
+                    ? t('globalTripView.noMatchingSearch', { query: searchQuery })
                     : !showCompleted
-                      ? 'All your trips are completed or in the past. Show completed trips to see them.'
-                      : 'No trips match your current filters. Adjust your selection or clear filters to see all trips.'
+                      ? t('globalTripView.allCompleted')
+                      : t('globalTripView.noFilterResults')
                 }
-                actionLabel={!showCompleted && !searchQuery ? 'Show Completed Trips' : 'Clear All Filters'}
+                actionLabel={!showCompleted && !searchQuery ? t('globalTripView.showCompleted') : t('globalTripView.clearFilters')}
                 onAction={() => !showCompleted && !searchQuery ? setShowCompleted(true) : clearFilters()}
               />
             ) : (
@@ -520,7 +523,7 @@ const GlobalTripView = () => {
                           className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-medium rounded-lg shadow-md transition-colors"
                         >
                           <UserPlus className="w-3.5 h-3.5" />
-                          Claim
+                          {t('globalTripView.claim')}
                         </button>
                       )}
                     </div>

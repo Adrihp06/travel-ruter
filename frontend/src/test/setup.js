@@ -35,12 +35,36 @@ vi.mock('react-map-gl', () => ({
   Layer: vi.fn(() => null),
 }));
 
+// Mock localStorage
+const localStorageMock = (() => {
+  let store = {};
+  return {
+    getItem: vi.fn((key) => store[key] ?? null),
+    setItem: vi.fn((key, value) => { store[key] = String(value); }),
+    removeItem: vi.fn((key) => { delete store[key]; }),
+    clear: vi.fn(() => { store = {}; }),
+    get length() { return Object.keys(store).length; },
+    key: vi.fn((i) => Object.keys(store)[i] ?? null),
+  };
+})();
+Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, writable: true });
+
 // Mock environment variables
 vi.stubEnv('VITE_API_URL', 'http://localhost:8000/api/v1');
 vi.stubEnv('VITE_MAPBOX_TOKEN', 'test-token');
 
 // Mock fetch globally
 global.fetch = vi.fn();
+
+// Mock react-i18next
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key) => key,
+    i18n: { language: 'en' },
+  }),
+  Trans: ({ children }) => children,
+  initReactI18next: { type: '3rdParty', init: () => {} },
+}));
 
 // Reset mocks between tests
 beforeEach(() => {
