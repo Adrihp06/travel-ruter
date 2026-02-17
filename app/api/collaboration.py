@@ -56,8 +56,10 @@ async def invite_member(
         status="pending",
     )
     db.add(member)
+    await db.flush()
+    await db.refresh(member)
 
-    # Create notification for invitee
+    # Create notification for invitee (after flush so member.id is available)
     trip = await db.get(Trip, trip_id)
     notification = Notification(
         user_id=invitee.id,
@@ -65,12 +67,10 @@ async def invite_member(
         type="invitation",
         title="Trip invitation",
         message=f"{user.name or user.email} invited you to '{trip.name}'",
-        data={"member_id": None, "role": data.role},
+        data={"member_id": member.id, "role": data.role},
     )
     db.add(notification)
-
     await db.flush()
-    await db.refresh(member)
 
     return TripMemberResponse(
         id=member.id,

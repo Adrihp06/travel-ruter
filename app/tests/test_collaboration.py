@@ -118,3 +118,29 @@ class TestCollaboration:
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) >= 1
+
+    async def test_accepted_member_can_access_trip(self, db, client, trip_with_owner, second_user, second_auth_headers):
+        member = TripMember(
+            trip_id=trip_with_owner.id, user_id=second_user.id,
+            role="viewer", status="accepted",
+        )
+        db.add(member)
+        await db.flush()
+        resp = await client.get(
+            f"/api/v1/trips/{trip_with_owner.id}/activity",
+            headers=second_auth_headers,
+        )
+        assert resp.status_code == 200
+
+    async def test_pending_member_cannot_access_trip(self, db, client, trip_with_owner, second_user, second_auth_headers):
+        member = TripMember(
+            trip_id=trip_with_owner.id, user_id=second_user.id,
+            role="viewer", status="pending",
+        )
+        db.add(member)
+        await db.flush()
+        resp = await client.get(
+            f"/api/v1/trips/{trip_with_owner.id}/activity",
+            headers=second_auth_headers,
+        )
+        assert resp.status_code == 403

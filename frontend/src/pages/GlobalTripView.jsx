@@ -8,6 +8,7 @@ import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { DeleteTripDialog, UndoToast, TripCard, TripSearchFilter } from '../components/Trip';
 import TripCardSkeleton from '../components/Trip/TripCardSkeleton';
 import EmptyState from '../components/UI/EmptyState';
+import PendingInvitations from '../components/Collaboration/PendingInvitations';
 
 // Lazy load heavy modal components
 const TripFormModal = lazy(() => import('../components/Trip/TripFormModal'));
@@ -387,6 +388,9 @@ const GlobalTripView = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 lg:pt-36 pb-12">
+        {/* Pending Trip Invitations */}
+        {isAuthenticated && <PendingInvitations onAccepted={fetchTripsSummary} />}
+
         {/* Stats Cards */}
         {trips.length > 0 && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10 animate-fade-in">
