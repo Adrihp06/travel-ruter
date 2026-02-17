@@ -180,6 +180,17 @@ const useAIStore = create((set, get) => ({
     const { models } = get();
     if (models.some(m => m.id === modelId)) {
       set({ selectedModelId: modelId });
+
+      // Persist to localStorage so the choice survives page refreshes
+      try {
+        const stored = localStorage.getItem(SETTINGS_KEY);
+        const settings = stored ? JSON.parse(stored) : {};
+        if (!settings.ai) settings.ai = {};
+        settings.ai.defaultModel = modelId;
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      } catch {
+        // Ignore storage errors
+      }
     }
   },
 
