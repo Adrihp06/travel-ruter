@@ -19,9 +19,9 @@ For AI providers, you need at least one key — pick whichever you prefer:
 
 | AI Provider | Free Tier | Notes |
 |-------------|-----------|-------|
-| **Anthropic** (Claude) | No free tier | Recommended default |
+| **Anthropic** (Claude) | No free tier |  |
 | **OpenAI** (GPT) | Trial credits for new accounts | |
-| **Google** (Gemini) | $300 free credits via Vertex AI | |
+| **Google** (Gemini) | $300 free credits via Vertex AI | Recommended default |
 
 Open Source Flexibility: As an open-source project, Travel Ruter is built to be modular. You can toggle services on or off depending on your needs or privacy preferences.
 
