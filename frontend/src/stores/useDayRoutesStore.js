@@ -154,22 +154,16 @@ const useDayRoutesStore = create((set, get) => ({
         const toPoi = pois[i + 1];
         const mode = get().getSegmentMode(fromPoi.id, toPoi.id);
 
-        // Build waypoints for Mapbox
-        const waypoints = [
-          { latitude: fromPoi.latitude, longitude: fromPoi.longitude },
-          { latitude: toPoi.latitude, longitude: toPoi.longitude },
-        ];
-
         try {
           const requestBody = {
-            waypoints: waypoints.map(w => ({
-              lon: w.longitude,
-              lat: w.latitude,
-            })),
-            profile: mode === 'driving' ? 'driving' : mode,
+            origin_lat: fromPoi.latitude,
+            origin_lng: fromPoi.longitude,
+            destination_lat: toPoi.latitude,
+            destination_lng: toPoi.longitude,
+            mode: mode,
           };
 
-          const response = await authFetch(`${API_BASE_URL}/routes/mapbox/multi-waypoint`, {
+          const response = await authFetch(`${API_BASE_URL}/routes/day-segment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody),
@@ -484,6 +478,8 @@ function estimateDuration(distanceKm, mode) {
     walking: 5,    // km/h
     cycling: 15,   // km/h
     driving: 40,   // km/h (city driving)
+    train: 30,     // km/h (city transit average incl. stops/waits)
+    bus: 20,       // km/h (city bus average)
   };
   const speed = speeds[mode] || speeds.walking;
   return (distanceKm / speed) * 60; // Convert to minutes
