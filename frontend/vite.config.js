@@ -50,6 +50,11 @@ export default defineConfig({
         // Exclude /api/ paths from the SPA navigation fallback so that
         // OAuth redirects (/api/auth/google, /api/auth/github) reach the server.
         navigateFallbackDenylist: [/^\/api\//],
+        // env-config.js is generated at runtime by entrypoint.sh with real
+        // secrets (e.g. Mapbox token). It must NOT be precached, otherwise
+        // the service worker serves the build-time placeholder (empty object)
+        // instead of the runtime-generated file.
+        globIgnores: ['**/env-config.js'],
         // Cache strategies for different resource types
         runtimeCaching: [
           {
