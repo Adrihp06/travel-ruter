@@ -15,7 +15,7 @@ const AIChatButton = ({ isOpen, onClick, hasUnread = false, isLoading = false })
     <button
       onClick={onClick}
       className={`
-        fixed bottom-20 right-6 z-50
+        fixed bottom-20 right-6 z-40
         sm:bottom-6
         w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-lg
         flex items-center justify-center

@@ -22,7 +22,7 @@ import StarIcon from '@/components/icons/star-icon';
 import PenIcon from '@/components/icons/pen-icon';
 import TrashIcon from '@/components/icons/trash-icon';
 import XIcon from '@/components/icons/x-icon';
-import InfoCircleIcon from '@/components/icons/info-circle-icon';
+import { useToast } from '../common/Toast';
 import OptimizationPreview from './OptimizationPreview';
 import usePOIStore from '../../stores/usePOIStore';
 import { formatDateWithLongWeekday, formatDateShort } from '../../utils/dateFormat';
@@ -257,6 +257,7 @@ const DayBasedAgenda = ({
   className = '',
 }) => {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [expandedDays, setExpandedDays] = useState({});
   const [categoryFilter, setCategoryFilter] = useState(null);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
@@ -266,7 +267,6 @@ const DayBasedAgenda = ({
   const [optimizingDay, setOptimizingDay] = useState(null);
   const [isApplyingOptimization, setIsApplyingOptimization] = useState(false);
   const [startLocationInfo, setStartLocationInfo] = useState(null);
-  const [optimizationError, setOptimizationError] = useState(null);
   const [startTime, setStartTime] = useState('08:00');
 
   // Store actions
@@ -342,13 +342,12 @@ const DayBasedAgenda = ({
   // Optimization handlers
   const handleOptimizeDay = useCallback(async (dayNumber, totalPOIs) => {
     if (totalPOIs < 2) {
-      setOptimizationError(t('itinerary.needAtLeast2POIs'));
-      setTimeout(() => setOptimizationError(null), 3000);
+      toast.error(t('itinerary.needAtLeast2POIs'));
       return;
     }
 
     setOptimizingDay(dayNumber);
-    setOptimizationError(null);
+    // clear previous errors handled by global toast
 
     try {
       // First, get the accommodation/start location for this day
@@ -366,8 +365,7 @@ const DayBasedAgenda = ({
       // Show preview modal
       setShowOptimizationPreview(true);
     } catch (error) {
-      setOptimizationError(error.message);
-      setTimeout(() => setOptimizationError(null), 5000);
+      toast.error(error.message);
     } finally {
       setOptimizingDay(null);
     }
@@ -385,7 +383,7 @@ const DayBasedAgenda = ({
           newTime
         );
       } catch (error) {
-        setOptimizationError(error.message);
+        toast.error(error.message);
       }
     }
   }, [showOptimizationPreview, startLocationInfo, optimizingDay, destination?.id, optimizeDayRoute]);
@@ -413,7 +411,7 @@ const DayBasedAgenda = ({
       setShowOptimizationPreview(false);
       setOptimizingDay(null);
     } catch (error) {
-      setOptimizationError(error.message);
+      toast.error(error.message);
     } finally {
       setIsApplyingOptimization(false);
     }
@@ -516,13 +514,7 @@ const DayBasedAgenda = ({
         </div>
       </div>
 
-      {/* Optimization Error Toast */}
-      {optimizationError && (
-        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-3 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg shadow-lg">
-          <InfoCircleIcon className="w-4 h-4 flex-shrink-0" />
-          <span className="text-sm">{optimizationError}</span>
-        </div>
-      )}
+      {/* Optimization errors now use global toast system */}
 
       {/* Day Sections */}
       <div className="flex-1 overflow-y-auto p-2 space-y-2">
