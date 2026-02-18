@@ -1,10 +1,11 @@
 import React from 'react';
 import Map, { Marker } from 'react-map-gl';
 import { MapPin } from 'lucide-react';
+import { useMapboxToken } from '../../contexts/MapboxContext';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const LocationMapPreview = ({ latitude, longitude, height = 150 }) => {
-  const mapboxAccessToken = window.__ENV__?.VITE_MAPBOX_ACCESS_TOKEN || import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
+  const { mapboxAccessToken } = useMapboxToken();
 
   if (!latitude || !longitude) {
     return null;

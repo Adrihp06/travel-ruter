@@ -55,7 +55,12 @@ export default defineConfig({
         // the service worker serves the build-time placeholder (empty object)
         // instead of the runtime-generated file.
         globIgnores: ['**/env-config.js'],
+        // Clean up stale caches from previous SW versions on activation
+        cleanupOutdatedCaches: true,
         // Cache strategies for different resource types
+        // NOTE: Mapbox is intentionally NOT cached here — Mapbox GL JS
+        // manages its own internal tile cache. SW caching of Mapbox
+        // opaque responses causes Chrome quota bloat and broken maps.
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\./i,
@@ -65,20 +70,6 @@ export default defineConfig({
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 // 24 hours
-              },
-              cacheableResponse: {
-                statuses: [0, 200]
-              }
-            }
-          },
-          {
-            urlPattern: /^https:\/\/.*\.mapbox\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'mapbox-cache',
-              expiration: {
-                maxEntries: 500,
-                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
               },
               cacheableResponse: {
                 statuses: [0, 200]
@@ -110,15 +101,17 @@ export default defineConfig({
           'vendor-mapbox': ['mapbox-gl', 'react-map-gl'],
           'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
           'vendor-utils': ['zustand', 'dompurify'],
+          'vendor-motion': ['motion'],
+          'vendor-i18n': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
         }
       }
     },
     // Generate source maps for error tracking in production
-    sourcemap: true,
+    sourcemap: 'hidden',
     // Target modern browsers for smaller bundle
     target: 'es2020',
     // Increase chunk size warning limit
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 500
   },
   server: {
     proxy: {

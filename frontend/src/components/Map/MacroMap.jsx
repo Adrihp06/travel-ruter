@@ -385,4 +385,4 @@ const MacroMap = ({
   );
 };
 
-export default MacroMap;
+export default React.memo(MacroMap);

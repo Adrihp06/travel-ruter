@@ -14,7 +14,6 @@ import {
   Cloud,
   ChevronDown,
   ChevronRight,
-  Loader2,
   Map,
   Star,
   CalendarCheck,
@@ -228,11 +227,8 @@ const ToolCallItem = ({ toolCall, isStreaming, result, isError }) => {
         {/* Status indicator */}
         <div className="flex items-center gap-2 flex-shrink-0">
           {status === 'running' && (
-            <div className="flex items-center gap-1.5">
-              <Loader2 className="w-4 h-4 text-amber-500 animate-spin" />
-              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                {t(toolInfo.descriptionKey)}...
-              </span>
+            <div className="w-16 h-1.5 bg-amber-200 dark:bg-amber-900/40 rounded-full overflow-hidden">
+              <div className="h-full bg-amber-500 rounded-full animate-[loading_1.5s_ease-in-out_infinite]" style={{ width: '40%' }} />
             </div>
           )}
           {status === 'success' && (

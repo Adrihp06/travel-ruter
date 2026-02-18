@@ -1368,31 +1368,31 @@ const TripMap = ({
         </div>
       )}
 
-      {/* Fallback Warning - Bottom Right - auto-hides after 4 seconds */}
-      {showRouteControls && sortedDestinations.length >= 2 && routeTotals?.has_fallback && showFallbackWarning && (
-        <div className="absolute bottom-16 right-4 z-10 max-w-sm">
-          <div className="bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 rounded-xl shadow-lg p-3 transition-opacity duration-300">
-            <div className="flex items-center gap-2 text-rose-700 dark:text-rose-300">
-              <TriangleAlertIcon className="w-4 h-4 flex-shrink-0" />
-              <span className="text-sm font-semibold">
-                {t('map.fallbackRouteWarning', { count: routeTotals.fallback_count })}
-              </span>
+      {/* Segment Navigator + Fallback Warning - top-left stack */}
+      {showRouteControls && sortedDestinations.length >= 2 && (
+        <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
+          {routeTotals && (
+            <div className="bg-white/95 dark:bg-stone-800/95 backdrop-blur-sm rounded-xl shadow-lg border border-stone-200 dark:border-stone-700 px-3 py-2">
+              <SegmentNavigator
+                segments={validSegments}
+                destinations={sortedDestinations}
+                selectedSegmentId={selectedSegmentId}
+                onSegmentClick={handleSegmentClick}
+              />
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Segment Navigator - separate from route bar, top-left */}
-      {showRouteControls && sortedDestinations.length >= 2 && routeTotals && (
-        <div className="absolute top-3 left-3 z-10">
-          <div className="bg-white/95 dark:bg-stone-800/95 backdrop-blur-sm rounded-xl shadow-lg border border-stone-200 dark:border-stone-700 px-3 py-2">
-            <SegmentNavigator
-              segments={validSegments}
-              destinations={sortedDestinations}
-              selectedSegmentId={selectedSegmentId}
-              onSegmentClick={handleSegmentClick}
-            />
-          </div>
+          {/* Fallback Warning - below segment navigator, auto-hides after 4 seconds */}
+          {routeTotals?.has_fallback && showFallbackWarning && (
+            <div className="bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 rounded-xl shadow-lg p-2 transition-opacity duration-300 max-w-[280px]">
+              <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-300">
+                <TriangleAlertIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                <span className="text-xs font-semibold">
+                  {t('map.fallbackRouteWarning', { count: routeTotals.fallback_count })}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1412,4 +1412,4 @@ const TripMap = ({
   );
 };
 
-export default TripMap;
+export default React.memo(TripMap);

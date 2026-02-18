@@ -9,16 +9,22 @@ export const ItineraryUIProvider = ({ children }) => {
   const [isJournalVisible, setIsJournalVisible] = useState(false);
 
   const toggleSidebar = () => setIsSidebarVisible(prev => !prev);
-  const toggleVault = () => setIsVaultVisible(prev => !prev);
+  const toggleVault = () => setIsVaultVisible(prev => {
+    if (!prev) setIsJournalVisible(false); // close journal when opening vault
+    return !prev;
+  });
   const toggleCalendar = () => setIsCalendarVisible(prev => !prev);
-  const toggleJournal = () => setIsJournalVisible(prev => !prev);
+  const toggleJournal = () => setIsJournalVisible(prev => {
+    if (!prev) setIsVaultVisible(false); // close vault when opening journal
+    return !prev;
+  });
   const showSidebar = () => setIsSidebarVisible(true);
   const hideSidebar = () => setIsSidebarVisible(false);
-  const showVault = () => setIsVaultVisible(true);
+  const showVault = () => { setIsJournalVisible(false); setIsVaultVisible(true); };
   const hideVault = () => setIsVaultVisible(false);
   const showCalendar = () => setIsCalendarVisible(true);
   const hideCalendar = () => setIsCalendarVisible(false);
-  const showJournal = () => setIsJournalVisible(true);
+  const showJournal = () => { setIsVaultVisible(false); setIsJournalVisible(true); };
   const hideJournal = () => setIsJournalVisible(false);
 
   const value = useMemo(() => ({

@@ -4,7 +4,7 @@ import { Plus, MapPin, Calendar, Compass, TrendingUp, UserPlus } from 'lucide-re
 import useTripStore from '../stores/useTripStore';
 import useAuthStore from '../stores/useAuthStore';
 import useCollaborationStore from '../stores/useCollaborationStore';
-import MacroMap from '../components/Map/MacroMap';
+const MacroMap = lazy(() => import('../components/Map/MacroMap'));
 import MapPlaceholder from '../components/Map/MapPlaceholder';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { DeleteTripDialog, UndoToast, TripCard, TripSearchFilter } from '../components/Trip';
@@ -358,7 +358,9 @@ const GlobalTripView = () => {
       {/* Hero Section with Map */}
       <div className="relative">
         <div className="h-[500px] lg:h-[550px] relative z-0">
-          <MacroMap trips={tripsWithDestinations} />
+          <Suspense fallback={<MapPlaceholder height="100%" />}>
+            <MacroMap trips={tripsWithDestinations} />
+          </Suspense>
           {/* Bottom gradient only - less intrusive, allows map interaction */}
           <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-stone-50 dark:from-stone-900 to-transparent pointer-events-none z-10" />
           {/* Subtle top gradient for breadcrumb visibility */}

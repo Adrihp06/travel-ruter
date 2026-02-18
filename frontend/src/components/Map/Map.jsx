@@ -1,8 +1,9 @@
 import React from 'react';
 import Map, { NavigationControl, ScaleControl, FullscreenControl, GeolocateControl } from 'react-map-gl';
+import { useMapboxToken } from '../../contexts/MapboxContext';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-const MapComponent = ({ 
+const MapComponent = ({
   initialViewState = {
     longitude: -122.4,
     latitude: 37.8,
@@ -12,11 +13,7 @@ const MapComponent = ({
   mapStyle = "mapbox://styles/mapbox/streets-v11",
   children
 }) => {
-  const mapboxAccessToken = window.__ENV__?.VITE_MAPBOX_ACCESS_TOKEN || import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
-
-  if (!mapboxAccessToken) {
-    console.warn("VITE_MAPBOX_ACCESS_TOKEN is missing in environment variables.");
-  }
+  const { mapboxAccessToken } = useMapboxToken();
 
   return (
     <Map

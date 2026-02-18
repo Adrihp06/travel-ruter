@@ -47,8 +47,8 @@ import CameraIcon from '@/components/icons/camera-icon';
 import PenIcon from '@/components/icons/pen-icon';
 import TrashIcon from '@/components/icons/trash-icon';
 import ArrowNarrowDownIcon from '@/components/icons/arrow-narrow-down-icon';
-import InfoCircleIcon from '@/components/icons/info-circle-icon';
 import SparklesIcon from '@/components/icons/sparkles-icon';
+import { useToast } from '../common/Toast';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import usePOIStore from '../../stores/usePOIStore';
 import { formatDateWithWeekday, formatDateRangeShort, parseDateString } from '../../utils/dateFormat';
@@ -600,6 +600,7 @@ const DailyItinerary = ({
   showHeader = true,
 }) => {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [expandedDays, setExpandedDays] = useState({});
   const [unscheduledExpanded, setUnscheduledExpanded] = useState(true);
   const [activePOI, setActivePOI] = useState(null);
@@ -609,7 +610,6 @@ const DailyItinerary = ({
   const [optimizingDay, setOptimizingDay] = useState(null);
   const [isApplyingOptimization, setIsApplyingOptimization] = useState(false);
   const [startLocationInfo, setStartLocationInfo] = useState(null);
-  const [optimizationError, setOptimizationError] = useState(null);
   const [startTime, setStartTime] = useState('08:00');
 
   // POI Suggestions state
@@ -885,13 +885,12 @@ const DailyItinerary = ({
 
     const dayPOIs = scheduledByDay[day.date] || [];
     if (dayPOIs.length < 2) {
-      setOptimizationError(t('itinerary.needAtLeast2POIs'));
-      setTimeout(() => setOptimizationError(null), 3000);
+      toast.error(t('itinerary.needAtLeast2POIs'));
       return;
     }
 
     setOptimizingDay(dayNumber);
-    setOptimizationError(null);
+    // clear previous errors handled by global toast
 
     try {
       // First, get the accommodation/start location for this day
@@ -909,8 +908,7 @@ const DailyItinerary = ({
       // Show preview modal
       setShowOptimizationPreview(true);
     } catch (error) {
-      setOptimizationError(error.message);
-      setTimeout(() => setOptimizationError(null), 5000);
+      toast.error(error.message);
     }
   }, [destination?.id, days, scheduledByDay, getAccommodationForDay, optimizeDayRoute, startTime]);
 
@@ -935,7 +933,7 @@ const DailyItinerary = ({
       setShowOptimizationPreview(false);
       setOptimizingDay(null);
     } catch (error) {
-      setOptimizationError(error.message);
+      toast.error(error.message);
     } finally {
       setIsApplyingOptimization(false);
     }
@@ -958,7 +956,7 @@ const DailyItinerary = ({
           newTime
         );
       } catch (error) {
-        setOptimizationError(error.message);
+        toast.error(error.message);
       }
     }
   }, [showOptimizationPreview, startLocationInfo, optimizingDay, destination?.id, optimizeDayRoute]);
@@ -981,8 +979,7 @@ const DailyItinerary = ({
       await applySmartSchedule(destination.id, assignments, optimizeRoutes);
       setShowSmartSchedulerModal(false);
     } catch (error) {
-      setOptimizationError(error.message);
-      setTimeout(() => setOptimizationError(null), 5000);
+      toast.error(error.message);
     } finally {
       setIsApplyingSmartSchedule(false);
     }
@@ -1102,13 +1099,7 @@ const DailyItinerary = ({
         </div>
       </div>
 
-      {/* Optimization Error Toast */}
-      {optimizationError && (
-        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-3 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-lg shadow-lg">
-          <InfoCircleIcon className="w-4 h-4 flex-shrink-0" />
-          <span className="text-sm">{optimizationError}</span>
-        </div>
-      )}
+      {/* Optimization errors now use global toast system */}
 
       {/* Optimization Preview Modal - Lazy loaded */}
       <Suspense fallback={null}>

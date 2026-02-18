@@ -1,21 +1,30 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { MapboxProvider } from './contexts/MapboxContext';
-import { ItineraryUIProvider } from './contexts/ItineraryUIContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import { ToastProvider } from './components/common/Toast';
 import Layout from './components/Layout/Layout';
-import GlobalTripView from './pages/GlobalTripView';
-import DetailView from './pages/DetailView';
-import SettingsPage from './pages/SettingsPage';
-import AISettingsPage from './pages/AISettingsPage';
-import LoginPage from './pages/LoginPage';
-import AuthCallbackPage from './pages/AuthCallbackPage';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import useAuthStore from './stores/useAuthStore';
 
+// Lazy-loaded page components for code splitting
+const GlobalTripView = lazy(() => import('./pages/GlobalTripView'));
+const DetailView = lazy(() => import('./pages/DetailView'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const AISettingsPage = lazy(() => import('./pages/AISettingsPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'));
+
 const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED === 'true';
+
+function PageFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600" />
+    </div>
+  );
+}
 
 function App() {
   useEffect(() => {
@@ -32,9 +41,9 @@ function App() {
     <ErrorBoundary message="The application encountered an unexpected error. Please refresh the page or try again.">
       <ThemeProvider>
         <ToastProvider position="bottom-right" maxToasts={5}>
-          <ItineraryUIProvider>
-            <MapboxProvider>
-              <Router>
+          <MapboxProvider>
+            <Router>
+              <Suspense fallback={<PageFallback />}>
                 <Routes>
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/auth/callback" element={<AuthCallbackPage />} />
@@ -47,9 +56,9 @@ function App() {
                     <Route path="*" element={<div className="p-4">Page not found</div>} />
                   </Route>
                 </Routes>
-              </Router>
-            </MapboxProvider>
-          </ItineraryUIProvider>
+              </Suspense>
+            </Router>
+          </MapboxProvider>
         </ToastProvider>
       </ThemeProvider>
     </ErrorBoundary>

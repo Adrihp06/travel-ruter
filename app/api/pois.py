@@ -371,28 +371,27 @@ async def bulk_update_poi_schedule(
             detail=f"Destination with id {destination_id} not found"
         )
 
-    updated_pois = []
+    # Fetch all POIs in a single query instead of N individual SELECTs
+    poi_ids = [item.id for item in schedule_update.updates]
+    result = await db.execute(
+        select(POI).where(POI.id.in_(poi_ids), POI.destination_id == destination_id)
+    )
+    poi_lookup = {poi.id: poi for poi in result.scalars().all()}
 
+    # Verify all POIs exist and apply updates
     for update_item in schedule_update.updates:
-        result = await db.execute(
-            select(POI).where(POI.id == update_item.id, POI.destination_id == destination_id)
-        )
-        db_poi = result.scalar_one_or_none()
-
+        db_poi = poi_lookup.get(update_item.id)
         if not db_poi:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"POI with id {update_item.id} not found in destination {destination_id}"
             )
-
         db_poi.scheduled_date = update_item.scheduled_date
         db_poi.day_order = update_item.day_order
-        updated_pois.append(db_poi)
 
     await db.flush()
 
     # Re-query all updated POIs with coordinates
-    poi_ids = [poi.id for poi in updated_pois]
     result = await db.execute(
         select(
             POI,
@@ -985,8 +984,8 @@ async def bulk_add_suggested_pois(
             detail="Failed to fetch details for any POIs from Google Places API"
         )
 
-    # Create POIs from fetched details
-    created_pois = []
+    # Create all POIs from fetched details, then flush and re-query in batch
+    db_pois = []
     for place_id, place_details in details_map.items():
         try:
             # Extract coordinates
@@ -1030,24 +1029,34 @@ async def bulk_add_suggested_pois(
                 )
 
             db.add(db_poi)
-            await db.flush()
-
-            # Re-query to get coordinates
-            result = await db.execute(
-                select(
-                    POI,
-                    ST_Y(POI.coordinates).label('latitude'),
-                    ST_X(POI.coordinates).label('longitude')
-                )
-                .where(POI.id == db_poi.id)
-            )
-            row = result.one()
-            created_poi, lat, lng = row
-            created_pois.append(poi_to_response(created_poi, lat, lng))
+            db_pois.append(db_poi)
 
         except Exception as e:
             logger.error(f"Failed to add POI {place_id}", exc_info=True)
             continue
+
+    if not db_pois:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to add any POIs"
+        )
+
+    # Single flush for all POIs
+    await db.flush()
+
+    # Single batch re-query to get coordinates for all created POIs
+    created_poi_ids = [poi.id for poi in db_pois]
+    result = await db.execute(
+        select(
+            POI,
+            ST_Y(POI.coordinates).label('latitude'),
+            ST_X(POI.coordinates).label('longitude')
+        )
+        .where(POI.id.in_(created_poi_ids))
+    )
+    rows = result.all()
+
+    created_pois = [poi_to_response(row[0], row[1], row[2]) for row in rows]
 
     if not created_pois:
         raise HTTPException(
