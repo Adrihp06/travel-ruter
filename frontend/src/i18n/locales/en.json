@@ -1215,6 +1215,12 @@
     "failedCopyLink": "Failed to copy link"
   },
 
+  "feedback": {
+    "reportIssue": "Report Issue",
+    "reportBug": "Report a Bug",
+    "requestFeature": "Request a Feature"
+  },
+
   "errors": {
     "somethingWentWrong": "Something went wrong",
     "unexpectedError": "We're sorry, but something unexpected happened. Please try again.",

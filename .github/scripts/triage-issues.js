@@ -3,6 +3,9 @@
 /**
  * Auto-triage for new issues.
  * - Matches keywords in title + body to assign labels.
+ * - Parses structured fields from YAML issue templates.
+ * - Detects issues submitted from the app (<!-- Submitted from app -->).
+ * - Assigns priority and area labels from template dropdowns.
  * - Posts a combined checklist comment with troubleshooting steps.
  */
 
@@ -24,6 +27,11 @@ const LABEL_COLORS = {
   "mcp-server": "b60205",
   "ci-cd": "fbca04",
   documentation: "0075ca",
+  "from-app": "7057ff",
+  "priority: critical": "b60205",
+  "priority: high": "d93f0b",
+  "priority: medium": "fbca04",
+  "priority: low": "0e8a16",
 };
 
 // ── Keyword rules (case-insensitive) ────────────────────────────────
@@ -252,6 +260,39 @@ const CHECKLISTS = {
 - [ ] El MCP server se lanza como subprocess — revisa logs: \`docker compose logs orchestrator\``,
 };
 
+// ── Area dropdown → label mapping ────────────────────────────────────
+
+const AREA_LABEL_MAP = {
+  "Map / Routes": "maps",
+  "AI Chat": "ai-provider",
+  "Trip Management": "frontend",
+  Destinations: "frontend",
+  Accommodations: "frontend",
+  "POIs / Itinerary": "frontend",
+  Budget: "frontend",
+  Documents: "frontend",
+  Authentication: "auth-issue",
+  Settings: "frontend",
+};
+
+// ── Severity dropdown → priority label mapping ───────────────────────
+
+const SEVERITY_PRIORITY_MAP = {
+  "Critical (app crashes or data loss)": "priority: critical",
+  "High (major feature broken)": "priority: high",
+  "Medium (feature partially broken)": "priority: medium",
+  "Low (minor inconvenience)": "priority: low",
+};
+
+// ── Importance dropdown → priority label mapping ─────────────────────
+
+const IMPORTANCE_PRIORITY_MAP = {
+  "Essential (can't use the app without it)": "priority: critical",
+  "Important (would significantly improve experience)": "priority: high",
+  "Nice to have (quality of life improvement)": "priority: medium",
+  "Minor (small enhancement)": "priority: low",
+};
+
 // ── Helpers ─────────────────────────────────────────────────────────
 
 async function ensureLabel(github, owner, repo, name) {
@@ -283,55 +324,128 @@ function matchLabels(text) {
   return [...new Set(matched)];
 }
 
+/**
+ * Parse structured fields from YAML template body.
+ * Templates generate body with `### Field Name` headers followed by content.
+ */
+function parseTemplateFields(body) {
+  if (!body) return {};
+  const fields = {};
+  const sections = body.split(/^### /m).slice(1);
+  for (const section of sections) {
+    const newlineIdx = section.indexOf("\n");
+    if (newlineIdx === -1) continue;
+    const key = section.substring(0, newlineIdx).trim();
+    const value = section.substring(newlineIdx + 1).trim();
+    if (value && value !== "_No response_") {
+      fields[key] = value;
+    }
+  }
+  return fields;
+}
+
+/**
+ * Check if an issue was submitted from the app.
+ */
+function isFromApp(body) {
+  return body && body.includes("<!-- Submitted from app -->");
+}
+
 // ── Main ────────────────────────────────────────────────────────────
 
 async function run({ github, context }) {
   const issue = context.payload.issue;
   const owner = context.repo.owner;
   const repo = context.repo.repo;
-  const text = `${issue.title} ${issue.body || ""}`;
+  const body = issue.body || "";
+  const text = `${issue.title} ${body}`;
 
   const labels = matchLabels(text);
+  const fields = parseTemplateFields(body);
+  const fromApp = isFromApp(body);
 
-  if (labels.length === 0) return;
+  // Add from-app label if submitted from the app
+  if (fromApp) {
+    labels.push("from-app");
+  }
+
+  // Map Affected Area dropdown to labels
+  const area = fields["Affected Area"] || fields["Area"];
+  if (area && AREA_LABEL_MAP[area]) {
+    labels.push(AREA_LABEL_MAP[area]);
+  }
+
+  // Map Severity dropdown to priority labels
+  const severity = fields["Severity"];
+  if (severity && SEVERITY_PRIORITY_MAP[severity]) {
+    labels.push(SEVERITY_PRIORITY_MAP[severity]);
+  }
+
+  // Map Importance dropdown to priority labels (feature requests)
+  const importance = fields["Importance"];
+  if (importance && IMPORTANCE_PRIORITY_MAP[importance]) {
+    labels.push(IMPORTANCE_PRIORITY_MAP[importance]);
+  }
+
+  // Deduplicate labels
+  const uniqueLabels = [...new Set(labels)];
+
+  if (uniqueLabels.length === 0) return;
 
   // Ensure all labels exist and apply them
   await Promise.all(
-    labels.map((l) => ensureLabel(github, owner, repo, l))
+    uniqueLabels.map((l) => ensureLabel(github, owner, repo, l))
   );
 
   await github.rest.issues.addLabels({
     owner,
     repo,
     issue_number: issue.number,
-    labels,
+    labels: uniqueLabels,
   });
 
   // Build combined checklist comment
-  const sections = labels
+  const sections = uniqueLabels
     .filter((l) => CHECKLISTS[l])
     .map((l) => CHECKLISTS[l]);
 
-  if (sections.length === 0) return;
+  const commentParts = [];
 
-  const body = [
-    "Hola! He detectado algunas areas relevantes en tu issue. Aqui tienes una checklist de diagnostico que podria ayudarte a resolver el problema:",
-    "",
-    ...sections,
-    "",
-    "---",
-    "_Si el problema persiste despues de revisar la checklist, anade mas detalles (logs, `.env` redactado, pasos para reproducir) y alguien del equipo lo revisara._",
-    "",
+  // Add app acknowledgment for issues submitted from the app
+  if (fromApp) {
+    commentParts.push(
+      "Gracias por reportar desde la app! Hemos recibido tu reporte con toda la informacion del entorno, lo que nos ayudara a investigar mas rapido."
+    );
+    commentParts.push("");
+  }
+
+  if (sections.length > 0) {
+    commentParts.push(
+      "Hola! He detectado algunas areas relevantes en tu issue. Aqui tienes una checklist de diagnostico que podria ayudarte a resolver el problema:"
+    );
+    commentParts.push("");
+    commentParts.push(...sections);
+    commentParts.push("");
+  }
+
+  if (commentParts.length === 0) return;
+
+  commentParts.push("---");
+  commentParts.push(
+    "_Si el problema persiste despues de revisar la checklist, anade mas detalles (logs, `.env` redactado, pasos para reproducir) y alguien del equipo lo revisara._"
+  );
+  commentParts.push("");
+  commentParts.push(
     "_Etiquetas asignadas automaticamente: " +
-      labels.map((l) => `\`${l}\``).join(", ") +
-      "_",
-  ].join("\n");
+      uniqueLabels.map((l) => `\`${l}\``).join(", ") +
+      "_"
+  );
 
   await github.rest.issues.createComment({
     owner,
     repo,
     issue_number: issue.number,
-    body,
+    body: commentParts.join("\n"),
   });
 }
 

@@ -1,0 +1,94 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the form below to help us investigate.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of the bug.
+      placeholder: Describe what happened...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the behavior.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. Scroll down to '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Describe the expected behavior...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Area
+      description: Which part of the app is affected?
+      options:
+        - Map / Routes
+        - AI Chat
+        - Trip Management
+        - Destinations
+        - Accommodations
+        - POIs / Itinerary
+        - Budget
+        - Documents
+        - Authentication
+        - Settings
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is the impact?
+      options:
+        - Critical (app crashes or data loss)
+        - High (major feature broken)
+        - Medium (feature partially broken)
+        - Low (minor inconvenience)
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, OS, screen resolution, etc. This is auto-filled when reporting from the app.
+      placeholder: |
+        Browser: Chrome 120
+        OS: macOS 14
+        Resolution: 1920x1080
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / Logs
+      description: Add any screenshots or console logs that help explain the problem.
+      placeholder: Paste screenshots or logs here...
+    validations:
+      required: false

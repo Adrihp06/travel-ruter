@@ -1217,6 +1217,12 @@
     "failedCopyLink": "Error al copiar el enlace"
   },
 
+  "feedback": {
+    "reportIssue": "Reportar Problema",
+    "reportBug": "Reportar un Bug",
+    "requestFeature": "Solicitar Funcionalidad"
+  },
+
   "errors": {
     "somethingWentWrong": "Algo salió mal",
     "unexpectedError": "Lo sentimos, ocurrió algo inesperado. Por favor inténtalo de nuevo.",

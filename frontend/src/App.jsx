@@ -7,6 +7,7 @@ import { ToastProvider } from './components/common/Toast';
 import Layout from './components/Layout/Layout';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import useAuthStore from './stores/useAuthStore';
+import ReportIssueButton from './components/Feedback/ReportIssueButton';
 
 // Lazy-loaded page components for code splitting
 const GlobalTripView = lazy(() => import('./pages/GlobalTripView'));
@@ -57,6 +58,7 @@ function App() {
                   </Route>
                 </Routes>
               </Suspense>
+              <ReportIssueButton />
             </Router>
           </MapboxProvider>
         </ToastProvider>
