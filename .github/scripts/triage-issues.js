@@ -345,6 +345,45 @@ function parseTemplateFields(body) {
 }
 
 /**
+ * Build text for keyword matching, avoiding false positives from template structure.
+ * For template issues: only uses user-written content fields (not dropdowns/headers).
+ * For plain issues: uses the full body.
+ * HTML tags are always stripped (avoids <img> matching "image").
+ */
+function getMatchableText(title, body) {
+  if (!body) return title;
+
+  const fields = parseTemplateFields(body);
+  const contentFieldNames = [
+    "Bug Description",
+    "Steps to Reproduce",
+    "Expected Behavior",
+    "Problem / Motivation",
+    "Proposed Solution",
+    "Alternatives Considered",
+    "Additional Context",
+    "Screenshots / Logs",
+  ];
+
+  let text;
+  if (Object.keys(fields).length > 0) {
+    // Template issue: only match against user content fields, not dropdowns/headers
+    const parts = [title];
+    for (const name of contentFieldNames) {
+      if (fields[name]) parts.push(fields[name]);
+    }
+    text = parts.join(" ");
+  } else {
+    // Plain issue: match against everything
+    text = `${title} ${body}`;
+  }
+
+  // Remove HTML tags to avoid false positives (e.g. <img> matching "image")
+  text = text.replace(/<[^>]+>/g, " ");
+  return text;
+}
+
+/**
  * Check if an issue was submitted from the app.
  */
 function isFromApp(body) {
@@ -358,10 +397,10 @@ async function run({ github, context }) {
   const owner = context.repo.owner;
   const repo = context.repo.repo;
   const body = issue.body || "";
-  const text = `${issue.title} ${body}`;
 
-  const labels = matchLabels(text);
   const fields = parseTemplateFields(body);
+  const text = getMatchableText(issue.title, body);
+  const labels = matchLabels(text);
   const fromApp = isFromApp(body);
 
   // Add from-app label if submitted from the app

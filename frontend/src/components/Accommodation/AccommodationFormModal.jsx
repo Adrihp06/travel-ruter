@@ -244,6 +244,7 @@ const AccommodationFormModal = ({
   if (!isOpen) return null;
 
   return (
+    <>
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
       role="presentation"
@@ -464,14 +465,16 @@ const AccommodationFormModal = ({
         </form>
       </div>
 
-      {/* Hotel Search Modal */}
-      <HotelSearchModal
-        isOpen={showHotelSearch}
-        onClose={() => setShowHotelSearch(false)}
-        destination={destination}
-        onSelectHotel={handleHotelSelect}
-      />
     </div>
+
+    {/* Hotel Search Modal - rendered outside backdrop to avoid event interception */}
+    <HotelSearchModal
+      isOpen={showHotelSearch}
+      onClose={() => setShowHotelSearch(false)}
+      destination={destination}
+      onSelectHotel={handleHotelSelect}
+    />
+    </>
   );
 };
 
