@@ -77,6 +77,10 @@ class Settings(BaseSettings):
     # Enable "Routes API" in Google Cloud Console
     GOOGLE_MAPS_API_KEY: Optional[str] = None
 
+    # NAVITIME API (for Japan transit routing via RapidAPI)
+    # Get free tier (500 req/month) at: https://rapidapi.com/navitimejapan-navitimejapan/api/navitime-route-totalnavi
+    NAVITIME_RAPIDAPI_KEY: Optional[str] = None
+
     # Amadeus API (Hotels & Flights)
     AMADEUS_CLIENT_ID: Optional[str] = None
     AMADEUS_CLIENT_SECRET: Optional[str] = None

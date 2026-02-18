@@ -9,7 +9,15 @@ from app.core.config import settings
 from app.models.user import User
 from app.schemas.trip import TripCreate, TripUpdate, TripResponse, TripWithDestinationsResponse, BudgetSummary, POIStats, CoverImageUploadResponse, TripDuplicateRequest, TripSummaryItem, TripsSummaryResponse
 from app.services.trip_service import TripService
+from app.services.travel_segment_service import TravelSegmentService
 from app.api.deps import get_current_user
+
+# Fields that affect origin/return segments
+_ORIGIN_RETURN_FIELDS = {
+    "origin_name", "origin_latitude", "origin_longitude",
+    "return_name", "return_latitude", "return_longitude",
+    "origin_travel_mode", "return_travel_mode",
+}
 
 router = APIRouter()
 
@@ -245,12 +253,21 @@ async def update_trip(
     current_user: User = Depends(get_current_user),
 ) -> TripResponse:
     """Update a trip"""
+    # Check if origin/return fields are being changed
+    updated_fields = set(trip_data.model_dump(exclude_unset=True).keys())
+    origin_return_changed = bool(updated_fields & _ORIGIN_RETURN_FIELDS)
+
     trip = await TripService.update_trip(db, trip_id, trip_data)
     if not trip:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Trip with id {trip_id} not found"
         )
+
+    # Invalidate persisted origin/return segments if relevant fields changed
+    if origin_return_changed:
+        await TravelSegmentService.invalidate_origin_return_segments(db, trip_id)
+
     return TripResponse.model_validate(trip)
 
 

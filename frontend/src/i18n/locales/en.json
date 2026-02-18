@@ -255,7 +255,9 @@
       "googleConsole": "Google Cloud Console",
       "enableRoutesApi": "Enable the \"Routes API\" for your project.",
       "googleBillingNote": "Google Maps Routes API requires billing to be enabled but includes a free tier. If no API key is configured, the system falls back to OpenRouteService.",
-      "googleNoKeyWarning": "You have selected a Google Maps routing option but haven't provided an API key. Routes will fall back to OpenRouteService."
+      "googleNoKeyWarning": "You have selected a Google Maps routing option but haven't provided an API key. Routes will fall back to OpenRouteService.",
+      "navitimeJapan": "NAVITIME Japan Transit",
+      "navitimeJapanDesc": "Use NAVITIME for train/bus routes in Japan (JR, Shinkansen, local lines). 500 free requests/month via RapidAPI. Non-Japan routes fall back to other services."
     },
     "geocoding": {
       "title": "Geocoding Settings",

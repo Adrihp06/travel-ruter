@@ -427,6 +427,25 @@ const SettingsPage = () => {
                         </span>
                       </div>
                     </label>
+
+                    <label className="flex items-start p-4 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 border-gray-200 dark:border-gray-600">
+                      <input
+                        type="radio"
+                        name="routingPreference"
+                        value="navitime_japan"
+                        checked={settings.routing?.preference === 'navitime_japan'}
+                        onChange={(e) => updateSetting('routing', 'preference', e.target.value)}
+                        className="mt-1 h-4 w-4 text-[#D97706] focus:ring-[#D97706] border-gray-300"
+                      />
+                      <div className="ml-3">
+                        <span className="block text-sm font-medium text-gray-900 dark:text-white">
+                          {t('settings.routing.navitimeJapan')}
+                        </span>
+                        <span className="block text-sm text-gray-500 dark:text-gray-400">
+                          {t('settings.routing.navitimeJapanDesc')}
+                        </span>
+                      </div>
+                    </label>
                   </div>
                 </div>
 

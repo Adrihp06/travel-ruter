@@ -20,12 +20,27 @@ from app.services.google_maps_routes_service import (
     GoogleMapsRoutesError,
     GoogleMapsRouteTravelMode,
 )
+from app.services.navitime_service import (
+    NavitimeService,
+    NavitimeError,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class TravelSegmentService:
     """Service for calculating and managing travel segments between destinations"""
+
+    # Global routing preference (set via /routes/preferences endpoint)
+    _routing_preference: RoutingPreference = RoutingPreference.DEFAULT
+
+    @classmethod
+    def set_routing_preference(cls, preference: RoutingPreference) -> None:
+        cls._routing_preference = preference
+
+    @classmethod
+    def get_routing_preference(cls) -> RoutingPreference:
+        return cls._routing_preference
 
     # Speed estimates in km/h for different travel modes
     SPEED_ESTIMATES = {
@@ -194,6 +209,52 @@ class TravelSegmentService:
             return None, None, None
 
     @classmethod
+    async def _fetch_navitime_route(
+        cls,
+        lat1: float, lon1: float,
+        lat2: float, lon2: float,
+        mode: TravelMode
+    ) -> tuple[Optional[dict], Optional[float], Optional[int]]:
+        """
+        Fetch route geometry from NAVITIME API (Japan only).
+
+        Returns:
+            tuple: (geometry_dict, distance_km, duration_minutes) or (None, None, None) if failed
+        """
+        if not cls._is_public_transport(mode):
+            return None, None, None
+
+        try:
+            service = NavitimeService()
+            if not service.is_available():
+                return None, None, None
+
+            # Check both points are in Japan
+            if not (service.is_in_japan(lat1, lon1) and service.is_in_japan(lat2, lon2)):
+                logger.debug("NAVITIME skipped: coordinates outside Japan bounding box")
+                return None, None, None
+
+            result = await service.get_route(
+                origin=(lon1, lat1),
+                destination=(lon2, lat2),
+            )
+
+            distance_km = round(result.distance_meters / 1000, 2)
+            duration_min = int(round(result.duration_seconds / 60))
+
+            # Add overhead for station wait time
+            if mode == TravelMode.TRAIN:
+                duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.TRAIN, 30)
+            elif mode == TravelMode.BUS:
+                duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.BUS, 20)
+
+            return result.geometry, distance_km, duration_min
+
+        except NavitimeError as e:
+            logger.warning(f"NAVITIME routing failed: {e}")
+            return None, None, None
+
+    @classmethod
     async def _fetch_route_geometry(
         cls,
         lat1: float, lon1: float,
@@ -236,13 +297,18 @@ class TravelSegmentService:
         # DEFAULT = Use ORS for everything (train/bus uses car route approximation)
         # GOOGLE_PUBLIC_TRANSPORT = Use Google Maps for train/bus only
         # GOOGLE_EVERYTHING = Use Google Maps for all transport modes
+        # NAVITIME_JAPAN = Use NAVITIME for train/bus in Japan
         use_google = False
+        use_navitime = False
         if routing_preference == RoutingPreference.GOOGLE_EVERYTHING:
             use_google = True
             logger.info(f"Using Google Maps for mode {mode} (preference: GOOGLE_EVERYTHING)")
         elif routing_preference == RoutingPreference.GOOGLE_PUBLIC_TRANSPORT and cls._is_public_transport(mode):
             use_google = True
             logger.info(f"Using Google Maps for public transport mode: {mode} (preference: GOOGLE_PUBLIC_TRANSPORT)")
+        elif routing_preference == RoutingPreference.NAVITIME_JAPAN and cls._is_public_transport(mode):
+            use_navitime = True
+            logger.info(f"Using NAVITIME for public transport mode: {mode} (preference: NAVITIME_JAPAN)")
 
         # Try Google Maps only if user preference requires it
         if use_google:
@@ -253,6 +319,25 @@ class TravelSegmentService:
                 return geometry, distance_km, duration_min, False  # Not a fallback - got real transit data
             # If Google Maps failed, fall through to other services
             logger.info(f"Google Maps routing failed for {mode}, falling back to other services")
+
+        # Try NAVITIME for Japan transit (when preference is set or as automatic fallback after Google fails)
+        if use_navitime or (use_google and cls._is_public_transport(mode)):
+            geometry, distance_km, duration_min = await cls._fetch_navitime_route(
+                lat1, lon1, lat2, lon2, mode
+            )
+            if geometry is not None:
+                return geometry, distance_km, duration_min, False  # Real transit data from NAVITIME
+            if use_navitime:
+                logger.info(f"NAVITIME routing failed for {mode}, falling back to other services")
+        elif cls._is_public_transport(mode):
+            # Even if preference is DEFAULT, try NAVITIME as automatic fallback for Japan routes
+            navitime_svc = NavitimeService()
+            if navitime_svc.is_available() and navitime_svc.is_in_japan(lat1, lon1) and navitime_svc.is_in_japan(lat2, lon2):
+                geometry, distance_km, duration_min = await cls._fetch_navitime_route(
+                    lat1, lon1, lat2, lon2, mode
+                )
+                if geometry is not None:
+                    return geometry, distance_km, duration_min, False
 
         # Try Mapbox for car, walking, biking
         mapbox_profile = cls._map_mode_to_mapbox_profile(mode)
@@ -449,7 +534,8 @@ class TravelSegmentService:
         route_geometry, api_distance_km, api_duration_min, is_fallback = await cls._fetch_route_geometry(
             from_dest.latitude, from_dest.longitude,
             to_dest.latitude, to_dest.longitude,
-            mode
+            mode,
+            routing_preference=cls._routing_preference,
         )
 
         if route_geometry and api_distance_km is not None and api_duration_min is not None:
@@ -504,8 +590,10 @@ class TravelSegmentService:
             await db.refresh(existing)
             return existing
         else:
-            # Create new segment
+            # Create new segment - resolve trip_id from destination
             segment = TravelSegment(
+                trip_id=from_dest.trip_id,
+                segment_type="inter_destination",
                 from_destination_id=from_destination_id,
                 to_destination_id=to_destination_id,
                 travel_mode=mode.value,
@@ -792,7 +880,8 @@ class TravelSegmentService:
             route_geometry, distance_km, duration_min, is_fallback = await cls._fetch_route_geometry(
                 from_dest.latitude, from_dest.longitude,
                 to_dest.latitude, to_dest.longitude,
-                mode
+                mode,
+                routing_preference=cls._routing_preference,
             )
 
         if route_geometry and distance_km is not None and duration_min is not None:
@@ -883,7 +972,8 @@ class TravelSegmentService:
             route_geometry, distance_km, duration_min, is_fallback = await cls._fetch_route_geometry(
                 from_lat, from_lon,
                 to_lat, to_lon,
-                leg_mode
+                leg_mode,
+                routing_preference=cls._routing_preference,
             )
 
             leg_data = {
@@ -950,7 +1040,7 @@ class TravelSegmentService:
         segment.route_legs = route_legs_data
 
     @classmethod
-    async def calculate_origin_return_segments(
+    async def get_or_calculate_origin_return_segments(
         cls,
         db: AsyncSession,
         trip_id: int,
@@ -958,20 +1048,14 @@ class TravelSegmentService:
         return_travel_mode: TravelMode = TravelMode.PLANE
     ) -> tuple[Optional[OriginReturnSegment], Optional[OriginReturnSegment]]:
         """
-        Calculate origin and return segments for a trip.
+        Get persisted origin/return segments, or calculate and persist them.
 
-        These segments connect:
-        - Origin point → First destination
-        - Last destination → Return point
-
-        Args:
-            db: Database session
-            trip_id: Trip ID
-            origin_travel_mode: Travel mode from origin to first destination
-            return_travel_mode: Travel mode from last destination to return point
+        First checks DB for existing segments. If found and inputs haven't changed
+        (same coords, same mode), returns from DB. Otherwise calculates, persists,
+        and returns.
 
         Returns:
-            tuple: (origin_segment, return_segment) - either can be None if not applicable
+            tuple: (origin_segment, return_segment) - either can be None
         """
         # Get the trip with origin/return info
         trip_result = await db.execute(
@@ -997,47 +1081,141 @@ class TravelSegmentService:
         if not destinations:
             return None, None
 
+        # Check for existing persisted segments
+        existing_result = await db.execute(
+            select(TravelSegment).where(
+                and_(
+                    TravelSegment.trip_id == trip_id,
+                    TravelSegment.segment_type.in_(["origin", "return"])
+                )
+            )
+        )
+        existing_segments = {s.segment_type: s for s in existing_result.scalars().all()}
+
         origin_segment = None
         return_segment = None
 
-        # Calculate origin → first destination segment
+        # --- Origin segment ---
         first_dest = destinations[0]
         if first_dest.latitude is not None and first_dest.longitude is not None:
-            origin_segment = await cls._calculate_point_to_point_segment(
-                from_name=trip.origin_name,
+            existing_origin = existing_segments.get("origin")
+            origin_stale = cls._is_origin_return_stale(
+                existing_origin,
                 from_lat=trip.origin_latitude,
                 from_lng=trip.origin_longitude,
-                to_name=first_dest.city_name,
                 to_lat=first_dest.latitude,
                 to_lng=first_dest.longitude,
                 travel_mode=origin_travel_mode,
-                segment_type="origin"
             )
 
-        # Calculate last destination → return segment
+            if existing_origin and not origin_stale:
+                logger.debug(f"Using persisted origin segment for trip {trip_id}")
+                origin_segment = cls._db_segment_to_origin_return(existing_origin)
+            else:
+                logger.info(f"Calculating origin segment for trip {trip_id}")
+                origin_segment = await cls._calculate_and_persist_origin_return(
+                    db=db,
+                    trip_id=trip_id,
+                    from_name=trip.origin_name,
+                    from_lat=trip.origin_latitude,
+                    from_lng=trip.origin_longitude,
+                    to_name=first_dest.city_name,
+                    to_lat=first_dest.latitude,
+                    to_lng=first_dest.longitude,
+                    travel_mode=origin_travel_mode,
+                    segment_type="origin",
+                    existing_segment=existing_origin,
+                )
+
+        # --- Return segment ---
         last_dest = destinations[-1]
         if last_dest.latitude is not None and last_dest.longitude is not None:
-            # Use return point if defined, otherwise use origin
             return_name = trip.return_name or trip.origin_name
             return_lat = trip.return_latitude if trip.return_latitude is not None else trip.origin_latitude
             return_lng = trip.return_longitude if trip.return_longitude is not None else trip.origin_longitude
 
-            return_segment = await cls._calculate_point_to_point_segment(
-                from_name=last_dest.city_name,
+            existing_return = existing_segments.get("return")
+            return_stale = cls._is_origin_return_stale(
+                existing_return,
                 from_lat=last_dest.latitude,
                 from_lng=last_dest.longitude,
-                to_name=return_name,
                 to_lat=return_lat,
                 to_lng=return_lng,
                 travel_mode=return_travel_mode,
-                segment_type="return"
             )
+
+            if existing_return and not return_stale:
+                logger.debug(f"Using persisted return segment for trip {trip_id}")
+                return_segment = cls._db_segment_to_origin_return(existing_return)
+            else:
+                logger.info(f"Calculating return segment for trip {trip_id}")
+                return_segment = await cls._calculate_and_persist_origin_return(
+                    db=db,
+                    trip_id=trip_id,
+                    from_name=last_dest.city_name,
+                    from_lat=last_dest.latitude,
+                    from_lng=last_dest.longitude,
+                    to_name=return_name,
+                    to_lat=return_lat,
+                    to_lng=return_lng,
+                    travel_mode=return_travel_mode,
+                    segment_type="return",
+                    existing_segment=existing_return,
+                )
 
         return origin_segment, return_segment
 
+    @staticmethod
+    def _is_origin_return_stale(
+        segment: Optional[TravelSegment],
+        from_lat: float,
+        from_lng: float,
+        to_lat: float,
+        to_lng: float,
+        travel_mode: TravelMode,
+    ) -> bool:
+        """Check if a persisted origin/return segment is stale (inputs changed)."""
+        if segment is None:
+            return True
+
+        # Compare coordinates (rounded to avoid float precision issues)
+        if (
+            round(segment.from_latitude or 0, 4) != round(from_lat, 4)
+            or round(segment.from_longitude or 0, 4) != round(from_lng, 4)
+            or round(segment.to_latitude or 0, 4) != round(to_lat, 4)
+            or round(segment.to_longitude or 0, 4) != round(to_lng, 4)
+        ):
+            return True
+
+        # Compare travel mode
+        if segment.travel_mode != travel_mode.value:
+            return True
+
+        return False
+
+    @staticmethod
+    def _db_segment_to_origin_return(segment: TravelSegment) -> OriginReturnSegment:
+        """Convert a persisted TravelSegment to an OriginReturnSegment response."""
+        return OriginReturnSegment(
+            segment_type=segment.segment_type,
+            from_name=segment.from_name or "",
+            from_latitude=segment.from_latitude or 0,
+            from_longitude=segment.from_longitude or 0,
+            to_name=segment.to_name or "",
+            to_latitude=segment.to_latitude or 0,
+            to_longitude=segment.to_longitude or 0,
+            travel_mode=TravelMode(segment.travel_mode),
+            distance_km=segment.distance_km,
+            duration_minutes=segment.duration_minutes,
+            route_geometry=segment.route_geometry,
+            is_fallback=segment.is_fallback,
+        )
+
     @classmethod
-    async def _calculate_point_to_point_segment(
+    async def _calculate_and_persist_origin_return(
         cls,
+        db: AsyncSession,
+        trip_id: int,
         from_name: str,
         from_lat: float,
         from_lng: float,
@@ -1045,17 +1223,19 @@ class TravelSegmentService:
         to_lat: float,
         to_lng: float,
         travel_mode: TravelMode,
-        segment_type: str
+        segment_type: str,
+        existing_segment: Optional[TravelSegment] = None,
     ) -> OriginReturnSegment:
         """
-        Calculate a segment between two arbitrary points (not DB destinations).
-        Used for origin and return segments.
+        Calculate an origin/return segment and persist it to DB.
+        Updates existing segment if provided, otherwise creates new.
         """
         # Try to fetch real route geometry
         route_geometry, api_distance_km, api_duration_min, is_fallback = await cls._fetch_route_geometry(
             from_lat, from_lng,
             to_lat, to_lng,
-            travel_mode
+            travel_mode,
+            routing_preference=cls._routing_preference,
         )
 
         if route_geometry and api_distance_km is not None and api_duration_min is not None:
@@ -1073,6 +1253,54 @@ class TravelSegmentService:
                 "type": "LineString",
                 "coordinates": [[from_lng, from_lat], [to_lng, to_lat]]
             }
+            if is_fallback is None:
+                is_fallback = False
+
+        # Convert geometry to WKT for PostGIS
+        geometry_wkt = None
+        if route_geometry and route_geometry.get("type") == "LineString":
+            coords = route_geometry.get("coordinates", [])
+            if len(coords) >= 2:
+                wkt_coords = ", ".join(f"{c[0]} {c[1]}" for c in coords)
+                geometry_wkt = f"LINESTRING({wkt_coords})"
+
+        if not geometry_wkt:
+            geometry_wkt = f"LINESTRING({from_lng} {from_lat}, {to_lng} {to_lat})"
+
+        # Persist to DB
+        if existing_segment:
+            existing_segment.travel_mode = travel_mode.value
+            existing_segment.from_name = from_name
+            existing_segment.from_latitude = from_lat
+            existing_segment.from_longitude = from_lng
+            existing_segment.to_name = to_name
+            existing_segment.to_latitude = to_lat
+            existing_segment.to_longitude = to_lng
+            existing_segment.distance_km = distance_km
+            existing_segment.duration_minutes = duration_minutes
+            existing_segment.geometry = geometry_wkt
+            existing_segment.is_fallback = is_fallback
+            await db.flush()
+        else:
+            segment = TravelSegment(
+                trip_id=trip_id,
+                segment_type=segment_type,
+                from_destination_id=None,
+                to_destination_id=None,
+                from_name=from_name,
+                from_latitude=from_lat,
+                from_longitude=from_lng,
+                to_name=to_name,
+                to_latitude=to_lat,
+                to_longitude=to_lng,
+                travel_mode=travel_mode.value,
+                distance_km=distance_km,
+                duration_minutes=duration_minutes,
+                geometry=geometry_wkt,
+                is_fallback=is_fallback,
+            )
+            db.add(segment)
+            await db.flush()
 
         return OriginReturnSegment(
             segment_type=segment_type,
@@ -1086,5 +1314,37 @@ class TravelSegmentService:
             distance_km=distance_km,
             duration_minutes=duration_minutes,
             route_geometry=route_geometry,
-            is_fallback=is_fallback
+            is_fallback=is_fallback,
         )
+
+    @staticmethod
+    async def invalidate_origin_return_segments(
+        db: AsyncSession,
+        trip_id: int
+    ) -> int:
+        """
+        Delete persisted origin/return segments for a trip.
+
+        Call this when:
+        - Trip origin/return location changes
+        - First/last destination changes (reorder, add, delete)
+        - Origin/return travel mode changes
+
+        Returns the number of deleted segments.
+        """
+        result = await db.execute(
+            select(TravelSegment).where(
+                and_(
+                    TravelSegment.trip_id == trip_id,
+                    TravelSegment.segment_type.in_(["origin", "return"])
+                )
+            )
+        )
+        segments = list(result.scalars().all())
+        count = len(segments)
+        for seg in segments:
+            await db.delete(seg)
+        if count > 0:
+            await db.flush()
+            logger.info(f"Invalidated {count} origin/return segments for trip {trip_id}")
+        return count

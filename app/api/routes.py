@@ -55,6 +55,8 @@ from app.services.openrouteservice import (
     ORSServiceError,
     ORSRoutingProfile,
 )
+from app.services.navitime_service import NavitimeService
+from app.services.travel_segment_service import TravelSegmentService
 
 router = APIRouter()
 
@@ -496,11 +498,13 @@ async def get_routing_preferences(
     ors_key = await api_key_service.get_key(db, trip_id, "openrouteservice") if trip_id else None
     google_service = GoogleMapsRoutesService(api_key=google_key)
     ors_service = OpenRouteServiceService(api_key=ors_key)
+    navitime_service = NavitimeService()
 
     return RoutingPreferencesResponse(
         preference=_current_routing_preference,
         google_maps_available=google_service.is_available(),
         ors_available=ors_service.is_available(),
+        navitime_available=navitime_service.is_available(),
     )
 
 
@@ -518,20 +522,24 @@ async def update_routing_preferences(
     - default: Use OpenRouteService for everything (current behavior)
     - google_public_transport: Use Google Maps for train/bus only, ORS for others
     - google_everything: Use Google Maps for all transport modes
+    - navitime_japan: Use NAVITIME for train/bus in Japan (JR/Shinkansen/local lines)
 
     Note: If a service is not available (API key not configured),
     the system will fall back to the next available service.
     """
     global _current_routing_preference
     _current_routing_preference = request.preference
+    TravelSegmentService.set_routing_preference(request.preference)
 
     google_key = await api_key_service.get_key(db, trip_id, "google_maps") if trip_id else None
     ors_key = await api_key_service.get_key(db, trip_id, "openrouteservice") if trip_id else None
     google_service = GoogleMapsRoutesService(api_key=google_key)
     ors_service = OpenRouteServiceService(api_key=ors_key)
+    navitime_service = NavitimeService()
 
     return RoutingPreferencesResponse(
         preference=_current_routing_preference,
         google_maps_available=google_service.is_available(),
         ors_available=ors_service.is_available(),
+        navitime_available=navitime_service.is_available(),
     )
