@@ -29,8 +29,15 @@ class TravelSegmentUpdate(BaseModel):
 
 class TravelSegmentResponse(TravelSegmentBase):
     id: int
-    from_destination_id: int
-    to_destination_id: int
+    segment_type: str = Field(default="inter_destination", description="Segment type: inter_destination, origin, or return")
+    from_destination_id: Optional[int] = Field(None, description="Origin destination ID (null for origin/return segments)")
+    to_destination_id: Optional[int] = Field(None, description="Target destination ID (null for origin/return segments)")
+    from_name: Optional[str] = Field(None, description="Origin location name (for origin/return segments)")
+    from_latitude: Optional[float] = Field(None, description="Origin latitude (for origin/return segments)")
+    from_longitude: Optional[float] = Field(None, description="Origin longitude (for origin/return segments)")
+    to_name: Optional[str] = Field(None, description="Destination location name (for origin/return segments)")
+    to_latitude: Optional[float] = Field(None, description="Destination latitude (for origin/return segments)")
+    to_longitude: Optional[float] = Field(None, description="Destination longitude (for origin/return segments)")
     distance_km: Optional[float] = Field(None, description="Distance in kilometers")
     duration_minutes: Optional[int] = Field(None, description="Duration in minutes")
     route_geometry: Optional[dict[str, Any]] = Field(None, description="GeoJSON LineString geometry for the route")
@@ -59,7 +66,7 @@ class TripTravelSegmentsResponse(BaseModel):
 
 
 class OriginReturnSegment(BaseModel):
-    """Calculated segment for origin or return routes (not stored in DB)"""
+    """Origin or return segment (can be populated from DB or calculated on-the-fly)"""
     segment_type: str = Field(..., description="Type of segment: 'origin' or 'return'")
     from_name: str = Field(..., description="Origin location name")
     from_latitude: float = Field(..., description="Origin latitude")

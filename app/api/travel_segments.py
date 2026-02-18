@@ -106,9 +106,11 @@ async def get_trip_travel_segments(
             origin_mode = TravelMode(trip.origin_travel_mode or "plane")
             return_mode = TravelMode(trip.return_travel_mode or "plane")
 
-            origin_segment, return_segment = await TravelSegmentService.calculate_origin_return_segments(
+            origin_segment, return_segment = await TravelSegmentService.get_or_calculate_origin_return_segments(
                 db, trip_id, origin_travel_mode=origin_mode, return_travel_mode=return_mode
             )
+            # Commit any newly persisted origin/return segments
+            await db.commit()
 
     return TripTravelSegmentsWithOriginReturnResponse(
         segments=segments,

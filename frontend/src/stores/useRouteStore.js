@@ -115,6 +115,9 @@ const useRouteStore = create((set, get) => ({
   // Google Maps availability (cached)
   googleMapsAvailable: null, // null = not checked, true/false = cached result
 
+  // NAVITIME availability (cached)
+  navitimeAvailable: null, // null = not checked, true/false = cached result
+
   // Actions
   setTransportMode: (mode) => set({ transportMode: mode }),
   setShowRoute: (show) => set({ showRoute: show }),

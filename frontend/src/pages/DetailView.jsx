@@ -729,7 +729,7 @@ const DetailViewContent = () => {
     return days;
   }, [selectedDestination?.arrival_date, selectedDestination?.departure_date]);
 
-  // Organize POIs by day for routing
+  // Organize POIs by day for routing, prepending accommodation as start point
   const poisByDay = useMemo(() => {
     if (!pois || pois.length === 0 || destinationDays.length === 0) return {};
 
@@ -751,10 +751,26 @@ const DetailViewContent = () => {
     // Sort each day's POIs by day_order
     Object.keys(byDay).forEach((date) => {
       byDay[date].sort((a, b) => (a.day_order || 0) - (b.day_order || 0));
+
+      // Prepend accommodation as starting waypoint if available
+      if (accommodations && accommodations.length > 0) {
+        const acc = accommodations.find(
+          (a) => a.latitude && a.longitude && a.check_in_date <= date && date < a.check_out_date
+        );
+        if (acc) {
+          byDay[date].unshift({
+            id: `accommodation-${acc.id}`,
+            name: acc.name,
+            latitude: acc.latitude,
+            longitude: acc.longitude,
+            isAccommodation: true,
+          });
+        }
+      }
     });
 
     return byDay;
-  }, [pois, destinationDays]);
+  }, [pois, destinationDays, accommodations]);
 
   // Memoize trip location objects to prevent unnecessary re-renders of TripMap
   const tripLocation = useMemo(() => {

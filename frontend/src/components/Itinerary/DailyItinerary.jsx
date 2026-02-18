@@ -34,6 +34,8 @@ import {
   Footprints,
   Bike,
   Car,
+  Train,
+  Bus,
   Route,
   Loader2,
   Plus,
@@ -104,6 +106,8 @@ const TRANSPORT_MODES = [
   { id: 'walking', labelKey: 'routes.modes.walk', icon: Footprints, color: 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/30' },
   { id: 'cycling', labelKey: 'routes.modes.bike', icon: Bike, color: 'text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-900/30' },
   { id: 'driving', labelKey: 'routes.modes.drive', icon: Car, color: 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/30' },
+  { id: 'train', labelKey: 'routes.modes.train', icon: Train, color: 'text-violet-600 bg-violet-50 dark:text-violet-400 dark:bg-violet-900/30' },
+  { id: 'bus', labelKey: 'routes.modes.bus', icon: Bus, color: 'text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-900/30' },
 ];
 
 // Transport Mode Connector between POIs - memoized to prevent re-renders

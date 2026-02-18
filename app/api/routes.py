@@ -55,6 +55,10 @@ from app.services.openrouteservice import (
     ORSServiceError,
     ORSRoutingProfile,
 )
+from app.services.navitime_service import NavitimeService
+from app.services.travel_segment_service import TravelSegmentService
+from app.schemas.travel_segment import TravelMode
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -496,11 +500,13 @@ async def get_routing_preferences(
     ors_key = await api_key_service.get_key(db, trip_id, "openrouteservice") if trip_id else None
     google_service = GoogleMapsRoutesService(api_key=google_key)
     ors_service = OpenRouteServiceService(api_key=ors_key)
+    navitime_service = NavitimeService()
 
     return RoutingPreferencesResponse(
         preference=_current_routing_preference,
         google_maps_available=google_service.is_available(),
         ors_available=ors_service.is_available(),
+        navitime_available=navitime_service.is_available(),
     )
 
 
@@ -518,20 +524,107 @@ async def update_routing_preferences(
     - default: Use OpenRouteService for everything (current behavior)
     - google_public_transport: Use Google Maps for train/bus only, ORS for others
     - google_everything: Use Google Maps for all transport modes
+    - navitime_japan: Use NAVITIME for train/bus in Japan (JR/Shinkansen/local lines)
 
     Note: If a service is not available (API key not configured),
     the system will fall back to the next available service.
     """
     global _current_routing_preference
     _current_routing_preference = request.preference
+    TravelSegmentService.set_routing_preference(request.preference)
 
     google_key = await api_key_service.get_key(db, trip_id, "google_maps") if trip_id else None
     ors_key = await api_key_service.get_key(db, trip_id, "openrouteservice") if trip_id else None
     google_service = GoogleMapsRoutesService(api_key=google_key)
     ors_service = OpenRouteServiceService(api_key=ors_key)
+    navitime_service = NavitimeService()
 
     return RoutingPreferencesResponse(
         preference=_current_routing_preference,
         google_maps_available=google_service.is_available(),
         ors_available=ors_service.is_available(),
+        navitime_available=navitime_service.is_available(),
+    )
+
+
+# =============================================================================
+# Unified Day Segment Endpoint (POI-to-POI within a destination)
+# =============================================================================
+
+
+class DaySegmentRequest(BaseModel):
+    origin_lat: float
+    origin_lng: float
+    destination_lat: float
+    destination_lng: float
+    mode: str  # walking, cycling, driving, train, bus
+
+
+class DaySegmentResponse(BaseModel):
+    distance_km: float
+    duration_min: float
+    geometry: Optional[dict] = None
+    travel_mode: str
+    is_fallback: bool = False
+
+
+_DAY_SEGMENT_MODE_MAP = {
+    "walking": TravelMode.WALK,
+    "cycling": TravelMode.BIKE,
+    "driving": TravelMode.CAR,
+    "train": TravelMode.TRAIN,
+    "bus": TravelMode.BUS,
+}
+
+
+@router.post("/routes/day-segment", response_model=DaySegmentResponse)
+async def calculate_day_segment(
+    request: DaySegmentRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Calculate a single POI-to-POI segment within a destination day route.
+
+    Reuses the same dispatch chain as inter-destination travel segments:
+    Google Maps > NAVITIME (Japan) > Mapbox > ORS > heuristic fallback.
+    Supports all modes: walking, cycling, driving, train, bus.
+    """
+    travel_mode = _DAY_SEGMENT_MODE_MAP.get(request.mode, TravelMode.WALK)
+
+    geometry, distance_km, duration_min, is_fallback = (
+        await TravelSegmentService._fetch_route_geometry(
+            request.origin_lat, request.origin_lng,
+            request.destination_lat, request.destination_lng,
+            travel_mode,
+            routing_preference=TravelSegmentService.get_routing_preference(),
+        )
+    )
+
+    if geometry and distance_km is not None and duration_min is not None:
+        return DaySegmentResponse(
+            distance_km=distance_km,
+            duration_min=duration_min,
+            geometry=geometry,
+            travel_mode=request.mode,
+            is_fallback=is_fallback,
+        )
+
+    # Heuristic fallback
+    distance_km, duration_min = TravelSegmentService.calculate_travel_time(
+        request.origin_lat, request.origin_lng,
+        request.destination_lat, request.destination_lng,
+        travel_mode,
+    )
+    return DaySegmentResponse(
+        distance_km=distance_km,
+        duration_min=duration_min,
+        geometry={
+            "type": "LineString",
+            "coordinates": [
+                [request.origin_lng, request.origin_lat],
+                [request.destination_lng, request.destination_lat],
+            ],
+        },
+        travel_mode=request.mode,
+        is_fallback=True,
     )

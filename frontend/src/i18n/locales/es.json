@@ -255,7 +255,9 @@
       "googleConsole": "Google Cloud Console",
       "enableRoutesApi": "Habilita la \"Routes API\" para tu proyecto.",
       "googleBillingNote": "La API de Rutas de Google Maps requiere facturaci\u00f3n habilitada pero incluye un nivel gratuito. Si no se configura una clave API, el sistema recurre a OpenRouteService.",
-      "googleNoKeyWarning": "Has seleccionado una opci\u00f3n de rutas de Google Maps pero no has proporcionado una clave API. Las rutas recaer\u00e1n en OpenRouteService."
+      "googleNoKeyWarning": "Has seleccionado una opci\u00f3n de rutas de Google Maps pero no has proporcionado una clave API. Las rutas recaer\u00e1n en OpenRouteService.",
+      "navitimeJapan": "NAVITIME Transporte Jap\u00f3n",
+      "navitimeJapanDesc": "Usar NAVITIME para rutas de tren/autob\u00fas en Jap\u00f3n (JR, Shinkansen, l\u00edneas locales). 500 peticiones gratuitas/mes v\u00eda RapidAPI. Rutas fuera de Jap\u00f3n usan otros servicios."
     },
     "geocoding": {
       "title": "Ajustes de geocodificaci\u00f3n",

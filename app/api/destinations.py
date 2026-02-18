@@ -10,6 +10,7 @@ from app.models import Destination, Trip, TravelSegment
 from app.schemas import DestinationCreate, DestinationUpdate, DestinationResponse, DestinationReorderRequest, PaginatedResponse
 from app.api.deps import PaginationParams, get_current_user
 from app.models.user import User
+from app.services.travel_segment_service import TravelSegmentService
 
 router = APIRouter()
 
@@ -44,6 +45,9 @@ async def create_destination(
     db.add(db_destination)
     await db.flush()
     await db.refresh(db_destination)
+
+    # Invalidate origin/return segments (new destination may change first/last)
+    await TravelSegmentService.invalidate_origin_return_segments(db, destination.trip_id)
 
     return db_destination
 
@@ -161,7 +165,9 @@ async def delete_destination(
             detail=f"Destination with id {id} not found"
         )
 
-    # Delete all travel segments that reference this destination
+    trip_id = db_destination.trip_id
+
+    # Delete all inter-destination travel segments that reference this destination
     await db.execute(
         delete(TravelSegment).where(
             or_(
@@ -174,6 +180,9 @@ async def delete_destination(
     # Now delete the destination
     await db.delete(db_destination)
     await db.flush()
+
+    # Invalidate origin/return segments (deleted destination may have been first/last)
+    await TravelSegmentService.invalidate_origin_return_segments(db, trip_id)
 
     return None
 
@@ -236,6 +245,9 @@ async def reorder_destinations(
         dest.departure_date = current_date + timedelta(days=durations[dest_id])
         # Next destination starts when this one ends
         current_date = dest.departure_date
+
+    # Invalidate origin/return segments (reorder may change first/last destination)
+    await TravelSegmentService.invalidate_origin_return_segments(db, trip_id)
 
     # Commit changes to database
     await db.commit()
