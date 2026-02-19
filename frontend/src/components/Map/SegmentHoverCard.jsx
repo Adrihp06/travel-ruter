@@ -82,7 +82,7 @@ const SegmentHoverCard = ({
   if (!visible || !segment) return null;
 
   const Icon = TRANSPORT_MODE_ICONS[segment.travel_mode] || Car;
-  const color = segment.is_fallback ? '#dc2626' : (TRANSPORT_MODE_COLORS[segment.travel_mode] || TRANSPORT_MODE_COLORS.car);
+  const color = segment.is_fallback ? '#d97706' : (TRANSPORT_MODE_COLORS[segment.travel_mode] || TRANSPORT_MODE_COLORS.car);
 
   return (
     <div
@@ -106,8 +106,8 @@ const SegmentHoverCard = ({
             {formatTravelMode(segment.travel_mode)}
           </span>
           {segment.is_fallback && (
-            <span className="text-xs text-red-600 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded">
-              Fallback
+            <span className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded">
+              Estimated
             </span>
           )}
         </div>
@@ -149,10 +149,10 @@ const SegmentHoverCard = ({
 
         {/* Fallback warning */}
         {segment.is_fallback && (
-          <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 text-red-600 dark:text-red-400">
+          <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 text-amber-600 dark:text-amber-400">
             <TriangleAlertIcon className="w-3.5 h-3.5" />
             <span className="text-xs">
-              Public transport unavailable, showing car route
+              Estimated route (real transit data unavailable)
             </span>
           </div>
         )}

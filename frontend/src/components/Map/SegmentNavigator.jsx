@@ -171,7 +171,7 @@ const SegmentNavigator = ({
           {visibleSegments.map((segment) => {
             const Icon = TRANSPORT_MODE_ICONS[segment.travel_mode] || Car;
             const color = segment.is_fallback
-              ? '#dc2626'
+              ? '#d97706'
               : (TRANSPORT_MODE_COLORS[segment.travel_mode] || TRANSPORT_MODE_COLORS.car);
             const isSelected = selectedSegmentId === segment.id;
             
@@ -189,19 +189,19 @@ const SegmentNavigator = ({
                   isSelected
                     ? 'ring-2 ring-offset-1 dark:ring-offset-gray-800 scale-110'
                     : 'hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700'
-                } ${segment.is_fallback ? 'bg-red-50 dark:bg-red-900/30' : ''}`}
+                } ${segment.is_fallback ? 'bg-amber-50 dark:bg-amber-900/30' : ''}`}
                 style={{
                   color,
                   ringColor: isSelected ? color : undefined,
                 }}
-                title={segment.is_fallback 
-                  ? `Actual ${segment.travel_mode} route unavailable, showing estimated car route`
+                title={segment.is_fallback
+                  ? `Estimated ${segment.travel_mode} route (using road network approximation)`
                   : segment.travel_mode}
               >
                 <div className="relative flex flex-col items-center">
                   <Icon className="w-4 h-4 mb-1" />
                   {segment.is_fallback && (
-                    <TriangleAlertIcon className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/50 rounded-full" />
+                    <TriangleAlertIcon className="absolute -top-1.5 -right-1.5 w-2.5 h-2.5 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/50 rounded-full" />
                   )}
                   <span 
                     className="text-[8px] font-bold leading-none px-1.5 py-0.5 bg-white dark:bg-gray-800 rounded-full shadow-sm border mt-0.5"

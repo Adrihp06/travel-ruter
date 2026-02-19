@@ -568,7 +568,7 @@
     "addDestination": "Add Destination",
     "stopsCount": "{{count}} stops",
     "unavailableMissingToken": "Map unavailable - Missing Mapbox token",
-    "fallbackRouteWarning": "{{count}} route segments using straight-line fallback",
+    "fallbackRouteWarning": "{{count}} route segments using estimated route",
     "categories": {
       "all": "All",
       "restaurant": "Restaurants",

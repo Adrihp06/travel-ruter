@@ -1384,8 +1384,8 @@ const TripMap = ({
 
           {/* Fallback Warning - below segment navigator, auto-hides after 4 seconds */}
           {routeTotals?.has_fallback && showFallbackWarning && (
-            <div className="bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 rounded-xl shadow-lg p-2 transition-opacity duration-300 max-w-[280px]">
-              <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-300">
+            <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-xl shadow-lg p-2 transition-opacity duration-300 max-w-[280px]">
+              <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300">
                 <TriangleAlertIcon className="w-3.5 h-3.5 flex-shrink-0" />
                 <span className="text-xs font-semibold">
                   {t('map.fallbackRouteWarning', { count: routeTotals.fallback_count })}

@@ -574,7 +574,7 @@
     "addDestination": "Agregar destino",
     "stopsCount": "{{count}} paradas",
     "unavailableMissingToken": "Mapa no disponible - Falta token de Mapbox",
-    "fallbackRouteWarning": "{{count}} segmentos de ruta usando línea recta como respaldo"
+    "fallbackRouteWarning": "{{count}} segmentos de ruta con ruta estimada"
   },
 
   "routes": {
