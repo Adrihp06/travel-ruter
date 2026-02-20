@@ -7,6 +7,9 @@ import useAccommodationStore from '../../stores/useAccommodationStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import DateRangePicker from '../common/DateRangePicker';
 import HotelSearchModal from '../Hotels/HotelSearchModal';
+import authFetch from '../../utils/authFetch';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 const AccommodationFormModal = ({
   isOpen,
@@ -219,12 +222,30 @@ const AccommodationFormModal = ({
     if (!validateForm()) return;
 
     try {
+      // Geocode address if coordinates are missing
+      let resolvedLat = formData.latitude;
+      let resolvedLng = formData.longitude;
+      if (formData.address && formData.address.trim() && resolvedLat === null && resolvedLng === null) {
+        try {
+          const geoRes = await authFetch(`${API_BASE_URL}/geocoding/search?q=${encodeURIComponent(formData.address.trim())}&limit=1`);
+          if (geoRes.ok) {
+            const geoData = await geoRes.json();
+            if (geoData.results && geoData.results.length > 0) {
+              resolvedLat = geoData.results[0].latitude;
+              resolvedLng = geoData.results[0].longitude;
+            }
+          }
+        } catch {
+          // Geocoding failure is not fatal - continue without coordinates
+        }
+      }
+
       const accommodationData = {
         ...formData,
         destination_id: destinationId,
         total_cost: formData.total_cost ? parseFloat(formData.total_cost) : null,
-        latitude: formData.latitude,
-        longitude: formData.longitude,
+        latitude: resolvedLat,
+        longitude: resolvedLng,
       };
 
       let result;

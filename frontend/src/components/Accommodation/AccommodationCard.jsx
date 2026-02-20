@@ -77,6 +77,15 @@ const AccommodationCard = ({
             </div>
           </div>
           <div className="opacity-0 group-hover:opacity-100 flex space-x-1 transition-opacity flex-shrink-0">
+            {onShowOnMap && (
+              <button
+                onClick={() => onShowOnMap(accommodation)}
+                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-600 rounded"
+                title={t('accommodation.showOnMap')}
+              >
+                <MapPin className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
+              </button>
+            )}
             {onEdit && (
               <button
                 onClick={() => onEdit(accommodation)}

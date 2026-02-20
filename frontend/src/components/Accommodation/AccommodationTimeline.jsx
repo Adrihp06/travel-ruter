@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bed, Plus, ChevronUp, MapPin } from 'lucide-react';
+import { Bed, Plus, ChevronUp } from 'lucide-react';
 import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
-import PenIcon from '@/components/icons/pen-icon';
 import DownChevron from '@/components/icons/down-chevron';
 import { formatDateWithWeekday, parseDateString } from '../../utils/dateFormat';
+import AccommodationCard from './AccommodationCard';
 
 /**
  * AccommodationTimeline - Compact visual timeline showing accommodation coverage
@@ -200,7 +200,7 @@ const AccommodationTimeline = ({
       {/* Collapsible Content */}
       <div
         className={`space-y-2 transition-all duration-200 ease-in-out overflow-hidden ${
-          isExpanded ? 'max-h-[400px] opacity-100 px-3 pb-2' : 'max-h-0 opacity-0 px-3 pb-0'
+          isExpanded ? 'max-h-[600px] opacity-100 px-3 pb-2 overflow-y-auto' : 'max-h-0 opacity-0 px-3 pb-0'
         }`}
       >
           {/* Timeline Bar */}
@@ -255,50 +255,24 @@ const AccommodationTimeline = ({
             </div>
           </div>
 
-          {/* Accommodation Pills */}
+          {/* Accommodation Cards */}
           {accommodations.length > 0 && (
-            <div className="flex flex-wrap gap-1">
+            <div className="space-y-1.5">
               {accommodations.map((acc) => {
                 const colorSet = accommodationColors[acc.id];
-                const numNights = Math.ceil(
-                  (new Date(acc.check_out_date) - new Date(acc.check_in_date)) / (1000 * 60 * 60 * 24)
-                );
                 const hasLocation = acc.latitude && acc.longitude;
 
                 return (
-                  <div
-                    key={acc.id}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] border ${colorSet.light} ${colorSet.border}`}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${colorSet.bg}`} />
-                    <span className={`font-medium truncate max-w-[120px] ${colorSet.text}`}>
-                      {acc.name}
-                    </span>
-                    <span className="text-gray-400 dark:text-gray-500">
-                      {numNights}n
-                    </span>
-                    {hasLocation && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onCenterOnAccommodation?.(acc);
-                        }}
-                        className="p-0.5 hover:bg-white/50 dark:hover:bg-gray-600/50 rounded"
-                        title={t('accommodation.showOnMap')}
-                      >
-                        <MapPin className="w-2.5 h-2.5 text-gray-400" />
-                      </button>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEditAccommodation?.(acc);
-                      }}
-                      className="p-0.5 hover:bg-white/50 dark:hover:bg-gray-600/50 rounded"
-                      title={t('common.edit')}
-                    >
-                      <PenIcon className="w-2.5 h-2.5 text-gray-400" />
-                    </button>
+                  <div key={acc.id} className="flex">
+                    <div className={`w-1 rounded-l-lg flex-shrink-0 ${colorSet.bg}`} />
+                    <div className="flex-1 min-w-0">
+                      <AccommodationCard
+                        accommodation={acc}
+                        isCompact
+                        onEdit={onEditAccommodation}
+                        onShowOnMap={hasLocation ? onCenterOnAccommodation : undefined}
+                      />
+                    </div>
                   </div>
                 );
               })}

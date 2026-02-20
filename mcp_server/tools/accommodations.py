@@ -197,6 +197,19 @@ def register_tools(server: FastMCP):
                             message=f"Destination with ID {destination_id} not found",
                         ).model_dump()
 
+                    # Geocode address if coordinates are missing
+                    resolved_lat = latitude
+                    resolved_lng = longitude
+                    if resolved_lat is None and resolved_lng is None and address:
+                        try:
+                            from app.services.geocoding_service import GeocodingService
+                            geo_results = await GeocodingService.search(query=address, limit=1)
+                            if geo_results:
+                                resolved_lat = geo_results[0].latitude
+                                resolved_lng = geo_results[0].longitude
+                        except Exception:
+                            pass  # Geocoding failure is not fatal
+
                     db_acc = Accommodation(
                         destination_id=destination_id,
                         name=name,
@@ -217,9 +230,9 @@ def register_tools(server: FastMCP):
                     )
 
                     # Set PostGIS coordinates
-                    if latitude is not None and longitude is not None:
+                    if resolved_lat is not None and resolved_lng is not None:
                         db_acc.coordinates = ST_SetSRID(
-                            ST_MakePoint(longitude, latitude), 4326
+                            ST_MakePoint(resolved_lng, resolved_lat), 4326
                         )
 
                     db.add(db_acc)
@@ -326,10 +339,23 @@ def register_tools(server: FastMCP):
                     if review is not None:
                         db_acc.review = review
 
+                    # Geocode address if coordinates are missing and address is being updated
+                    resolved_lat = latitude
+                    resolved_lng = longitude
+                    if resolved_lat is None and resolved_lng is None and address is not None:
+                        try:
+                            from app.services.geocoding_service import GeocodingService
+                            geo_results = await GeocodingService.search(query=address, limit=1)
+                            if geo_results:
+                                resolved_lat = geo_results[0].latitude
+                                resolved_lng = geo_results[0].longitude
+                        except Exception:
+                            pass  # Geocoding failure is not fatal
+
                     # Update PostGIS coordinates if both provided
-                    if latitude is not None and longitude is not None:
+                    if resolved_lat is not None and resolved_lng is not None:
                         db_acc.coordinates = ST_SetSRID(
-                            ST_MakePoint(longitude, latitude), 4326
+                            ST_MakePoint(resolved_lng, resolved_lat), 4326
                         )
 
                     await db.flush()
