@@ -13,6 +13,7 @@ const LoadingSkeleton = () => (
 const ROUTE_LABEL_KEYS = {
   trips: 'nav.trips',
   settings: 'nav.settings',
+  'ai-settings': 'nav.aiSettings',
 };
 
 const Breadcrumbs = ({ className = "" }) => {

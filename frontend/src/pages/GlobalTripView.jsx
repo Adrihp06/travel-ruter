@@ -379,7 +379,10 @@ const GlobalTripView = () => {
                   <p className="text-stone-600 dark:text-stone-400 text-lg">
                     {trips.length === 0
                       ? t('globalTripView.startPlanning')
-                      : t('globalTripView.tripSummary', { trips: tripStats.totalTrips, destinations: tripStats.totalDestinations })}
+                      : t('globalTripView.tripSummary', {
+                          trips: t('globalTripView.tripWord', { count: tripStats.totalTrips }),
+                          destinations: t('globalTripView.destinationWord', { count: tripStats.totalDestinations }),
+                        })}
                   </p>
                 </div>
                 <button

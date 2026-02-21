@@ -1,7 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import Map, {
-  NavigationControl,
-  FullscreenControl,
   Marker,
   Popup,
   Source,
@@ -39,6 +37,7 @@ import ExternalLinkIcon from '@/components/icons/external-link-icon';
 import DownChevron from '@/components/icons/down-chevron';
 import StarIcon from '@/components/icons/star-icon';
 import MagnifierIcon from '@/components/icons/magnifier-icon';
+import { useTranslation } from 'react-i18next';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import RouteInfoBar from '../Routes/RouteInfoBar';
@@ -913,6 +912,7 @@ const MicroMap = ({
   days = [], // Array of { date, displayDate, dayNumber } for route display
   poisByDay = {}, // Map of date -> POIs for that day
 }) => {
+  const { t } = useTranslation();
   const { mapboxAccessToken } = useMapboxToken();
   const [popupInfo, setPopupInfo] = useState(null);
   const [popupType, setPopupType] = useState(null); // 'poi' or 'accommodation'
@@ -1373,7 +1373,7 @@ const MicroMap = ({
         className={`flex items-center justify-center bg-gray-100 rounded-lg ${className}`}
         style={{ height }}
       >
-        <p className="text-gray-400 text-sm">Map unavailable - Missing API key</p>
+        <p className="text-gray-400 text-sm">{t('map.mapUnavailable')}</p>
       </div>
     );
   }
@@ -1395,7 +1395,7 @@ const MicroMap = ({
       style={{ height }}
     >
       {/* Quick POI Search */}
-      <div className="absolute top-[52px] right-14 z-20 w-full max-w-[280px] sm:max-w-md pointer-events-none">
+      <div className="absolute top-3 right-3 z-20 w-full max-w-[280px] sm:max-w-md pointer-events-none">
         <div className="pointer-events-auto flex justify-end">
           <QuickPOISearch 
             location={destinationCoords}
@@ -1427,11 +1427,10 @@ const MicroMap = ({
         mapboxAccessToken={mapboxAccessToken}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/streets-v12"
+        attributionControl={false}
         onClick={handleMapClick}
         cursor={isAddMode ? 'crosshair' : 'grab'}
       >
-        <FullscreenControl position="top-right" />
-        <NavigationControl position="top-right" showCompass={true} />
 
 
         {/* Day route layers - render each visible day's route with unique color */}
@@ -1714,7 +1713,7 @@ const MicroMap = ({
           onToggleCategory={handleToggleCategory}
           showAccommodations={showAccommodations}
           onToggleAccommodations={() => setShowAccommodations(prev => !prev)}
-          className="bottom-20 left-3"
+          className="bottom-4 left-3"
         />
       )}
 

@@ -1,7 +1,11 @@
 import React, { forwardRef } from 'react';
-import DatePicker from 'react-datepicker';
+import DatePicker, { registerLocale } from 'react-datepicker';
 import { Calendar } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { es } from 'date-fns/locale/es';
 import 'react-datepicker/dist/react-datepicker.css';
+
+registerLocale('es', es);
 
 // Custom input component for consistent styling
 const CustomInput = forwardRef(({ value, onClick, placeholder, hasError, className }, ref) => (
@@ -32,10 +36,10 @@ const DateRangePicker = ({
   endDate,
   onStartChange,
   onEndChange,
-  startLabel = 'Start Date',
-  endLabel = 'End Date',
-  startPlaceholder = 'Select start date',
-  endPlaceholder = 'Select end date',
+  startLabel,
+  endLabel,
+  startPlaceholder,
+  endPlaceholder,
   minDate = null,
   maxDate = null,
   startError = null,
@@ -44,6 +48,14 @@ const DateRangePicker = ({
   showDuration = true,
   className = '',
 }) => {
+  const { t, i18n } = useTranslation();
+
+  const resolvedStartLabel = startLabel || t('trips.startDate');
+  const resolvedEndLabel = endLabel || t('trips.endDate');
+  const resolvedStartPlaceholder = startPlaceholder || t('dates.selectStartDate');
+  const resolvedEndPlaceholder = endPlaceholder || t('dates.selectEndDate');
+  const datepickerLocale = i18n.language?.startsWith('es') ? 'es' : undefined;
+
   // Parse date strings to Date objects
   const parseDate = (dateStr) => {
     if (!dateStr) return null;
@@ -91,7 +103,7 @@ const DateRangePicker = ({
         {/* Start Date */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            {startLabel} {required && '*'}
+            {resolvedStartLabel} {required && '*'}
           </label>
           <DatePicker
             selected={startDateObj}
@@ -102,13 +114,14 @@ const DateRangePicker = ({
             minDate={minDateObj}
             maxDate={maxDateObj}
             dateFormat="yyyy-MM-dd"
-            placeholderText={startPlaceholder}
+            placeholderText={resolvedStartPlaceholder}
             customInput={<CustomInput hasError={!!startError} />}
             highlightDates={endDateObj ? [endDateObj] : []}
             showMonthDropdown
             showYearDropdown
             dropdownMode="select"
             popperPlacement="bottom-start"
+            locale={datepickerLocale}
           />
           {startError && (
             <p className="text-red-500 dark:text-red-400 text-xs mt-1">{startError}</p>
@@ -118,7 +131,7 @@ const DateRangePicker = ({
         {/* End Date */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            {endLabel} {required && '*'}
+            {resolvedEndLabel} {required && '*'}
           </label>
           <DatePicker
             selected={endDateObj}
@@ -130,13 +143,14 @@ const DateRangePicker = ({
             maxDate={maxDateObj}
             openToDate={getEndOpenToDate()}
             dateFormat="yyyy-MM-dd"
-            placeholderText={endPlaceholder}
+            placeholderText={resolvedEndPlaceholder}
             customInput={<CustomInput hasError={!!endError} />}
             highlightDates={startDateObj ? [startDateObj] : []}
             showMonthDropdown
             showYearDropdown
             dropdownMode="select"
             popperPlacement="bottom-start"
+            locale={datepickerLocale}
           />
           {endError && (
             <p className="text-red-500 dark:text-red-400 text-xs mt-1">{endError}</p>
@@ -149,10 +163,10 @@ const DateRangePicker = ({
         <div className="mt-3 flex items-center space-x-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
           <Calendar className="w-5 h-5 text-[#D97706] dark:text-amber-400" />
           <span className="text-sm text-[#D97706] dark:text-amber-300">
-            <span className="font-medium">{duration.days} day{duration.days !== 1 ? 's' : ''}</span>
+            <span className="font-medium">{t('common.dayCount', { count: duration.days })}</span>
             {duration.nights > 0 && (
               <span className="text-[#D97706] dark:text-amber-400">
-                {' '}({duration.nights} night{duration.nights !== 1 ? 's' : ''})
+                {' '}({t('common.nightCount', { count: duration.nights })})
               </span>
             )}
           </span>

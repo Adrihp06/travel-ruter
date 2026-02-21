@@ -1,7 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import Map, {
-  NavigationControl,
-  ScaleControl,
   Marker,
   Popup,
 } from 'react-map-gl';
@@ -162,10 +160,8 @@ const DestinationMap = ({
         mapboxAccessToken={mapboxAccessToken}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/streets-v12"
+        attributionControl={false}
       >
-        <NavigationControl position="top-right" showCompass={false} />
-        <ScaleControl position="bottom-left" />
-
         {/* Main destination marker */}
         <Marker longitude={coords.lng} latitude={coords.lat} anchor="bottom">
           <div className="flex items-center justify-center">

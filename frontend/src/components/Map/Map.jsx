@@ -1,5 +1,5 @@
 import React from 'react';
-import Map, { NavigationControl, ScaleControl, FullscreenControl, GeolocateControl } from 'react-map-gl';
+import Map from 'react-map-gl';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -21,11 +21,8 @@ const MapComponent = ({
       initialViewState={initialViewState}
       style={style}
       mapStyle={mapStyle}
+      attributionControl={false}
     >
-      <GeolocateControl position="top-left" />
-      <FullscreenControl position="top-left" />
-      <NavigationControl position="top-left" />
-      <ScaleControl />
       {children}
     </Map>
   );
