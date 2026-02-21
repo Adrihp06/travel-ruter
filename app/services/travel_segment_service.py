@@ -227,13 +227,15 @@ class TravelSegmentService:
         try:
             service = NavitimeService()
             if not service.is_available():
+                logger.info("NAVITIME skipped: API key not configured")
                 return None, None, None
 
             # Check both points are in Japan
             if not (service.is_in_japan(lat1, lon1) and service.is_in_japan(lat2, lon2)):
-                logger.debug("NAVITIME skipped: coordinates outside Japan bounding box")
+                logger.info(f"NAVITIME skipped: coordinates outside Japan ({lat1},{lon1}) -> ({lat2},{lon2})")
                 return None, None, None
 
+            logger.info(f"NAVITIME: routing {mode.value} ({lat1},{lon1}) -> ({lat2},{lon2})")
             result = await service.get_route(
                 origin=(lon1, lat1),
                 destination=(lon2, lat2),
@@ -248,10 +250,14 @@ class TravelSegmentService:
             elif mode == TravelMode.BUS:
                 duration_min += cls.OVERHEAD_MINUTES.get(TravelMode.BUS, 20)
 
+            logger.info(f"NAVITIME routing successful: {distance_km}km, {duration_min}min")
             return result.geometry, distance_km, duration_min
 
         except NavitimeError as e:
             logger.warning(f"NAVITIME routing failed: {e}")
+            return None, None, None
+        except Exception as e:
+            logger.warning(f"NAVITIME routing error ({type(e).__name__}): {e}")
             return None, None, None
 
     @classmethod
