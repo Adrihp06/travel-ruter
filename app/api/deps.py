@@ -8,11 +8,13 @@ from jose import JWTError, ExpiredSignatureError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
 from app.services.auth_service import decode_token
 
 _INTERNAL_SERVICE_KEY = os.environ.get("INTERNAL_SERVICE_KEY", "")
+_DEV_USER_ID = 3  # Default user for development when AUTH_ENABLED=false
 
 
 class PaginationParams:
@@ -38,6 +40,9 @@ async def get_current_user(
 
     Also accepts internal service auth (X-Internal-Key + X-User-Id) for
     trusted orchestrator → backend calls on the Docker network.
+
+    When AUTH_ENABLED=false (development), returns a default dev user
+    if no credentials are provided.
     """
     # Check for internal service auth first (orchestrator → backend)
     internal_key = request.headers.get("X-Internal-Key")
@@ -60,6 +65,13 @@ async def get_current_user(
 
     # Normal JWT path
     if not credentials:
+        # In development mode, return a default user instead of 401
+        if not settings.AUTH_ENABLED:
+            stmt = select(User).where(User.id == _DEV_USER_ID, User.is_active == True)
+            result = await db.execute(stmt)
+            user = result.scalar_one_or_none()
+            if user:
+                return user
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     try:
         payload = decode_token(credentials.credentials)

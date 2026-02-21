@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # CORS — populated from CORS_ORIGINS env var (see _parse_cors_origins)
     BACKEND_CORS_ORIGINS: list[str] = _parse_cors_origins()
 
+    # Authentication
+    AUTH_ENABLED: bool = False  # Set to true in production or when VITE_AUTH_ENABLED=true
+
     # JWT
     SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
