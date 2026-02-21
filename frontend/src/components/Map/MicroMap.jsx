@@ -1,7 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import Map, {
-  NavigationControl,
-  FullscreenControl,
   Marker,
   Popup,
   Source,
@@ -1397,7 +1395,7 @@ const MicroMap = ({
       style={{ height }}
     >
       {/* Quick POI Search */}
-      <div className="absolute top-[52px] right-14 z-20 w-full max-w-[280px] sm:max-w-md pointer-events-none">
+      <div className="absolute top-3 right-3 z-20 w-full max-w-[280px] sm:max-w-md pointer-events-none">
         <div className="pointer-events-auto flex justify-end">
           <QuickPOISearch 
             location={destinationCoords}
@@ -1429,11 +1427,10 @@ const MicroMap = ({
         mapboxAccessToken={mapboxAccessToken}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/streets-v12"
+        attributionControl={false}
         onClick={handleMapClick}
         cursor={isAddMode ? 'crosshair' : 'grab'}
       >
-        <FullscreenControl position="top-right" />
-        <NavigationControl position="top-right" showCompass={true} />
 
 
         {/* Day route layers - render each visible day's route with unique color */}
@@ -1716,7 +1713,7 @@ const MicroMap = ({
           onToggleCategory={handleToggleCategory}
           showAccommodations={showAccommodations}
           onToggleAccommodations={() => setShowAccommodations(prev => !prev)}
-          className="bottom-20 left-3"
+          className="bottom-4 left-3"
         />
       )}
 

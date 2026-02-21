@@ -1092,16 +1092,21 @@ const DailyItinerary = ({
       </div>
 
       {/* Footer Summary */}
-      <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-gray-500 dark:text-gray-400">
-            {t('itinerary.scheduled')}: <span className="font-medium text-[#D97706] dark:text-amber-400">{allPOIs.length - unscheduled.length}</span>
-          </span>
-          <span className="text-gray-500 dark:text-gray-400">
-            {t('itinerary.unscheduled')}: <span className="font-medium text-gray-700 dark:text-gray-300">{unscheduled.length}</span>
-          </span>
+      {allPOIs.length > 0 && (
+        <div className="px-3 py-2.5 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+              <div
+                className="bg-[#D97706] dark:bg-amber-400 h-full rounded-full transition-all duration-300"
+                style={{ width: `${allPOIs.length > 0 ? ((allPOIs.length - unscheduled.length) / allPOIs.length) * 100 : 0}%` }}
+              />
+            </div>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
+              {allPOIs.length - unscheduled.length}/{allPOIs.length} POIs
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Optimization errors now use global toast system */}
 

@@ -296,8 +296,8 @@ const AccommodationTimeline = ({
             </button>
           )}
 
-          {/* Add button - only show if no accommodations */}
-          {accommodations.length === 0 && onAddAccommodation && (
+          {/* Add button - only show if no accommodations and no gaps (gaps already have their own add button) */}
+          {accommodations.length === 0 && !hasGaps && onAddAccommodation && (
             <button
               onClick={onAddAccommodation}
               className="w-full flex items-center justify-center gap-1 px-2 py-1.5 text-[11px] text-gray-500 dark:text-gray-400 border border-dashed border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"

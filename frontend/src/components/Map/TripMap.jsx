@@ -1,10 +1,6 @@
 import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import Map, {
-  NavigationControl,
-  ScaleControl,
-  FullscreenControl,
-  GeolocateControl,
   Marker,
   Source,
   Layer,
@@ -166,8 +162,8 @@ const TRANSPORT_MODE_STYLES = {
   walking: { color: BRAND_COLORS.accent[600], dasharray: [1, 2] }, // lime green (dotted)
   bike: { color: BRAND_COLORS.primary[400], dasharray: [2, 1] }, // light amber (dashed)
   cycling: { color: BRAND_COLORS.primary[400], dasharray: [2, 1] }, // light amber (dashed)
-  train: { color: '#7C3AED', dasharray: [4, 2] }, // violet (dash-dot)
-  bus: { color: BRAND_COLORS.secondary[600], dasharray: [3, 2] }, // terracotta (dashed)
+  train: { color: '#7C3AED', dasharray: null }, // violet (solid - public transit)
+  bus: { color: '#7C3AED', dasharray: null }, // violet (solid - public transit)
   plane: { color: '#0284C7', dasharray: [8, 4] }, // sky blue (long-dash)
   flight: { color: '#0284C7', dasharray: [8, 4] }, // sky blue (long-dash)
   ferry: { color: '#0D9488', dasharray: [6, 3] }, // teal (dashed)
@@ -1028,12 +1024,9 @@ const TripMap = ({
         mapboxAccessToken={mapboxAccessToken}
         style={{ width: '100%', height: '100%' }}
         mapStyle="mapbox://styles/mapbox/streets-v12"
+        attributionControl={false}
         cursor={isAddMode || addingWaypointMode ? 'crosshair' : 'grab'}
       >
-        <NavigationControl position="top-right" />
-        <ScaleControl position="top-left" />
-        <FullscreenControl position="top-right" />
-
         {/* Route segments - each with its own color based on transport mode */}
         {segmentGeoJSONs.map((segmentData) => {
           const isSelected = selectedSegmentId === segmentData.id;
@@ -1091,8 +1084,6 @@ const TripMap = ({
             </Source>
           </React.Fragment>
         ))}
-
-        <GeolocateControl position="top-right" />
 
         {/* Destination markers - Warm Explorer theme */}
         {sortedDestinations.map((destination, index) => {

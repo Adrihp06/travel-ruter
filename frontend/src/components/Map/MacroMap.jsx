@@ -1,8 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import Map, {
-  NavigationControl,
-  ScaleControl,
-  FullscreenControl,
   Marker,
   Source,
   Layer,
@@ -284,9 +281,6 @@ const MacroMap = ({
       onLoad={fitMapBounds}
       attributionControl={false}
     >
-      <FullscreenControl position="top-right" />
-      <NavigationControl position="top-right" />
-      <ScaleControl position="bottom-right" />
 
       {/* Route polylines connecting destinations */}
       {routeGeoJSON.features.length > 0 && (
