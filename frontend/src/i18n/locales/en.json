@@ -69,7 +69,10 @@
     "undo": "Undo",
     "deleting": "Deleting...",
     "note": "Note",
-    "minimize": "Minimize"
+    "minimize": "Minimize",
+    "more": "More",
+    "list": "List",
+    "map": "Map"
   },
 
   "nav": {

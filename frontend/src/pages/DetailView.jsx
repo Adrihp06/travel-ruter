@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import { Plus, Users, Activity } from 'lucide-react';
+import { Plus, Users, Activity, List, Map as MapIcon, MoreHorizontal, Calendar, FolderOpen, BookOpen } from 'lucide-react';
 import XIcon from '@/components/icons/x-icon';
 import PenIcon from '@/components/icons/pen-icon';
 import useTripStore from '../stores/useTripStore';
@@ -46,6 +46,7 @@ import MapPlaceholder from '../components/Map/MapPlaceholder';
 import DailyItinerarySkeleton from '../components/Itinerary/DailyItinerarySkeleton';
 import Spinner from '../components/UI/Spinner';
 import ConfirmDialog from '../components/common/ConfirmDialog';
+import useIsMobile from '../hooks/useIsMobile';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -639,6 +640,58 @@ const TripMapPOIModal = ({ isOpen, onClose, onSubmit, location, destinations = [
   );
 };
 
+// Mobile "more" menu for nav bar actions
+const MobileMoreMenu = ({ onToggleMembers, onToggleActivity, onToggleJournal, onToggleCalendar, onToggleVault, noteCount, documentCount, isCalendarActive, isAuthenticated }) => {
+  const { t } = useTranslation();
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(prev => !prev)}
+        className={`p-2 rounded-lg transition-colors ${isOpen ? 'bg-amber-50 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+        aria-label={t('common.more')}
+      >
+        <MoreHorizontal className="w-5 h-5" />
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 py-1 overflow-hidden">
+            {isAuthenticated && (
+              <button onClick={() => { onToggleMembers(); setIsOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                <Users className="w-4 h-4" />
+                {t('collaboration.members')}
+              </button>
+            )}
+            {isAuthenticated && (
+              <button onClick={() => { onToggleActivity(); setIsOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                <Activity className="w-4 h-4" />
+                {t('activity.title')}
+              </button>
+            )}
+            <button onClick={() => { onToggleJournal(); setIsOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+              <BookOpen className="w-4 h-4" />
+              <span>{t('journal.title')}</span>
+              {noteCount > 0 && <span className="ml-auto text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded-full">{noteCount}</span>}
+            </button>
+            <button onClick={() => { onToggleCalendar(); setIsOpen(false); }} className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm ${isCalendarActive ? 'text-[#D97706] dark:text-amber-300 bg-amber-50/50 dark:bg-amber-900/10' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+              <Calendar className="w-4 h-4" />
+              {t('calendar.title')}
+            </button>
+            <button onClick={() => { onToggleVault(); setIsOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+              <FolderOpen className="w-4 h-4" />
+              <span>{t('documents.vault')}</span>
+              {documentCount > 0 && <span className="ml-auto text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded-full">{documentCount}</span>}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 const DetailViewContent = () => {
   const { t } = useTranslation();
   const { id } = useParams();
@@ -650,7 +703,8 @@ const DetailViewContent = () => {
   const { noteStats, fetchNoteStats } = useNoteStore();
   const setDestinationContext = useAIStore(state => state.setDestinationContext);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const { isSidebarVisible, isVaultVisible, isCalendarVisible, isJournalVisible, toggleSidebar, toggleVault, toggleCalendar, toggleJournal } = useItineraryUI();
+  const { isSidebarVisible, isVaultVisible, isCalendarVisible, isJournalVisible, toggleSidebar, toggleVault, toggleCalendar, toggleJournal, mobileActiveTab, setMobileActiveTab } = useItineraryUI();
+  const isMobile = useIsMobile();
 
   // State
   const [selectedDestinationId, setSelectedDestinationId] = useState(null); // null = Level 1
@@ -827,7 +881,11 @@ const DetailViewContent = () => {
     if (dest) {
       setSelectedDestination(dest);
     }
-  }, [selectedTrip?.destinations, setSelectedDestination]);
+    // On mobile, show the map when selecting a destination
+    if (isMobile) {
+      setMobileActiveTab('map');
+    }
+  }, [selectedTrip?.destinations, setSelectedDestination, isMobile, setMobileActiveTab]);
 
   const handleBackToLevel1 = useCallback(() => {
     setSelectedDestinationId(null);
@@ -1038,6 +1096,17 @@ const DetailViewContent = () => {
     }
   }, [storeSelectedDestination, selectedDestinationId]);
 
+  // Trigger map resize when switching to map tab on mobile (map was display:none)
+  useEffect(() => {
+    if (isMobile && mobileActiveTab === 'map') {
+      // Small delay to let display:block take effect before resize
+      const timer = setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isMobile, mobileActiveTab]);
+
   // Push rich destination context to AI store for contextual chat
   const flatPois = useMemo(() => {
     if (!pois || pois.length === 0) return [];
@@ -1102,8 +1171,10 @@ const DetailViewContent = () => {
              <Skeleton className="h-8 w-8 rounded-lg" />
          </div>
          <div className="flex flex-1 overflow-hidden">
-             <DestinationTimelineSkeleton />
-             <div className="flex-1 relative p-4">
+             <div className="w-full md:w-80 md:flex-shrink-0">
+               <DestinationTimelineSkeleton />
+             </div>
+             <div className="hidden md:block flex-1 relative p-4">
                 <MapPlaceholder className="h-full rounded-xl shadow-inner border border-gray-200 dark:border-gray-700" />
              </div>
          </div>
@@ -1134,29 +1205,46 @@ const DetailViewContent = () => {
         {/* Right: Collaboration, Activity, Journal, Calendar & Vault Toggles */}
         <div className="flex items-center gap-2">
           {isAuthenticated && <PresenceBar />}
-          {isAuthenticated && (
-            <button
-              onClick={() => setShowMembersPanel(prev => !prev)}
-              className={`p-2 rounded-lg transition-colors ${showMembersPanel ? 'bg-amber-50 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-              aria-label={t('collaboration.members')}
-              title={t('collaboration.members')}
-            >
-              <Users className="w-5 h-5" />
-            </button>
-          )}
-          {isAuthenticated && (
-            <button
-              onClick={() => setShowActivityPanel(prev => !prev)}
-              className={`p-2 rounded-lg transition-colors ${showActivityPanel ? 'bg-amber-50 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
-              aria-label={t('activity.title')}
-              title={t('activity.title')}
-            >
-              <Activity className="w-5 h-5" />
-            </button>
-          )}
-          <JournalToggle onClick={toggleJournal} noteCount={noteStats?.total_notes || 0} />
-          <CalendarViewToggle onClick={toggleCalendar} isActive={isCalendarVisible} />
-          <VaultToggle onClick={toggleVault} documentCount={documents?.length || 0} />
+          {/* Desktop: full button row */}
+          <div className="hidden md:flex items-center gap-2">
+            {isAuthenticated && (
+              <button
+                onClick={() => setShowMembersPanel(prev => !prev)}
+                className={`p-2 rounded-lg transition-colors ${showMembersPanel ? 'bg-amber-50 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                aria-label={t('collaboration.members')}
+                title={t('collaboration.members')}
+              >
+                <Users className="w-5 h-5" />
+              </button>
+            )}
+            {isAuthenticated && (
+              <button
+                onClick={() => setShowActivityPanel(prev => !prev)}
+                className={`p-2 rounded-lg transition-colors ${showActivityPanel ? 'bg-amber-50 dark:bg-amber-900/20 text-[#D97706] dark:text-amber-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                aria-label={t('activity.title')}
+                title={t('activity.title')}
+              >
+                <Activity className="w-5 h-5" />
+              </button>
+            )}
+            <JournalToggle onClick={toggleJournal} noteCount={noteStats?.total_notes || 0} />
+            <CalendarViewToggle onClick={toggleCalendar} isActive={isCalendarVisible} />
+            <VaultToggle onClick={toggleVault} documentCount={documents?.length || 0} />
+          </div>
+          {/* Mobile: "more" dropdown */}
+          <div className="md:hidden">
+            <MobileMoreMenu
+              onToggleMembers={() => setShowMembersPanel(prev => !prev)}
+              onToggleActivity={() => setShowActivityPanel(prev => !prev)}
+              onToggleJournal={toggleJournal}
+              onToggleCalendar={toggleCalendar}
+              onToggleVault={toggleVault}
+              noteCount={noteStats?.total_notes || 0}
+              documentCount={documents?.length || 0}
+              isCalendarActive={isCalendarVisible}
+              isAuthenticated={isAuthenticated}
+            />
+          </div>
         </div>
       </div>
 
@@ -1169,9 +1257,12 @@ const DetailViewContent = () => {
       )}
 
       {/* Main Content Area */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         {/* Left Panel */}
-        <div className={`${viewLevel === 2 ? 'w-96' : 'w-80'} flex-shrink-0 border-r border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-200`}>
+        <div className={`
+          ${viewLevel === 2 ? 'md:w-96' : 'md:w-80'} md:flex-shrink-0 md:border-r border-gray-200 dark:border-gray-700 overflow-hidden bg-white dark:bg-gray-800 transition-all duration-200
+          ${isMobile ? `absolute inset-0 z-10 ${mobileActiveTab === 'list' ? 'block' : 'hidden'}` : ''}
+        `}>
           {viewLevel === 1 ? (
             <Timeline
               destinations={selectedTrip.destinations || []}
@@ -1236,7 +1327,7 @@ const DetailViewContent = () => {
         </div>
 
         {/* Right Panel - Map */}
-        <div className="flex-1 relative">
+        <div className={`flex-1 relative ${isMobile ? `absolute inset-0 ${mobileActiveTab === 'map' ? 'visible z-10' : 'invisible z-0'}` : ''}`}>
           {viewLevel === 1 ? (
             <TripMap
               destinations={selectedTrip.destinations || []}
@@ -1294,6 +1385,35 @@ const DetailViewContent = () => {
           )}
         </div>
       </div>
+
+      {/* Mobile Bottom Tab Bar */}
+      {isMobile && (
+        <div className="md:hidden flex-shrink-0 h-12 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex z-20">
+          <button
+            onClick={() => setMobileActiveTab('list')}
+            className={`flex-1 flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
+              mobileActiveTab === 'list'
+                ? 'text-[#D97706] dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20'
+                : 'text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            <List className="w-5 h-5" />
+            <span>{t('common.list')}</span>
+          </button>
+          <div className="w-px bg-gray-200 dark:bg-gray-700" />
+          <button
+            onClick={() => setMobileActiveTab('map')}
+            className={`flex-1 flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
+              mobileActiveTab === 'map'
+                ? 'text-[#D97706] dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20'
+                : 'text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            <MapIcon className="w-5 h-5" />
+            <span>{t('common.map')}</span>
+          </button>
+        </div>
+      )}
 
       {/* Document Vault Drawer */}
       <DocumentVault

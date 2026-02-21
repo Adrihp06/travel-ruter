@@ -7,6 +7,7 @@ export const ItineraryUIProvider = ({ children }) => {
   const [isVaultVisible, setIsVaultVisible] = useState(false);
   const [isCalendarVisible, setIsCalendarVisible] = useState(false);
   const [isJournalVisible, setIsJournalVisible] = useState(false);
+  const [mobileActiveTab, setMobileActiveTab] = useState('list'); // 'list' | 'map'
 
   const toggleSidebar = () => setIsSidebarVisible(prev => !prev);
   const toggleVault = () => setIsVaultVisible(prev => {
@@ -44,7 +45,9 @@ export const ItineraryUIProvider = ({ children }) => {
     hideCalendar,
     showJournal,
     hideJournal,
-  }), [isSidebarVisible, isVaultVisible, isCalendarVisible, isJournalVisible]);
+    mobileActiveTab,
+    setMobileActiveTab,
+  }), [isSidebarVisible, isVaultVisible, isCalendarVisible, isJournalVisible, mobileActiveTab]);
 
   return (
     <ItineraryUIContext.Provider value={value}>

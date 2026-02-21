@@ -69,7 +69,10 @@
     "undo": "Deshacer",
     "deleting": "Eliminando...",
     "note": "Nota",
-    "minimize": "Minimizar"
+    "minimize": "Minimizar",
+    "more": "Más",
+    "list": "Lista",
+    "map": "Mapa"
   },
 
   "nav": {
