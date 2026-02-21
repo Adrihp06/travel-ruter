@@ -39,6 +39,7 @@ import ExternalLinkIcon from '@/components/icons/external-link-icon';
 import DownChevron from '@/components/icons/down-chevron';
 import StarIcon from '@/components/icons/star-icon';
 import MagnifierIcon from '@/components/icons/magnifier-icon';
+import { useTranslation } from 'react-i18next';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import RouteInfoBar from '../Routes/RouteInfoBar';
@@ -913,6 +914,7 @@ const MicroMap = ({
   days = [], // Array of { date, displayDate, dayNumber } for route display
   poisByDay = {}, // Map of date -> POIs for that day
 }) => {
+  const { t } = useTranslation();
   const { mapboxAccessToken } = useMapboxToken();
   const [popupInfo, setPopupInfo] = useState(null);
   const [popupType, setPopupType] = useState(null); // 'poi' or 'accommodation'
@@ -1373,7 +1375,7 @@ const MicroMap = ({
         className={`flex items-center justify-center bg-gray-100 rounded-lg ${className}`}
         style={{ height }}
       >
-        <p className="text-gray-400 text-sm">Map unavailable - Missing API key</p>
+        <p className="text-gray-400 text-sm">{t('map.mapUnavailable')}</p>
       </div>
     );
   }

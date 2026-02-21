@@ -194,7 +194,10 @@ const Journal = ({
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('journal.title')}</h2>
             {noteStats && (
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {t('journal.noteStats', { total: noteStats.total_notes, pinned: noteStats.pinned_notes })}
+                {t('journal.noteStats', {
+                  notes: t('journal.noteWord', { count: noteStats.total_notes }),
+                  pins: t('journal.pinnedWord', { count: noteStats.pinned_notes }),
+                })}
               </p>
             )}
           </div>

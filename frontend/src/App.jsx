@@ -8,6 +8,7 @@ import Layout from './components/Layout/Layout';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import useAuthStore from './stores/useAuthStore';
 import ReportIssueButton from './components/Feedback/ReportIssueButton';
+import { useTranslation } from 'react-i18next';
 
 // Lazy-loaded page components for code splitting
 const GlobalTripView = lazy(() => import('./pages/GlobalTripView'));
@@ -18,6 +19,20 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'));
 
 const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED === 'true';
+
+function NotFoundPage() {
+  const { t } = useTranslation();
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
+      <h1 className="text-6xl font-bold text-amber-600 dark:text-amber-400 mb-4">404</h1>
+      <p className="text-xl text-gray-700 dark:text-gray-300 mb-2">{t('errors.notFound')}</p>
+      <p className="text-gray-500 dark:text-gray-400 mb-6">{t('errors.pageNotFoundDescription')}</p>
+      <a href="/trips" className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors">
+        {t('common.goHome')}
+      </a>
+    </div>
+  );
+}
 
 function PageFallback() {
   return (
@@ -39,7 +54,7 @@ function App() {
     : <Layout />;
 
   return (
-    <ErrorBoundary message="The application encountered an unexpected error. Please refresh the page or try again.">
+    <ErrorBoundary>
       <ThemeProvider>
         <ToastProvider position="bottom-right" maxToasts={5}>
           <MapboxProvider>
@@ -54,7 +69,7 @@ function App() {
                     <Route path="trips/:id" element={<DetailView />} />
                     <Route path="settings" element={<SettingsPage />} />
                     <Route path="ai-settings" element={<AISettingsPage />} />
-                    <Route path="*" element={<div className="p-4">Page not found</div>} />
+                    <Route path="*" element={<NotFoundPage />} />
                   </Route>
                 </Routes>
               </Suspense>

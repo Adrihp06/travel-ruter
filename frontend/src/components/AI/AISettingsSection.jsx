@@ -149,11 +149,10 @@ const AISettingsSection = ({ settings, updateSetting }) => {
 
         <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
           <p className="text-sm text-amber-800 dark:text-amber-300 font-medium mb-2">
-            API keys are now managed per-trip
+            {t('ai.settings.apiKeysManagedPerTrip')}
           </p>
           <p className="text-sm text-amber-700 dark:text-amber-400">
-            AI provider keys (Anthropic, OpenAI, Google AI) and service keys (Mapbox, OpenRouteService) are stored
-            securely at the trip level and shared among trip members. Go to your trip settings to add or manage API keys.
+            {t('ai.settings.apiKeysManagedDescription')}
           </p>
         </div>
 
@@ -175,7 +174,7 @@ const AISettingsSection = ({ settings, updateSetting }) => {
                   ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                   : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
               }`}>
-                {providerStatus[provider.id] ? 'Active' : 'No key'}
+                {providerStatus[provider.id] ? t('ai.settings.providerActive') : t('ai.settings.providerNoKey')}
               </span>
             </div>
           ))}

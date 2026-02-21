@@ -1,10 +1,12 @@
 import React from 'react';
 import Map, { Marker } from 'react-map-gl';
 import { MapPin } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const LocationMapPreview = ({ latitude, longitude, height = 150 }) => {
+  const { t } = useTranslation();
   const { mapboxAccessToken } = useMapboxToken();
 
   if (!latitude || !longitude) {
@@ -14,10 +16,10 @@ const LocationMapPreview = ({ latitude, longitude, height = 150 }) => {
   if (!mapboxAccessToken) {
     return (
       <div
-        className="bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 text-sm"
+        className="bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm"
         style={{ height }}
       >
-        Map preview unavailable (missing Mapbox token)
+        {t('map.mapUnavailable')}
       </div>
     );
   }

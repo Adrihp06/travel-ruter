@@ -10,6 +10,7 @@ import Map, {
 } from 'react-map-gl';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Navigation, Calendar } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import { BRAND_COLORS, ROUTE_STYLES } from './mapStyles';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -22,6 +23,7 @@ const MacroMap = ({
   style = { width: '100%', height: '100%' },
   mapStyle = "mapbox://styles/mapbox/streets-v11"
 }) => {
+  const { t } = useTranslation();
   const { mapboxAccessToken } = useMapboxToken();
   const navigate = useNavigate();
   const mapRef = useRef(null);
@@ -259,8 +261,8 @@ const MacroMap = ({
 
   if (!mapboxAccessToken) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-100 text-gray-500">
-        Map unavailable - Missing Mapbox access token
+      <div className="flex items-center justify-center h-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+        {t('map.mapUnavailable')}
       </div>
     );
   }
