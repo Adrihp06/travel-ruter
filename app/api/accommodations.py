@@ -10,6 +10,7 @@ from app.models import Accommodation, Destination
 from app.schemas import AccommodationCreate, AccommodationUpdate, AccommodationResponse, PaginatedResponse
 from app.api.deps import PaginationParams, get_current_user
 from app.models.user import User
+from app.services.geocoding_service import GeocodingService
 
 router = APIRouter()
 
@@ -161,6 +162,16 @@ async def create_accommodation(
     latitude = acc_data.pop("latitude", None)
     longitude = acc_data.pop("longitude", None)
 
+    # Geocode address if coordinates are missing
+    if latitude is None and longitude is None and acc_data.get("address"):
+        try:
+            results = await GeocodingService.search(query=acc_data["address"], limit=1)
+            if results:
+                latitude = results[0].latitude
+                longitude = results[0].longitude
+        except Exception:
+            pass  # Geocoding failure is not fatal
+
     db_accommodation = Accommodation(**acc_data)
 
     # If latitude and longitude are provided, create PostGIS point
@@ -288,6 +299,16 @@ async def update_accommodation(
     # Handle coordinates separately
     latitude = update_data.pop("latitude", None)
     longitude = update_data.pop("longitude", None)
+
+    # Geocode address if coordinates are missing and address is being updated
+    if latitude is None and longitude is None and update_data.get("address"):
+        try:
+            results = await GeocodingService.search(query=update_data["address"], limit=1)
+            if results:
+                latitude = results[0].latitude
+                longitude = results[0].longitude
+        except Exception:
+            pass  # Geocoding failure is not fatal
 
     # Validate dates if both are being updated
     check_in = update_data.get('check_in_date', db_accommodation.check_in_date)
