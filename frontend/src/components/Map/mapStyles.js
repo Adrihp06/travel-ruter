@@ -158,13 +158,18 @@ export const TRANSPORT_MODE_STYLES = {
   },
   train: {
     color: '#7C3AED',  // Violet
-    dasharray: [4, 2],
+    dasharray: null,   // Solid line for public transit
     icon: 'train',
   },
   bus: {
-    color: '#EA580C',  // Terracotta
-    dasharray: [3, 2],
+    color: '#7C3AED',  // Violet (public transit)
+    dasharray: null,   // Solid line for public transit
     icon: 'bus',
+  },
+  transit: {
+    color: '#7C3AED',  // Violet (public transit)
+    dasharray: null,   // Solid line for public transit
+    icon: 'train',
   },
   plane: {
     color: '#0284C7',  // Sky blue
