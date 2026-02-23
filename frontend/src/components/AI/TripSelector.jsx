@@ -30,7 +30,7 @@ const TripSelector = () => {
 
   const handleSelectTrip = (trip) => {
     selectTripForChat(trip.id, {
-      id: trip.id,
+      tripId: trip.id,
       name: trip.name || trip.title,
       startDate: trip.start_date,
       endDate: trip.end_date,
@@ -38,6 +38,10 @@ const TripSelector = () => {
         id: d.id,
         name: d.city_name || d.name,
         country: d.country,
+        arrivalDate: d.arrival_date,
+        departureDate: d.departure_date,
+        lat: d.latitude,
+        lng: d.longitude,
       })) || [],
       budget: trip.total_budget,
       currency: trip.currency,

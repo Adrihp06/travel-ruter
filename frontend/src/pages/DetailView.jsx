@@ -1131,6 +1131,7 @@ const DetailViewContent = () => {
       latitude: dest.latitude,
       longitude: dest.longitude,
       pois: flatPois.map(p => ({
+        id: p.id,
         name: p.name,
         category: p.category,
         lat: p.latitude,
@@ -1142,6 +1143,7 @@ const DetailViewContent = () => {
         currency: p.currency,
       })),
       accommodations: accommodations?.map(a => ({
+        id: a.id,
         name: a.name,
         type: a.type,
         address: a.address,

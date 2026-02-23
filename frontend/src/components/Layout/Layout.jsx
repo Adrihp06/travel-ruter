@@ -34,7 +34,7 @@ const Layout = () => {
   const trip = tripIdNum ? tripsWithDestinations.find(t => t.id === tripIdNum || t.id === tripId) : null;
 
   const tripContext = isItineraryView && tripId ? {
-    id: tripIdNum || tripId,
+    tripId: tripIdNum || tripId,
     name: trip?.title || trip?.name,
     startDate: trip?.start_date,
     endDate: trip?.end_date,

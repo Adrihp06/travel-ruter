@@ -154,8 +154,8 @@ The user's existing trips (Japan, Rome, etc.) are completely off-limits. Do not 
 
     prompt += "\n\n## Current Context\n"
 
-    # Trip-level info
-    tid = trip_context.get("tripId") or trip_context.get("trip_id")
+    # Trip-level info — check tripId, trip_id, and legacy "id" field
+    tid = trip_context.get("tripId") or trip_context.get("trip_id") or trip_context.get("id")
     if tid:
         prompt += f"- Trip ID: {tid}\n"
     name = trip_context.get("name")
@@ -170,11 +170,12 @@ The user's existing trips (Japan, Rome, etc.) are completely off-limits. Do not 
     if budget:
         prompt += f"- Budget: {budget} {currency or 'USD'}\n"
 
-    # Trip destinations overview
+    # Trip destinations overview — include destination IDs so agent can reference them
     dests = trip_context.get("destinations")
     if dests:
         prompt += f"\n### Trip Itinerary ({len(dests)} destinations)\n"
         for d in dests:
+            did = d.get("id")
             dname = d.get("name", "Unknown")
             dcountry = d.get("country", "")
             darr = d.get("arrivalDate") or d.get("arrival_date", "")
@@ -182,21 +183,25 @@ The user's existing trips (Japan, Rome, etc.) are completely off-limits. Do not 
             dlat = d.get("lat") or d.get("latitude")
             dlng = d.get("lng") or d.get("longitude")
             coords = f" ({dlat}, {dlng})" if dlat and dlng else ""
-            prompt += f"- {dname}, {dcountry}: {darr} → {ddep}{coords}\n"
+            id_str = f" [destination_id={did}]" if did else ""
+            prompt += f"- {dname}, {dcountry}: {darr} → {ddep}{coords}{id_str}\n"
 
     # Active destination detail (when user is viewing a specific destination)
     dest = trip_context.get("destination")
     if dest:
+        dest_id = dest.get("id")
         prompt += f"\n### Currently Viewing: {dest.get('name', 'Unknown')}"
         if dest.get("country"):
             prompt += f", {dest['country']}"
         prompt += "\n"
+        if dest_id:
+            prompt += f"- Destination ID: {dest_id}\n"
         if dest.get("latitude") and dest.get("longitude"):
             prompt += f"- Coordinates: ({dest['latitude']}, {dest['longitude']})\n"
         if dest.get("arrivalDate") and dest.get("departureDate"):
             prompt += f"- Dates: {dest['arrivalDate']} → {dest['departureDate']}\n"
 
-        # POIs
+        # POIs — include IDs so agent can update/delete specific ones
         pois = dest.get("pois", [])
         if pois:
             prompt += f"\n**Planned Activities ({len(pois)} POIs):**\n"
@@ -213,18 +218,21 @@ The user's existing trips (Japan, Rome, etc.) are completely off-limits. Do not 
                 for p in sorted(scheduled[date], key=lambda x: x.get("dayOrder", 0)):
                     cost_str = f" (~{p.get('estimatedCost')} {p.get('currency', '')})" if p.get("estimatedCost") else ""
                     time_str = f" [{p.get('dwellTime')}min]" if p.get("dwellTime") else ""
-                    prompt += f"    - {p['name']} ({p.get('category', 'Other')}){time_str}{cost_str}\n"
+                    pid_str = f" [poi_id={p['id']}]" if p.get("id") else ""
+                    prompt += f"    - {p['name']} ({p.get('category', 'Other')}){time_str}{cost_str}{pid_str}\n"
             if unscheduled:
                 prompt += "  Unscheduled:\n"
                 for p in unscheduled:
-                    prompt += f"    - {p['name']} ({p.get('category', 'Other')})\n"
+                    pid_str = f" [poi_id={p['id']}]" if p.get("id") else ""
+                    prompt += f"    - {p['name']} ({p.get('category', 'Other')}){pid_str}\n"
 
-        # Accommodations
+        # Accommodations — include IDs
         accs = dest.get("accommodations", [])
         if accs:
             prompt += f"\n**Accommodations ({len(accs)}):**\n"
             for a in accs:
-                prompt += f"  - {a['name']} ({a.get('type', 'hotel')})"
+                aid_str = f" [accommodation_id={a['id']}]" if a.get("id") else ""
+                prompt += f"  - {a['name']} ({a.get('type', 'hotel')}){aid_str}"
                 if a.get("address"):
                     prompt += f" at {a['address']}"
                 if a.get("checkIn") and a.get("checkOut"):
