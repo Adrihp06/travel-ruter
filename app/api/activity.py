@@ -1,12 +1,13 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.models.activity_log import ActivityLog
 from app.models.user import User
 from app.schemas.activity import ActivityLogResponse, ActivityList
-from app.services.activity_service import get_activity_feed
 from app.api.permissions import require_viewer
 
 router = APIRouter(tags=["activity"])
@@ -21,15 +22,30 @@ async def get_trip_activity(
     user: User = Depends(require_viewer),
     db: AsyncSession = Depends(get_db),
 ):
-    activities, total = await get_activity_feed(
-        db, trip_id, limit=limit, offset=offset, entity_type=entity_type
+    count_stmt = select(func.count(ActivityLog.id)).where(ActivityLog.trip_id == trip_id)
+    if entity_type:
+        count_stmt = count_stmt.where(ActivityLog.entity_type == entity_type)
+    total = (await db.execute(count_stmt)).scalar()
+
+    stmt = (
+        select(ActivityLog, User.name.label("user_name"), User.avatar_url.label("user_avatar"))
+        .outerjoin(User, ActivityLog.user_id == User.id)
+        .where(ActivityLog.trip_id == trip_id)
     )
+    if entity_type:
+        stmt = stmt.where(ActivityLog.entity_type == entity_type)
+    stmt = stmt.order_by(ActivityLog.created_at.desc()).offset(offset).limit(limit)
+
+    rows = (await db.execute(stmt)).all()
+
     return ActivityList(
         activities=[
             ActivityLogResponse(
                 id=a.id,
                 trip_id=a.trip_id,
                 user_id=a.user_id,
+                user_name=user_name,
+                user_avatar=user_avatar,
                 action=a.action,
                 entity_type=a.entity_type,
                 entity_id=a.entity_id,
@@ -37,7 +53,7 @@ async def get_trip_activity(
                 details=a.details,
                 created_at=a.created_at,
             )
-            for a in activities
+            for a, user_name, user_avatar in rows
         ],
         total=total,
     )

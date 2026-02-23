@@ -11,6 +11,7 @@ from app.schemas import AccommodationCreate, AccommodationUpdate, AccommodationR
 from app.api.deps import PaginationParams, get_current_user
 from app.models.user import User
 from app.services.geocoding_service import GeocodingService
+from app.services.activity_service import log_activity
 
 router = APIRouter()
 
@@ -195,6 +196,16 @@ async def create_accommodation(
     )
     row = result.one()
     created_acc, lat, lng = row
+
+    await log_activity(
+        db,
+        trip_id=destination.trip_id,
+        user_id=current_user.id,
+        action="created",
+        entity_type="accommodation",
+        entity_id=created_acc.id,
+        entity_name=created_acc.name,
+    )
 
     return accommodation_to_response(created_acc, lat, lng)
 
@@ -387,6 +398,17 @@ async def update_accommodation(
     row = result.one()
     updated_acc, lat, lng = row
 
+    if destination:
+        await log_activity(
+            db,
+            trip_id=destination.trip_id,
+            user_id=current_user.id,
+            action="updated",
+            entity_type="accommodation",
+            entity_id=updated_acc.id,
+            entity_name=updated_acc.name,
+        )
+
     return accommodation_to_response(updated_acc, lat, lng)
 
 
@@ -406,6 +428,22 @@ async def delete_accommodation(
             detail=f"Accommodation with id {id} not found"
         )
 
+    acc_id = db_accommodation.id
+    acc_name = db_accommodation.name
+    dest_result = await db.execute(select(Destination).where(Destination.id == db_accommodation.destination_id))
+    destination = dest_result.scalar_one_or_none()
+
     await db.delete(db_accommodation)
+
+    if destination:
+        await log_activity(
+            db,
+            trip_id=destination.trip_id,
+            user_id=current_user.id,
+            action="deleted",
+            entity_type="accommodation",
+            entity_id=acc_id,
+            entity_name=acc_name,
+        )
 
     return None

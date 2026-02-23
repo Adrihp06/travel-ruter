@@ -41,6 +41,7 @@ import {
   Plus,
   ThumbsUp,
   BookOpen,
+  ExternalLink,
 } from 'lucide-react';
 import ArrowBackIcon from '@/components/icons/arrow-back-icon';
 import ClockIcon from '@/components/icons/clock-icon';
@@ -223,6 +224,10 @@ const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onC
 
   const CategoryIcon = categoryIcons[poi.category] || MapPin;
   const score = (poi.likes || 0) - (poi.vetoes || 0);
+  const mapsUrl = poi.metadata_json?.url
+    || (poi.latitude && poi.longitude
+        ? `https://www.google.com/maps/search/?api=1&query=${poi.latitude},${poi.longitude}`
+        : null);
 
   return (
     <div
@@ -281,6 +286,18 @@ const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onC
                   </span>
                 )}
               </button>
+            )}
+            {mapsUrl && (
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
+                title="Ver en Google Maps"
+              >
+                <ExternalLink className="w-3 h-3 text-blue-500 dark:text-blue-400" />
+              </a>
             )}
             {onEdit && (
               <button

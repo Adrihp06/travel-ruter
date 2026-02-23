@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import { Plus, Users, Activity, List, Map as MapIcon, MoreHorizontal, Calendar, FolderOpen, BookOpen } from 'lucide-react';
+import { Plus, Users, Activity, List, Map as MapIcon, MoreHorizontal, Calendar, FolderOpen, BookOpen, ExternalLink, Star, Globe, Clock } from 'lucide-react';
 import XIcon from '@/components/icons/x-icon';
 import PenIcon from '@/components/icons/pen-icon';
 import useTripStore from '../stores/useTripStore';
@@ -354,6 +354,49 @@ const EditPOIModal = ({ isOpen, onClose, onSubmit, poi, isSaving }) => {
               />
             </div>
           </div>
+          {(() => {
+            const mapsUrl = poi?.metadata_json?.url
+              || (poi?.latitude && poi?.longitude
+                  ? `https://www.google.com/maps/search/?api=1&query=${poi.latitude},${poi.longitude}`
+                  : null);
+            return (mapsUrl || poi.metadata_json?.rating || poi.metadata_json?.website || poi.metadata_json?.opening_hours) ? (
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-2 border border-gray-200 dark:border-gray-600">
+                {mapsUrl && (
+                  <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+                     className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400">
+                    <ExternalLink className="w-4 h-4 flex-shrink-0" />
+                    <span>Ver en Google Maps</span>
+                  </a>
+                )}
+                {poi.metadata_json?.rating && (
+                  <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
+                    <Star className="w-4 h-4 text-amber-500 fill-amber-500 flex-shrink-0" />
+                    <span>{poi.metadata_json.rating} ({poi.metadata_json.user_ratings_total || 0} reseñas)</span>
+                  </div>
+                )}
+                {poi.metadata_json?.website && (
+                  <a href={poi.metadata_json.website} target="_blank" rel="noopener noreferrer"
+                     className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 min-w-0">
+                    <Globe className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate">{poi.metadata_json.website}</span>
+                  </a>
+                )}
+                {poi.metadata_json?.opening_hours?.weekday_text && (
+                  <details className="text-sm">
+                    <summary className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                      <Clock className="w-4 h-4 flex-shrink-0" />
+                      <span>Horario de apertura</span>
+                    </summary>
+                    <ul className="mt-1.5 ml-6 space-y-0.5 text-gray-600 dark:text-gray-400">
+                      {poi.metadata_json.opening_hours.weekday_text.map((day, i) => (
+                        <li key={i}>{day}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </div>
+            ) : null;
+          })()}
           <div className="flex space-x-3 pt-2">
             <button
               type="button"

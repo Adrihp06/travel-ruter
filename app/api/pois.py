@@ -28,6 +28,7 @@ from app.schemas.travel_matrix import (
 from app.services.poi_optimization_service import get_poi_optimization_service, POIOptimizationError
 from app.services.google_places_service import GooglePlacesService
 from app.services.openrouteservice import get_ors_service, ORSServiceError
+from app.services.activity_service import log_activity
 import math
 
 router = APIRouter()
@@ -110,6 +111,16 @@ async def create_poi(
     )
     row = result.one()
     created_poi, lat, lng = row
+
+    await log_activity(
+        db,
+        trip_id=destination.trip_id,
+        user_id=current_user.id,
+        action="created",
+        entity_type="poi",
+        entity_id=created_poi.id,
+        entity_name=created_poi.name,
+    )
 
     return poi_to_response(created_poi, lat, lng)
 
@@ -255,6 +266,19 @@ async def update_poi(
     row = result.one()
     updated_poi, lat, lng = row
 
+    dest_result = await db.execute(select(Destination).where(Destination.id == updated_poi.destination_id))
+    destination = dest_result.scalar_one_or_none()
+    if destination:
+        await log_activity(
+            db,
+            trip_id=destination.trip_id,
+            user_id=current_user.id,
+            action="updated",
+            entity_type="poi",
+            entity_id=updated_poi.id,
+            entity_name=updated_poi.name,
+        )
+
     return poi_to_response(updated_poi, lat, lng)
 
 
@@ -274,7 +298,23 @@ async def delete_poi(
             detail=f"POI with id {id} not found"
         )
 
+    poi_id = db_poi.id
+    poi_name = db_poi.name
+    dest_result = await db.execute(select(Destination).where(Destination.id == db_poi.destination_id))
+    destination = dest_result.scalar_one_or_none()
+
     await db.delete(db_poi)
+
+    if destination:
+        await log_activity(
+            db,
+            trip_id=destination.trip_id,
+            user_id=current_user.id,
+            action="deleted",
+            entity_type="poi",
+            entity_id=poi_id,
+            entity_name=poi_name,
+        )
 
     return None
 
@@ -1063,5 +1103,15 @@ async def bulk_add_suggested_pois(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to add any POIs"
         )
+
+    await log_activity(
+        db,
+        trip_id=destination.trip_id,
+        user_id=current_user.id,
+        action="created",
+        entity_type="poi",
+        entity_name=f"{len(created_pois)} POIs",
+        details={"count": len(created_pois)},
+    )
 
     return created_pois

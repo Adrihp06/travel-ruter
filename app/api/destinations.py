@@ -11,6 +11,7 @@ from app.schemas import DestinationCreate, DestinationUpdate, DestinationRespons
 from app.api.deps import PaginationParams, get_current_user
 from app.models.user import User
 from app.services.travel_segment_service import TravelSegmentService
+from app.services.activity_service import log_activity
 
 router = APIRouter()
 
@@ -48,6 +49,16 @@ async def create_destination(
 
     # Invalidate origin/return segments (new destination may change first/last)
     await TravelSegmentService.invalidate_origin_return_segments(db, destination.trip_id)
+
+    await log_activity(
+        db,
+        trip_id=db_destination.trip_id,
+        user_id=current_user.id,
+        action="created",
+        entity_type="destination",
+        entity_id=db_destination.id,
+        entity_name=db_destination.city_name,
+    )
 
     return db_destination
 
@@ -146,6 +157,16 @@ async def update_destination(
     await db.flush()
     await db.refresh(db_destination)
 
+    await log_activity(
+        db,
+        trip_id=db_destination.trip_id,
+        user_id=current_user.id,
+        action="updated",
+        entity_type="destination",
+        entity_id=db_destination.id,
+        entity_name=db_destination.city_name,
+    )
+
     return db_destination
 
 
@@ -166,6 +187,8 @@ async def delete_destination(
         )
 
     trip_id = db_destination.trip_id
+    dest_id = db_destination.id
+    dest_name = db_destination.city_name
 
     # Delete all inter-destination travel segments that reference this destination
     await db.execute(
@@ -183,6 +206,16 @@ async def delete_destination(
 
     # Invalidate origin/return segments (deleted destination may have been first/last)
     await TravelSegmentService.invalidate_origin_return_segments(db, trip_id)
+
+    await log_activity(
+        db,
+        trip_id=trip_id,
+        user_id=current_user.id,
+        action="deleted",
+        entity_type="destination",
+        entity_id=dest_id,
+        entity_name=dest_name,
+    )
 
     return None
 
