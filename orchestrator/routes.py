@@ -229,6 +229,7 @@ async def create_session(body: CreateSessionRequest, request: Request) -> dict:
             trip_id=body.trip_id,
             trip_context=trip_ctx,
             message_history=restored_history,
+            chat_mode=body.chat_mode,
         )
         return {
             "sessionId": session.id,
@@ -303,7 +304,7 @@ async def chat(body: ChatRequest, request: Request) -> dict:
 
     request_id = str(uuid4())
     try:
-        instructions = build_instructions(session.trip_context)
+        instructions = build_instructions(session.trip_context, session.chat_mode)
         sm.truncate_history(session)
 
         # Resolve trip-level API key for the AI provider
@@ -469,7 +470,7 @@ async def _handle_chat(
     try:
         await ws.send_json({"type": "start", "messageId": message_id})
 
-        instructions = build_instructions(session.trip_context)
+        instructions = build_instructions(session.trip_context, session.chat_mode)
         sm.truncate_history(session)
 
         # Resolve trip-level API key for the AI provider

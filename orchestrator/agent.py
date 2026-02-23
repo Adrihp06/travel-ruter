@@ -125,13 +125,29 @@ def resolve_model_with_key(pydantic_ai_model: str, api_key: str | None):
     return pydantic_ai_model
 
 
-def build_instructions(trip_context: dict | None) -> str:
+def build_instructions(trip_context: dict | None, chat_mode: str | None = None) -> str:
     """Append trip context to the system prompt.
 
     Formats rich context (POIs, accommodations, itinerary) into a readable
     section so the AI can answer contextually without extra tool calls.
     """
     prompt = SYSTEM_PROMPT
+
+    if chat_mode == "new":
+        prompt += """
+
+## ⚠️ NEW TRIP MODE — STRICT CONSTRAINTS ⚠️
+
+The user wants to create a BRAND NEW trip from scratch. You have NO active trip.
+
+HARD RULES — violating these is a critical error:
+1. Your VERY FIRST tool call MUST be `manage_trip(operation="create")`. No exceptions.
+2. Use ONLY the `trip_id` returned by that create call for ALL subsequent `manage_destination` calls.
+3. NEVER call `manage_trip(operation="list")` or `manage_trip(operation="read")` — doing so will expose existing trip IDs and you will accidentally use them.
+4. NEVER use a trip_id from memory, context, or a previous conversation. Only use the id from the fresh create response.
+5. If `manage_trip(operation="create")` fails, stop and tell the user. Do NOT fall back to any existing trip.
+
+The user's existing trips (Japan, Rome, etc.) are completely off-limits. Do not touch them."""
 
     if not trip_context:
         return prompt
