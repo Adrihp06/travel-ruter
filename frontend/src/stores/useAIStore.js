@@ -145,6 +145,13 @@ const useAIStore = create((set, get) => ({
       const data = await response.json();
       const models = data.models || [];
 
+      // If the user already has a valid model selected, keep it (avoids resetting on panel re-open)
+      const { selectedModelId: alreadySelected } = get();
+      if (alreadySelected && models.some(m => m.id === alreadySelected)) {
+        set({ models, modelsLoading: false });
+        return;
+      }
+
       // Check localStorage for a user-saved default model
       let savedDefault = null;
       try {
@@ -174,12 +181,13 @@ const useAIStore = create((set, get) => ({
   },
 
   /**
-   * Select a model
+   * Select a model — resets the current session so the next message
+   * creates a new backend session with the chosen model immediately.
    */
   selectModel: (modelId) => {
     const { models } = get();
     if (models.some(m => m.id === modelId)) {
-      set({ selectedModelId: modelId });
+      set({ selectedModelId: modelId, sessionId: null });
 
       // Persist to localStorage so the choice survives page refreshes
       try {
