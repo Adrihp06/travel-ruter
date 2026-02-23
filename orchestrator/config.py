@@ -42,7 +42,7 @@ class OrchestratorSettings(BaseSettings):
     pythonpath: str = ".."
 
     # Session management
-    session_timeout: int = 60  # minutes
+    session_timeout: int = 240  # minutes (4 hours)
     max_session_history: int = 100
 
     # Agent output
