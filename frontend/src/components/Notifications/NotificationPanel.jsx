@@ -8,8 +8,11 @@ export default function NotificationPanel({ onClose }) {
     useNotificationStore();
 
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    (async () => {
+      await fetchNotifications();
+      markAllAsRead();
+    })();
+  }, [fetchNotifications, markAllAsRead]);
 
   return (
     <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-1rem)] bg-white dark:bg-gray-800 rounded-xl shadow-xl border dark:border-gray-700 z-50">
