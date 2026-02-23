@@ -7,7 +7,7 @@
 
 import authFetch from './authFetch';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 const STORAGE_KEY = 'travel-ruter-conversations';
 const MAX_CONVERSATIONS = 50;
 const MAX_BACKEND_HISTORY = 20;
@@ -179,8 +179,8 @@ export async function saveConversation({
   try {
     const isUpdate = id != null && typeof id === 'number';
     const url = isUpdate
-      ? `${API_URL}/api/conversations/${id}`
-      : `${API_URL}/api/conversations`;
+      ? `${API_URL}/conversations/${id}`
+      : `${API_URL}/conversations`;
     const method = isUpdate ? 'PUT' : 'POST';
 
     const res = await authFetch(url, {
@@ -230,7 +230,7 @@ export async function loadConversation(id) {
   // Only call API for numeric (DB) IDs
   if (typeof id === 'number') {
     try {
-      const res = await authFetch(`${API_URL}/api/conversations/${id}`);
+      const res = await authFetch(`${API_URL}/conversations/${id}`);
       if (res.ok) {
         const apiConv = await res.json();
         const local = apiToLocal(apiConv);
@@ -253,7 +253,7 @@ export async function listConversations(tripId) {
     const params = new URLSearchParams();
     if (tripId != null) params.set('trip_id', tripId);
 
-    const res = await authFetch(`${API_URL}/api/conversations?${params}`);
+    const res = await authFetch(`${API_URL}/conversations?${params}`);
     if (res.ok) {
       const data = await res.json();
       return (data.conversations || []).map(apiToLocal);
@@ -274,7 +274,7 @@ export async function deleteConversation(id) {
 
   if (typeof id === 'number') {
     try {
-      await authFetch(`${API_URL}/api/conversations/${id}`, { method: 'DELETE' });
+      await authFetch(`${API_URL}/conversations/${id}`, { method: 'DELETE' });
     } catch {
       // Non-critical — localStorage already cleaned
     }
