@@ -63,9 +63,9 @@ def register_tools(server: FastMCP):
         """
         Search for destinations/locations by name or address.
 
-        IMPORTANT: This should be the FIRST tool called when a user mentions
-        a new location. It validates the location exists and returns coordinates
-        needed by other tools like get_poi_suggestions and calculate_route.
+        Use this to geocode a location name into coordinates. Call this after
+        creating the trip (manage_trip) but before adding destinations.
+        Returns coordinates needed by manage_destination and get_poi_suggestions.
 
         Args:
             query: Location search query. Be specific for better results:

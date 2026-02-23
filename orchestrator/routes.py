@@ -347,7 +347,11 @@ async def chat(body: ChatRequest, request: Request) -> dict:
     except asyncio.TimeoutError:
         return JSONResponse({"error": "Request timed out after 120 seconds"}, status_code=504)
     except Exception as exc:
+        exc_str = str(exc)
         logger.exception("Error in chat (request_id=%s)", request_id)
+        if "429" in exc_str or "RESOURCE_EXHAUSTED" in exc_str or "rate_limit" in exc_str.lower() or "rate limit" in exc_str.lower():
+            logger.warning("Rate limit hit (request_id=%s): %s", request_id, exc_str)
+            return JSONResponse({"error": "Rate limit reached for the selected AI model. Please wait a moment and try again, or switch to a different model."}, status_code=429)
         return JSONResponse({"error": "Chat failed"}, status_code=500)
 
 
@@ -585,8 +589,17 @@ async def _handle_chat(
             "error": "Request timed out after 120 seconds",
         })
     except Exception as exc:
+        exc_str = str(exc)
         logger.exception("Streaming error (message_id=%s)", message_id)
-        await ws.send_json({
-            "type": "error",
-            "error": str(exc),
-        })
+        # Detect rate-limit / quota errors from any provider and surface a friendly message
+        if "429" in exc_str or "RESOURCE_EXHAUSTED" in exc_str or "rate_limit" in exc_str.lower() or "rate limit" in exc_str.lower():
+            logger.warning("Rate limit hit (message_id=%s): %s", message_id, exc_str)
+            await ws.send_json({
+                "type": "error",
+                "error": "Rate limit reached for the selected AI model. Please wait a moment and try again, or switch to a different model.",
+            })
+        else:
+            await ws.send_json({
+                "type": "error",
+                "error": exc_str,
+            })
