@@ -127,7 +127,17 @@ const MacroMap = ({
               segment.route_geometry?.coordinates?.length >= 2) {
             // Use the real route geometry
             geometry = segment.route_geometry;
-          } else {
+          } else if (segment.route_legs?.length > 0) {
+            // Transit segments store geometry per-leg — merge all leg coordinates
+            const allCoords = segment.route_legs
+              .filter(leg => leg.geometry?.type === 'LineString' && leg.geometry?.coordinates?.length >= 2)
+              .flatMap(leg => leg.geometry.coordinates);
+            if (allCoords.length >= 2) {
+              geometry = { type: 'LineString', coordinates: allCoords };
+            }
+          }
+
+          if (!geometry) {
             // Fallback: straight line for this segment
             const fromDest = allDestinations.find(d => d.id === segment.from_destination_id);
             const toDest = allDestinations.find(d => d.id === segment.to_destination_id);
