@@ -18,6 +18,7 @@ from jose import JWTError, jwt as jose_jwt
 
 from pydantic import TypeAdapter
 from pydantic_ai import Agent, UsageLimits
+from pydantic_ai.models.anthropic import AnthropicModelSettings
 from pydantic_ai import (
     AgentStreamEvent,
     FinalResultEvent,
@@ -51,6 +52,24 @@ from orchestrator.schemas import (
 from orchestrator.session import Session, SessionManager
 
 logger = logging.getLogger("orchestrator.routes")
+
+
+def _get_model_settings(pydantic_ai_model: str):
+    """Return model settings with prompt caching enabled for Anthropic models.
+
+    For Anthropic, caches both the system prompt (instructions) and MCP tool
+    definitions — both are static per-request and benefit most from caching.
+    Other providers receive a plain dict (OpenAI caches automatically; Gemini
+    and Ollama don't support this API).
+    """
+    if isinstance(pydantic_ai_model, str) and pydantic_ai_model.startswith("anthropic:"):
+        return AnthropicModelSettings(
+            max_tokens=settings.max_output_tokens,
+            anthropic_cache_instructions=True,
+            anthropic_cache_tool_definitions=True,
+        )
+    return {"max_tokens": settings.max_output_tokens}
+
 
 router = APIRouter()
 
@@ -320,7 +339,7 @@ async def chat(body: ChatRequest, request: Request) -> dict:
                     model=model,
                     message_history=session.message_history,
                     instructions=instructions,
-                    model_settings={"max_tokens": settings.max_output_tokens},
+                    model_settings=_get_model_settings(session.pydantic_ai_model),
                     usage_limits=usage_limits,
                 ),
                 timeout=120,
@@ -574,7 +593,7 @@ async def _handle_chat(
                     message_history=session.message_history,
                     instructions=instructions,
                     event_stream_handler=event_handler,
-                    model_settings={"max_tokens": settings.max_output_tokens},
+                    model_settings=_get_model_settings(session.pydantic_ai_model),
                     usage_limits=usage_limits,
                 ),
                 timeout=120,
