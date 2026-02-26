@@ -113,14 +113,7 @@ const RichTextEditor = ({
     }
   };
 
-  // Handle paste to strip formatting (optional)
-  const handlePaste = useCallback((e) => {
-    // Allow rich text paste by default
-    // Uncomment below for plain text only:
-    // e.preventDefault();
-    // const text = e.clipboardData.getData('text/plain');
-    // document.execCommand('insertText', false, text);
-  }, []);
+  const handlePaste = useCallback(() => {}, []);
 
   // Handle keyboard shortcuts
   const handleKeyDown = useCallback((e) => {

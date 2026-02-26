@@ -43,62 +43,6 @@ export function generateGoogleMapsUrl(origin, destination, waypoints = [], trave
 }
 
 /**
- * Generate Google Maps URL from an array of coordinates
- * First coordinate is origin, last is destination, middle ones are waypoints
- *
- * @param {Array} coordinates - Array of { lat, lng } objects (minimum 2)
- * @param {string} travelMode - Travel mode
- * @returns {string} Google Maps directions URL
- */
-export function generateGoogleMapsUrlFromCoordinates(coordinates, travelMode = GoogleMapsTravelMode.DRIVING) {
-  if (!coordinates || coordinates.length < 2) {
-    throw new Error('At least 2 coordinates required (origin and destination)');
-  }
-
-  const origin = coordinates[0];
-  const destination = coordinates[coordinates.length - 1];
-  const waypoints = coordinates.length > 2 ? coordinates.slice(1, -1) : [];
-
-  return generateGoogleMapsUrl(origin, destination, waypoints, travelMode);
-}
-
-/**
- * Generate Google Maps URL from trip destinations
- *
- * @param {Array} destinations - Array of destination objects with latitude/longitude or coordinates
- * @param {string} travelMode - Travel mode
- * @returns {string} Google Maps directions URL
- */
-export function generateGoogleMapsUrlFromDestinations(destinations, travelMode = GoogleMapsTravelMode.DRIVING) {
-  if (!destinations || destinations.length < 2) {
-    throw new Error('At least 2 destinations required');
-  }
-
-  const coordinates = destinations.map((dest) => {
-    // Handle different coordinate formats
-    if (dest.latitude !== undefined && dest.longitude !== undefined) {
-      return { lat: dest.latitude, lng: dest.longitude };
-    }
-    if (dest.lat !== undefined && dest.lng !== undefined) {
-      return { lat: dest.lat, lng: dest.lng };
-    }
-    if (dest.coordinates) {
-      // Handle GeoJSON Point format
-      if (dest.coordinates.type === 'Point') {
-        return { lat: dest.coordinates.coordinates[1], lng: dest.coordinates.coordinates[0] };
-      }
-      // Handle simple array [lng, lat]
-      if (Array.isArray(dest.coordinates)) {
-        return { lat: dest.coordinates[1], lng: dest.coordinates[0] };
-      }
-    }
-    throw new Error(`Invalid coordinate format for destination: ${JSON.stringify(dest)}`);
-  });
-
-  return generateGoogleMapsUrlFromCoordinates(coordinates, travelMode);
-}
-
-/**
  * Open Google Maps URL in a new tab/window
  * On mobile devices, this may trigger the Google Maps app
  *
@@ -122,14 +66,3 @@ export function exportToGoogleMaps(origin, destination, waypoints = [], travelMo
   return url;
 }
 
-/**
- * Export trip destinations to Google Maps and open in new tab
- *
- * @param {Array} destinations - Array of destination objects
- * @param {string} travelMode - Travel mode
- */
-export function exportDestinationsToGoogleMaps(destinations, travelMode = GoogleMapsTravelMode.DRIVING) {
-  const url = generateGoogleMapsUrlFromDestinations(destinations, travelMode);
-  openGoogleMapsUrl(url);
-  return url;
-}

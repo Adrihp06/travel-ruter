@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Car, Footprints, Bike, Train, Navigation } from 'lucide-react';
+import { Car, Footprints, Bike, Train } from 'lucide-react';
 import AirplaneIcon from '@/components/icons/airplane-icon';
 
 // Transport mode configurations (labels resolved via i18n at render time)
@@ -95,96 +95,6 @@ const RouteOptions = ({
           </button>
         );
       })}
-    </div>
-  );
-};
-
-/**
- * RouteOptionsCompact - A more compact inline version for tight spaces
- */
-export const RouteOptionsCompact = ({
-  selectedMode = 'driving',
-  onModeChange,
-  isInterCity = false,
-  disabled = false,
-}) => {
-  const { t } = useTranslation();
-  const availableModes = TRANSPORT_MODES.filter(mode =>
-    isInterCity ? INTER_CITY_MODES.includes(mode.id) : INTRA_CITY_MODES.includes(mode.id)
-  );
-
-  return (
-    <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden">
-      {availableModes.map((mode, index) => {
-        const Icon = mode.icon;
-        const isSelected = selectedMode === mode.id;
-
-        return (
-          <button
-            key={mode.id}
-            onClick={() => onModeChange?.(mode.id)}
-            disabled={disabled}
-            className={`
-              p-2 transition-colors duration-150
-              ${index !== 0 ? 'border-l border-gray-200' : ''}
-              ${isSelected
-                ? 'bg-amber-50 text-[#D97706]'
-                : 'bg-white text-gray-500 hover:bg-gray-50'
-              }
-              ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-            `}
-            title={t(mode.labelKey)}
-          >
-            <Icon className="w-4 h-4" />
-          </button>
-        );
-      })}
-    </div>
-  );
-};
-
-/**
- * RouteOptionsDropdown - Dropdown variant for minimal space
- */
-export const RouteOptionsDropdown = ({
-  selectedMode = 'driving',
-  onModeChange,
-  isInterCity = false,
-  disabled = false,
-}) => {
-  const { t } = useTranslation();
-  const availableModes = TRANSPORT_MODES.filter(mode =>
-    isInterCity ? INTER_CITY_MODES.includes(mode.id) : INTRA_CITY_MODES.includes(mode.id)
-  );
-
-  const selectedModeConfig = availableModes.find(m => m.id === selectedMode) || availableModes[0];
-  const SelectedIcon = selectedModeConfig?.icon || Car;
-
-  return (
-    <div className="relative">
-      <select
-        value={selectedMode}
-        onChange={(e) => onModeChange?.(e.target.value)}
-        disabled={disabled}
-        className={`
-          appearance-none pl-9 pr-8 py-2 rounded-lg border border-gray-200
-          bg-white text-sm font-medium text-gray-700
-          focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706]
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-        `}
-      >
-        {availableModes.map((mode) => (
-          <option key={mode.id} value={mode.id}>
-            {t(mode.labelKey)}
-          </option>
-        ))}
-      </select>
-      <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
-        <SelectedIcon className="w-4 h-4 text-gray-500" />
-      </div>
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-        <Navigation className="w-3 h-3 text-gray-400" />
-      </div>
     </div>
   );
 };

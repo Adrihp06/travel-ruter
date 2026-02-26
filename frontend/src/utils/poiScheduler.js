@@ -57,26 +57,6 @@ function isFoodCategory(category) {
 }
 
 /**
- * Calculate the centroid of POIs on a given day.
- * @param {Array} pois - Array of POI objects with latitude/longitude
- * @returns {{ lat: number, lon: number } | null}
- */
-function _calculateCentroid(pois) {
-  if (!pois || pois.length === 0) return null;
-
-  const validPois = pois.filter(p => p.latitude && p.longitude);
-  if (validPois.length === 0) return null;
-
-  const sumLat = validPois.reduce((sum, p) => sum + p.latitude, 0);
-  const sumLon = validPois.reduce((sum, p) => sum + p.longitude, 0);
-
-  return {
-    lat: sumLat / validPois.length,
-    lon: sumLon / validPois.length,
-  };
-}
-
-/**
  * Get the total dwell time for a day in minutes.
  * @param {Array} pois - Array of POI objects
  * @returns {number} Total dwell time in minutes

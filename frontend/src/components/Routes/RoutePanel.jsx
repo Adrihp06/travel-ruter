@@ -17,7 +17,7 @@ import ExternalLinkIcon from '@/components/icons/external-link-icon';
 import DownChevron from '@/components/icons/down-chevron';
 import XIcon from '@/components/icons/x-icon';
 import AirplaneIcon from '@/components/icons/airplane-icon';
-import RouteOptions, { RouteOptionsCompact } from './RouteOptions';
+import RouteOptions from './RouteOptions';
 import useRouteStore from '../../stores/useRouteStore';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
 import useTravelStopStore from '../../stores/useTravelStopStore';
@@ -332,63 +332,6 @@ const RoutePanel = ({
           </button>
         </div>
       )}
-    </div>
-  );
-};
-
-/**
- * RoutePanelCompact - Minimal route info bar
- */
-export const RoutePanelCompact = ({
-  destinations = [],
-  onExpand,
-}) => {
-  const { routeDetails, transportMode, isLoading } = useRouteStore();
-
-  if (!routeDetails || destinations.length < 2) return null;
-
-  // Render the mode icon inline to avoid creating components during render
-  const renderModeIcon = () => {
-    switch (transportMode) {
-      case 'walking':
-        return <Footprints className="w-4 h-4 text-green-600" />;
-      case 'cycling':
-        return <Bike className="w-4 h-4 text-amber-500" />;
-      case 'train':
-        return <Train className="w-4 h-4 text-purple-600" />;
-      case 'flight':
-        return <AirplaneIcon className="w-4 h-4 text-blue-600" />;
-      default:
-        return <Car className="w-4 h-4 text-green-600" />;
-    }
-  };
-
-  return (
-    <div
-      onClick={onExpand}
-      className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 cursor-pointer hover:shadow-lg transition-shadow"
-    >
-      <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
-        {renderModeIcon()}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 text-sm">
-          {isLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-          ) : (
-            <>
-              <span className="font-medium text-gray-900 dark:text-white">
-                {formatDistance(routeDetails.distance_km || routeDetails.total_distance_km)}
-              </span>
-              <span className="text-gray-400">•</span>
-              <span className="text-gray-600 dark:text-gray-400">
-                {formatDuration(routeDetails.duration_min || routeDetails.total_travel_time_minutes)}
-              </span>
-            </>
-          )}
-        </div>
-      </div>
-      <ChevronUp className="w-4 h-4 text-gray-400" />
     </div>
   );
 };
