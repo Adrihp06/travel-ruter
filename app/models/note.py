@@ -10,6 +10,7 @@ class NoteType(str, enum.Enum):
     DESTINATION = "destination"
     DAY = "day"
     POI = "poi"
+    EXPORT_DRAFT = "export_draft"
 
 
 class Note(BaseModel):

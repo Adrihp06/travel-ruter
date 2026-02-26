@@ -47,6 +47,8 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // Increase the precache limit to accommodate the PDF renderer chunk
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB
         // Exclude /api/ paths from the SPA navigation fallback so that
         // OAuth redirects (/api/auth/google, /api/auth/github) reach the server.
         navigateFallbackDenylist: [/^\/api\//],
@@ -103,6 +105,7 @@ export default defineConfig({
           'vendor-utils': ['zustand', 'dompurify'],
           'vendor-motion': ['motion'],
           'vendor-i18n': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
+          'vendor-pdf': ['@react-pdf/renderer', 'jszip', 'marked', '@uiw/react-md-editor/nohighlight'],
         }
       }
     },

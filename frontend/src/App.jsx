@@ -15,6 +15,7 @@ const GlobalTripView = lazy(() => import('./pages/GlobalTripView'));
 const DetailView = lazy(() => import('./pages/DetailView'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const AISettingsPage = lazy(() => import('./pages/AISettingsPage'));
+const ExportWriterPage = lazy(() => import('./pages/ExportWriterPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'));
 
@@ -69,6 +70,8 @@ function App() {
                     <Route path="trips/:id" element={<DetailView />} />
                     <Route path="settings" element={<SettingsPage />} />
                     <Route path="ai-settings" element={<AISettingsPage />} />
+                    <Route path="export-writer" element={<ExportWriterPage />} />
+                    <Route path="export-writer/:tripId" element={<ExportWriterPage />} />
                     <Route path="*" element={<NotFoundPage />} />
                   </Route>
                 </Routes>

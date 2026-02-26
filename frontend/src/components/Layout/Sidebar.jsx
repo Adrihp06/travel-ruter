@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Map, Bot, LogOut } from 'lucide-react';
+import { Map, Bot, LogOut, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import GearIcon from '@/components/icons/gear-icon';
 import XIcon from '@/components/icons/x-icon';
@@ -15,6 +15,7 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: t('nav.trips'), path: '/trips', icon: Map },
     { name: t('nav.settings'), path: '/settings', icon: GearIcon },
     { name: t('nav.aiSettings'), path: '/ai-settings', icon: Bot },
+    { name: t('nav.exportWriter'), path: '/export-writer', icon: FileText },
   ];
 
   const handleLogout = async () => {
