@@ -148,6 +148,13 @@ const useHotelSearchStore = create((set, get) => ({
   },
 
   /**
+   * Set the selected hotel (shown in the detail modal)
+   */
+  selectHotel: (hotel) => {
+    set({ selectedHotel: hotel });
+  },
+
+  /**
    * Clear selected hotel
    */
   clearSelectedHotel: () => {
