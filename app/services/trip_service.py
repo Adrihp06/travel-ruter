@@ -266,7 +266,8 @@ class TripService:
     async def duplicate_trip(
         db: AsyncSession,
         trip_id: int,
-        duplicate_request: TripDuplicateRequest
+        duplicate_request: TripDuplicateRequest,
+        user_id: int | None = None,
     ) -> Optional[Trip]:
         """
         Duplicate a trip with configurable options for what to include.
@@ -275,6 +276,7 @@ class TripService:
             db: Database session
             trip_id: ID of the trip to duplicate
             duplicate_request: Duplication options (name, dates, what to include)
+            user_id: ID of the user creating the duplicate (for ownership)
 
         Returns:
             The newly created trip with duplicated data
@@ -326,8 +328,21 @@ class TripService:
             return_longitude=original_trip.return_longitude,
         )
 
+        if user_id:
+            new_trip.user_id = user_id
         db.add(new_trip)
         await db.flush()  # Get the new trip ID
+
+        # Auto-create owner membership
+        if user_id:
+            member = TripMember(
+                trip_id=new_trip.id,
+                user_id=user_id,
+                role="owner",
+                status="accepted",
+            )
+            db.add(member)
+            await db.flush()
 
         # Duplicate destinations if requested
         if duplicate_request.include_destinations and original_trip.destinations:

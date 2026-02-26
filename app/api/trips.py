@@ -285,7 +285,7 @@ async def duplicate_trip(
     current_user: User = Depends(get_current_user),
 ) -> TripResponse:
     """Duplicate a trip with specified options"""
-    new_trip = await TripService.duplicate_trip(db, trip_id, duplicate_request)
+    new_trip = await TripService.duplicate_trip(db, trip_id, duplicate_request, user_id=current_user.id)
     if not new_trip:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
