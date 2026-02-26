@@ -268,18 +268,11 @@ class ModelInfo:
 STATIC_MODELS: list[ModelInfo] = [
     # Claude
     ModelInfo(
-        id="claude-opus-4-6",
-        pydantic_ai_name="anthropic:claude-opus-4-6",
-        display_name="Claude Opus 4.6",
+        id="claude-sonnet-4-6",
+        pydantic_ai_name="anthropic:claude-sonnet-4-6",
+        display_name="Claude Sonnet 4.6",
         provider="claude",
         is_default=True,
-        description="Latest & most powerful (Feb 2026)",
-    ),
-    ModelInfo(
-        id="claude-sonnet-4-5-20250929",
-        pydantic_ai_name="anthropic:claude-sonnet-4-5-20250929",
-        display_name="Claude Sonnet 4.5",
-        provider="claude",
         description="Best balance of speed and intelligence",
     ),
     ModelInfo(
@@ -291,70 +284,19 @@ STATIC_MODELS: list[ModelInfo] = [
     ),
     # OpenAI
     ModelInfo(
-        id="gpt-5.2",
-        pydantic_ai_name="openai:gpt-5.2",
-        display_name="GPT-5.2",
+        id="gpt-5-mini",
+        pydantic_ai_name="openai:gpt-5-mini",
+        display_name="GPT-5 mini",
         provider="openai",
-        is_default=True,
-        description="Most advanced frontier model",
-    ),
-    ModelInfo(
-        id="gpt-5.2-codex",
-        pydantic_ai_name="openai:gpt-5.2-codex",
-        display_name="GPT-5.2 Codex",
-        provider="openai",
-        description="Specialized for coding tasks",
-    ),
-    ModelInfo(
-        id="o3",
-        pydantic_ai_name="openai:o3",
-        display_name="o3",
-        provider="openai",
-        description="Advanced reasoning model",
-    ),
-    ModelInfo(
-        id="o4-mini",
-        pydantic_ai_name="openai:o4-mini",
-        display_name="o4-mini",
-        provider="openai",
-        description="Fast, cost-efficient reasoning",
-    ),
-    ModelInfo(
-        id="gpt-4.1",
-        pydantic_ai_name="openai:gpt-4.1",
-        display_name="GPT-4.1",
-        provider="openai",
-        description="Great for coding & instruction following",
+        description="Latest and most capable mini model",
     ),
     # Gemini
     ModelInfo(
         id="gemini-3-flash-preview",
-        pydantic_ai_name="google-vertex:gemini-3-flash-preview",
+        pydantic_ai_name="google-gla:gemini-3-flash-preview",
         display_name="Gemini 3 Flash",
         provider="gemini",
-        is_default=True,
         description="Frontier intelligence at lightning speed",
-    ),
-    ModelInfo(
-        id="gemini-3-pro-preview",
-        pydantic_ai_name="google-vertex:gemini-3-pro-preview",
-        display_name="Gemini 3 Pro",
-        provider="gemini",
-        description="Most powerful Gemini model with agentic capabilities",
-    ),
-    ModelInfo(
-        id="gemini-2.5-pro",
-        pydantic_ai_name="google-vertex:gemini-2.5-pro",
-        display_name="Gemini 2.5 Pro",
-        provider="gemini",
-        description="Flagship reasoning model (1M context)",
-    ),
-    ModelInfo(
-        id="gemini-2.5-flash",
-        pydantic_ai_name="google-vertex:gemini-2.5-flash",
-        display_name="Gemini 2.5 Flash",
-        provider="gemini",
-        description="Balanced speed and capability",
     ),
 ]
 

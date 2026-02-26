@@ -65,7 +65,7 @@ class SessionManager:
         if not model_id:
             models = await get_available_models()
             default = next((m for m in models if m.is_default), None)
-            model_id = default.id if default else (models[0].id if models else "claude-sonnet-4-5-20250929")
+            model_id = default.id if default else (models[0].id if models else "claude-sonnet-4-6")
 
         pai_model = pydantic_ai_model or resolve_model_name(model_id)
 
