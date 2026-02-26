@@ -111,16 +111,37 @@ const MacroMap = ({
     return routes;
   }, [allDestinations]);
 
+  // Build valid consecutive destination pairs per trip (same filter as TripMap)
+  const validSegmentPairsByTrip = useMemo(() => {
+    const pairsByTrip = {};
+    trips.forEach(trip => {
+      if (!trip.destinations) return;
+      const sorted = [...trip.destinations]
+        .filter(d => d.latitude && d.longitude)
+        .sort((a, b) => (a.order_index ?? a.id) - (b.order_index ?? b.id));
+      const pairs = new Set();
+      for (let i = 0; i < sorted.length - 1; i++) {
+        pairs.add(`${sorted[i].id}-${sorted[i + 1].id}`);
+      }
+      pairsByTrip[trip.id] = pairs;
+    });
+    return pairsByTrip;
+  }, [trips]);
+
   // Create GeoJSON for route polylines - use real routes when available
   const routeGeoJSON = useMemo(() => {
     const features = [];
 
     Object.entries(tripRoutes).forEach(([tripId, fallbackCoordinates]) => {
       const segments = tripSegments[tripId];
+      const validPairs = validSegmentPairsByTrip[tripId] || new Set();
 
       if (segments && segments.length > 0) {
-        // Use real route geometry from segments
-        segments.forEach((segment, index) => {
+        // Use real route geometry from segments — only consecutive destination pairs
+        const filteredSegments = segments.filter(seg =>
+          validPairs.has(`${seg.from_destination_id}-${seg.to_destination_id}`)
+        );
+        filteredSegments.forEach((segment, index) => {
           let geometry;
 
           if (segment.route_geometry?.type === 'LineString' &&
@@ -178,7 +199,7 @@ const MacroMap = ({
       type: 'FeatureCollection',
       features
     };
-  }, [tripRoutes, tripSegments, allDestinations]);
+  }, [tripRoutes, tripSegments, allDestinations, validSegmentPairsByTrip]);
 
   // Calculate bounds to fit all destinations
   const fitMapBounds = useCallback(() => {
