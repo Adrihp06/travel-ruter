@@ -13,9 +13,10 @@ depends_on = None
 
 
 def upgrade():
-    op.execute("ALTER TYPE notetype ADD VALUE IF NOT EXISTS 'export_draft'")
+    # note_type is stored as VARCHAR(50), not a PostgreSQL enum type,
+    # so no DDL is required to support a new string value.
+    pass
 
 
 def downgrade():
-    # PostgreSQL does not support removing enum values easily; this is a no-op
     pass
