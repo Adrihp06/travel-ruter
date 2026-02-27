@@ -57,7 +57,7 @@ const DEFAULT_AGENT_CONFIG = {
     calculate_budget: true,
   },
   externalTools: {
-    perplexity_search: true,
+    openai_search: true,
     web_search: true,
     weather_forecast: true,
     currency_conversion: true,

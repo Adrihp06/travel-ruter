@@ -88,10 +88,10 @@ const APP_TOOLS = [
 // External tools configuration
 const EXTERNAL_TOOLS = [
   {
-    id: 'perplexity_search',
-    nameKey: 'ai.agent.toolNames.perplexitySearch',
-    descriptionKey: 'ai.agent.toolDescriptions.perplexitySearch',
-    icon: MagnifierIcon,
+    id: 'openai_search',
+    nameKey: 'ai.agent.toolNames.openaiSearch',
+    descriptionKey: 'ai.agent.toolDescriptions.openaiSearch',
+    icon: GlobeIcon,
   },
   {
     id: 'web_search',
