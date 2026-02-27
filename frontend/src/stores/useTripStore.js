@@ -547,7 +547,8 @@ const useTripStore = create((set, get) => ({
           authFetch(`${API_BASE_URL}/trips/${newTrip.id}/destinations`),
           authFetch(`${API_BASE_URL}/trips/${newTrip.id}/poi-stats`)
         ]);
-        destinations = destResponse.ok ? await destResponse.json() : [];
+        const destData = destResponse.ok ? await destResponse.json() : { items: [] };
+        destinations = destData.items || [];
         poiStats = statsResponse.ok ? await statsResponse.json() : { total_pois: 0, scheduled_pois: 0 };
       } catch {
         // Use empty defaults on error
