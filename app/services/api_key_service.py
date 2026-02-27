@@ -16,7 +16,6 @@ SERVICE_ENV_MAP = {
     "google_maps": "GOOGLE_MAPS_API_KEY",
     "amadeus_client_id": "AMADEUS_CLIENT_ID",
     "amadeus_client_secret": "AMADEUS_CLIENT_SECRET",
-    "perplexity": "PERPLEXITY_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
     "openai": "OPENAI_API_KEY",
     "google_ai": "GOOGLE_API_KEY",

@@ -158,7 +158,6 @@ services:
       # Travel API keys (forwarded to MCP server subprocess)
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
       OPENROUTESERVICE_API_KEY: ${OPENROUTESERVICE_API_KEY:-}
-      PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY:-}
       # Internal service auth (orchestrator → backend)
       INTERNAL_SERVICE_KEY: ${INTERNAL_SERVICE_KEY:-}
       # CORS (restrict in production)
