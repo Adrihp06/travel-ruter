@@ -27,9 +27,9 @@ class MCPSettings(BaseSettings):
     OPENROUTESERVICE_API_KEY: Optional[str] = None
     MAPBOX_ACCESS_TOKEN: Optional[str] = None
 
-    # Perplexity AI (for POI suggestions)
-    PERPLEXITY_API_KEY: Optional[str] = None
-    PERPLEXITY_MODEL: str = "sonar"
+    # OpenAI (for POI suggestions via web search)
+    OPENAI_API_KEY: Optional[str] = None
+    OPENAI_SEARCH_MODEL: str = "gpt-4o-search-preview"
 
     # MCP-specific settings
     ENABLE_CACHING: bool = True

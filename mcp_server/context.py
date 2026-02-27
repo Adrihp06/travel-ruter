@@ -139,14 +139,14 @@ def get_geocoding_service():
     return GeocodingService
 
 
-def get_perplexity_service():
-    """Get or create PerplexitySearchService instance."""
-    from app.services.perplexity_service import PerplexitySearchService
+def get_openai_search_service():
+    """Get or create OpenAISearchService instance."""
+    from app.services.openai_search_service import OpenAISearchService
 
     ctx = get_context()
-    if "perplexity" not in ctx._services_cache:
-        ctx._services_cache["perplexity"] = PerplexitySearchService(
-            api_key=mcp_settings.PERPLEXITY_API_KEY or "",
-            model=mcp_settings.PERPLEXITY_MODEL,
+    if "openai_search" not in ctx._services_cache:
+        ctx._services_cache["openai_search"] = OpenAISearchService(
+            api_key=mcp_settings.OPENAI_API_KEY or "",
+            model=mcp_settings.OPENAI_SEARCH_MODEL,
         )
-    return ctx._services_cache["perplexity"]
+    return ctx._services_cache["openai_search"]
