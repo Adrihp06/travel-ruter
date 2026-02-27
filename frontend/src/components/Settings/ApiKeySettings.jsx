@@ -8,8 +8,7 @@ const SERVICES = [
   { name: 'mapbox', label: 'Mapbox' },
   { name: 'openrouteservice', label: 'OpenRouteService' },
   { name: 'google_maps', label: 'Google Maps' },
-  { name: 'perplexity', label: 'Perplexity' },
-  { name: 'anthropic', label: 'Anthropic (Claude)' },
+{ name: 'anthropic', label: 'Anthropic (Claude)' },
   { name: 'openai', label: 'OpenAI' },
   { name: 'google_ai', label: 'Google AI (Gemini)' },
 ];
