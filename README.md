@@ -12,7 +12,6 @@ An AI-powered travel planning app with interactive maps, smart scheduling, and m
 | **OpenRouteService** | 2,000 requests/day | Real road-network routing |
 | **Google Maps** | $200/month credit | Transit & public transport routing |
 | **Amadeus** | Self-Service tier (test environment) | Hotel search & availability |
-| **Perplexity** | Limited free requests | AI-powered POI research |
 | **Google OAuth** | Free | User login via Google |
 
 For AI providers, you need at least one key — pick whichever you prefer:
@@ -158,7 +157,6 @@ All configuration is done through environment variables. See `.env.example` for 
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — Google OAuth login
 - `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` — GitHub OAuth login
 - `AMADEUS_CLIENT_ID` / `AMADEUS_CLIENT_SECRET` — hotel search
-- `PERPLEXITY_API_KEY` — AI-powered POI research
 - `CLOUDFLARE_TUNNEL_TOKEN` — production tunnel deployment
 
 ## Database Migrations

@@ -21,9 +21,8 @@ const ORCHESTRATOR_URL = _RAW_ORCHESTRATOR_URL.startsWith('http')
 // Provider info for display (no key input — keys are managed per-trip)
 const PROVIDERS = [
   { id: 'anthropic', name: 'Anthropic (Claude)', models: ['Claude Opus 4.6', 'Claude Sonnet 4.5', 'Claude Haiku 4.5'] },
-  { id: 'openai', name: 'OpenAI', models: ['GPT-5.2', 'GPT-5.2 Codex', 'o3', 'o4-mini', 'GPT-4.1'] },
+  { id: 'openai', name: 'OpenAI (Chat + POI Search)', models: ['GPT-5.2', 'GPT-5.2 Codex', 'o3', 'o4-mini', 'GPT-4.1'] },
   { id: 'google', name: 'Google (Gemini)', models: ['Gemini 3 Flash', 'Gemini 3 Pro', 'Gemini 2.5 Pro', 'Gemini 2.5 Flash'] },
-  { id: 'perplexity', name: 'Perplexity AI (POI Search)', models: ['Sonar', 'Sonar Pro'] },
 ];
 
 const AISettingsSection = ({ settings, updateSetting }) => {
@@ -319,7 +318,7 @@ const AISettingsSection = ({ settings, updateSetting }) => {
           <li><strong>OpenAI:</strong> {t('ai.settings.providerOpenAI')}</li>
           <li><strong>Gemini:</strong> {t('ai.settings.providerGemini')}</li>
           <li><strong>Ollama:</strong> {t('ai.settings.providerOllama')}</li>
-          <li><strong>Perplexity:</strong> {t('ai.settings.providerPerplexity', 'Powers intelligent POI search with web-sourced travel recommendations')}</li>
+          <li><strong>OpenAI Search:</strong> {t('ai.models.providerOpenAISearch')}</li>
         </ul>
         <p className="mt-3 text-xs text-blue-600 dark:text-blue-400">
           {t('ai.settings.addApiKeysHint')}
