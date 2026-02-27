@@ -37,11 +37,11 @@ const TOOL_INFO = {
     descriptionKey: 'ai.findingCoordinates',
   },
   get_poi_suggestions: {
-    icon: MapPin,
+    icon: GlobeIcon,
     nameKey: 'ai.agent.toolNames.poiSuggestions',
-    color: 'bg-emerald-500',
-    bgColor: 'bg-emerald-50 dark:bg-emerald-900/20',
-    textColor: 'text-emerald-700 dark:text-emerald-300',
+    color: 'bg-blue-500',
+    bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+    textColor: 'text-blue-700 dark:text-blue-300',
     descriptionKey: 'ai.discoveringAttractions',
   },
   calculate_route: {
@@ -107,14 +107,6 @@ const TOOL_INFO = {
     bgColor: 'bg-green-50 dark:bg-green-900/20',
     textColor: 'text-green-700 dark:text-green-300',
     descriptionKey: 'ai.calculatingCosts',
-  },
-  web_search: {
-    icon: GlobeIcon,
-    nameKey: 'ai.agent.toolNames.webSearch',
-    color: 'bg-cyan-500',
-    bgColor: 'bg-cyan-50 dark:bg-cyan-900/20',
-    textColor: 'text-cyan-700 dark:text-cyan-300',
-    descriptionKey: 'ai.searchingWeb',
   },
   weather_forecast: {
     icon: Cloud,
@@ -299,6 +291,37 @@ const ToolCallItem = ({ toolCall, isStreaming, result, isError }) => {
               )}
             </div>
           )}
+
+          {/* Source URLs for get_poi_suggestions results */}
+          {toolCall.name === 'get_poi_suggestions' && (() => {
+            let parsed = result;
+            if (typeof result === 'string') {
+              try { parsed = JSON.parse(result); } catch { parsed = null; }
+            }
+            const sources = parsed?.filters_applied?.sources;
+            if (!sources || sources.length === 0) return null;
+            return (
+              <div className="mt-2">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                  {t('ai.webSources')}
+                </p>
+                <ul className="space-y-0.5">
+                  {sources.map((url, idx) => (
+                    <li key={idx}>
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline truncate block max-w-full"
+                      >
+                        {url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
