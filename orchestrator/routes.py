@@ -187,7 +187,6 @@ _PROVIDER_ENV_MAP = {
     "anthropic": "ANTHROPIC_API_KEY",
     "openai": "OPENAI_API_KEY",
     "google": "GOOGLE_API_KEY",
-    "perplexity": "PERPLEXITY_API_KEY",
 }
 
 

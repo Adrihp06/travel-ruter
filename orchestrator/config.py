@@ -51,9 +51,6 @@ class OrchestratorSettings(BaseSettings):
     # Database (passed through to MCP server env)
     database_url: str = ""
 
-    # Perplexity (for POI suggestions)
-    perplexity_api_key: str = ""
-
     # JWT Auth
     JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
