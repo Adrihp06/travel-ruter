@@ -10,7 +10,7 @@ from datetime import date, time
 
 from mcp.server.fastmcp import FastMCP
 
-from mcp_server.context import get_google_places_service, get_db_session, get_perplexity_service
+from mcp_server.context import get_google_places_service, get_db_session, get_openai_search_service
 from mcp_server.schemas.pois import (
     GetPOISuggestionsInput,
     POISuggestion,
@@ -136,13 +136,13 @@ def register_tools(server: FastMCP):
             min_rating=min_rating,
         )
 
-        # Try Perplexity first (cheaper, better curation)
-        perplexity_service = get_perplexity_service()
-        if perplexity_service and perplexity_service._has_api_key:
+        # Try OpenAI Search first (better curation with live web data)
+        openai_search_service = get_openai_search_service()
+        if openai_search_service and openai_search_service._has_api_key:
             try:
                 # Build location name from coordinates for better search
                 location_name = f"{validated.latitude}, {validated.longitude}"
-                perplexity_results = await perplexity_service.search_pois(
+                places, source_urls = await openai_search_service.search_pois(
                     latitude=validated.latitude,
                     longitude=validated.longitude,
                     location_name=location_name,
@@ -150,9 +150,9 @@ def register_tools(server: FastMCP):
                     trip_type=validated.trip_type,
                     max_results=validated.max_results,
                 )
-                if perplexity_results:
+                if places:
                     suggestions = []
-                    for raw in perplexity_results:
+                    for raw in places:
                         metadata = POIMetadata(
                             rating=raw.get("rating"),
                             user_ratings_total=None,
@@ -169,7 +169,7 @@ def register_tools(server: FastMCP):
                             latitude=raw.get("latitude", 0),
                             longitude=raw.get("longitude", 0),
                             external_id=None,
-                            external_source="perplexity",
+                            external_source="openai_search",
                             metadata=metadata,
                             rating_display=None,
                             price_display=raw.get("estimated_cost_usd"),
@@ -184,13 +184,14 @@ def register_tools(server: FastMCP):
                         filters_applied={k: v for k, v in {
                             "category": validated.category,
                             "trip_type": validated.trip_type,
-                            "source": "perplexity",
+                            "source": "openai_search",
+                            "sources": source_urls,
                         }.items() if v},
                     )
-                    logger.info(f"get_poi_suggestions returned {output.count} suggestions via Perplexity")
+                    logger.info(f"get_poi_suggestions returned {output.count} suggestions via OpenAI Search")
                     return output.model_dump()
             except Exception as e:
-                logger.warning(f"Perplexity search failed, falling back to Google: {e}")
+                logger.warning(f"OpenAI Search failed, falling back to Google: {e}")
 
         # Fallback: Google Places (existing behavior)
         places_service = get_google_places_service()
