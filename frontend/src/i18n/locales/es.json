@@ -638,6 +638,7 @@
     "copied": "Copiado",
     "copy": "Copiar",
     "retry": "Reintentar",
+    "webSources": "Fuentes Web",
     "selectTripToStart": "Selecciona un viaje para comenzar",
     "connecting": "Conectando...",
     "clearChat": "Limpiar chat",
@@ -688,7 +689,7 @@
     "almostThere": "Casi listo...",
     "searchingDestinations": "Buscando destinos...",
     "findingCoordinates": "Encontrando coordenadas...",
-    "discoveringAttractions": "Descubriendo atracciones...",
+    "discoveringAttractions": "Descubriendo atracciones con OpenAI Search...",
     "findingRestaurants": "Encontrando restaurantes...",
     "curatingSpots": "Seleccionando los mejores lugares...",
     "calculatingRoutes": "Calculando rutas...",
@@ -761,7 +762,7 @@
       "providerOpenAI": "GPT-5.2 — El modelo frontera más avanzado",
       "providerGemini": "Gemini 3 Flash (Vertex AI) — Inteligencia frontera a velocidad relámpago",
       "providerOllama": "Modelos locales — Privados, sin necesidad de clave API",
-      "providerPerplexity": "Impulsa la búsqueda inteligente de POIs con recomendaciones de viajes obtenidas de la web",
+      "providerOpenAISearch": "Impulsa la búsqueda inteligente de POIs con recomendaciones de viajes obtenidas de la web",
       "addApiKeysHint": "Añade tus claves API arriba para habilitar cada proveedor. Solo necesitas un proveedor activo para usar el asistente IA."
     },
     "agent": {
@@ -811,7 +812,7 @@
         "tripManagement": "Gestión de viajes",
         "smartScheduler": "Programador inteligente",
         "budgetCalculator": "Calculador de presupuesto",
-        "perplexitySearch": "Búsqueda Perplexity AI",
+        "openaiSearch": "Búsqueda OpenAI",
         "webSearch": "Búsqueda web",
         "weatherForecast": "Pronóstico del tiempo",
         "currencyConversion": "Conversión de moneda"
@@ -826,7 +827,7 @@
         "tripManagement": "Crear, actualizar y gestionar tus viajes",
         "smartScheduler": "Generar itinerarios diarios optimizados automáticamente",
         "budgetCalculator": "Estimar costos y rastrear gastos del viaje",
-        "perplexitySearch": "Búsqueda inteligente de POIs con recomendaciones curadas de la web",
+        "openaiSearch": "Búsqueda inteligente de POIs con recomendaciones curadas de la web",
         "webSearch": "Buscar información de viajes en la web",
         "weatherForecast": "Obtener pronósticos del tiempo para destinos",
         "currencyConversion": "Convertir entre monedas"

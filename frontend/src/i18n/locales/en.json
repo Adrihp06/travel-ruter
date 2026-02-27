@@ -638,6 +638,7 @@
     "copied": "Copied",
     "copy": "Copy",
     "retry": "Retry",
+    "webSources": "Web Sources",
     "selectTripToStart": "Select a trip to start",
     "connecting": "Connecting...",
     "clearChat": "Clear chat",
@@ -688,7 +689,7 @@
     "almostThere": "Almost there...",
     "searchingDestinations": "Searching for destinations...",
     "findingCoordinates": "Finding coordinates...",
-    "discoveringAttractions": "Discovering attractions...",
+    "discoveringAttractions": "Discovering attractions with OpenAI Search...",
     "findingRestaurants": "Finding restaurants...",
     "curatingSpots": "Curating the best spots...",
     "calculatingRoutes": "Calculating routes...",
@@ -761,7 +762,7 @@
       "providerOpenAI": "GPT-5.2 — Most advanced frontier model",
       "providerGemini": "Gemini 3 Flash (Vertex AI) — Frontier intelligence at lightning speed",
       "providerOllama": "Local models — Private, no API key needed",
-      "providerPerplexity": "Powers intelligent POI search with web-sourced travel recommendations",
+      "providerOpenAISearch": "Powers intelligent POI search with web-sourced travel recommendations",
       "addApiKeysHint": "Add your API keys above to enable each provider. You only need one active provider to use the AI assistant."
     },
     "agent": {
@@ -811,7 +812,7 @@
         "tripManagement": "Trip Management",
         "smartScheduler": "Smart Scheduler",
         "budgetCalculator": "Budget Calculator",
-        "perplexitySearch": "Perplexity AI Search",
+        "openaiSearch": "OpenAI Search",
         "webSearch": "Web Search",
         "weatherForecast": "Weather Forecast",
         "currencyConversion": "Currency Conversion"
@@ -826,7 +827,7 @@
         "tripManagement": "Create, update, and manage your trips",
         "smartScheduler": "Auto-generate optimized daily itineraries",
         "budgetCalculator": "Estimate costs and track trip expenses",
-        "perplexitySearch": "AI-powered search for curated POI recommendations from the web",
+        "openaiSearch": "AI-powered search for curated POI recommendations from the web",
         "webSearch": "Search the web for travel information",
         "weatherForecast": "Get weather predictions for destinations",
         "currencyConversion": "Convert between currencies"
