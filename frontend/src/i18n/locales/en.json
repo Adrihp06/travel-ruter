@@ -705,6 +705,7 @@
     "searchingWeb": "Searching web...",
     "checkingWeather": "Checking weather...",
     "convertingCurrency": "Converting currency...",
+    "processingResults": "Processing results...",
     "conversationHistory": "Conversation History",
     "chatHistory": "Chat History",
     "viewPastConversations": "View and resume past conversations",

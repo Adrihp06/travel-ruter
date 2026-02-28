@@ -17,6 +17,7 @@ import {
   User,
   Copy,
   Clock,
+  Brain,
 } from 'lucide-react';
 import XIcon from '@/components/icons/x-icon';
 import SparklesIcon from '@/components/icons/sparkles-icon';
@@ -61,6 +62,22 @@ const UserAvatar = ({ size = 'md' }) => {
 
 // Typing indicator - uses ThinkingIndicator in minimal mode
 const TypingIndicator = () => <ThinkingIndicator minimal />;
+
+// Shows between completed tool calls and next action
+const ThinkingAfterTools = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center gap-2 py-2 mt-2 text-xs text-gray-500 dark:text-gray-400">
+      <Brain className="w-3.5 h-3.5 animate-pulse text-[#D97706]" />
+      <span>{t('ai.processingResults', 'Processing results...')}</span>
+      <div className="flex items-center gap-0.5 ml-1">
+        <div className="w-1 h-1 rounded-full bg-[#D97706] animate-bounce" style={{ animationDelay: '0ms' }} />
+        <div className="w-1 h-1 rounded-full bg-[#D97706] animate-bounce" style={{ animationDelay: '150ms' }} />
+        <div className="w-1 h-1 rounded-full bg-[#D97706] animate-bounce" style={{ animationDelay: '300ms' }} />
+      </div>
+    </div>
+  );
+};
 
 // Format markdown content to HTML (pure function, used by memoization)
 const formatMarkdown = (content) => {
@@ -149,7 +166,7 @@ const ChatMessage = React.memo(({ message, agentName, onCopy, onRetry }) => {
             }`}
           >
             {/* Typing indicator for streaming with no content */}
-            {isAssistant && message.isStreaming && !message.content && !message.toolCalls?.length && (
+            {isAssistant && message.isStreaming && !message.content && !message.toolCalls?.length && message.parts?.length === 0 && (
               <TypingIndicator />
             )}
 
@@ -178,6 +195,15 @@ const ChatMessage = React.memo(({ message, agentName, onCopy, onRetry }) => {
                   }
                   return null;
                 })}
+                {/* Thinking indicator: show when streaming and last part is a completed toolGroup */}
+                {message.isStreaming && (() => {
+                  const lastPart = message.parts[message.parts.length - 1];
+                  if (lastPart?.type === 'toolGroup') {
+                    const allDone = lastPart.toolCalls.every(tc => tc.result !== undefined);
+                    if (allDone) return <ThinkingAfterTools />;
+                  }
+                  return null;
+                })()}
                 {/* Streaming cursor */}
                 {message.isStreaming && message.content && (
                   <span className="inline-block w-1.5 h-5 ml-0.5 bg-[#D97706] animate-pulse rounded-sm" />

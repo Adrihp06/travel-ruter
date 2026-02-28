@@ -341,7 +341,7 @@ async def chat(body: ChatRequest, request: Request) -> dict:
                     model_settings=_get_model_settings(session.pydantic_ai_model),
                     usage_limits=usage_limits,
                 ),
-                timeout=120,
+                timeout=180,
             )
             session.message_history = result.all_messages()
 
@@ -364,7 +364,7 @@ async def chat(body: ChatRequest, request: Request) -> dict:
             "toolCalls": tool_calls if tool_calls else None,
         }
     except asyncio.TimeoutError:
-        return JSONResponse({"error": "Request timed out after 120 seconds"}, status_code=504)
+        return JSONResponse({"error": "Request timed out after 180 seconds"}, status_code=504)
     except Exception as exc:
         exc_str = str(exc)
         logger.exception("Error in chat (request_id=%s)", request_id)
@@ -595,7 +595,7 @@ async def _handle_chat(
                     model_settings=_get_model_settings(session.pydantic_ai_model),
                     usage_limits=usage_limits,
                 ),
-                timeout=120,
+                timeout=180,
             )
             session.message_history = result.all_messages()
 
@@ -605,7 +605,7 @@ async def _handle_chat(
         logger.warning("Chat timed out (message_id=%s)", message_id)
         await ws.send_json({
             "type": "error",
-            "error": "Request timed out after 120 seconds",
+            "error": "Request timed out after 180 seconds",
         })
     except Exception as exc:
         exc_str = str(exc)
