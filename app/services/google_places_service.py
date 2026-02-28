@@ -568,6 +568,47 @@ class GooglePlacesService:
 
         return all_suggestions[:max_results]
 
+    @staticmethod
+    async def find_place_coordinates(
+        name: str,
+        lat: float,
+        lng: float,
+    ) -> tuple[float, float] | None:
+        """Look up a place by name near coordinates and return precise lat/lng.
+
+        Uses Google Places Find Place from Text API with location bias.
+        Returns (latitude, longitude) or None if not found.
+        """
+        if not settings.GOOGLE_MAPS_API_KEY:
+            return None
+
+        params = {
+            "input": name,
+            "inputtype": "textquery",
+            "fields": "geometry",
+            "locationbias": f"circle:5000@{lat},{lng}",
+            "key": settings.GOOGLE_MAPS_API_KEY,
+        }
+
+        try:
+            client = await get_http_client()
+            resp = await client.get(
+                f"{GooglePlacesService.PLACES_API_BASE}/findplacefromtext/json",
+                params=params,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+            candidates = data.get("candidates", [])
+            if candidates:
+                loc = candidates[0].get("geometry", {}).get("location", {})
+                if loc.get("lat") and loc.get("lng"):
+                    return (loc["lat"], loc["lng"])
+        except Exception as e:
+            logger.debug("find_place_coordinates failed for '%s': %s", name, e)
+
+        return None
+
 
 # Singleton instance for autocomplete/quick search
 google_places_service = GooglePlacesService()

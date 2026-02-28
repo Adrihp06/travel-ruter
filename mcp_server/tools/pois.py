@@ -10,7 +10,10 @@ from datetime import date, time
 
 from mcp.server.fastmcp import FastMCP
 
+import asyncio
+
 from mcp_server.context import get_google_places_service, get_db_session, get_openai_search_service
+from app.services.google_places_service import GooglePlacesService
 from mcp_server.schemas.pois import (
     GetPOISuggestionsInput,
     POISuggestion,
@@ -151,6 +154,25 @@ def register_tools(server: FastMCP):
                     max_results=validated.max_results,
                 )
                 if places:
+                    # Refine coordinates via Google Places Find Place
+                    # (OpenAI LLM coordinates are approximate)
+                    places_service = get_google_places_service()
+                    if places_service and places_service._has_api_key:
+                        async def _refine(p):
+                            name = p.get("name", "")
+                            plat = p.get("latitude", 0)
+                            plng = p.get("longitude", 0)
+                            if name and plat and plng:
+                                coords = await GooglePlacesService.find_place_coordinates(
+                                    name, plat, plng
+                                )
+                                if coords:
+                                    p["latitude"], p["longitude"] = coords
+                            return p
+
+                        places = await asyncio.gather(*[_refine(p) for p in places])
+                        logger.info("Refined coordinates for %d POIs via Google Places", len(places))
+
                     suggestions = []
                     for raw in places:
                         metadata = POIMetadata(
