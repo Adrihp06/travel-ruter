@@ -298,7 +298,6 @@ STATIC_MODELS: list[ModelInfo] = [
         pydantic_ai_name="openai:gpt-5-mini",
         display_name="GPT-5 mini",
         provider="openai",
-        is_default=True,
         description="Latest and most capable mini model",
     ),
     # Gemini
@@ -307,6 +306,7 @@ STATIC_MODELS: list[ModelInfo] = [
         pydantic_ai_name="google-gla:gemini-3-flash-preview",
         display_name="Gemini 3 Flash",
         provider="gemini",
+        is_default=True,
         description="Frontier intelligence at lightning speed",
     ),
 ]

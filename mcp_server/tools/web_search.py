@@ -72,11 +72,11 @@ def register_tools(server: FastMCP):
                 "tools": [{"type": "web_search"}],
                 "input": user_input,
                 "instructions": (
-                    "Be concise and factual. Return key facts, names, prices, "
-                    "addresses, and ratings in a compact format. No filler text. "
-                    "Maximum 400 words."
+                    "Be thorough but efficient. Return key facts, names, prices, "
+                    "addresses, ratings, and relevant details. No filler text. "
+                    "Maximum 2000 words."
                 ),
-                "max_output_tokens": 1024,
+                "max_output_tokens": 4096,
             }
 
             headers = {
@@ -109,7 +109,7 @@ def register_tools(server: FastMCP):
                                 answer += content.get("text", "")
 
             # Truncate very long responses to keep agent context lean
-            MAX_ANSWER_CHARS = 3000
+            MAX_ANSWER_CHARS = 8000
             if len(answer) > MAX_ANSWER_CHARS:
                 answer = answer[:MAX_ANSWER_CHARS] + "\n\n[...truncated]"
 
