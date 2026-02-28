@@ -77,6 +77,7 @@ def _register_tools(server: FastMCP):
     from mcp_server.tools import scheduler
     from mcp_server.tools import accommodations
     from mcp_server.tools import web_search
+    from mcp_server.tools import notes
 
     # Register tools from each module
     destinations.register_tools(server)
@@ -87,6 +88,7 @@ def _register_tools(server: FastMCP):
     scheduler.register_tools(server)
     accommodations.register_tools(server)
     web_search.register_tools(server)
+    notes.register_tools(server)
 
     logger.info("All MCP tools registered successfully")
 
