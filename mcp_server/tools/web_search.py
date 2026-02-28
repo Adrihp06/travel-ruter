@@ -71,6 +71,12 @@ def register_tools(server: FastMCP):
                 "model": mcp_settings.OPENAI_SEARCH_MODEL,
                 "tools": [{"type": "web_search"}],
                 "input": user_input,
+                "instructions": (
+                    "Be concise and factual. Return key facts, names, prices, "
+                    "addresses, and ratings in a compact format. No filler text. "
+                    "Maximum 400 words."
+                ),
+                "max_output_tokens": 1024,
             }
 
             headers = {
@@ -78,7 +84,9 @@ def register_tools(server: FastMCP):
                 "Content-Type": "application/json",
             }
 
-            async with httpx.AsyncClient(timeout=60) as client:
+            t0 = __import__("time").monotonic()
+
+            async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
                     "https://api.openai.com/v1/responses",
                     headers=headers,
@@ -86,6 +94,8 @@ def register_tools(server: FastMCP):
                 )
                 resp.raise_for_status()
                 data = resp.json()
+
+            elapsed = __import__("time").monotonic() - t0
 
             # Extract the text answer from the response
             answer = data.get("output_text", "")
@@ -98,10 +108,16 @@ def register_tools(server: FastMCP):
                             if content.get("type") == "output_text":
                                 answer += content.get("text", "")
 
+            # Truncate very long responses to keep agent context lean
+            MAX_ANSWER_CHARS = 3000
+            if len(answer) > MAX_ANSWER_CHARS:
+                answer = answer[:MAX_ANSWER_CHARS] + "\n\n[...truncated]"
+
             logger.info(
-                "web_search succeeded for query='%s' (%d chars)",
+                "web_search succeeded for query='%s' (%d chars, %.1fs)",
                 query,
                 len(answer),
+                elapsed,
             )
 
             return {
