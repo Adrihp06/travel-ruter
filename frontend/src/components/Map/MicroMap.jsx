@@ -272,6 +272,12 @@ const POIHoverPreview = ({ poi, position, onSchedule, onEdit }) => {
               {poi.dwell_time}m
             </span>
           )}
+          {poi.metadata_json?.rating && (
+            <span className="flex items-center gap-1">
+              <StarIcon className="w-3 h-3 text-amber-500 fill-current" />
+              {poi.metadata_json.rating}
+            </span>
+          )}
           {poi.scheduled_day && (
             <span className="flex items-center gap-1 text-amber-600 font-semibold">
               <Calendar className="w-3 h-3" />
@@ -461,6 +467,25 @@ const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
             >
               {poi.category}
             </span>
+            {/* Google rating + price level */}
+            {(poi.metadata_json?.rating || poi.metadata_json?.price_level != null) && (
+              <div className="flex items-center gap-2 mt-0.5">
+                {poi.metadata_json?.rating && (
+                  <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                    <StarIcon className="w-3 h-3 fill-current" />
+                    <span className="font-semibold">{poi.metadata_json.rating}</span>
+                    {poi.metadata_json?.user_ratings_total && (
+                      <span className="text-stone-400 dark:text-stone-500">({poi.metadata_json.user_ratings_total})</span>
+                    )}
+                  </span>
+                )}
+                {poi.metadata_json?.price_level != null && (
+                  <span className="text-xs text-stone-500 dark:text-stone-400 font-medium">
+                    {'€'.repeat(poi.metadata_json.price_level || 1)}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
         {/* Score badge with improved styling */}
@@ -522,6 +547,29 @@ const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
             <span className="line-clamp-2 leading-relaxed">{poi.address}</span>
           </div>
         )}
+        {/* Google Maps link */}
+        {(() => {
+          const mapsUrl = poi.metadata_json?.url
+            || (poi.latitude && poi.longitude
+                ? `https://www.google.com/maps/search/?api=1&query=${poi.latitude},${poi.longitude}`
+                : null);
+          return mapsUrl ? (
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-md bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                <ExternalLinkIcon className="w-3 h-3 text-blue-500 dark:text-blue-400" />
+              </div>
+              <a
+                href={mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:underline transition-colors"
+              >
+                Google Maps
+              </a>
+            </div>
+          ) : null;
+        })()}
       </div>
 
       {/* Action buttons with better styling */}
