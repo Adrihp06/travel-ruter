@@ -21,6 +21,7 @@ import {
 import MagnifierIcon from '@/components/icons/magnifier-icon';
 import AirplaneIcon from '@/components/icons/airplane-icon';
 import GlobeIcon from '@/components/icons/globe-icon';
+import OpenAIIcon from '@/components/icons/openai-icon';
 import CurrencyDollarIcon from '@/components/icons/currency-dollar-icon';
 import CheckedIcon from '@/components/icons/checked-icon';
 import InfoCircleIcon from '@/components/icons/info-circle-icon';
@@ -108,6 +109,14 @@ const TOOL_INFO = {
     textColor: 'text-green-700 dark:text-green-300',
     descriptionKey: 'ai.calculatingCosts',
   },
+  web_search: {
+    icon: OpenAIIcon,
+    nameKey: 'ai.agent.toolNames.webSearch',
+    color: 'bg-black',
+    bgColor: 'bg-gray-100 dark:bg-gray-800/40',
+    textColor: 'text-gray-900 dark:text-gray-100',
+    descriptionKey: 'ai.searchingWeb',
+  },
   weather_forecast: {
     icon: Cloud,
     nameKey: 'ai.agent.toolNames.weatherForecast',
@@ -171,6 +180,7 @@ const formatArguments = (args) => {
   if (args.scheduled_date) keyArgs.push({ key: 'Date', value: args.scheduled_date });
   if (args.assignments) keyArgs.push({ key: 'POIs', value: `${args.assignments.length} assignments` });
   if (args.profile) keyArgs.push({ key: 'Transport', value: args.profile });
+  if (args.context) keyArgs.push({ key: 'Context', value: args.context });
 
   return keyArgs.length > 0 ? keyArgs : null;
 };

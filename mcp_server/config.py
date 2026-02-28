@@ -27,9 +27,9 @@ class MCPSettings(BaseSettings):
     OPENROUTESERVICE_API_KEY: Optional[str] = None
     MAPBOX_ACCESS_TOKEN: Optional[str] = None
 
-    # OpenAI (for POI suggestions via web search)
+    # OpenAI (for web search via Responses API)
     OPENAI_API_KEY: Optional[str] = None
-    OPENAI_SEARCH_MODEL: str = "gpt-4o-search-preview"
+    OPENAI_SEARCH_MODEL: str = "gpt-4.1-mini"
 
     # MCP-specific settings
     ENABLE_CACHING: bool = True

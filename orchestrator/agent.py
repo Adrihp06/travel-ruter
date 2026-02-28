@@ -29,6 +29,8 @@ def create_mcp_server() -> MCPServerStdio:
         env["GOOGLE_MAPS_API_KEY"] = settings.google_maps_api_key
     if settings.openrouteservice_api_key:
         env["OPENROUTESERVICE_API_KEY"] = settings.openrouteservice_api_key
+    if settings.perplexity_api_key:
+        env["PERPLEXITY_API_KEY"] = settings.perplexity_api_key
     if settings.openai_api_key:
         env["OPENAI_API_KEY"] = settings.openai_api_key
 
