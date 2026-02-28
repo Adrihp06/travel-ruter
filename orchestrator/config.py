@@ -282,7 +282,6 @@ STATIC_MODELS: list[ModelInfo] = [
         pydantic_ai_name="anthropic:claude-sonnet-4-6",
         display_name="Claude Sonnet 4.6",
         provider="claude",
-        is_default=True,
         description="Best balance of speed and intelligence",
     ),
     ModelInfo(
@@ -298,6 +297,7 @@ STATIC_MODELS: list[ModelInfo] = [
         pydantic_ai_name="openai:gpt-5-mini",
         display_name="GPT-5 mini",
         provider="openai",
+        is_default=True,
         description="Latest and most capable mini model",
     ),
     # Gemini
