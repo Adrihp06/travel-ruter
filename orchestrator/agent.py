@@ -186,6 +186,45 @@ The user's existing trips (Japan, Rome, etc.) are completely off-limits. Do not 
             id_str = f" [destination_id={did}]" if did else ""
             prompt += f"- {dname}, {dcountry}: {darr} → {ddep}{coords}{id_str}\n"
 
+    # Travel segments between destinations
+    segments_data = trip_context.get("travelSegments")
+    if segments_data and dests:
+        dest_names = {d.get("id"): d.get("name", f"dest#{d.get('id')}") for d in dests}
+        prompt += "\n### How to Travel Between Destinations\n"
+        for seg in segments_data:
+            from_name = dest_names.get(seg.get("fromId"), f"dest#{seg.get('fromId')}")
+            to_name = dest_names.get(seg.get("toId"), f"dest#{seg.get('toId')}")
+            mode = seg.get("mode", "unknown")
+            dist = seg.get("distanceKm")
+            dur = seg.get("durationMin")
+            details = []
+            if dist:
+                details.append(f"{dist:.0f} km")
+            if dur:
+                h, m = divmod(int(dur), 60)
+                details.append(f"{h}h{m:02d}min" if h else f"{m}min")
+            details_str = f" ({', '.join(details)})" if details else ""
+            prompt += f"- {from_name} → {to_name}: {mode}{details_str}\n"
+
+    origin_seg = trip_context.get("originSegment")
+    return_seg = trip_context.get("returnSegment")
+    if origin_seg or return_seg:
+        prompt += "\n### Journey Origin & Return\n"
+        for label, seg in [("Depart from", origin_seg), ("Return to", return_seg)]:
+            if not seg:
+                continue
+            mode = seg.get("mode", "")
+            dist = seg.get("distanceKm")
+            dur = seg.get("durationMin")
+            details = []
+            if dist:
+                details.append(f"{dist:.0f} km")
+            if dur:
+                h, m = divmod(int(dur), 60)
+                details.append(f"{h}h{m:02d}min" if h else f"{m}min")
+            details_str = f" ({', '.join(details)})" if details else ""
+            prompt += f"- {label}: {seg.get('fromName', '?')} → {seg.get('toName', '?')}: {mode}{details_str}\n"
+
     # Active destination detail (when user is viewing a specific destination)
     dest = trip_context.get("destination")
     if dest:
