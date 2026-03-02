@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Map, Bot, LogOut, FileText, Key } from 'lucide-react';
+import { Map, Bot, LogOut, FileText } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import GearIcon from '@/components/icons/gear-icon';
 import XIcon from '@/components/icons/x-icon';
@@ -18,7 +18,6 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: t('nav.settings'), path: '/settings', icon: GearIcon },
     { name: t('nav.aiSettings'), path: '/ai-settings', icon: Bot },
     { name: t('nav.exportWriter'), path: '/export-writer', icon: FileText },
-    { name: t('nav.mcpAccess', 'MCP Access'), path: '/mcp-access', icon: Key },
   ];
 
   const handleLogout = async () => {
