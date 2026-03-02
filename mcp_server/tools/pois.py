@@ -8,11 +8,12 @@ import logging
 from typing import Optional, List, Dict, Any
 from datetime import date, time
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Context
 
 import asyncio
 
 from mcp_server.context import get_google_places_service, get_db_session, get_openai_search_service
+from mcp_server.auth import get_user_id_from_context, verify_trip_access, resolve_trip_id
 from app.services.google_places_service import GooglePlacesService
 from mcp_server.schemas.pois import (
     GetPOISuggestionsInput,
@@ -319,6 +320,7 @@ def register_tools(server: FastMCP):
     @server.tool()
     async def manage_poi(
         operation: str,
+        ctx: Context,
         poi_id: Optional[int] = None,
         destination_id: Optional[int] = None,
         name: Optional[str] = None,
@@ -424,8 +426,26 @@ def register_tools(server: FastMCP):
                     message=f"Invalid anchored_time format: {anchored_time}. Use HH:MM.",
                 ).model_dump()
 
+        user_id = get_user_id_from_context(ctx)
+
         async with get_db_session() as db:
             try:
+                # Access check: resolve trip_id from destination or POI
+                if user_id:
+                    check_trip_id = await resolve_trip_id(
+                        db,
+                        destination_id=destination_id,
+                        entity_id=poi_id,
+                        entity_model=POI,
+                    )
+                    if check_trip_id:
+                        min_role = "viewer" if op in (POIOperation.READ, POIOperation.LIST) else "editor"
+                        if not await verify_trip_access(db, check_trip_id, user_id, min_role):
+                            return ManagePOIOutput(
+                                operation=operation, success=False,
+                                message="Access denied: insufficient permissions on this trip",
+                            ).model_dump()
+
                 if op == POIOperation.CREATE:
                     if not destination_id:
                         return ManagePOIOutput(
@@ -731,6 +751,7 @@ def register_tools(server: FastMCP):
     async def schedule_pois(
         destination_id: int,
         assignments: List[Dict[str, Any]],
+        ctx: Context,
         confirmed: bool = False,
     ) -> dict:
         """
@@ -769,6 +790,8 @@ def register_tools(server: FastMCP):
                 updated_count=0,
             ).model_dump()
 
+        user_id = get_user_id_from_context(ctx)
+
         async with get_db_session() as db:
             try:
                 # Verify destination exists
@@ -780,6 +803,14 @@ def register_tools(server: FastMCP):
                     return SchedulePOIsOutput(
                         success=False,
                         message=f"Destination with ID {destination_id} not found",
+                        updated_count=0,
+                    ).model_dump()
+
+                # Access check
+                if user_id and not await verify_trip_access(db, dest.trip_id, user_id, "editor"):
+                    return SchedulePOIsOutput(
+                        success=False,
+                        message="Access denied: insufficient permissions on this trip",
                         updated_count=0,
                     ).model_dump()
 

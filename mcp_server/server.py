@@ -8,6 +8,10 @@ Integrates with the existing FastAPI backend services for:
 - Route calculation and travel matrix
 - Trip management
 - Budget calculation
+
+Supports dual transport:
+- stdio (default): used by the orchestrator subprocess
+- streamable-http: used by remote Claude Desktop/Code clients
 """
 
 import logging
@@ -47,17 +51,36 @@ async def lifespan(server: FastMCP):
         logger.info("MCP server shutdown complete")
 
 
-def create_server() -> FastMCP:
+def create_server(transport: str = "stdio") -> FastMCP:
     """
     Create and configure the FastMCP server with all tools registered.
+
+    Args:
+        transport: "stdio" for orchestrator subprocess, "streamable-http" for remote access
 
     Returns:
         Configured FastMCP server instance
     """
-    server = FastMCP(
-        name=mcp_settings.MCP_SERVER_NAME,
-        lifespan=lifespan,
-    )
+    kwargs = {
+        "name": mcp_settings.MCP_SERVER_NAME,
+        "lifespan": lifespan,
+    }
+
+    if transport == "streamable-http":
+        from pydantic import AnyHttpUrl
+        from mcp_server.auth import TravelRuterTokenVerifier
+        from mcp.server.auth.settings import AuthSettings
+
+        kwargs["token_verifier"] = TravelRuterTokenVerifier()
+        kwargs["auth"] = AuthSettings(
+            issuer_url=AnyHttpUrl(mcp_settings.MCP_AUTH_ISSUER_URL),
+            resource_server_url=AnyHttpUrl(mcp_settings.MCP_RESOURCE_SERVER_URL),
+            required_scopes=["mcp"],
+        )
+        kwargs["json_response"] = True
+        logger.info("Configured for HTTP transport with JWT authentication")
+
+    server = FastMCP(**kwargs)
 
     # Register all tools
     _register_tools(server)

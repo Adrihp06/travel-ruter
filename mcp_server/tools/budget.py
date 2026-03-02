@@ -9,10 +9,11 @@ from typing import Optional, List
 from decimal import Decimal
 from collections import defaultdict
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Context
 from sqlalchemy import select, func
 
 from mcp_server.context import get_db_session
+from mcp_server.auth import get_user_id_from_context, verify_trip_access
 from mcp_server.schemas.budget import (
     CalculateBudgetInput,
     BudgetResult,
@@ -29,6 +30,7 @@ def register_tools(server: FastMCP):
     @server.tool()
     async def calculate_budget(
         trip_id: int,
+        ctx: Context,
         include_breakdown: bool = True,
     ) -> dict:
         """
@@ -52,8 +54,17 @@ def register_tools(server: FastMCP):
         from app.models.poi import POI
         from app.services.trip_service import TripService
 
+        user_id = get_user_id_from_context(ctx)
+
         async with get_db_session() as db:
             try:
+                # Access check
+                if user_id and not await verify_trip_access(db, trip_id, user_id, "viewer"):
+                    return {
+                        "error": "Access denied: you are not a member of this trip",
+                        "trip_id": trip_id,
+                    }
+
                 # Get trip
                 trip = await TripService.get_trip(db, trip_id)
                 if not trip:

@@ -8,9 +8,10 @@ import logging
 from typing import Optional, List
 from datetime import date
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Context
 
 from mcp_server.context import get_geocoding_service, get_db_session
+from mcp_server.auth import get_user_id_from_context, verify_trip_access
 from mcp_server.schemas.destinations import (
     SearchDestinationsInput,
     DestinationResult,
@@ -140,6 +141,7 @@ def register_tools(server: FastMCP):
     @server.tool()
     async def manage_destination(
         operation: str,
+        ctx: Context,
         destination_id: Optional[int] = None,
         trip_id: Optional[int] = None,
         city_name: Optional[str] = None,
@@ -231,8 +233,35 @@ def register_tools(server: FastMCP):
                     message=f"Invalid departure_date format: {departure_date}. Use YYYY-MM-DD.",
                 ).model_dump()
 
+        user_id = get_user_id_from_context(ctx)
+
         async with get_db_session() as db:
             try:
+                # For operations that use trip_id directly, check access upfront
+                if user_id and trip_id:
+                    min_role = "viewer" if op == DestinationOperation.LIST else "editor"
+                    if not await verify_trip_access(db, trip_id, user_id, min_role):
+                        return ManageDestinationOutput(
+                            operation=operation, success=False,
+                            message="Access denied: insufficient permissions on this trip",
+                        ).model_dump()
+
+                # For operations that use destination_id, look up trip_id and check
+                if user_id and destination_id and op in (
+                    DestinationOperation.READ, DestinationOperation.UPDATE, DestinationOperation.DELETE
+                ):
+                    dest_check = await db.execute(
+                        select(Destination).where(Destination.id == destination_id)
+                    )
+                    dest_obj = dest_check.scalar_one_or_none()
+                    if dest_obj:
+                        min_role = "viewer" if op == DestinationOperation.READ else "editor"
+                        if not await verify_trip_access(db, dest_obj.trip_id, user_id, min_role):
+                            return ManageDestinationOutput(
+                                operation=operation, success=False,
+                                message="Access denied: insufficient permissions on this trip",
+                            ).model_dump()
+
                 if op == DestinationOperation.CREATE:
                     if not trip_id:
                         return ManageDestinationOutput(
@@ -250,7 +279,6 @@ def register_tools(server: FastMCP):
                             message="arrival_date and departure_date are required for create operation",
                         ).model_dump()
 
-                    # Verify trip exists
                     trip_result = await db.execute(select(Trip).where(Trip.id == trip_id))
                     trip = trip_result.scalar_one_or_none()
                     if not trip:

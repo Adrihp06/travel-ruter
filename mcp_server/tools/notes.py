@@ -7,9 +7,10 @@ Provides CRUD operations for travel notes linked to trips, destinations, days, o
 import logging
 from typing import Optional, List
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Context
 
 from mcp_server.context import get_db_session
+from mcp_server.auth import get_user_id_from_context, verify_trip_access
 from mcp_server.schemas.notes import (
     NoteOperation,
     NoteResult,
@@ -43,6 +44,7 @@ def register_tools(server: FastMCP):
     @server.tool()
     async def manage_note(
         operation: str,
+        ctx: Context,
         note_id: Optional[int] = None,
         trip_id: Optional[int] = None,
         destination_id: Optional[int] = None,
@@ -113,8 +115,29 @@ def register_tools(server: FastMCP):
                 message=f"Invalid operation: {operation}. Must be one of: create, read, update, delete, list",
             ).model_dump()
 
+        user_id = get_user_id_from_context(ctx)
+
         async with get_db_session() as db:
             try:
+                # Access check
+                if user_id:
+                    check_trip_id = trip_id
+                    if not check_trip_id and note_id:
+                        note_check = await db.execute(
+                            select(Note).where(Note.id == note_id)
+                        )
+                        note_obj = note_check.scalar_one_or_none()
+                        if note_obj:
+                            check_trip_id = note_obj.trip_id
+
+                    if check_trip_id:
+                        min_role = "viewer" if op in (NoteOperation.READ, NoteOperation.LIST) else "editor"
+                        if not await verify_trip_access(db, check_trip_id, user_id, min_role):
+                            return ManageNoteOutput(
+                                operation=operation, success=False,
+                                message="Access denied: insufficient permissions on this trip",
+                            ).model_dump()
+
                 if op == NoteOperation.CREATE:
                     if not trip_id:
                         return ManageNoteOutput(

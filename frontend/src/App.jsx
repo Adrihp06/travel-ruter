@@ -16,6 +16,7 @@ const DetailView = lazy(() => import('./pages/DetailView'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const AISettingsPage = lazy(() => import('./pages/AISettingsPage'));
 const ExportWriterPage = lazy(() => import('./pages/ExportWriterPage'));
+const MCPAccessPage = lazy(() => import('./pages/MCPAccessPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'));
 
@@ -72,6 +73,7 @@ function App() {
                     <Route path="ai-settings" element={<AISettingsPage />} />
                     <Route path="export-writer" element={<ExportWriterPage />} />
                     <Route path="export-writer/:tripId" element={<ExportWriterPage />} />
+                    <Route path="mcp-access" element={<MCPAccessPage />} />
                     <Route path="*" element={<NotFoundPage />} />
                   </Route>
                 </Routes>

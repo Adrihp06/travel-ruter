@@ -230,6 +230,58 @@ services:
           memory: 64M
 
   # ===========================================
+  # MCP Remote Server (Production only)
+  # ===========================================
+  # Activated with: docker compose --profile prod up
+  # Exposes MCP tools via streamable-http for Claude Desktop/Code users.
+  mcp-remote:
+    build:
+      context: .
+      dockerfile: ./mcp_server/Dockerfile
+    image: adrihp06/travel-ruter-mcp-remote:latest
+    container_name: travel_ruter_mcp_remote
+    restart: unless-stopped
+    ports:
+      - "${MCP_REMOTE_PORT:-8002}:8002"
+    environment:
+      PYTHONPATH: /app
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-travel_ruter}
+      # JWT (must match backend SECRET_KEY)
+      JWT_SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set in .env}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      # MCP HTTP settings
+      MCP_HTTP_HOST: "0.0.0.0"
+      MCP_HTTP_PORT: 8002
+      MCP_AUTH_ISSUER_URL: ${MCP_AUTH_ISSUER_URL:-https://travelruter.com}
+      MCP_RESOURCE_SERVER_URL: ${MCP_RESOURCE_SERVER_URL:-https://travelruter.com/mcp}
+      # External APIs (forwarded to MCP tools)
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      OPENROUTESERVICE_API_KEY: ${OPENROUTESERVICE_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    networks:
+      - travel-ruter-network
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - prod
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+
+  # ===========================================
   # Cloudflare Tunnel (Production only)
   # ===========================================
   # Activated with: docker compose --profile prod up

@@ -9,9 +9,10 @@ from typing import Optional, List
 from datetime import date
 from decimal import Decimal
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Context
 
 from mcp_server.context import get_db_session
+from mcp_server.auth import get_user_id_from_context, verify_trip_access
 from mcp_server.schemas.trips import (
     ManageTripInput,
     ManageTripOutput,
@@ -79,6 +80,7 @@ def register_tools(server: FastMCP):
     @server.tool()
     async def manage_trip(
         operation: str,
+        ctx: Context,
         trip_id: Optional[int] = None,
         name: Optional[str] = None,
         location: Optional[str] = None,
@@ -188,6 +190,9 @@ def register_tools(server: FastMCP):
                     message=f"Invalid end_date format: {end_date}. Use YYYY-MM-DD.",
                 ).model_dump()
 
+        # Extract user_id from context (None in stdio mode = skip checks)
+        user_id = get_user_id_from_context(ctx)
+
         async with get_db_session() as db:
             try:
                 if op == TripOperation.CREATE:
@@ -235,7 +240,7 @@ def register_tools(server: FastMCP):
                         return_longitude=return_longitude,
                     )
 
-                    trip = await TripService.create_trip(db, trip_data)
+                    trip = await TripService.create_trip(db, trip_data, user_id=user_id)
                     result = await _trip_to_result(trip, db)
 
                     return ManageTripOutput(
@@ -251,6 +256,12 @@ def register_tools(server: FastMCP):
                             operation=operation,
                             success=False,
                             message="trip_id is required for read operation",
+                        ).model_dump()
+
+                    if user_id and not await verify_trip_access(db, trip_id, user_id, "viewer"):
+                        return ManageTripOutput(
+                            operation=operation, success=False,
+                            message="Access denied: you are not a member of this trip",
                         ).model_dump()
 
                     trip = await TripService.get_trip_with_destinations(db, trip_id)
@@ -276,6 +287,12 @@ def register_tools(server: FastMCP):
                             operation=operation,
                             success=False,
                             message="trip_id is required for update operation",
+                        ).model_dump()
+
+                    if user_id and not await verify_trip_access(db, trip_id, user_id, "editor"):
+                        return ManageTripOutput(
+                            operation=operation, success=False,
+                            message="Access denied: you need editor permissions on this trip",
                         ).model_dump()
 
                     # Confirmation guard: return preview without touching DB
@@ -361,6 +378,12 @@ def register_tools(server: FastMCP):
                             message="trip_id is required for delete operation",
                         ).model_dump()
 
+                    if user_id and not await verify_trip_access(db, trip_id, user_id, "owner"):
+                        return ManageTripOutput(
+                            operation=operation, success=False,
+                            message="Access denied: only the trip owner can delete it",
+                        ).model_dump()
+
                     # Get trip name before deletion
                     trip = await TripService.get_trip(db, trip_id)
                     if not trip:
@@ -398,7 +421,7 @@ def register_tools(server: FastMCP):
 
                 elif op == TripOperation.LIST:
                     trips_data, total_count = await TripService.get_trips_with_summary(
-                        db, skip=skip, limit=limit
+                        db, skip=skip, limit=limit, user_id=user_id,
                     )
 
                     trips = []

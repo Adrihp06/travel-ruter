@@ -31,6 +31,16 @@ class MCPSettings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_SEARCH_MODEL: str = "gpt-4.1-mini"
 
+    # JWT Authentication (shared SECRET_KEY with backend/orchestrator)
+    JWT_SECRET_KEY: Optional[str] = None
+    JWT_ALGORITHM: str = "HS256"
+
+    # HTTP transport settings (for remote MCP access)
+    MCP_HTTP_HOST: str = "0.0.0.0"
+    MCP_HTTP_PORT: int = 8002
+    MCP_AUTH_ISSUER_URL: str = "https://travelruter.com"
+    MCP_RESOURCE_SERVER_URL: str = "https://travelruter.com/mcp"
+
     # MCP-specific settings
     ENABLE_CACHING: bool = True
     CACHE_TTL_SECONDS: int = 300  # 5 minutes default

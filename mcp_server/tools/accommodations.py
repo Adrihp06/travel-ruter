@@ -8,9 +8,10 @@ import logging
 from typing import Optional, List, Any
 from datetime import date
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Context
 
 from mcp_server.context import get_db_session
+from mcp_server.auth import get_user_id_from_context, verify_trip_access, resolve_trip_id
 from mcp_server.schemas.accommodations import (
     AccommodationOperation,
     AccommodationResult,
@@ -52,6 +53,7 @@ def register_tools(server: FastMCP):
     @server.tool()
     async def manage_accommodation(
         operation: str,
+        ctx: Context,
         accommodation_id: Optional[int] = None,
         destination_id: Optional[int] = None,
         name: Optional[str] = None,
@@ -125,10 +127,6 @@ def register_tools(server: FastMCP):
         """
         logger.info(f"manage_accommodation called with operation={operation}, accommodation_id={accommodation_id}")
 
-        from sqlalchemy import select, func
-        from geoalchemy2.functions import ST_SetSRID, ST_MakePoint, ST_X, ST_Y
-        from app.models import Accommodation, Destination
-
         try:
             op = AccommodationOperation(operation.lower())
         except ValueError:
@@ -159,8 +157,30 @@ def register_tools(server: FastMCP):
                     message=f"Invalid check_out_date format: {check_out_date}. Use YYYY-MM-DD.",
                 ).model_dump()
 
+        from sqlalchemy import select, func
+        from geoalchemy2.functions import ST_SetSRID, ST_MakePoint, ST_X, ST_Y
+        from app.models import Accommodation, Destination
+
+        user_id = get_user_id_from_context(ctx)
+
         async with get_db_session() as db:
             try:
+                # Access check: resolve trip_id from destination or accommodation
+                if user_id:
+                    check_trip_id = await resolve_trip_id(
+                        db,
+                        destination_id=destination_id,
+                        entity_id=accommodation_id,
+                        entity_model=Accommodation,
+                    )
+                    if check_trip_id:
+                        min_role = "viewer" if op in (AccommodationOperation.READ, AccommodationOperation.LIST) else "editor"
+                        if not await verify_trip_access(db, check_trip_id, user_id, min_role):
+                            return ManageAccommodationOutput(
+                                operation=operation, success=False,
+                                message="Access denied: insufficient permissions on this trip",
+                            ).model_dump()
+
                 if op == AccommodationOperation.CREATE:
                     if not destination_id:
                         return ManageAccommodationOutput(

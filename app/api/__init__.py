@@ -21,6 +21,7 @@ from app.api.websocket import router as websocket_router
 from app.api.comments import router as comments_router
 from app.api.activity import router as activity_router
 from app.api.conversations import router as conversations_router
+from app.api.mcp_tokens import router as mcp_tokens_router
 
 api_router = APIRouter()
 
@@ -47,5 +48,6 @@ api_router.include_router(websocket_router, tags=["websocket"])
 api_router.include_router(comments_router, tags=["comments"])
 api_router.include_router(activity_router, tags=["activity"])
 api_router.include_router(conversations_router, tags=["conversations"])
+api_router.include_router(mcp_tokens_router, tags=["mcp-access"])
 
 __all__ = ["api_router"]
