@@ -442,6 +442,22 @@ def register_tools(server: FastMCP):
                         ).model_dump()
 
                     acc_name = db_acc.name
+
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would delete accommodation '{acc_name}' (ID {accommodation_id}). This cannot be undone. Please confirm to proceed.",
+                            "preview": {
+                                "accommodation_id": accommodation_id,
+                                "name": acc_name,
+                                "type": db_acc.type,
+                                "destination_id": db_acc.destination_id,
+                            },
+                        }
+
                     await db.delete(db_acc)
                     await db.flush()
 

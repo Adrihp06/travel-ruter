@@ -53,6 +53,7 @@ def register_tools(server: FastMCP):
         note_type: Optional[str] = None,
         is_pinned: Optional[bool] = None,
         tags: Optional[List[str]] = None,
+        confirmed: bool = False,
     ) -> dict:
         """
         Full note management - create, read, update, delete, or list travel notes.
@@ -79,6 +80,7 @@ def register_tools(server: FastMCP):
             note_type: general | destination | day | poi (auto-inferred if not set)
             is_pinned: Pin important notes to the top
             tags: Custom tags for categorization (e.g., ["transport", "tip"])
+            confirmed: Set to true after user confirms the action. Default false returns a preview for create/update/delete.
 
         Returns:
             - create: New note with ID
@@ -158,6 +160,24 @@ def register_tools(server: FastMCP):
                                 message=f"POI with ID {poi_id} not found",
                             ).model_dump()
 
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would create note '{title}' in trip {trip_id}. Please confirm to proceed.",
+                            "preview": {
+                                "trip_id": trip_id,
+                                "destination_id": destination_id,
+                                "poi_id": poi_id,
+                                "day_number": day_number,
+                                "title": title,
+                                "content": content,
+                                "note_type": note_type,
+                            },
+                        }
+
                     # Auto-infer note_type if not provided
                     effective_note_type = note_type
                     if not effective_note_type:
@@ -234,6 +254,26 @@ def register_tools(server: FastMCP):
                             message=f"Note with ID {note_id} not found",
                         ).model_dump()
 
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        updates = {k: v for k, v in {
+                            "title": title, "content": content,
+                            "note_type": note_type, "destination_id": destination_id,
+                            "poi_id": poi_id, "day_number": day_number,
+                            "is_pinned": is_pinned, "tags": tags,
+                        }.items() if v is not None}
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would update note '{db_note.title}' (ID {note_id}). Please confirm to proceed.",
+                            "preview": {
+                                "note_id": note_id,
+                                "current_title": db_note.title,
+                                "updates": updates,
+                            },
+                        }
+
                     # Update provided fields
                     if title is not None:
                         db_note.title = title
@@ -280,6 +320,21 @@ def register_tools(server: FastMCP):
                         ).model_dump()
 
                     note_title = db_note.title
+
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would delete note '{note_title}' (ID {note_id}). This cannot be undone. Please confirm to proceed.",
+                            "preview": {
+                                "note_id": note_id,
+                                "title": note_title,
+                                "trip_id": db_note.trip_id,
+                            },
+                        }
+
                     await db.delete(db_note)
                     await db.flush()
 
