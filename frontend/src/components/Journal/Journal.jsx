@@ -130,12 +130,11 @@ const Journal = ({
     try {
       await deleteNote(noteId);
       setSelectedNote(null);
-      fetchTripNotesGrouped(tripId);
       fetchNoteStats(tripId);
     } catch (error) {
       console.error('Failed to delete note:', error);
     }
-  }, [deleteNote, tripId, fetchTripNotesGrouped, fetchNoteStats]);
+  }, [deleteNote, tripId, fetchNoteStats]);
 
   // Handle pin toggle
   const handleTogglePin = useCallback(async (noteId) => {

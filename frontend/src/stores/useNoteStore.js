@@ -219,7 +219,7 @@ const useNoteStore = create((set, get) => ({
 
   // Delete a note
   deleteNote: async (noteId) => {
-    set({ isLoading: true, error: null });
+    set({ error: null });
     try {
       const response = await authFetch(`${API_BASE_URL}/notes/${noteId}`, {
         method: 'DELETE',
@@ -229,15 +229,30 @@ const useNoteStore = create((set, get) => ({
         throw new Error('Failed to delete note');
       }
 
-      set((state) => ({
-        notes: state.notes.filter((n) => n.id !== noteId),
-        selectedNote: state.selectedNote?.id === noteId
-          ? null
-          : state.selectedNote,
-        isLoading: false,
-      }));
+      // Optimistically remove from all state slices to avoid refetch race conditions
+      set((state) => {
+        const filterOut = (notes) => notes ? notes.filter((n) => n.id !== noteId) : notes;
+        const updatedGrouped = state.groupedNotes ? {
+          ...state.groupedNotes,
+          trip_level: filterOut(state.groupedNotes.trip_level),
+          pinned: filterOut(state.groupedNotes.pinned),
+          by_destination: state.groupedNotes.by_destination?.map((d) => ({
+            ...d,
+            notes: filterOut(d.notes),
+          })),
+          total_count: Math.max(0, (state.groupedNotes.total_count || 0) - 1),
+        } : null;
+
+        return {
+          notes: state.notes.filter((n) => n.id !== noteId),
+          groupedNotes: updatedGrouped,
+          selectedNote: state.selectedNote?.id === noteId
+            ? null
+            : state.selectedNote,
+        };
+      });
     } catch (error) {
-      set({ error: error.message, isLoading: false });
+      set({ error: error.message });
       throw error;
     }
   },

@@ -301,13 +301,13 @@ class NoteService:
         if not note:
             return False
 
-        # Delete associated media files from disk
+        # Delete associated media files from disk (async to avoid blocking event loop)
         if note.media_files:
             for media in note.media_files:
                 file_path = media.get('file_path')
-                if file_path and os.path.exists(file_path):
+                if file_path:
                     try:
-                        os.remove(file_path)
+                        await aiofiles.os.remove(file_path)
                     except OSError:
                         pass  # Continue even if file deletion fails
 
