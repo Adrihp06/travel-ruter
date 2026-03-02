@@ -9,7 +9,6 @@ import {
   Pin,
 } from 'lucide-react';
 import XIcon from '@/components/icons/x-icon';
-import GlobeIcon from '@/components/icons/globe-icon';
 import RichTextEditor from './RichTextEditor';
 import Spinner from '../UI/Spinner';
 
@@ -76,7 +75,29 @@ const NoteFormModal = ({
     }
   }, [isOpen, note, preselectedDestinationId, preselectedDayNumber, preselectedPoiId]);
 
-  // Get available POIs based on selected destination
+  // Compute available days for the selected destination
+  const selectedDestination = destinations.find(d => d.id === formData.destination_id);
+  const destinationDays = React.useMemo(() => {
+    if (!selectedDestination?.arrival_date || !selectedDestination?.departure_date) return [];
+    const arrival = new Date(selectedDestination.arrival_date + 'T00:00:00');
+    const departure = new Date(selectedDestination.departure_date + 'T00:00:00');
+    if (isNaN(arrival) || isNaN(departure)) return [];
+
+    const days = [];
+    let dayNumber = 1;
+    const current = new Date(arrival);
+    while (current < departure) {
+      const year = current.getFullYear();
+      const month = String(current.getMonth() + 1).padStart(2, '0');
+      const day = String(current.getDate()).padStart(2, '0');
+      days.push({ dayNumber, date: `${year}-${month}-${day}` });
+      current.setDate(current.getDate() + 1);
+      dayNumber++;
+    }
+    return days;
+  }, [selectedDestination?.arrival_date, selectedDestination?.departure_date]);
+
+  // Get available POIs based on selected destination and day
   // POIs may come as either flat array or array of category groups
   const flattenedPois = React.useMemo(() => {
     if (!pois || pois.length === 0) return [];
@@ -88,9 +109,19 @@ const NoteFormModal = ({
     return pois;
   }, [pois]);
 
-  const availablePois = formData.destination_id
-    ? flattenedPois.filter(p => p.destination_id === formData.destination_id)
-    : flattenedPois;
+  const availablePois = React.useMemo(() => {
+    let filtered = flattenedPois;
+    if (formData.destination_id) {
+      filtered = filtered.filter(p => p.destination_id === formData.destination_id);
+    }
+    if (formData.day_number && destinationDays.length > 0) {
+      const selectedDay = destinationDays.find(d => d.dayNumber === formData.day_number);
+      if (selectedDay) {
+        filtered = filtered.filter(p => p.scheduled_date === selectedDay.date);
+      }
+    }
+    return filtered;
+  }, [flattenedPois, formData.destination_id, formData.day_number, destinationDays]);
 
   const handleChange = (field, value) => {
     setFormData(prev => {
@@ -107,10 +138,11 @@ const NoteFormModal = ({
 
       // Clear dependent fields when parent changes
       if (field === 'destination_id') {
+        updated.day_number = null;
         updated.poi_id = null;
-        if (!value) {
-          updated.day_number = null;
-        }
+      }
+      if (field === 'day_number') {
+        updated.poi_id = null;
       }
 
       return updated;
@@ -230,17 +262,21 @@ const NoteFormModal = ({
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   {t('journal.day')}
                 </label>
-                <input
-                  type="number"
-                  min="1"
+                <select
                   value={formData.day_number || ''}
                   onChange={(e) => handleChange('day_number', e.target.value ? Number(e.target.value) : null)}
-                  disabled={!formData.destination_id}
-                  placeholder={t('journal.dayNumber')}
+                  disabled={!formData.destination_id || destinationDays.length === 0}
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] bg-white dark:bg-gray-700 text-gray-900 dark:text-white ${
-                    !formData.destination_id ? 'opacity-50' : ''
+                    !formData.destination_id || destinationDays.length === 0 ? 'opacity-50' : ''
                   } ${errors.day_number ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'}`}
-                />
+                >
+                  <option value="">{t('common.none')}</option>
+                  {destinationDays.map((day) => (
+                    <option key={day.dayNumber} value={day.dayNumber}>
+                      {t('journal.dayLabel', { number: day.dayNumber })} - {day.date}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

@@ -480,6 +480,7 @@
     "pin": "Pin",
     "tripLevel": "Trip level",
     "dayNumber": "Day #",
+    "dayLabel": "Day {{number}}",
     "dayRequiresDestination": "Day number requires a destination",
     "poiRequiresDestination": "POI requires a destination",
     "deleteConfirm": "Delete this note? This action cannot be undone.",

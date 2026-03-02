@@ -480,6 +480,7 @@
     "pin": "Fijar",
     "tripLevel": "Nivel de viaje",
     "dayNumber": "D\u00eda #",
+    "dayLabel": "D\u00eda {{number}}",
     "dayRequiresDestination": "El n\u00famero de d\u00eda requiere un destino",
     "poiRequiresDestination": "El POI requiere un destino",
     "deleteConfirm": "\u00bfEliminar esta nota? Esta acci\u00f3n no se puede deshacer.",
