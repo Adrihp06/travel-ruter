@@ -1351,7 +1351,7 @@ const TripMap = ({
 
       {/* Overlay hint when in add mode - Enhanced styling */}
       {isAddMode && (
-        <div className="absolute top-4 left-1/2 z-20">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
           <div className="add-mode-overlay">
             <Plus className="w-4 h-4" />
             <span>{t('map.clickToAddDestination')}</span>
