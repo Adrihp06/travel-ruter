@@ -21,8 +21,8 @@ const ORCHESTRATOR_URL = _RAW_ORCHESTRATOR_URL.startsWith('http')
 // Provider info for display (no key input — keys are managed per-trip)
 const PROVIDERS = [
   { id: 'anthropic', name: 'Anthropic (Claude)', models: ['Claude Opus 4.6', 'Claude Sonnet 4.5', 'Claude Haiku 4.5'] },
-  { id: 'openai', name: 'OpenAI (Chat + POI Search)', models: ['GPT-5.2', 'GPT-5.2 Codex', 'o3', 'o4-mini', 'GPT-4.1'] },
-  { id: 'google', name: 'Google (Gemini)', models: ['Gemini 3 Flash', 'Gemini 3 Pro', 'Gemini 2.5 Pro', 'Gemini 2.5 Flash'] },
+  { id: 'openai', name: 'OpenAI (Chat + POI Search)', models: ['GPT-5.2', 'GPT-5.2 Codex', 'o3', 'o4-mini'] },
+  { id: 'google', name: 'Google (Gemini)', models: ['Gemini 3 Flash', 'Gemini 3 Pro', 'Gemini 2.5 Pro'] },
 ];
 
 const AISettingsSection = ({ settings, updateSetting }) => {
