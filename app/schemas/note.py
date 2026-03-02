@@ -9,6 +9,7 @@ class NoteTypeEnum(str, Enum):
     DESTINATION = "destination"
     DAY = "day"
     POI = "poi"
+    EXPORT_DRAFT = "export_draft"
 
 
 class MediaFile(BaseModel):

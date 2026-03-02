@@ -1,13 +1,16 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Bot, MapPin } from 'lucide-react';
 import useExportWriterStore from '../../stores/useExportWriterStore';
 import useDestinationStore from '../../stores/useDestinationStore';
 import DocumentTree from './DocumentTree';
 import MarkdownEditorPanel from './MarkdownEditorPanel';
 import WritingAssistantPanel from './WritingAssistantPanel';
+import TravelContextPanel from './TravelContextPanel';
 
 const ExportWriterView = ({ tripId, trip }) => {
   const { loadDocuments, reset } = useExportWriterStore();
   const { destinations, fetchDestinations } = useDestinationStore();
+  const [activeTab, setActiveTab] = useState('assistant');
 
   // Ref to forward actions from editor toolbar → writing assistant
   const writingAssistantRef = useRef(null);
@@ -31,11 +34,13 @@ const ExportWriterView = ({ tripId, trip }) => {
 
   // Callback: toolbar "Generate Draft" → writing assistant generates
   const handleGenerateDraft = (doc) => {
+    setActiveTab('assistant');
     writingAssistantRef.current?.triggerGenerateDraft(doc);
   };
 
   // Callback: toolbar "Improve" → writing assistant improves current content
   const handleImprove = (doc) => {
+    setActiveTab('assistant');
     writingAssistantRef.current?.triggerImprove(doc);
   };
 
@@ -56,13 +61,49 @@ const ExportWriterView = ({ tripId, trip }) => {
         />
       </div>
 
-      {/* Right panel: Writing Assistant (~320px) */}
+      {/* Right panel: Tabbed — Writing Assistant | Travel Data (~320px) */}
       <div className="w-80 flex-shrink-0 overflow-hidden flex flex-col bg-gray-50 dark:bg-gray-900">
-        <WritingAssistantPanel
-          ref={writingAssistantRef}
-          trip={trip}
-          destinations={destinations || []}
-        />
+        {/* Tab bar */}
+        <div className="flex border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <button
+            onClick={() => setActiveTab('assistant')}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium transition-colors ${
+              activeTab === 'assistant'
+                ? 'text-amber-700 dark:text-amber-400 border-b-2 border-amber-600 dark:border-amber-400 bg-white dark:bg-gray-900'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            <Bot className="w-3.5 h-3.5" />
+            Writing Assistant
+          </button>
+          <button
+            onClick={() => setActiveTab('context')}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium transition-colors ${
+              activeTab === 'context'
+                ? 'text-amber-700 dark:text-amber-400 border-b-2 border-amber-600 dark:border-amber-400 bg-white dark:bg-gray-900'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            <MapPin className="w-3.5 h-3.5" />
+            Travel Data
+          </button>
+        </div>
+
+        {/* Tab content */}
+        {/* Both panels stay mounted; hidden panel uses display:none to preserve WS state */}
+        <div className={`flex-1 overflow-hidden ${activeTab !== 'assistant' ? 'hidden' : ''}`}>
+          <WritingAssistantPanel
+            ref={writingAssistantRef}
+            trip={trip}
+            destinations={destinations || []}
+          />
+        </div>
+        <div className={`flex-1 overflow-hidden ${activeTab !== 'context' ? 'hidden' : ''}`}>
+          <TravelContextPanel
+            trip={trip}
+            destinations={destinations || []}
+          />
+        </div>
       </div>
     </div>
   );

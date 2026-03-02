@@ -3,9 +3,11 @@
  * Uses its own WebSocket session separate from the main AI chat.
  */
 import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { Sparkles, PenLine, Plus, Send, Loader2, Bot } from 'lucide-react';
+import { Sparkles, PenLine, Plus, Send, Loader2, Bot, ClipboardPaste } from 'lucide-react';
 import useExportWriterStore, { WRITING_SYSTEM_PROMPT } from '../../stores/useExportWriterStore';
 import useAuthStore from '../../stores/useAuthStore';
+import usePOIStore from '../../stores/usePOIStore';
+import useAccommodationStore from '../../stores/useAccommodationStore';
 
 const ORCHESTRATOR_URL = import.meta.env.VITE_ORCHESTRATOR_URL || 'http://localhost:3001';
 const WS_URL = ORCHESTRATOR_URL.startsWith('http')
@@ -28,23 +30,46 @@ function buildTripContext(trip, destinations) {
   };
 }
 
-function buildDocumentContext(doc, destinations) {
+function buildDocumentContext(doc, destinations, pois, accommodations) {
   if (!doc) return '';
   const dest = doc.destinationId
     ? destinations?.find((d) => d.id === doc.destinationId)
     : null;
 
+  let ctx = '';
   if (dest) {
-    return `Document: "${doc.title}" (${dest.city_name}, ${dest.country || ''})
+    ctx = `Document: "${doc.title}" (${dest.city_name}, ${dest.country || ''})
 Dates: ${dest.arrival_date} – ${dest.departure_date}
 Current content (${doc.content?.length || 0} chars): ${doc.content?.slice(0, 200) || '(empty)'}`;
-  }
-  return `Document: "${doc.title}" (Trip Overview)
+  } else {
+    ctx = `Document: "${doc.title}" (Trip Overview)
 Current content (${doc.content?.length || 0} chars): ${doc.content?.slice(0, 200) || '(empty)'}`;
+  }
+
+  // Append POI data if available
+  if (pois && pois.length > 0) {
+    const poiLines = pois.map((group) => {
+      const names = group.pois.map((p) => p.name).join(', ');
+      return `  ${group.category}: ${names}`;
+    }).join('\n');
+    ctx += `\n\nPlaces of Interest:\n${poiLines}`;
+  }
+
+  // Append accommodation data if available
+  if (accommodations && accommodations.length > 0) {
+    const accLines = accommodations.map((a) => {
+      const dates = [a.check_in_date, a.check_out_date].filter(Boolean).join(' – ');
+      return `  ${a.name}${dates ? ` (${dates})` : ''}${a.address ? ` — ${a.address}` : ''}`;
+    }).join('\n');
+    ctx += `\n\nAccommodations:\n${accLines}`;
+  }
+
+  return ctx;
 }
 
-function MessageBubble({ msg }) {
+function MessageBubble({ msg, onApply }) {
   const isUser = msg.role === 'user';
+  const showApply = !isUser && !msg.isStreaming && msg.content && onApply;
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-3`}>
       {!isUser && (
@@ -52,16 +77,27 @@ function MessageBubble({ msg }) {
           <Bot className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
         </div>
       )}
-      <div
-        className={`max-w-[85%] px-3 py-2 rounded-xl text-xs leading-relaxed whitespace-pre-wrap ${
-          isUser
-            ? 'bg-amber-600 text-white rounded-br-none'
-            : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'
-        }`}
-      >
-        {msg.content}
-        {msg.isStreaming && (
-          <span className="inline-block w-1.5 h-3.5 bg-current ml-0.5 animate-pulse rounded-sm" />
+      <div className="max-w-[85%]">
+        <div
+          className={`px-3 py-2 rounded-xl text-xs leading-relaxed whitespace-pre-wrap ${
+            isUser
+              ? 'bg-amber-600 text-white rounded-br-none'
+              : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none'
+          }`}
+        >
+          {msg.content}
+          {msg.isStreaming && (
+            <span className="inline-block w-1.5 h-3.5 bg-current ml-0.5 animate-pulse rounded-sm" />
+          )}
+        </div>
+        {showApply && (
+          <button
+            onClick={() => onApply(msg.content)}
+            className="mt-1 flex items-center gap-1 px-2 py-1 text-[10px] text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition-colors"
+          >
+            <ClipboardPaste className="w-3 h-3" />
+            Apply to editor
+          </button>
         )}
       </div>
     </div>
@@ -77,12 +113,18 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
 
   const wsRef = useRef(null);
   const streamingIdRef = useRef(null);
+  const streamingContentRef = useRef('');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const autoApplyRef = useRef(false);
 
-  const { documents, selectedDocId } = useExportWriterStore();
+  const { documents, selectedDocId, updateContent } = useExportWriterStore();
   const selectedDoc = selectedDocId ? documents[selectedDocId] : null;
   const { accessToken } = useAuthStore();
+
+  // Travel data for enriched AI context
+  const pois = usePOIStore((s) => s.pois);
+  const accommodations = useAccommodationStore((s) => s.accommodations);
 
   // Auto-scroll
   useEffect(() => {
@@ -165,6 +207,7 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
 
       case 'start': {
         streamingIdRef.current = data.messageId;
+        streamingContentRef.current = '';
         setMessages((prev) => [
           ...prev,
           { id: data.messageId, role: 'assistant', content: '', isStreaming: true },
@@ -174,11 +217,12 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
       }
 
       case 'chunk': {
-        if (data.text && streamingIdRef.current) {
+        if (data.content && streamingIdRef.current) {
+          streamingContentRef.current += data.content;
           setMessages((prev) =>
             prev.map((m) =>
               m.id === streamingIdRef.current
-                ? { ...m, content: m.content + data.text }
+                ? { ...m, content: m.content + data.content }
                 : m
             )
           );
@@ -187,12 +231,22 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
       }
 
       case 'end': {
+        const finishedId = streamingIdRef.current;
+        const shouldApply = autoApplyRef.current && selectedDocId;
+        const finalContent = streamingContentRef.current;
+        autoApplyRef.current = false;
+
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === streamingIdRef.current ? { ...m, isStreaming: false } : m
+            m.id === finishedId ? { ...m, isStreaming: false } : m
           )
         );
+        // Apply content to editor outside the state updater
+        if (shouldApply && finalContent) {
+          updateContent(selectedDocId, finalContent);
+        }
         streamingIdRef.current = null;
+        streamingContentRef.current = '';
         setIsLoading(false);
         break;
       }
@@ -287,38 +341,40 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
     }
   };
 
-  // Expose imperative actions to parent (via ref from ExportWriterView)
-  useImperativeHandle(ref, () => ({
-    triggerGenerateDraft: (doc) => {
-      if (!doc) return;
-      const docCtx = buildDocumentContext(doc, destinations);
-      const prompt = `Please write a complete travel document draft in markdown for: ${docCtx}
+  // Apply AI content to the editor
+  const applyToEditor = useCallback((content) => {
+    if (selectedDocId && content) {
+      updateContent(selectedDocId, content);
+    }
+  }, [selectedDocId, updateContent]);
 
-Write an engaging, informative document in first person with proper markdown headings, paragraphs, and bullet points. Include highlights, practical tips, and personal observations. Write at least 300 words.`;
-      sendMessage(prompt);
-    },
-    triggerImprove: (doc) => {
-      if (!doc || !doc.content) return;
-      const prompt = `Please improve the following travel document. Make it more engaging, better structured, and more detailed. Keep the markdown format:\n\n${doc.content}`;
-      sendMessage(prompt);
-    },
-  }), [sendMessage, destinations]);
-
-  // Quick action handlers
-  const handleGenerateDraft = () => {
-    if (!selectedDoc) return;
-    const docCtx = buildDocumentContext(selectedDoc, destinations);
+  // Shared prompt builders (used by both imperative handle and quick actions)
+  const generateDraft = useCallback((doc) => {
+    if (!doc) return;
+    autoApplyRef.current = true;
+    const docCtx = buildDocumentContext(doc, destinations, pois, accommodations);
     const prompt = `Please write a complete travel document draft in markdown for: ${docCtx}
 
 Write an engaging, informative document in first person with proper markdown headings, paragraphs, and bullet points. Include highlights, practical tips, and personal observations. Write at least 300 words.`;
     sendMessage(prompt);
-  };
+  }, [sendMessage, destinations, pois, accommodations]);
 
-  const handleImprove = () => {
-    if (!selectedDoc || !selectedDoc.content) return;
-    const prompt = `Please improve the following travel document. Make it more engaging, better structured, and more detailed. Keep the markdown format:\n\n${selectedDoc.content}`;
+  const improveDraft = useCallback((doc) => {
+    if (!doc || !doc.content) return;
+    autoApplyRef.current = true;
+    const prompt = `Please improve the following travel document. Make it more engaging, better structured, and more detailed. Keep the markdown format:\n\n${doc.content}`;
     sendMessage(prompt);
-  };
+  }, [sendMessage]);
+
+  // Expose imperative actions to parent (via ref from ExportWriterView)
+  useImperativeHandle(ref, () => ({
+    triggerGenerateDraft: generateDraft,
+    triggerImprove: improveDraft,
+  }), [generateDraft, improveDraft]);
+
+  // Quick action handlers
+  const handleGenerateDraft = () => generateDraft(selectedDoc);
+  const handleImprove = () => improveDraft(selectedDoc);
 
   const handleAddDetails = () => {
     if (!selectedDoc) return;
@@ -381,7 +437,7 @@ Write an engaging, informative document in first person with proper markdown hea
           </div>
         )}
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} />
+          <MessageBubble key={msg.id} msg={msg} onApply={applyToEditor} />
         ))}
         <div ref={messagesEndRef} />
       </div>
