@@ -99,6 +99,7 @@ def register_tools(server: FastMCP):
         return_longitude: Optional[float] = None,
         skip: int = 0,
         limit: int = 100,
+        confirmed: bool = False,
     ) -> dict:
         """
         Full trip management - create, read, update, delete, or list trips.
@@ -134,6 +135,9 @@ def register_tools(server: FastMCP):
             # For list:
             skip: Pagination offset (default 0)
             limit: Max results (default 100)
+
+            # Confirmation:
+            confirmed: Set to true after user confirms the action. Default false returns a preview for create/update/delete.
 
         Returns:
             - create: New trip with ID
@@ -193,6 +197,24 @@ def register_tools(server: FastMCP):
                             success=False,
                             message="name is required for create operation",
                         ).model_dump()
+
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would create trip '{name}'. Please confirm to proceed.",
+                            "preview": {
+                                "name": name,
+                                "location": location,
+                                "start_date": start_date,
+                                "end_date": end_date,
+                                "total_budget": total_budget,
+                                "currency": currency or "EUR",
+                                "tags": tags,
+                            },
+                        }
 
                     trip_data = TripCreate(
                         name=name,
@@ -255,6 +277,25 @@ def register_tools(server: FastMCP):
                             success=False,
                             message="trip_id is required for update operation",
                         ).model_dump()
+
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        updates = {k: v for k, v in {
+                            "name": name, "location": location,
+                            "start_date": start_date, "end_date": end_date,
+                            "total_budget": total_budget, "currency": currency,
+                            "status": status, "tags": tags,
+                        }.items() if v is not None}
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would update trip {trip_id}. Please confirm to proceed.",
+                            "preview": {
+                                "trip_id": trip_id,
+                                "updates": updates,
+                            },
+                        }
 
                     # Build update data with only provided fields
                     update_dict = {}
@@ -330,6 +371,23 @@ def register_tools(server: FastMCP):
                         ).model_dump()
 
                     trip_name = trip.name
+
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would delete trip '{trip_name}' (ID {trip_id}) and all its data. This cannot be undone. Please confirm to proceed.",
+                            "preview": {
+                                "trip_id": trip_id,
+                                "name": trip_name,
+                                "location": trip.location,
+                                "start_date": str(trip.start_date) if trip.start_date else None,
+                                "end_date": str(trip.end_date) if trip.end_date else None,
+                            },
+                        }
+
                     deleted = await TripService.delete_trip(db, trip_id)
 
                     return ManageTripOutput(

@@ -152,6 +152,7 @@ def register_tools(server: FastMCP):
         order_index: Optional[int] = None,
         name: Optional[str] = None,
         description: Optional[str] = None,
+        confirmed: bool = False,
     ) -> dict:
         """
         Full destination management - create, read, update, delete, or list destinations within a trip.
@@ -177,6 +178,7 @@ def register_tools(server: FastMCP):
             order_index: Position in trip itinerary (0-based)
             name: Display name (if different from city_name)
             description: Description text
+            confirmed: Set to true after user confirms the action. Default false returns a preview for create/update/delete.
 
         Returns:
             - create: New destination with ID
@@ -264,6 +266,24 @@ def register_tools(server: FastMCP):
                         )
                         order_index = count_result.scalar() or 0
 
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would add destination '{city_name}' to trip {trip_id}. Please confirm to proceed.",
+                            "preview": {
+                                "trip_id": trip_id,
+                                "city_name": city_name,
+                                "country": country,
+                                "arrival_date": arrival_date,
+                                "departure_date": departure_date,
+                                "latitude": latitude,
+                                "longitude": longitude,
+                            },
+                        }
+
                     db_dest = Destination(
                         trip_id=trip_id,
                         city_name=city_name,
@@ -336,6 +356,26 @@ def register_tools(server: FastMCP):
                             message=f"Destination with ID {destination_id} not found",
                         ).model_dump()
 
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        updates = {k: v for k, v in {
+                            "city_name": city_name, "country": country,
+                            "arrival_date": arrival_date, "departure_date": departure_date,
+                            "latitude": latitude, "longitude": longitude,
+                            "notes": notes, "order_index": order_index,
+                        }.items() if v is not None}
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would update destination '{db_dest.city_name}' (ID {destination_id}). Please confirm to proceed.",
+                            "preview": {
+                                "destination_id": destination_id,
+                                "current_name": db_dest.city_name,
+                                "updates": updates,
+                            },
+                        }
+
                     # Update provided fields
                     if city_name is not None:
                         db_dest.city_name = city_name
@@ -392,6 +432,21 @@ def register_tools(server: FastMCP):
                         ).model_dump()
 
                     dest_name = db_dest.city_name
+
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would delete destination '{dest_name}' (ID {destination_id}) and all its POIs. This cannot be undone. Please confirm to proceed.",
+                            "preview": {
+                                "destination_id": destination_id,
+                                "city_name": dest_name,
+                                "country": db_dest.country,
+                                "trip_id": db_dest.trip_id,
+                            },
+                        }
 
                     # Delete related travel segments
                     await db.execute(

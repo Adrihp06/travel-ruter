@@ -21,7 +21,8 @@ const QuickPOISearch = ({
   location = null,
   radius = 5000,
   className = "",
-  initialMinimized = true
+  initialMinimized = true,
+  onExpandedChange = null,
 }) => {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(!initialMinimized);
@@ -146,10 +147,12 @@ const QuickPOISearch = ({
   };
 
   const toggleExpand = () => {
-    setIsExpanded(!isExpanded);
-    if (isExpanded) {
+    const next = !isExpanded;
+    setIsExpanded(next);
+    if (!next) {
       clearSearch();
     }
+    onExpandedChange?.(next);
   };
 
   if (!isExpanded) {

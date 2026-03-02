@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import useNotificationStore from '../../stores/useNotificationStore';
 import NotificationPanel from './NotificationPanel';
 
-export default function NotificationBell() {
+export default function NotificationBell({ position = 'bottom-right' }) {
   const { t } = useTranslation();
   const { unreadCount, fetchUnreadCount } = useNotificationStore();
   const [isOpen, setIsOpen] = useState(false);
@@ -30,7 +30,7 @@ export default function NotificationBell() {
           </span>
         )}
       </button>
-      {isOpen && <NotificationPanel onClose={() => setIsOpen(false)} />}
+      {isOpen && <NotificationPanel onClose={() => setIsOpen(false)} position={position} />}
     </div>
   );
 }

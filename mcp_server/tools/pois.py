@@ -337,6 +337,7 @@ def register_tools(server: FastMCP):
         external_id: Optional[str] = None,
         external_source: Optional[str] = None,
         metadata_json: Optional[dict] = None,
+        confirmed: bool = False,
     ) -> dict:
         """
         Full POI management - create, read, update, delete, or list Points of Interest.
@@ -368,6 +369,7 @@ def register_tools(server: FastMCP):
             external_id: Google Place ID or other external reference
             external_source: Source of external_id (e.g., "google_places")
             metadata_json: Additional metadata dict (ratings, photos, etc.)
+            confirmed: Set to true after user confirms the action. Default false returns a preview.
 
         Returns:
             - create: New POI with ID and coordinates
@@ -451,6 +453,26 @@ def register_tools(server: FastMCP):
                             operation=operation, success=False,
                             message=f"Destination with ID {destination_id} not found",
                         ).model_dump()
+
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would create POI '{name}' ({category}) in destination {destination_id}. Please confirm to proceed.",
+                            "preview": {
+                                "destination_id": destination_id,
+                                "name": name,
+                                "category": category,
+                                "address": address,
+                                "latitude": latitude,
+                                "longitude": longitude,
+                                "estimated_cost": estimated_cost,
+                                "currency": currency or "USD",
+                                "dwell_time": dwell_time,
+                            },
+                        }
 
                     db_poi = POI(
                         destination_id=destination_id,
@@ -540,6 +562,28 @@ def register_tools(server: FastMCP):
                             message=f"POI with ID {poi_id} not found",
                         ).model_dump()
 
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        updates = {k: v for k, v in {
+                            "name": name, "category": category, "description": description,
+                            "address": address, "latitude": latitude, "longitude": longitude,
+                            "estimated_cost": estimated_cost, "currency": currency,
+                            "dwell_time": dwell_time, "scheduled_date": scheduled_date,
+                            "day_order": day_order, "is_anchored": is_anchored,
+                            "anchored_time": anchored_time,
+                        }.items() if v is not None}
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would update POI '{db_poi.name}' (ID {poi_id}). Please confirm to proceed.",
+                            "preview": {
+                                "poi_id": poi_id,
+                                "current_name": db_poi.name,
+                                "updates": updates,
+                            },
+                        }
+
                     # Update provided fields
                     if name is not None:
                         db_poi.name = name
@@ -614,6 +658,22 @@ def register_tools(server: FastMCP):
                         ).model_dump()
 
                     poi_name = db_poi.name
+
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would delete POI '{poi_name}' (ID {poi_id}). This cannot be undone. Please confirm to proceed.",
+                            "preview": {
+                                "poi_id": poi_id,
+                                "name": poi_name,
+                                "category": db_poi.category,
+                                "destination_id": db_poi.destination_id,
+                            },
+                        }
+
                     await db.delete(db_poi)
                     await db.flush()
 
@@ -671,6 +731,7 @@ def register_tools(server: FastMCP):
     async def schedule_pois(
         destination_id: int,
         assignments: List[Dict[str, Any]],
+        confirmed: bool = False,
     ) -> dict:
         """
         Bulk-update POI schedules for a destination.
@@ -721,6 +782,20 @@ def register_tools(server: FastMCP):
                         message=f"Destination with ID {destination_id} not found",
                         updated_count=0,
                     ).model_dump()
+
+                # Confirmation guard: return preview without touching DB
+                if not confirmed:
+                    return {
+                        "operation": "schedule",
+                        "success": False,
+                        "requires_confirmation": True,
+                        "message": f"CONFIRMATION REQUIRED: Would schedule {len(assignments)} POIs in destination {destination_id}. Please confirm to proceed.",
+                        "preview": {
+                            "destination_id": destination_id,
+                            "assignment_count": len(assignments),
+                            "assignments": assignments,
+                        },
+                    }
 
                 updated_pois = []
                 errors = []

@@ -84,7 +84,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                   {user.display_name || user.email}
                 </p>
               </div>
-              <NotificationBell />
+              <NotificationBell position="top-left" />
               <button
                 onClick={handleLogout}
                 className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 transition-colors"

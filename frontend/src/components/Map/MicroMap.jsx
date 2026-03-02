@@ -976,6 +976,7 @@ const MicroMap = ({
   const [bounds, setBounds] = useState(null);
   const [searchedPlace, setSearchedPlace] = useState(null);
   const [highlightedPOI, setHighlightedPOI] = useState(null);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const mapRef = useRef(null);
   const hoverTimeoutRef = useRef(null);
 
@@ -1442,30 +1443,29 @@ const MicroMap = ({
       className={`relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 ${className}`}
       style={{ height }}
     >
-      {/* Quick POI Search */}
-      <div className="absolute top-3 right-3 z-20 w-full max-w-[280px] sm:max-w-md pointer-events-none">
-        <div className="pointer-events-auto flex justify-end">
-          <QuickPOISearch 
+      {/* Map Top-Right Controls: Add POI + Quick Search */}
+      <div className="absolute top-3 right-3 z-20 max-w-[calc(100%-1.5rem)] sm:max-w-md flex items-center gap-2 pointer-events-none">
+        {enableAddPOI && onAddPOI && !isAddMode && !isSearchExpanded && (
+          <button
+            onClick={toggleAddMode}
+            className="pointer-events-auto shrink-0 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2.5 rounded-xl shadow-lg flex items-center space-x-1.5 text-sm font-medium transition-colors border border-gray-200 dark:border-gray-600"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add POI</span>
+          </button>
+        )}
+        <div className="pointer-events-auto">
+          <QuickPOISearch
             location={destinationCoords}
             onSelect={handleQuickSearchSelect}
             initialMinimized={true}
+            onExpandedChange={setIsSearchExpanded}
           />
         </div>
       </div>
 
       {/* Add POI Mode Overlay */}
       {isAddMode && <AddPOIModeOverlay onCancel={toggleAddMode} />}
-
-      {/* Add POI Button */}
-      {enableAddPOI && onAddPOI && !isAddMode && (
-        <button
-          onClick={toggleAddMode}
-          className="absolute top-3 right-14 z-10 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-lg shadow-lg flex items-center space-x-1.5 text-sm font-medium transition-colors border border-gray-200 dark:border-gray-600"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add POI</span>
-        </button>
-      )}
 
       <Map
         ref={mapRef}

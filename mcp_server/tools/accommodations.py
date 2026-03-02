@@ -71,6 +71,7 @@ def register_tools(server: FastMCP):
         amenities: Optional[List[str]] = None,
         rating: Optional[float] = None,
         review: Optional[str] = None,
+        confirmed: bool = False,
     ) -> dict:
         """
         Full accommodation management - create, read, update, delete, or list accommodations.
@@ -106,6 +107,7 @@ def register_tools(server: FastMCP):
             amenities: List of amenities (e.g., ["wifi", "breakfast", "parking"])
             rating: Personal rating 0-5
             review: Personal review text
+            confirmed: Set to true after user confirms the action. Default false returns a preview for create/update/delete.
 
         Returns:
             - create: New accommodation with ID and coordinates
@@ -196,6 +198,25 @@ def register_tools(server: FastMCP):
                             operation=operation, success=False,
                             message=f"Destination with ID {destination_id} not found",
                         ).model_dump()
+
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would create accommodation '{name}' ({type}) in destination {destination_id}. Please confirm to proceed.",
+                            "preview": {
+                                "destination_id": destination_id,
+                                "name": name,
+                                "type": type,
+                                "address": address,
+                                "check_in_date": check_in_date,
+                                "check_out_date": check_out_date,
+                                "total_cost": total_cost,
+                                "currency": currency or "USD",
+                            },
+                        }
 
                     # Geocode address if coordinates are missing
                     resolved_lat = latitude
@@ -306,6 +327,26 @@ def register_tools(server: FastMCP):
                             operation=operation, success=False,
                             message=f"Accommodation with ID {accommodation_id} not found",
                         ).model_dump()
+
+                    # Confirmation guard: return preview without touching DB
+                    if not confirmed:
+                        updates = {k: v for k, v in {
+                            "name": name, "type": type, "address": address,
+                            "check_in_date": check_in_date, "check_out_date": check_out_date,
+                            "total_cost": total_cost, "currency": currency,
+                            "booking_reference": booking_reference,
+                        }.items() if v is not None}
+                        return {
+                            "operation": operation,
+                            "success": False,
+                            "requires_confirmation": True,
+                            "message": f"CONFIRMATION REQUIRED: Would update accommodation '{db_acc.name}' (ID {accommodation_id}). Please confirm to proceed.",
+                            "preview": {
+                                "accommodation_id": accommodation_id,
+                                "current_name": db_acc.name,
+                                "updates": updates,
+                            },
+                        }
 
                     # Update provided fields
                     if name is not None:
