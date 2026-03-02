@@ -79,7 +79,7 @@ async def invite_member(
         type="invitation",
         title="Trip invitation",
         message=f"{user.name or user.email} invited you to '{trip.name}'",
-        data={"member_id": member.id, "role": data.role},
+        data={"member_id": member.id, "role": data.role, "actor_name": user.name or user.email, "actor_avatar_url": user.avatar_url},
     )
     db.add(notification)
     await db.flush()

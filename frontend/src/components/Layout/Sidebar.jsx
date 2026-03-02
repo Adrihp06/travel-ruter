@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Map, Bot, LogOut, FileText, Key } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -6,10 +6,12 @@ import GearIcon from '@/components/icons/gear-icon';
 import XIcon from '@/components/icons/x-icon';
 import useAuthStore from '../../stores/useAuthStore';
 import NotificationBell from '../Notifications/NotificationBell';
+import NotificationPanel from '../Notifications/NotificationPanel';
 
 const Sidebar = ({ isOpen, onClose }) => {
   const { t } = useTranslation();
   const { isAuthenticated, user, logout } = useAuthStore();
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
 
   const navItems = [
     { name: t('nav.trips'), path: '/trips', icon: Map },
@@ -50,7 +52,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto min-h-0">
           {navItems.map((item) => (
             <NavLink
               key={item.name}
@@ -71,8 +73,8 @@ const Sidebar = ({ isOpen, onClose }) => {
 
         {/* User Profile Section - only when authenticated */}
         {isAuthenticated && user && (
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-            <div className="flex items-center gap-3">
+          <div className="border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center gap-3 px-4 py-3">
               {user.avatar_url ? (
                 <img src={user.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
               ) : (
@@ -85,7 +87,12 @@ const Sidebar = ({ isOpen, onClose }) => {
                   {user.display_name || user.email}
                 </p>
               </div>
-              <NotificationBell position="top-left" />
+              <NotificationBell
+                position="top-left"
+                isOpen={isNotificationOpen}
+                onToggle={() => setIsNotificationOpen((prev) => !prev)}
+                renderPanel={false}
+              />
               <button
                 onClick={handleLogout}
                 className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-700 transition-colors"
@@ -95,6 +102,12 @@ const Sidebar = ({ isOpen, onClose }) => {
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
+            {isNotificationOpen && (
+              <NotificationPanel
+                onClose={() => setIsNotificationOpen(false)}
+                variant="inline"
+              />
+            )}
           </div>
         )}
       </div>

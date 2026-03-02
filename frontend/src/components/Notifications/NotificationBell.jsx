@@ -3,10 +3,13 @@ import { useTranslation } from 'react-i18next';
 import useNotificationStore from '../../stores/useNotificationStore';
 import NotificationPanel from './NotificationPanel';
 
-export default function NotificationBell({ position = 'bottom-right' }) {
+export default function NotificationBell({ position = 'bottom-right', isOpen: controlledOpen, onToggle, renderPanel = true }) {
   const { t } = useTranslation();
   const { unreadCount, fetchUnreadCount } = useNotificationStore();
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const handleToggle = onToggle || (() => setInternalOpen((prev) => !prev));
 
   useEffect(() => {
     fetchUnreadCount();
@@ -17,7 +20,7 @@ export default function NotificationBell({ position = 'bottom-right' }) {
   return (
     <div className="relative">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className="relative p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
         aria-label={t('notifications.title')}
       >
@@ -30,7 +33,7 @@ export default function NotificationBell({ position = 'bottom-right' }) {
           </span>
         )}
       </button>
-      {isOpen && <NotificationPanel onClose={() => setIsOpen(false)} position={position} />}
+      {renderPanel && isOpen && <NotificationPanel onClose={() => (onToggle ? onToggle() : setInternalOpen(false))} position={position} />}
     </div>
   );
 }

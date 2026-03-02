@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.activity_log import ActivityLog
 from app.models.notification import Notification
 from app.models.trip_member import TripMember
+from app.models.user import User
 
 
 async def log_activity(
@@ -32,6 +33,12 @@ async def log_activity(
     db.add(entry)
 
     # Create notifications for other accepted members
+    actor = await db.get(User, user_id)
+    actor_data = {
+        "actor_name": actor.name or actor.email if actor else None,
+        "actor_avatar_url": actor.avatar_url if actor else None,
+    }
+
     stmt = select(TripMember.user_id).where(
         TripMember.trip_id == trip_id,
         TripMember.status == "accepted",
@@ -47,7 +54,7 @@ async def log_activity(
             type="activity",
             title=f"{entity_type.capitalize()} {action}",
             message=f"{entity_name or entity_type} was {action}",
-            data={"activity_id": None, "entity_type": entity_type, "entity_id": entity_id},
+            data={"activity_id": None, "entity_type": entity_type, "entity_id": entity_id, **actor_data},
         )
         db.add(notification)
 
