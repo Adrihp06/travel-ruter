@@ -509,7 +509,7 @@ const GlobalTripView = () => {
                 {filteredTrips.map((trip) => {
                   const poiStats = getPOIStats(trip.id);
                   return (
-                    <div key={trip.id} className="relative">
+                    <div key={trip.id} className="relative" style={{ contentVisibility: 'auto', containIntrinsicSize: '0 300px' }}>
                       <TripCard
                         trip={trip}
                         onEdit={handleEditTrip}

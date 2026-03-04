@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, lazy, Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import Sidebar from './Sidebar';
 import PageTransition from '../UI/PageTransition';
-import { AIChat } from '../AI';
 import useTripStore from '../../stores/useTripStore';
 import useAuthStore from '../../stores/useAuthStore';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
 import NotificationBell from '../Notifications/NotificationBell';
+
+const AIChat = lazy(() => import('../AI/AIChat'));
 
 // Skip to main content link for keyboard navigation accessibility
 const SkipToMain = () => (
@@ -35,44 +36,47 @@ const Layout = () => {
   const tripIdNum = tripId ? Number(tripId) : null;
   const trip = tripIdNum ? tripsWithDestinations.find(t => t.id === tripIdNum || t.id === tripId) : null;
 
-  const tripContext = isItineraryView && tripId ? {
-    tripId: tripIdNum || tripId,
-    name: trip?.title || trip?.name,
-    startDate: trip?.start_date,
-    endDate: trip?.end_date,
-    budget: trip?.total_budget,
-    currency: trip?.currency,
-    destinations: trip?.destinations?.map(d => ({
-      id: d.id,
-      name: d.city_name || d.name,
-      country: d.country,
-      arrivalDate: d.arrival_date,
-      departureDate: d.departure_date,
-      lat: d.latitude,
-      lng: d.longitude,
-    })),
-    travelSegments: travelSegments?.length ? travelSegments.map(s => ({
-      fromId: s.from_destination_id,
-      toId: s.to_destination_id,
-      mode: s.travel_mode,
-      distanceKm: s.distance_km,
-      durationMin: s.duration_minutes,
-    })) : undefined,
-    originSegment: originSegment ? {
-      fromName: originSegment.from_name,
-      toName: originSegment.to_name,
-      mode: originSegment.travel_mode,
-      distanceKm: originSegment.distance_km,
-      durationMin: originSegment.duration_minutes,
-    } : undefined,
-    returnSegment: returnSegment ? {
-      fromName: returnSegment.from_name,
-      toName: returnSegment.to_name,
-      mode: returnSegment.travel_mode,
-      distanceKm: returnSegment.distance_km,
-      durationMin: returnSegment.duration_minutes,
-    } : undefined,
-  } : undefined;
+  const tripContext = useMemo(() => {
+    if (!isItineraryView || !tripId) return undefined;
+    return {
+      tripId: tripIdNum || tripId,
+      name: trip?.title || trip?.name,
+      startDate: trip?.start_date,
+      endDate: trip?.end_date,
+      budget: trip?.total_budget,
+      currency: trip?.currency,
+      destinations: trip?.destinations?.map(d => ({
+        id: d.id,
+        name: d.city_name || d.name,
+        country: d.country,
+        arrivalDate: d.arrival_date,
+        departureDate: d.departure_date,
+        lat: d.latitude,
+        lng: d.longitude,
+      })),
+      travelSegments: travelSegments?.length ? travelSegments.map(s => ({
+        fromId: s.from_destination_id,
+        toId: s.to_destination_id,
+        mode: s.travel_mode,
+        distanceKm: s.distance_km,
+        durationMin: s.duration_minutes,
+      })) : undefined,
+      originSegment: originSegment ? {
+        fromName: originSegment.from_name,
+        toName: originSegment.to_name,
+        mode: originSegment.travel_mode,
+        distanceKm: originSegment.distance_km,
+        durationMin: originSegment.duration_minutes,
+      } : undefined,
+      returnSegment: returnSegment ? {
+        fromName: returnSegment.from_name,
+        toName: returnSegment.to_name,
+        mode: returnSegment.travel_mode,
+        distanceKm: returnSegment.distance_km,
+        durationMin: returnSegment.duration_minutes,
+      } : undefined,
+    };
+  }, [isItineraryView, tripId, tripIdNum, trip, travelSegments, originSegment, returnSegment]);
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
@@ -116,12 +120,14 @@ const Layout = () => {
       </div>
 
       {/* AI Chat - slides in from the right as a side panel */}
-      <AIChat
-        tripContext={tripContext}
-        isOpen={isChatOpen}
-        onToggle={() => setIsChatOpen(prev => !prev)}
-        onClose={() => setIsChatOpen(false)}
-      />
+      <Suspense fallback={null}>
+        <AIChat
+          tripContext={tripContext}
+          isOpen={isChatOpen}
+          onToggle={() => setIsChatOpen(prev => !prev)}
+          onClose={() => setIsChatOpen(false)}
+        />
+      </Suspense>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { Plus, Users, Activity, List, Map as MapIcon, MoreHorizontal, Calendar, FolderOpen, BookOpen, ExternalLink, Star, Globe, Clock } from 'lucide-react';
@@ -18,7 +18,10 @@ import InviteMemberModal from '../components/Collaboration/InviteMemberModal';
 import ActivityFeed from '../components/Activity/ActivityFeed';
 import CommentThread from '../components/Comments/CommentThread';
 import { DestinationFormModal } from '../components/Destination';
-import { AccommodationFormModal, AccommodationList, AccommodationTimeline } from '../components/Accommodation';
+// Keep AccommodationList and AccommodationTimeline as static imports (always visible)
+import AccommodationList from '../components/Accommodation/AccommodationList';
+import AccommodationTimeline from '../components/Accommodation/AccommodationTimeline';
+const AccommodationFormModal = lazy(() => import('../components/Accommodation/AccommodationFormModal'));
 import { formatDateWithWeekday, parseDateString } from '../utils/dateFormat';
 
 // Layout components
@@ -34,12 +37,12 @@ import { Journal, NoteFormModal } from '../components/Journal';
 
 // Level 1 components
 import Timeline from '../components/Timeline/Timeline';
-import { TripMap } from '../components/Map';
+const TripMap = lazy(() => import('../components/Map/TripMap'));
 import CalendarView from '../components/Calendar/CalendarView';
 
 // Level 2 components
 import DailyItinerary from '../components/Itinerary/DailyItinerary';
-import { MicroMap } from '../components/Map';
+const MicroMap = lazy(() => import('../components/Map/MicroMap'));
 import Skeleton from '../components/UI/Skeleton';
 import DestinationTimelineSkeleton from '../components/Itinerary/DestinationTimelineSkeleton';
 import MapPlaceholder from '../components/Map/MapPlaceholder';
@@ -49,6 +52,9 @@ import ConfirmDialog from '../components/common/ConfirmDialog';
 import useIsMobile from '../hooks/useIsMobile';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
+// Shared POI categories — hoisted to module scope to avoid reallocation per render
+const POI_CATEGORIES = ['Sights', 'Food', 'Accommodation', 'Museum', 'Shopping', 'Entertainment', 'Activity'];
 
 // Add POI Modal Component (for MicroMap - Level 2)
 const AddPOIModal = ({ isOpen, onClose, onSubmit, location, isSaving }) => {
@@ -64,7 +70,7 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location, isSaving }) => {
   const [locationInfo, setLocationInfo] = useState(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
-  const categories = ['Sights', 'Food', 'Accommodation', 'Museum', 'Shopping', 'Entertainment', 'Activity'];
+
 
   // Reverse geocode when location changes
   useEffect(() => {
@@ -173,7 +179,7 @@ const AddPOIModal = ({ isOpen, onClose, onSubmit, location, isSaving }) => {
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
-              {categories.map((cat) => (
+              {POI_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
@@ -256,7 +262,7 @@ const EditPOIModal = ({ isOpen, onClose, onSubmit, poi, isSaving }) => {
     dwell_time: '30',
   });
 
-  const categories = ['Sights', 'Food', 'Accommodation', 'Museum', 'Shopping', 'Entertainment', 'Activity'];
+
 
   // Populate form when poi changes
   useEffect(() => {
@@ -315,7 +321,7 @@ const EditPOIModal = ({ isOpen, onClose, onSubmit, poi, isSaving }) => {
               onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-[#D97706]/50 focus:border-[#D97706] bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
             >
-              {categories.map((cat) => (
+              {POI_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
@@ -437,7 +443,7 @@ const TripMapPOIModal = ({ isOpen, onClose, onSubmit, location, destinations = [
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [errors, setErrors] = useState({});
 
-  const categories = ['Sights', 'Food', 'Accommodation', 'Museum', 'Shopping', 'Entertainment', 'Activity'];
+
 
   // Reverse geocode when location changes
   useEffect(() => {
@@ -566,7 +572,7 @@ const TripMapPOIModal = ({ isOpen, onClose, onSubmit, location, destinations = [
               }`}
             >
               <option value="">{t('poi.selectCategory')}</option>
-              {categories.map((cat) => (
+              {POI_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
@@ -1087,6 +1093,36 @@ const DetailViewContent = () => {
     setAccommodationPreFillDates(null);
   }, []);
 
+  // Stable handlers for Timeline destination actions
+  const handleAddDestination = useCallback(() => {
+    setEditingDestination(null);
+    setShowDestinationModal(true);
+  }, []);
+
+  const handleEditDestination = useCallback((dest) => {
+    setEditingDestination(dest);
+    setShowDestinationModal(true);
+  }, []);
+
+  // Stable handlers for AccommodationTimeline actions
+  const handleEditAccommodation = useCallback((acc) => {
+    setEditingAccommodation(acc);
+    setAccommodationPreFillDates(null);
+    setShowAccommodationModal(true);
+  }, []);
+
+  const handleAddAccommodation = useCallback(() => {
+    setEditingAccommodation(null);
+    setAccommodationPreFillDates(null);
+    setShowAccommodationModal(true);
+  }, []);
+
+  // Stable handler for MicroMap accommodation edit
+  const handleEditAccommodationFromMap = useCallback((acc) => {
+    setEditingAccommodation(acc);
+    setShowAccommodationModal(true);
+  }, []);
+
   // Handler for adding a day note from the daily schedule
   const handleAddDayNoteFromSchedule = useCallback((dayNumber, date) => {
     setNoteFormPreFill({
@@ -1315,14 +1351,8 @@ const DetailViewContent = () => {
               trip={selectedTrip}
               selectedDestinationId={selectedDestinationId}
               onSelectDestination={handleSelectDestination}
-              onAddDestination={() => {
-                setEditingDestination(null);
-                setShowDestinationModal(true);
-              }}
-              onEditDestination={(dest) => {
-                setEditingDestination(dest);
-                setShowDestinationModal(true);
-              }}
+              onAddDestination={handleAddDestination}
+              onEditDestination={handleEditDestination}
               onDeleteDestination={handleDeleteDestination}
               onReorderDestinations={handleReorderDestinations}
               accommodationsByDestination={accommodationsByDestination}
@@ -1354,17 +1384,9 @@ const DetailViewContent = () => {
                   destination={selectedDestination}
                   accommodations={accommodations}
                   onAddForGap={handleAddAccommodationForGap}
-                  onEditAccommodation={(acc) => {
-                    setEditingAccommodation(acc);
-                    setAccommodationPreFillDates(null);
-                    setShowAccommodationModal(true);
-                  }}
+                  onEditAccommodation={handleEditAccommodation}
                   onCenterOnAccommodation={handleCenterOnAccommodation}
-                  onAddAccommodation={() => {
-                    setEditingAccommodation(null);
-                    setAccommodationPreFillDates(null);
-                    setShowAccommodationModal(true);
-                  }}
+                  onAddAccommodation={handleAddAccommodation}
                 />
               </div>
             </div>
@@ -1374,49 +1396,50 @@ const DetailViewContent = () => {
         {/* Right Panel - Map */}
         <div className={`flex-1 relative ${isMobile ? `absolute inset-0 ${mobileActiveTab === 'map' ? 'visible z-10' : 'invisible z-0'}` : ''}`}>
           {viewLevel === 1 ? (
-            <TripMap
-              destinations={selectedTrip.destinations || []}
-              selectedDestinationId={selectedDestinationId}
-              onSelectDestination={handleSelectDestination}
-              showRoute={true}
-              height="100%"
-              tripId={Number(id)}
-              tripLocation={tripLocation}
-              enableAddDestination={true}
-              onAddDestination={handleAddDestinationFromMap}
-              originPoint={originPoint}
-              returnPoint={returnPoint}
-            />
+            <Suspense fallback={<MapPlaceholder height="100%" />}>
+              <TripMap
+                destinations={selectedTrip.destinations || []}
+                selectedDestinationId={selectedDestinationId}
+                onSelectDestination={handleSelectDestination}
+                showRoute={true}
+                height="100%"
+                tripId={Number(id)}
+                tripLocation={tripLocation}
+                enableAddDestination={true}
+                onAddDestination={handleAddDestinationFromMap}
+                originPoint={originPoint}
+                returnPoint={returnPoint}
+              />
+            </Suspense>
           ) : !isMapReady ? (
             // Only show placeholder if we don't have destination coordinates yet
             <MapPlaceholder height="100%" />
           ) : (
             // Map renders immediately, data loads progressively
             <div className="relative h-full">
-              <MicroMap
-                destination={selectedDestination}
-                pois={pois}
-                accommodations={accommodations}
-                height="100%"
-                zoom={14}
-                showLegend={true}
-                enableAddPOI={true}
-                onAddPOI={handleAddPOI}
-                selectedPOIs={selectedPOIs}
-                centerOnPOI={centerOnPOI}
-                onVotePOI={handleVotePOI}
-                onEditPOI={handleEditPOI}
-                onDeletePOI={handleDeletePOI}
-                onEditAccommodation={(acc) => {
-                  setEditingAccommodation(acc);
-                  setShowAccommodationModal(true);
-                }}
-                onDeleteAccommodation={handleDeleteAccommodation}
-                clearPendingTrigger={clearPendingTrigger}
-                showRouteControls={true}
-                days={destinationDays}
-                poisByDay={poisByDay}
-              />
+              <Suspense fallback={<MapPlaceholder height="100%" />}>
+                <MicroMap
+                  destination={selectedDestination}
+                  pois={pois}
+                  accommodations={accommodations}
+                  height="100%"
+                  zoom={14}
+                  showLegend={true}
+                  enableAddPOI={true}
+                  onAddPOI={handleAddPOI}
+                  selectedPOIs={selectedPOIs}
+                  centerOnPOI={centerOnPOI}
+                  onVotePOI={handleVotePOI}
+                  onEditPOI={handleEditPOI}
+                  onDeletePOI={handleDeletePOI}
+                  onEditAccommodation={handleEditAccommodationFromMap}
+                  onDeleteAccommodation={handleDeleteAccommodation}
+                  clearPendingTrigger={clearPendingTrigger}
+                  showRouteControls={true}
+                  days={destinationDays}
+                  poisByDay={poisByDay}
+                />
+              </Suspense>
               {/* Loading overlay for POIs/Accommodations - map stays visible */}
               {isDataOverlayLoading && (
                 <div className="absolute inset-0 bg-white/30 dark:bg-gray-900/30 backdrop-blur-[1px] flex items-center justify-center pointer-events-none z-10 transition-opacity duration-300">
@@ -1585,15 +1608,17 @@ const DetailViewContent = () => {
       />
 
       {/* Accommodation Form Modal */}
-      <AccommodationFormModal
-        isOpen={showAccommodationModal}
-        onClose={handleAccommodationModalClose}
-        destinationId={selectedDestinationId}
-        destination={selectedDestination}
-        accommodation={editingAccommodation}
-        preFillDates={accommodationPreFillDates}
-        onSuccess={() => fetchAccommodations(selectedDestinationId)}
-      />
+      <Suspense fallback={null}>
+        <AccommodationFormModal
+          isOpen={showAccommodationModal}
+          onClose={handleAccommodationModalClose}
+          destinationId={selectedDestinationId}
+          destination={selectedDestination}
+          accommodation={editingAccommodation}
+          preFillDates={accommodationPreFillDates}
+          onSuccess={() => fetchAccommodations(selectedDestinationId)}
+        />
+      </Suspense>
 
       {/* Edit POI Modal */}
       <EditPOIModal

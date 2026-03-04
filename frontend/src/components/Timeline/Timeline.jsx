@@ -153,6 +153,11 @@ const Timeline = ({
     handleCloseStopModal();
   }, [tripId, fetchTripSegments, handleCloseStopModal]);
 
+  // Stable handler for TravelStopsList onStopChanged
+  const handleStopChanged = useCallback(() => {
+    if (tripId) fetchTripSegments(tripId);
+  }, [tripId, fetchTripSegments]);
+
   // Get travel segment to the next destination
   const getTravelToNext = useCallback((index) => {
     if (index >= sortedDestinations.length - 1) return null;
@@ -305,7 +310,7 @@ const Timeline = ({
                           <TravelStopsList
                             segmentId={segment.id}
                             onAddStop={(existingStop) => handleAddStop(segment.id, existingStop)}
-                            onStopChanged={() => tripId && fetchTripSegments(tripId)}
+                            onStopChanged={handleStopChanged}
                           />
                         )}
                       </div>

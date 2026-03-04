@@ -379,7 +379,7 @@ const AIChatSlideover = ({ isOpen, onClose, tripContext = null }) => {
   }, []);
 
   // Get current model info
-  const currentModel = models.find(m => m.id === selectedModelId);
+  const currentModel = useMemo(() => models.find(m => m.id === selectedModelId), [models, selectedModelId]);
 
   // Context-aware suggestions
   const getSuggestions = useCallback(() => {

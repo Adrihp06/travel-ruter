@@ -84,18 +84,10 @@ const filterAndSortTrips = (trips, { searchQuery, statusFilter, sortBy, showComp
   // Sort
   switch (sortBy) {
     case 'date_asc':
-      filtered.sort((a, b) => {
-        const dateA = a.start_date ? new Date(a.start_date) : new Date(0);
-        const dateB = b.start_date ? new Date(b.start_date) : new Date(0);
-        return dateA - dateB;
-      });
+      filtered.sort((a, b) => (a.start_date || '') < (b.start_date || '') ? -1 : 1);
       break;
     case 'date_desc':
-      filtered.sort((a, b) => {
-        const dateA = a.start_date ? new Date(a.start_date) : new Date(0);
-        const dateB = b.start_date ? new Date(b.start_date) : new Date(0);
-        return dateB - dateA;
-      });
+      filtered.sort((a, b) => (a.start_date || '') > (b.start_date || '') ? -1 : 1);
       break;
     case 'name_asc':
       filtered.sort((a, b) => {
@@ -112,20 +104,12 @@ const filterAndSortTrips = (trips, { searchQuery, statusFilter, sortBy, showComp
       });
       break;
     case 'modified':
-      filtered.sort((a, b) => {
-        const dateA = a.updated_at ? new Date(a.updated_at) : new Date(0);
-        const dateB = b.updated_at ? new Date(b.updated_at) : new Date(0);
-        return dateB - dateA;
-      });
+      filtered.sort((a, b) => (a.updated_at || '') > (b.updated_at || '') ? -1 : 1);
       break;
     case 'default':
     default:
       // Default sort: by start_date ascending (earliest trips first)
-      filtered.sort((a, b) => {
-        const dateA = a.start_date ? new Date(a.start_date) : new Date(0);
-        const dateB = b.start_date ? new Date(b.start_date) : new Date(0);
-        return dateA - dateB;
-      });
+      filtered.sort((a, b) => (a.start_date || '') < (b.start_date || '') ? -1 : 1);
       break;
   }
 
@@ -154,11 +138,15 @@ const getMockDestinations = (tripId) => {
   return mockData[tripId] || [];
 };
 
-// Helper to deduplicate trips by ID (keeps first occurrence)
-const deduplicateTrips = (trips) =>
-  trips.filter((trip, index, self) =>
-    index === self.findIndex(t => t.id === trip.id)
-  );
+// Helper to deduplicate trips by ID (keeps first occurrence) — O(n) via Set
+const deduplicateTrips = (trips) => {
+  const seen = new Set();
+  return trips.filter(trip => {
+    if (seen.has(trip.id)) return false;
+    seen.add(trip.id);
+    return true;
+  });
+};
 
 const useTripStore = create((set, get) => ({
   // Single source of truth for all trip data (includes destinations and poiStats)
@@ -308,10 +296,11 @@ const useTripStore = create((set, get) => ({
   fetchTripDetails: async (tripId) => {
     set({ isLoading: true });
     try {
-      // Fetch trip details and destinations in parallel
-      const [tripResponse, destinationsResponse] = await Promise.all([
+      // Fetch trip details, destinations, and budget in parallel
+      const [tripResponse, destinationsResponse, budgetResponse] = await Promise.all([
         authFetch(`${API_BASE_URL}/trips/${tripId}`),
-        authFetch(`${API_BASE_URL}/trips/${tripId}/destinations`)
+        authFetch(`${API_BASE_URL}/trips/${tripId}/destinations`),
+        authFetch(`${API_BASE_URL}/trips/${tripId}/budget`),
       ]);
 
       if (!tripResponse.ok) throw new Error('Failed to fetch trip details');
@@ -327,8 +316,14 @@ const useTripStore = create((set, get) => ({
       };
 
       set({ selectedTrip: tripWithDestinations, isLoading: false });
-      // Also fetch budget when loading trip details
-      get().fetchTripBudget(tripId);
+
+      // Process budget response
+      if (budgetResponse.ok) {
+        const budget = await budgetResponse.json();
+        set({ budget, isBudgetLoading: false });
+      } else {
+        get().fetchTripBudget(tripId);
+      }
     } catch (error) {
       // Fallback to mock data if API unavailable
       const mockDetails = {
