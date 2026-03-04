@@ -63,6 +63,7 @@ const NoteCard = ({
     destination: 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300',
     day: 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300',
     poi: 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300',
+    export_draft: 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300',
   };
 
   const handleTogglePin = (e) => {

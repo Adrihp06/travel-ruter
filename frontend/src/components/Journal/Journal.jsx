@@ -14,6 +14,7 @@ import {
 import XIcon from '@/components/icons/x-icon';
 import MagnifierIcon from '@/components/icons/magnifier-icon';
 import useNoteStore from '../../stores/useNoteStore';
+import authFetch from '../../utils/authFetch';
 import NoteCard from './NoteCard';
 import NoteFormModal from './NoteFormModal';
 import NoteDetailModal from './NoteDetailModal';
@@ -157,9 +158,27 @@ const Journal = ({
     setSelectedNote(note);
   }, []);
 
-  // Handle export
-  const handleExport = () => {
-    window.open(getExportUrl(tripId), '_blank');
+  // Handle export — use authenticated fetch so the JWT token is sent with the request
+  const handleExport = async () => {
+    try {
+      const url = getExportUrl(tripId);
+      const response = await authFetch(url);
+      if (!response.ok) throw new Error('Export failed');
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      // Try to use the filename suggested by the server, fall back to a sensible default
+      const disposition = response.headers.get('Content-Disposition') || '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      a.download = match ? match[1] : `trip_${tripId}_journal.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      // silently ignore — user will see nothing happened; a toast could be added here
+    }
   };
 
   // Get display notes based on view mode and search

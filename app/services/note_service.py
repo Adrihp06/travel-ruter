@@ -150,10 +150,11 @@ class NoteService:
         if not trip:
             raise ValueError(f"Trip with id {trip_id} not found")
 
-        # Get all notes for the trip
+        # Get all notes for the trip (exclude export_draft — those belong to the Export Writer, not the Journal)
         note_result = await db.execute(
             select(Note)
             .where(Note.trip_id == trip_id)
+            .where(Note.note_type != NoteType.EXPORT_DRAFT.value)
             .order_by(
                 Note.is_pinned.desc(),
                 Note.destination_id.asc().nullsfirst(),
@@ -467,6 +468,9 @@ class NoteService:
 
         if note_ids:
             query = query.where(Note.id.in_(note_ids))
+        else:
+            # Exclude Export Writer drafts from the journal export by default
+            query = query.where(Note.note_type != NoteType.EXPORT_DRAFT.value)
 
         query = query.order_by(
             Note.destination_id.asc().nullsfirst(),
@@ -564,6 +568,7 @@ class NoteService:
                 func.count(Note.id).filter(Note.poi_id.isnot(None)).label('poi_notes'),
             )
             .where(Note.trip_id == trip_id)
+            .where(Note.note_type != NoteType.EXPORT_DRAFT.value)
         )
         row = result.one()
 
