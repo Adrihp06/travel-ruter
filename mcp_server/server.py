@@ -82,6 +82,13 @@ def create_server(transport: str = "stdio") -> FastMCP:
 
     server = FastMCP(**kwargs)
 
+    # Health endpoint for Docker health checks and debugging
+    @server.custom_route("/health", methods=["GET"])
+    async def health_check(request):
+        from starlette.responses import JSONResponse
+
+        return JSONResponse({"status": "ok", "service": mcp_settings.MCP_SERVER_NAME})
+
     # Register all tools
     _register_tools(server)
 
