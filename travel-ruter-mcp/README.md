@@ -32,10 +32,10 @@ cd travel-ruter-mcp
 npm install
 npm run build
 
-# 2. Add to Claude Code config (~/.claude.json or settings)
-# See Configuration section below
+# 2. Open the project in Claude Code — .mcp.json auto-configures the server
+#    (or see Configuration section for Claude Desktop setup)
 
-# 3. Start using with Claude Code!
+# 3. Start using with Claude!
 ```
 
 ## Installation Tutorial
@@ -94,20 +94,22 @@ API URL: http://localhost:8000/api/v1
 
 Press `Ctrl+C` to stop.
 
-### Step 4: Configure Claude Code
+### Step 4: Configure Your Client
 
-Add the MCP server to your Claude Code configuration.
+Choose the client you'll use with the MCP server:
 
-#### For Claude Code CLI
+#### Option A: Claude Code (project-level — recommended)
 
-Edit `~/.claude.json` (create if it doesn't exist):
+This repository includes a `.mcp.json` file at the project root that auto-configures the server. **No manual setup needed** — just open the project in Claude Code and the MCP server will be available automatically.
+
+The `.mcp.json` contains:
 
 ```json
 {
   "mcpServers": {
     "travel-ruter": {
       "command": "node",
-      "args": ["/absolute/path/to/travel-ruter-mcp/dist/index.js"],
+      "args": ["travel-ruter-mcp/dist/index.js"],
       "env": {
         "TRAVEL_RUTER_API_URL": "http://localhost:8000/api/v1"
       }
@@ -116,9 +118,11 @@ Edit `~/.claude.json` (create if it doesn't exist):
 }
 ```
 
-#### For Claude Desktop App
+> **Note**: If you need a global (user-level) configuration instead, add the same entry to `~/.claude.json` using an absolute path in `args`.
 
-Edit the appropriate config file for your OS:
+#### Option B: Claude Desktop
+
+Edit the config file for your OS:
 
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
@@ -138,11 +142,12 @@ Edit the appropriate config file for your OS:
 }
 ```
 
-**Important**: Replace `/absolute/path/to/` with the actual absolute path to your installation.
+**Important**: Replace `/absolute/path/to/` with the actual absolute path to your installation. After saving, restart Claude Desktop to load the MCP server.
 
-### Step 5: Restart Claude Code
+### Step 5: Restart Your Client
 
-After updating the configuration, restart Claude Code to load the MCP server.
+- **Claude Code**: If using `.mcp.json` (Option A), just reopen the project. For `~/.claude.json` changes, restart Claude Code.
+- **Claude Desktop**: Restart the app after editing the config file.
 
 ### Step 6: Verify Installation
 

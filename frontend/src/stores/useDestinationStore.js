@@ -29,7 +29,9 @@ const useDestinationStore = create((set, get) => ({
         throw new Error('Failed to fetch destinations');
       }
 
-      const destinations = await response.json();
+      const data = await response.json();
+      // Handle paginated response format { items: [...] } or direct array
+      const destinations = Array.isArray(data) ? data : (data.items || []);
       set({ destinations, isLoading: false });
       return destinations;
     } catch (error) {
