@@ -12,15 +12,21 @@ export default function NotificationBell({ position = 'bottom-right', isOpen: co
   const handleToggle = onToggle || (() => setInternalOpen((prev) => !prev));
 
   useEffect(() => {
+    if (isOpen) return;
     fetchUnreadCount();
     const interval = setInterval(fetchUnreadCount, 30000);
     return () => clearInterval(interval);
-  }, [fetchUnreadCount]);
+  }, [fetchUnreadCount, isOpen]);
 
   return (
     <div className="relative">
       <button
-        onClick={handleToggle}
+        onClick={() => {
+          handleToggle();
+          if (!isOpen) {
+            useNotificationStore.setState({ unreadCount: 0 });
+          }
+        }}
         className="relative p-2 text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
         aria-label={t('notifications.title')}
       >

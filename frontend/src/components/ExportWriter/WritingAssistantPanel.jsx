@@ -143,7 +143,7 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
           ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
-          tripId: trip.id,
+          tripId: trip?.id,
           tripContext,
           agentConfig: {
             name: 'Writing Assistant',

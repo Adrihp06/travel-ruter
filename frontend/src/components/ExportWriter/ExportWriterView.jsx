@@ -9,7 +9,7 @@ import TravelContextPanel from './TravelContextPanel';
 
 const ExportWriterView = ({ tripId, trip }) => {
   const { loadDocuments, reset } = useExportWriterStore();
-  const { destinations, fetchDestinations } = useDestinationStore();
+  const { destinations, fetchDestinations, setDestinations } = useDestinationStore();
   const [activeTab, setActiveTab] = useState('assistant');
 
   // Ref to forward actions from editor toolbar → writing assistant
@@ -18,6 +18,7 @@ const ExportWriterView = ({ tripId, trip }) => {
   // Fetch destinations on mount, reset store on unmount
   useEffect(() => {
     if (tripId) {
+      setDestinations([]);
       fetchDestinations(tripId);
     }
     return () => {
@@ -27,7 +28,7 @@ const ExportWriterView = ({ tripId, trip }) => {
 
   // Load documents once destinations are available
   useEffect(() => {
-    if (tripId && destinations && destinations.length >= 0) {
+    if (tripId && destinations) {
       loadDocuments(tripId, destinations);
     }
   }, [tripId, destinations?.length]);

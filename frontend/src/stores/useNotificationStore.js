@@ -40,11 +40,15 @@ const useNotificationStore = create((set, get) => ({
   },
 
   markAllAsRead: async () => {
-    await authFetch(`${API_BASE}/notifications/read-all`, { method: 'POST' });
     set((state) => ({
       notifications: state.notifications.map((n) => ({ ...n, is_read: true })),
       unreadCount: 0,
     }));
+    try {
+      await authFetch(`${API_BASE}/notifications/read-all`, { method: 'POST' });
+    } catch {
+      // Optimistic update already applied; re-fetch on next poll if needed
+    }
   },
 
   fetchUnreadCount: async () => {

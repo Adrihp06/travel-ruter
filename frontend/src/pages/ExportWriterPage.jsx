@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FileText, Calendar, MapPin } from 'lucide-react';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 import ExportWriterView from '../components/ExportWriter/ExportWriterView';
 import useTripStore from '../stores/useTripStore';
 
@@ -33,7 +34,9 @@ const ExportWriterPage = () => {
           </h1>
         </div>
         <div className="flex-1 min-h-0">
-          <ExportWriterView tripId={Number(tripId)} trip={selectedTrip} />
+          <ErrorBoundary>
+            <ExportWriterView tripId={Number(tripId)} trip={selectedTrip} />
+          </ErrorBoundary>
         </div>
       </div>
     );

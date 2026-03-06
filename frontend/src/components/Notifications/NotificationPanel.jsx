@@ -36,7 +36,7 @@ export default function NotificationPanel({ onClose, position = 'bottom-right', 
   useEffect(() => {
     (async () => {
       await fetchNotifications();
-      markAllAsRead();
+      await markAllAsRead();
     })();
   }, [fetchNotifications, markAllAsRead]);
 
