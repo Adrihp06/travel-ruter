@@ -22,5 +22,13 @@ class GooglePlacesDetailResult(BaseModel):
     price_level: Optional[int] = None
     business_status: Optional[str] = None
 
+class GooglePlacesPhotoUrlResponse(BaseModel):
+    url: str
+    photo_reference: str
+
+class GooglePlacesPhotosResponse(BaseModel):
+    photos: List[GooglePlacesPhotoUrlResponse]
+    place_id: str
+
 class GooglePlacesSearchResponse(BaseModel):
     results: List[GooglePlacesAutocompleteResult]

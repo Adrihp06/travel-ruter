@@ -440,6 +440,85 @@ const AddPOIModeOverlay = ({ onCancel }) => (
 );
 
 /**
+ * POI Popup Photo - loads a Google Places photo from metadata or on-demand lookup
+ */
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
+const POIPopupPhoto = ({ poi }) => {
+  const [photoUrl, setPhotoUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchPhoto = async () => {
+      setLoading(true);
+      setFailed(false);
+      setPhotoUrl(null);
+
+      // 1) Try photo_reference from existing metadata
+      const photoRef = poi.metadata_json?.photos?.[0]?.photo_reference;
+      if (photoRef) {
+        try {
+          const resp = await fetch(
+            `${API_BASE_URL}/google-places/photo-url?photo_reference=${encodeURIComponent(photoRef)}&max_width=400`
+          );
+          if (!cancelled && resp.ok) {
+            const data = await resp.json();
+            setPhotoUrl(data.url);
+            setLoading(false);
+            return;
+          }
+        } catch { /* fall through to lookup */ }
+      }
+
+      // 2) Fallback: on-demand lookup via external_id (Google place_id)
+      const placeId = poi.external_id || poi.metadata_json?.place_id;
+      if (placeId && poi.external_source === 'google_places') {
+        try {
+          const resp = await fetch(
+            `${API_BASE_URL}/google-places/${encodeURIComponent(placeId)}/photos`
+          );
+          if (!cancelled && resp.ok) {
+            const data = await resp.json();
+            if (data.photos?.length > 0) {
+              setPhotoUrl(data.photos[0].url);
+              setLoading(false);
+              return;
+            }
+          }
+        } catch { /* no photo available */ }
+      }
+
+      if (!cancelled) {
+        setLoading(false);
+        setFailed(true);
+      }
+    };
+
+    fetchPhoto();
+    return () => { cancelled = true; };
+  }, [poi.id]);
+
+  if (failed || (!loading && !photoUrl)) return null;
+
+  if (loading) {
+    return (
+      <div className="w-full h-32 bg-stone-100 dark:bg-stone-800 rounded-lg mb-3 animate-pulse" />
+    );
+  }
+
+  return (
+    <img
+      src={photoUrl}
+      alt={poi.name}
+      className="w-full h-32 object-cover rounded-lg mb-3"
+      onError={() => setPhotoUrl(null)}
+    />
+  );
+};
+
+/**
  * POI Popup Content - Enhanced with better typography and spacing
  */
 const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
@@ -448,6 +527,8 @@ const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
 
   return (
     <div className="p-4 pr-10 min-w-[220px] max-w-[300px]">
+      {/* Google place photo */}
+      <POIPopupPhoto poi={poi} />
       {/* Header with category icon */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-start gap-3">
@@ -682,7 +763,7 @@ const MapLegend = ({
   onToggleAccommodations,
   className = "bottom-8 left-3",
 }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   if ((!categories || categories.length === 0) && accommodationCount === 0) return null;
 
@@ -1243,7 +1324,7 @@ const MicroMap = ({
     bounds: bounds || [-180, -90, 180, 90],
     zoom: viewState?.zoom || zoom,
     options: {
-      radius: 35,
+      radius: 22,
       maxZoom: 17,
     },
   });
