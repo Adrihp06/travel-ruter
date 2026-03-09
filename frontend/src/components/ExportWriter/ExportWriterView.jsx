@@ -9,29 +9,45 @@ import TravelContextPanel from './TravelContextPanel';
 
 const ExportWriterView = ({ tripId, trip }) => {
   const { loadDocuments, reset } = useExportWriterStore();
-  const { destinations, fetchDestinations, setDestinations } = useDestinationStore();
+  const fetchDestinations = useDestinationStore((s) => s.fetchDestinations);
   const [activeTab, setActiveTab] = useState('assistant');
+  // Trip-scoped destinations: immune to stale shared-store writes from
+  // older in-flight fetchDestinations calls after the user switches trips.
+  const [localDestinations, setLocalDestinations] = useState([]);
 
   // Ref to forward actions from editor toolbar → writing assistant
   const writingAssistantRef = useRef(null);
 
-  // Fetch destinations on mount, reset store on unmount
+  // Single coordinated effect: fetch destinations → load documents.
+  // Avoids passive destinations.length triggering and stale-trip races.
   useEffect(() => {
-    if (tripId) {
-      setDestinations([]);
-      fetchDestinations(tripId);
-    }
+    let cancelled = false;
+
+    const initTrip = async () => {
+      if (!tripId) return;
+
+      setLocalDestinations([]);
+      reset();
+
+      try {
+        const dests = await fetchDestinations(tripId);
+        if (cancelled) return;
+        setLocalDestinations(dests || []);
+        await loadDocuments(tripId, dests || []);
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Export Writer: failed to initialize trip', err);
+        }
+      }
+    };
+
+    initTrip();
+
     return () => {
+      cancelled = true;
       reset();
     };
   }, [tripId]);
-
-  // Load documents once destinations are available
-  useEffect(() => {
-    if (tripId && destinations) {
-      loadDocuments(tripId, destinations);
-    }
-  }, [tripId, destinations?.length]);
 
   // Callback: toolbar "Generate Draft" → writing assistant generates
   const handleGenerateDraft = (doc) => {
@@ -49,14 +65,14 @@ const ExportWriterView = ({ tripId, trip }) => {
     <div className="flex h-full overflow-hidden">
       {/* Left panel: Document Tree (~220px) */}
       <div className="w-56 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-        <DocumentTree trip={trip} destinations={destinations || []} />
+        <DocumentTree trip={trip} destinations={localDestinations} />
       </div>
 
       {/* Center panel: Markdown Editor (flex-1) */}
       <div className="flex-1 min-w-0 border-r border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
         <MarkdownEditorPanel
           trip={trip}
-          destinations={destinations || []}
+          destinations={localDestinations}
           onGenerateDraft={handleGenerateDraft}
           onImprove={handleImprove}
         />
@@ -96,13 +112,13 @@ const ExportWriterView = ({ tripId, trip }) => {
           <WritingAssistantPanel
             ref={writingAssistantRef}
             trip={trip}
-            destinations={destinations || []}
+            destinations={localDestinations}
           />
         </div>
         <div className={`flex-1 overflow-hidden ${activeTab !== 'context' ? 'hidden' : ''}`}>
           <TravelContextPanel
             trip={trip}
-            destinations={destinations || []}
+            destinations={localDestinations}
           />
         </div>
       </div>

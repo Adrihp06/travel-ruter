@@ -14,6 +14,7 @@ function getDocStatus(content) {
 }
 
 let _autoSaveTimers = {};
+let _loadGeneration = 0;
 
 const useExportWriterStore = create((set, get) => ({
   // Map of noteId → { id, title, content, destinationId, status }
@@ -29,13 +30,17 @@ const useExportWriterStore = create((set, get) => ({
   error: null,
 
   // Load all export_draft notes for a trip. Creates placeholders for missing destinations.
+  // Uses a generation counter so stale async completions (from prior trips) are discarded.
   loadDocuments: async (tripId, destinations = []) => {
+    const gen = ++_loadGeneration;
     set({ isLoading: true, error: null });
     try {
       const params = new URLSearchParams({ note_type: 'export_draft' });
       const url = `${API_BASE_URL}/trips/${tripId}/notes?${params}`;
       const response = await authFetch(url);
       if (!response.ok) throw new Error('Failed to fetch export drafts');
+      if (gen !== _loadGeneration) return;
+
       const data = await response.json();
       const existingNotes = data.notes || [];
 
@@ -45,6 +50,7 @@ const useExportWriterStore = create((set, get) => ({
       let overviewNote = existingNotes.find((n) => !n.destination_id);
       if (!overviewNote) {
         overviewNote = await get().createDocument(tripId, null, 'Trip Overview');
+        if (gen !== _loadGeneration) return;
       }
       if (overviewNote) {
         documents[overviewNote.id] = {
@@ -58,9 +64,11 @@ const useExportWriterStore = create((set, get) => ({
 
       // Find or create one document per destination
       for (const dest of destinations) {
+        if (gen !== _loadGeneration) return;
         let note = existingNotes.find((n) => n.destination_id === dest.id);
         if (!note) {
           note = await get().createDocument(tripId, dest.id, dest.city_name);
+          if (gen !== _loadGeneration) return;
         }
         if (note) {
           documents[note.id] = {
@@ -73,6 +81,8 @@ const useExportWriterStore = create((set, get) => ({
         }
       }
 
+      if (gen !== _loadGeneration) return;
+
       // Pre-select first document
       const firstId = Object.keys(documents)[0] || null;
       set({
@@ -82,7 +92,9 @@ const useExportWriterStore = create((set, get) => ({
         isLoading: false,
       });
     } catch (error) {
-      set({ error: error.message, isLoading: false });
+      if (gen === _loadGeneration) {
+        set({ error: error.message, isLoading: false });
+      }
     }
   },
 
@@ -198,9 +210,9 @@ const useExportWriterStore = create((set, get) => ({
     return selectedDocId ? documents[selectedDocId] : null;
   },
 
-  // Reset store
+  // Reset store and cancel any in-flight loadDocuments
   reset: () => {
-    // Cancel any pending saves
+    _loadGeneration++;
     Object.values(_autoSaveTimers).forEach(clearTimeout);
     _autoSaveTimers = {};
     set({
