@@ -30,15 +30,12 @@ function ActorAvatar({ name, avatarUrl, size = 'sm' }) {
 
 export default function NotificationPanel({ onClose, position = 'bottom-right', variant = 'dropdown' }) {
   const { t } = useTranslation();
-  const { notifications, isLoading, fetchNotifications, markAsRead, markAllAsRead } =
+  const { notifications, isLoading, error, openNotifications, markAsRead, markAllAsRead } =
     useNotificationStore();
 
   useEffect(() => {
-    (async () => {
-      await fetchNotifications();
-      await markAllAsRead();
-    })();
-  }, [fetchNotifications, markAllAsRead]);
+    void openNotifications();
+  }, [openNotifications]);
 
   const isInline = variant === 'inline';
 
@@ -62,6 +59,11 @@ export default function NotificationPanel({ onClose, position = 'bottom-right', 
         </button>
       </div>
       <div className={isInline ? 'max-h-60 overflow-y-auto' : 'max-h-80 overflow-y-auto'}>
+        {error && (
+          <div className="px-4 py-2 text-xs text-red-600 dark:text-red-400 border-b border-red-100 dark:border-red-900/40">
+            {t(`notifications.${error}`)}
+          </div>
+        )}
         {isLoading ? (
           <div className="p-4 text-center text-gray-500 text-sm">{t('common.loading', 'Loading...')}</div>
         ) : notifications.length === 0 ? (

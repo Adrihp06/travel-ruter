@@ -1174,7 +1174,10 @@
     "title": "Notificaciones",
     "markAllRead": "Marcar todo como leído",
     "noNotifications": "Sin notificaciones",
-    "unread": "sin leer"
+    "unread": "sin leer",
+    "loadFailed": "No se pudieron cargar las notificaciones ahora mismo.",
+    "markAllFailed": "No se pudieron marcar las notificaciones como leídas.",
+    "markReadFailed": "No se pudo marcar la notificación como leída."
   },
 
   "activity": {

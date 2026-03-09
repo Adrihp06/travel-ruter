@@ -1172,7 +1172,10 @@
     "title": "Notifications",
     "markAllRead": "Mark all read",
     "noNotifications": "No notifications",
-    "unread": "unread"
+    "unread": "unread",
+    "loadFailed": "Unable to load notifications right now.",
+    "markAllFailed": "Notifications could not be marked as read.",
+    "markReadFailed": "Notification could not be marked as read."
   },
 
   "activity": {
