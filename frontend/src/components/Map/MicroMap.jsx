@@ -446,18 +446,28 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/
 
 const POIPopupPhoto = ({ poi }) => {
   const [photoUrl, setPhotoUrl] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+    const photoRef = poi.metadata_json?.photos?.[0]?.photo_reference;
+    const placeId = poi.external_id || poi.metadata_json?.place_id;
+    const canLookupFromGoogle = Boolean(placeId) && (!poi.external_source || poi.external_source === 'google_places');
+
+    if (!photoRef && !canLookupFromGoogle) {
+      setPhotoUrl(null);
+      setLoading(false);
+      setFailed(false);
+      return () => { cancelled = true; };
+    }
+
     const fetchPhoto = async () => {
       setLoading(true);
       setFailed(false);
       setPhotoUrl(null);
 
       // 1) Try photo_reference from existing metadata
-      const photoRef = poi.metadata_json?.photos?.[0]?.photo_reference;
       if (photoRef) {
         try {
           const resp = await fetch(
@@ -469,12 +479,13 @@ const POIPopupPhoto = ({ poi }) => {
             setLoading(false);
             return;
           }
-        } catch { /* fall through to lookup */ }
+        } catch (error) {
+          console.warn('Failed to resolve Google photo reference for POI popup:', error);
+        }
       }
 
       // 2) Fallback: on-demand lookup via external_id (Google place_id)
-      const placeId = poi.external_id || poi.metadata_json?.place_id;
-      if (placeId && poi.external_source === 'google_places') {
+      if (canLookupFromGoogle) {
         try {
           const resp = await fetch(
             `${API_BASE_URL}/google-places/${encodeURIComponent(placeId)}/photos`
@@ -487,7 +498,9 @@ const POIPopupPhoto = ({ poi }) => {
               return;
             }
           }
-        } catch { /* no photo available */ }
+        } catch (error) {
+          console.warn('Failed to fetch Google place photos for POI popup:', error);
+        }
       }
 
       if (!cancelled) {
@@ -498,7 +511,7 @@ const POIPopupPhoto = ({ poi }) => {
 
     fetchPhoto();
     return () => { cancelled = true; };
-  }, [poi.id]);
+  }, [poi]);
 
   if (failed || (!loading && !photoUrl)) return null;
 
@@ -762,8 +775,9 @@ const MapLegend = ({
   showAccommodations,
   onToggleAccommodations,
   className = "bottom-8 left-3",
+  initiallyExpanded = true,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(initiallyExpanded);
 
   if ((!categories || categories.length === 0) && accommodationCount === 0) return null;
 
@@ -771,7 +785,7 @@ const MapLegend = ({
     <div className={`absolute z-10 map-legend ${className}`}>
       {/* Header */}
       <button
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={() => setIsExpanded((prev) => !prev)}
         className="map-legend-header w-full"
       >
         <div className="map-legend-title">
@@ -1022,6 +1036,7 @@ const MicroMap = ({
   zoom = 14,
   className = '',
   showLegend = true,
+  legendInitiallyExpanded = true,
   enableAddPOI = true,
   enableClustering = true,
   enableDragging = false,
@@ -1843,6 +1858,7 @@ const MicroMap = ({
           showAccommodations={showAccommodations}
           onToggleAccommodations={() => setShowAccommodations(prev => !prev)}
           className="bottom-4 left-3"
+          initiallyExpanded={legendInitiallyExpanded}
         />
       )}
 

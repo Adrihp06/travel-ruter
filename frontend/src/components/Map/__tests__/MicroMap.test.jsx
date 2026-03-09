@@ -42,28 +42,36 @@ describe('MicroMap', () => {
   });
 
   describe('Map legend default state', () => {
-    it('should start with legend collapsed (isExpanded = false)', async () => {
+    it('should allow the destination detail view to start with legend collapsed', async () => {
       const fs = await import('fs');
       const path = await import('path');
 
-      const filePath = path.resolve(
+      const mapFilePath = path.resolve(
         import.meta.dirname,
         '..',
         'MicroMap.jsx'
       );
-
-      const fileContent = fs.readFileSync(filePath, 'utf-8');
-
-      // The MapLegend component should default isExpanded to false
-      expect(fileContent).toMatch(/useState\(false\)/);
-      // Ensure it's not the old default of true in the legend
-      // Find the MapLegend component section and verify
-      const legendSection = fileContent.slice(
-        fileContent.indexOf('const MapLegend'),
-        fileContent.indexOf('const MapLegend') + 500
+      const detailViewPath = path.resolve(
+        import.meta.dirname,
+        '..',
+        '..',
+        '..',
+        'pages',
+        'DetailView.jsx'
       );
-      expect(legendSection).toContain('useState(false)');
-      expect(legendSection).not.toMatch(/isExpanded.*useState\(true\)/);
+
+      const mapFileContent = fs.readFileSync(mapFilePath, 'utf-8');
+      const detailViewContent = fs.readFileSync(detailViewPath, 'utf-8');
+
+      expect(mapFileContent).toContain('legendInitiallyExpanded = true');
+      expect(mapFileContent).toContain('initiallyExpanded = true');
+      expect(detailViewContent).toContain('legendInitiallyExpanded={false}');
+
+      const legendSection = mapFileContent.slice(
+        mapFileContent.indexOf('const MapLegend'),
+        mapFileContent.indexOf('const MapLegend') + 700
+      );
+      expect(legendSection).toContain('useState(initiallyExpanded)');
     });
 
     it('should still allow user to toggle legend open', async () => {
@@ -79,7 +87,7 @@ describe('MicroMap', () => {
       const fileContent = fs.readFileSync(filePath, 'utf-8');
 
       // Legend toggle button should call setIsExpanded
-      expect(fileContent).toContain('setIsExpanded(!isExpanded)');
+      expect(fileContent).toContain('setIsExpanded((prev) => !prev)');
     });
   });
 
@@ -102,6 +110,8 @@ describe('MicroMap', () => {
       expect(fileContent).toContain('google-places/photo-url');
       // Should fall back to place photos endpoint via external_id
       expect(fileContent).toContain('/photos');
+      // Should guard the fallback to POIs that can resolve through Google place data
+      expect(fileContent).toContain('canLookupFromGoogle');
       // Should be used inside POIPopupContent
       expect(fileContent).toContain('<POIPopupPhoto poi={poi}');
     });

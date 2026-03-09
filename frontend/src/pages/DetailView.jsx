@@ -1425,6 +1425,7 @@ const DetailViewContent = () => {
                   height="100%"
                   zoom={14}
                   showLegend={true}
+                  legendInitiallyExpanded={false}
                   enableAddPOI={true}
                   onAddPOI={handleAddPOI}
                   selectedPOIs={selectedPOIs}
