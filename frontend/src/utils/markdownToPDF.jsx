@@ -2,9 +2,10 @@
  * Convert markdown content (via marked.lexer) to react-pdf elements.
  */
 import React from 'react';
-import { Document, Page, View, Text, Image } from '@react-pdf/renderer';
+import { Document, Page, View, Text, Image, Link } from '@react-pdf/renderer';
 import { marked } from 'marked';
 import PDFStyles from '../components/PDF/PDFStyles';
+import { ROUTE_CARD_SENTINEL_RE } from './routeBlockRenderer';
 
 /**
  * Render inline text — strips inline marks for simplicity (bold/italic not supported in basic react-pdf Text).
@@ -19,9 +20,39 @@ function renderInlineText(raw) {
 }
 
 /**
+ * Render a route card as react-pdf elements for inline display in the PDF.
+ */
+function renderRouteCard(card, key, styles) {
+  return (
+    <View key={key} style={styles.routeCard} wrap={false}>
+      {card.mapImageDataUri && (
+        <Image src={card.mapImageDataUri} style={styles.routeCardImage} />
+      )}
+      <View style={styles.routeCardBody}>
+        <Text style={styles.routeCardLabel}>{card.label}</Text>
+        {card.stats && card.stats.length > 0 && (
+          <View style={styles.routeCardStatsRow}>
+            {card.stats.map((stat, i) => (
+              <Text key={i} style={styles.routeCardStat}>
+                {stat.label}
+              </Text>
+            ))}
+          </View>
+        )}
+        {card.googleMapsUrl && (
+          <Link src={card.googleMapsUrl}>
+            <Text style={styles.routeCardLink}>Open in Google Maps</Text>
+          </Link>
+        )}
+      </View>
+    </View>
+  );
+}
+
+/**
  * Convert a list of marked tokens into react-pdf elements.
  */
-function tokensToElements(tokens, styles) {
+function tokensToElements(tokens, styles, routeCards = []) {
   const elements = [];
 
   tokens.forEach((token, idx) => {
@@ -100,6 +131,18 @@ function tokensToElements(tokens, styles) {
         break;
       }
 
+      case 'html': {
+        const sentinelMatch = (token.text || token.raw || '').match(ROUTE_CARD_SENTINEL_RE);
+        if (sentinelMatch && routeCards.length > 0) {
+          const cardIndex = parseInt(sentinelMatch[1], 10);
+          const card = routeCards[cardIndex];
+          if (card) {
+            elements.push(renderRouteCard(card, idx, styles));
+          }
+        }
+        break;
+      }
+
       default:
         break;
     }
@@ -116,10 +159,10 @@ function tokensToElements(tokens, styles) {
  * @param {string} title - Document title (shown in PDF header)
  * @param {string} tripName - Trip name for footer
  */
-export function markdownToPDFDocument(markdownContent, mapImageDataUri, title, tripName = '') {
+export function markdownToPDFDocument(markdownContent, mapImageDataUri, title, tripName = '', routeCards = []) {
   const styles = PDFStyles;
   const tokens = marked.lexer(markdownContent || '');
-  const contentElements = tokensToElements(tokens, styles);
+  const contentElements = tokensToElements(tokens, styles, routeCards);
 
   return (
     <Document>

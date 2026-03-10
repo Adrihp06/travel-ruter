@@ -108,6 +108,43 @@ const PDFStyles = StyleSheet.create({
     marginBottom: 12,
     borderRadius: 4,
   },
+  // Route card styles
+  routeCard: {
+    marginTop: 8,
+    marginBottom: 12,
+    borderRadius: 6,
+    border: `1pt solid ${GRAY_200}`,
+    overflow: 'hidden',
+  },
+  routeCardImage: {
+    width: '100%',
+    height: 140,
+    objectFit: 'cover',
+  },
+  routeCardBody: {
+    padding: 10,
+    backgroundColor: GRAY_100,
+  },
+  routeCardLabel: {
+    fontSize: 12,
+    fontFamily: 'Helvetica-Bold',
+    color: GRAY_700,
+    marginBottom: 4,
+  },
+  routeCardStatsRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  routeCardStat: {
+    fontSize: 9,
+    color: GRAY_500,
+    marginRight: 12,
+  },
+  routeCardLink: {
+    fontSize: 9,
+    color: BRAND_AMBER,
+    textDecoration: 'underline',
+  },
   footer: {
     position: 'absolute',
     bottom: 24,

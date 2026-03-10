@@ -9,6 +9,7 @@ import {
   buildDestinationMapUrl,
   fetchMapAsBase64,
 } from './mapboxStaticImage';
+import { resolveRouteBlocksForExport } from './routeBlockRenderer';
 
 /** Slugify a string for use in filenames */
 function slugify(str) {
@@ -60,11 +61,18 @@ export async function exportTripAsPDFs(selectedDocuments, trip, destinations, ma
     const doc = selectedDocuments[i];
     const mapImage = mapImages[doc.id];
 
-    const docElement = markdownToPDFDocument(
+    // Resolve route blocks (:::route ... :::) into renderable cards
+    const { processedMarkdown, routeCards } = await resolveRouteBlocksForExport(
       doc.content || '',
+      { trip, destinations, mapboxToken }
+    );
+
+    const docElement = markdownToPDFDocument(
+      processedMarkdown,
       mapImage,
       doc.title,
-      tripName
+      tripName,
+      routeCards
     );
 
     try {
