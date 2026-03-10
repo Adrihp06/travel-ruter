@@ -10,6 +10,7 @@ const translations = {
   'exportWriter.travelData.stopCount': '{{count}} stop',
   'exportWriter.travelData.stopCount_other': '{{count}} stops',
   'exportWriter.travelData.routeSummary': '{{distance}} km · ~{{duration}} min travel',
+  'exportWriter.travelData.insertDestinationRoute': 'Insert Route Map',
   'exportWriter.travelData.insertDayRoute': 'Insert Route',
   'exportWriter.travelData.noDestinations': 'No destinations added yet.',
   'exportWriter.travelData.loading': 'Loading travel data...',
@@ -276,6 +277,40 @@ describe('TravelContextPanel – travel data enhancements', () => {
     const insertBtn = screen.getByTestId('insert-day-route-2025-07-15');
     expect(insertBtn).toBeTruthy();
     expect(insertBtn.textContent).toContain('Insert Route');
+  });
+
+  it('shows Insert Route Map button for the selected destination', () => {
+    const onInsertDestinationRoute = vi.fn();
+    render(
+      <TravelContextPanel
+        trip={trip}
+        destinations={destinations}
+        onInsertDestinationRoute={onInsertDestinationRoute}
+      />
+    );
+
+    const insertBtn = screen.getByTestId('insert-destination-route-btn');
+    expect(insertBtn.textContent).toContain('Insert Route Map');
+  });
+
+  it('calls onInsertDestinationRoute with current destination data', () => {
+    const onInsertDestinationRoute = vi.fn();
+    render(
+      <TravelContextPanel
+        trip={trip}
+        destinations={destinations}
+        onInsertDestinationRoute={onInsertDestinationRoute}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('insert-destination-route-btn'));
+
+    expect(onInsertDestinationRoute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destinationId: 10,
+      })
+    );
+    expect(onInsertDestinationRoute.mock.calls[0][0].label).toContain('Barcelona');
   });
 
   it('calls onInsertDayRoute with correct params when Insert Route is clicked', () => {

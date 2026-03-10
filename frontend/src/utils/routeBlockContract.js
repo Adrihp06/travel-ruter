@@ -17,6 +17,12 @@
  *   label: Day 1 — Rome Walking Tour
  *   :::
  *
+ *   :::route
+ *   type: destination-overview
+ *   destinationId: 7
+ *   label: Rome Route Overview
+ *   :::
+ *
  * Tokens are text-safe and human-readable. Binary data (images) is never
  * stored — route images are resolved at export/render time.
  */
@@ -28,6 +34,7 @@
 export const ROUTE_BLOCK_TYPE = {
   TRIP_OVERVIEW: 'trip-overview',
   DAY_ROUTE: 'day-route',
+  DESTINATION_OVERVIEW: 'destination-overview',
 };
 
 const VALID_TYPES = new Set(Object.values(ROUTE_BLOCK_TYPE));
@@ -170,6 +177,12 @@ export function validateDescriptor(descriptor) {
     }
   }
 
+  if (descriptor.type === ROUTE_BLOCK_TYPE.DESTINATION_OVERVIEW) {
+    if (descriptor.destinationId == null) {
+      errors.push('destination-overview block requires destinationId');
+    }
+  }
+
   return { valid: errors.length === 0, errors };
 }
 
@@ -266,6 +279,21 @@ export function createDayRouteBlock(destinationId, date, label) {
     type: ROUTE_BLOCK_TYPE.DAY_ROUTE,
     destinationId,
     date,
+    label: label ?? null,
+  });
+}
+
+/**
+ * Create a destination-overview route block descriptor.
+ *
+ * @param {number} destinationId
+ * @param {string} [label]
+ * @returns {object}
+ */
+export function createDestinationOverviewBlock(destinationId, label) {
+  return normalizeDescriptor({
+    type: ROUTE_BLOCK_TYPE.DESTINATION_OVERVIEW,
+    destinationId,
     label: label ?? null,
   });
 }

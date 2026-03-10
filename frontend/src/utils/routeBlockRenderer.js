@@ -137,6 +137,35 @@ async function loadTripSegments(tripId, context = {}) {
   return promise;
 }
 
+async function loadDestinationPois(destinationId, context = {}) {
+  if (!destinationId) {
+    return [];
+  }
+
+  if (typeof context.loadDestinationPois === 'function') {
+    const pois = await context.loadDestinationPois(destinationId);
+    return Array.isArray(pois) ? pois : [];
+  }
+
+  const cache = context.cache?.destinationPois;
+  if (cache?.has(destinationId)) {
+    return cache.get(destinationId);
+  }
+
+  const promise = (async () => {
+    const response = await authFetch(`${API_BASE_URL}/destinations/${destinationId}/pois`);
+    if (!response.ok) {
+      throw new Error('Failed to load destination POIs');
+    }
+
+    const data = await response.json();
+    return flattenPoisResponse(data);
+  })().catch(() => []);
+
+  cache?.set(destinationId, promise);
+  return promise;
+}
+
 async function loadDayRouteData(descriptor, context = {}) {
   if (!descriptor?.destinationId || !descriptor?.date) {
     return {
@@ -168,13 +197,7 @@ async function loadDayRouteData(descriptor, context = {}) {
   }
 
   const promise = (async () => {
-    const poisResponse = await authFetch(`${API_BASE_URL}/destinations/${descriptor.destinationId}/pois`);
-    if (!poisResponse.ok) {
-      throw new Error('Failed to load destination POIs');
-    }
-
-    const data = await poisResponse.json();
-    const scheduledPois = flattenPoisResponse(data)
+    const scheduledPois = (await loadDestinationPois(descriptor.destinationId, context))
       .filter((poi) => poi?.scheduled_date === descriptor.date)
       .sort((a, b) => (a.day_order || 0) - (b.day_order || 0));
 
@@ -266,6 +289,90 @@ async function loadDayRouteData(descriptor, context = {}) {
   return promise;
 }
 
+async function loadDestinationOverviewData(descriptor, context = {}) {
+  if (!descriptor?.destinationId) {
+    return {
+      mapCoordinates: null,
+      navigationCoordinates: null,
+      travelMode: GoogleMapsTravelMode.WALKING,
+      stopCount: 0,
+      totalDistanceKm: null,
+      totalDurationMin: null,
+      dayCount: 0,
+    };
+  }
+
+  if (typeof context.loadDestinationOverview === 'function') {
+    const result = await context.loadDestinationOverview(descriptor);
+    return {
+      mapCoordinates: Array.isArray(result?.mapCoordinates) ? result.mapCoordinates : null,
+      navigationCoordinates: Array.isArray(result?.navigationCoordinates) ? result.navigationCoordinates : null,
+      travelMode: result?.travelMode || GoogleMapsTravelMode.WALKING,
+      stopCount: Number.isFinite(result?.stopCount) ? result.stopCount : 0,
+      totalDistanceKm: Number.isFinite(result?.totalDistanceKm) ? result.totalDistanceKm : null,
+      totalDurationMin: Number.isFinite(result?.totalDurationMin) ? result.totalDurationMin : null,
+      dayCount: Number.isFinite(result?.dayCount) ? result.dayCount : 0,
+    };
+  }
+
+  const cache = context.cache?.destinationRoutes;
+  if (cache?.has(descriptor.destinationId)) {
+    return cache.get(descriptor.destinationId);
+  }
+
+  const promise = (async () => {
+    const destinationPois = await loadDestinationPois(descriptor.destinationId, context);
+    const scheduledPois = destinationPois
+      .filter((poi) => poi?.scheduled_date && getCoordinatePairFromLocation(poi))
+      .sort((a, b) => {
+        const dateCompare = (a.scheduled_date || '').localeCompare(b.scheduled_date || '');
+        if (dateCompare !== 0) return dateCompare;
+        return (a.day_order || 0) - (b.day_order || 0);
+      });
+
+    const navigationCoordinates = scheduledPois
+      .map((poi) => getCoordinatePairFromLocation(poi))
+      .filter(Boolean);
+    const uniqueDays = new Set(scheduledPois.map((poi) => poi.scheduled_date).filter(Boolean));
+
+    if (navigationCoordinates.length === 0) {
+      return {
+        mapCoordinates: null,
+        navigationCoordinates: null,
+        travelMode: GoogleMapsTravelMode.WALKING,
+        stopCount: 0,
+        totalDistanceKm: null,
+        totalDurationMin: null,
+        dayCount: 0,
+      };
+    }
+
+    return {
+      mapCoordinates: navigationCoordinates,
+      navigationCoordinates,
+      travelMode: GoogleMapsTravelMode.WALKING,
+      stopCount: scheduledPois.length,
+      totalDistanceKm: null,
+      totalDurationMin: null,
+      dayCount: uniqueDays.size,
+    };
+  })().catch(() => {
+    const fallbackCoordinates = buildRouteCoordinates(descriptor, context.destinations);
+    return {
+      mapCoordinates: fallbackCoordinates,
+      navigationCoordinates: fallbackCoordinates,
+      travelMode: GoogleMapsTravelMode.WALKING,
+      stopCount: 0,
+      totalDistanceKm: null,
+      totalDurationMin: null,
+      dayCount: 0,
+    };
+  });
+
+  cache?.set(descriptor.destinationId, promise);
+  return promise;
+}
+
 async function resolveTripOverviewData(descriptor, context = {}) {
   const orderedDestinations = (context.destinations || []).filter(
     (destination) => getCoordinatePairFromLocation(destination)
@@ -342,7 +449,7 @@ async function resolveTripOverviewData(descriptor, context = {}) {
  * Build a coordinate array for a route block from available destination data.
  *
  * - trip-overview: returns all destination coordinates in order
- * - day-route: returns the single destination coordinate
+ * - day-route / destination-overview: returns the single destination coordinate
  *
  * @param {object} descriptor - Parsed route block descriptor
  * @param {Array} destinations - Array of destination objects with latitude/longitude
@@ -358,7 +465,10 @@ export function buildRouteCoordinates(descriptor, destinations) {
     return coords.length >= 2 ? coords : null;
   }
 
-  if (descriptor.type === ROUTE_BLOCK_TYPE.DAY_ROUTE) {
+  if (
+    descriptor.type === ROUTE_BLOCK_TYPE.DAY_ROUTE
+    || descriptor.type === ROUTE_BLOCK_TYPE.DESTINATION_OVERVIEW
+  ) {
     const dest = destinations.find((d) => d.id === descriptor.destinationId);
     if (dest?.longitude != null && dest?.latitude != null) {
       return [[dest.longitude, dest.latitude]];
@@ -422,6 +532,10 @@ export function defaultRouteLabel(descriptor, destinations) {
     const name = dest?.city_name || dest?.name || 'Destination';
     return descriptor.date ? `${name} \u2014 ${descriptor.date}` : name;
   }
+  if (descriptor.type === ROUTE_BLOCK_TYPE.DESTINATION_OVERVIEW) {
+    const dest = destinations?.find((d) => d.id === descriptor.destinationId);
+    return `${dest?.city_name || dest?.name || 'Destination'} Route Overview`;
+  }
   return 'Route';
 }
 
@@ -458,6 +572,19 @@ export function buildRouteStats(descriptor, coordinates, destinations, metadata 
     }
   }
 
+  if (descriptor.type === ROUTE_BLOCK_TYPE.DESTINATION_OVERVIEW) {
+    const dest = destinations?.find((d) => d.id === descriptor.destinationId);
+    if (dest?.city_name || dest?.name) {
+      stats.push({ key: 'destination', label: dest.city_name || dest.name });
+    }
+    if (metadata.dayCount > 0) {
+      stats.push({ key: 'days', label: `${metadata.dayCount} day${metadata.dayCount > 1 ? 's' : ''}` });
+    }
+    if (metadata.stopCount > 0) {
+      stats.push({ key: 'stops', label: `${metadata.stopCount} stop${metadata.stopCount > 1 ? 's' : ''}` });
+    }
+  }
+
   if (Number.isFinite(metadata.totalDistanceKm) && metadata.totalDistanceKm > 0) {
     stats.push({ key: 'distance', label: `${metadata.totalDistanceKm.toFixed(1)} km` });
   }
@@ -479,7 +606,7 @@ export function buildRouteStats(descriptor, coordinates, destinations, metadata 
  * Priority:
  *   1. Route polyline map (2+ coordinates via buildRouteMapUrl)
  *   2. Trip overview markers map (trip-overview fallback)
- *   3. Single destination marker map (day-route fallback)
+ *   3. Single destination marker map (day-route / destination-overview fallback)
  *
  * @param {object} descriptor
  * @param {Array<[number,number]>|null} coordinates
@@ -501,7 +628,11 @@ export function buildMapUrlForRoute(descriptor, coordinates, destinations, mapbo
   }
 
   // Fallback: single destination marker
-  if (descriptor.type === ROUTE_BLOCK_TYPE.DAY_ROUTE && coordinates?.length === 1) {
+  if (
+    (descriptor.type === ROUTE_BLOCK_TYPE.DAY_ROUTE
+      || descriptor.type === ROUTE_BLOCK_TYPE.DESTINATION_OVERVIEW)
+    && coordinates?.length === 1
+  ) {
     const [lng, lat] = coordinates[0];
     return buildDestinationMapUrl(lng, lat, mapboxToken);
   }
@@ -557,9 +688,14 @@ export async function resolveRouteBlocksForExport(markdown, context = {}) {
       return;
     }
 
-    const routeData = descriptor.type === ROUTE_BLOCK_TYPE.TRIP_OVERVIEW
-      ? await resolveTripOverviewData(descriptor, { ...context, trip, destinations })
-      : await loadDayRouteData(descriptor, { ...context, trip, destinations });
+    let routeData;
+    if (descriptor.type === ROUTE_BLOCK_TYPE.TRIP_OVERVIEW) {
+      routeData = await resolveTripOverviewData(descriptor, { ...context, trip, destinations });
+    } else if (descriptor.type === ROUTE_BLOCK_TYPE.DESTINATION_OVERVIEW) {
+      routeData = await loadDestinationOverviewData(descriptor, { ...context, trip, destinations });
+    } else {
+      routeData = await loadDayRouteData(descriptor, { ...context, trip, destinations });
+    }
 
     const fallbackCoordinates = buildRouteCoordinates(descriptor, destinations);
     const mapCoordinates = routeData.mapCoordinates || fallbackCoordinates;

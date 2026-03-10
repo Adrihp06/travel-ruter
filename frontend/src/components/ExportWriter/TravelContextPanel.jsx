@@ -248,7 +248,13 @@ function NoteCard({ note, t }) {
   );
 }
 
-const TravelContextPanel = ({ trip, destinations, onPreparePrompt, onInsertDayRoute }) => {
+const TravelContextPanel = ({
+  trip,
+  destinations,
+  onPreparePrompt,
+  onInsertDestinationRoute,
+  onInsertDayRoute,
+}) => {
   const { t, i18n } = useTranslation();
   const selectedDocId = useExportWriterStore((s) => s.selectedDocId);
   const documents = useExportWriterStore((s) => s.documents);
@@ -448,6 +454,20 @@ const TravelContextPanel = ({ trip, destinations, onPreparePrompt, onInsertDayRo
             </span>
           )}
         </div>
+        {destinationId && onInsertDestinationRoute && (
+          <button
+            onClick={() => onInsertDestinationRoute({
+              destinationId,
+              label: `${destination?.city_name || destination?.name || t('trips.destination')} Route`,
+            })}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+            title={t('exportWriter.travelData.insertDestinationRoute')}
+            data-testid="insert-destination-route-btn"
+          >
+            <Map className="w-2.5 h-2.5" />
+            {t('exportWriter.travelData.insertDestinationRoute')}
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">

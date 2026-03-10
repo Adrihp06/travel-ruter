@@ -63,6 +63,8 @@ export async function exportTripAsPDFs(selectedDocuments, trip, destinations, ma
     cache: {
       tripSegments: new Map(),
       dayRoutes: new Map(),
+      destinationPois: new Map(),
+      destinationRoutes: new Map(),
     },
   };
 

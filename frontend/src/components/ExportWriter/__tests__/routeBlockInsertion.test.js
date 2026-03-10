@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createTripOverviewBlock,
+  createDestinationOverviewBlock,
   createDayRouteBlock,
   serializeRouteBlock,
   insertRouteBlock,
@@ -33,6 +34,18 @@ describe('Route block insertion — authoring contract integration', () => {
     expect(token).toContain('type: day-route');
     expect(token).toContain('destinationId: 7');
     expect(token).toContain('date: 2025-03-15');
+  });
+
+  it('creates and serializes a destination-overview block', () => {
+    const descriptor = createDestinationOverviewBlock(7, 'Rome Route Overview');
+    expect(descriptor.type).toBe('destination-overview');
+    expect(descriptor.destinationId).toBe(7);
+    expect(descriptor.label).toBe('Rome Route Overview');
+
+    const token = serializeRouteBlock(descriptor);
+    expect(token).toContain('type: destination-overview');
+    expect(token).toContain('destinationId: 7');
+    expect(token).toContain('label: Rome Route Overview');
   });
 
   it('inserts trip-overview block at end of empty document', () => {
@@ -129,6 +142,18 @@ describe('Route block insertion — authoring contract integration', () => {
     expect(parsed[0].descriptor.destinationId).toBe(15);
     expect(parsed[0].descriptor.date).toBe('2025-06-20');
     expect(parsed[0].descriptor.label).toBe('Day 3 Walk');
+  });
+
+  it('round-trips through serialize → parse for destination-overview', () => {
+    const original = createDestinationOverviewBlock(15, 'Tokyo Route Overview');
+    const serialized = serializeRouteBlock(original);
+    const parsed = parseRouteBlocks(serialized);
+
+    expect(parsed.length).toBe(1);
+    expect(parsed[0].valid).toBe(true);
+    expect(parsed[0].descriptor.type).toBe('destination-overview');
+    expect(parsed[0].descriptor.destinationId).toBe(15);
+    expect(parsed[0].descriptor.label).toBe('Tokyo Route Overview');
   });
 
   it('handles multiple route blocks in same document', () => {

@@ -50,6 +50,14 @@ const dayRouteDesc = {
   label: null,
 };
 
+const destinationOverviewDesc = {
+  type: ROUTE_BLOCK_TYPE.DESTINATION_OVERVIEW,
+  tripId: null,
+  destinationId: 1,
+  date: null,
+  label: null,
+};
+
 // ---------------------------------------------------------------------------
 // ROUTE_CARD_SENTINEL_RE
 // ---------------------------------------------------------------------------
@@ -111,6 +119,11 @@ describe('buildRouteCoordinates', () => {
 
   it('returns single coordinate for day-route', () => {
     const coords = buildRouteCoordinates(dayRouteDesc, destinations);
+    expect(coords).toEqual([[12.4964, 41.9028]]);
+  });
+
+  it('returns single coordinate for destination-overview', () => {
+    const coords = buildRouteCoordinates(destinationOverviewDesc, destinations);
     expect(coords).toEqual([[12.4964, 41.9028]]);
   });
 
@@ -200,6 +213,11 @@ describe('defaultRouteLabel', () => {
     expect(label).toBe('Rome');
   });
 
+  it('uses destination name for destination-overview', () => {
+    const label = defaultRouteLabel(destinationOverviewDesc, destinations);
+    expect(label).toBe('Rome Route Overview');
+  });
+
   it('returns "Route" for unknown type', () => {
     expect(defaultRouteLabel({ type: 'unknown' })).toBe('Route');
   });
@@ -236,6 +254,16 @@ describe('buildRouteStats', () => {
   it('returns null for empty destinations in trip-overview', () => {
     expect(buildRouteStats(tripOverviewDesc, null, null)).toBeNull();
   });
+
+  it('returns destination and stop count for destination-overview', () => {
+    const stats = buildRouteStats(destinationOverviewDesc, null, destinations, {
+      stopCount: 4,
+      dayCount: 2,
+    });
+    expect(stats.find((s) => s.key === 'destination').label).toBe('Rome');
+    expect(stats.find((s) => s.key === 'days').label).toBe('2 days');
+    expect(stats.find((s) => s.key === 'stops').label).toBe('4 stops');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -267,6 +295,13 @@ describe('buildMapUrlForRoute', () => {
   it('falls back to destination marker for day-route single coord', () => {
     const coords = [[12.4964, 41.9028]];
     const url = buildMapUrlForRoute(dayRouteDesc, coords, destinations, token);
+    expect(url).toContain('api.mapbox.com');
+    expect(url).toContain('pin-s');
+  });
+
+  it('falls back to destination marker for destination-overview single coord', () => {
+    const coords = [[12.4964, 41.9028]];
+    const url = buildMapUrlForRoute(destinationOverviewDesc, coords, destinations, token);
     expect(url).toContain('api.mapbox.com');
     expect(url).toContain('pin-s');
   });
@@ -328,6 +363,17 @@ date: 2025-03-15
     expect(processedMarkdown).toContain('<!-- ROUTE_CARD:0 -->');
     expect(routeCards).toHaveLength(1);
     expect(routeCards[0].type).toBe('day-route');
+  });
+
+  it('replaces a destination-overview block with a sentinel', async () => {
+    const md = `:::route
+type: destination-overview
+destinationId: 1
+:::`;
+    const { processedMarkdown, routeCards } = await resolveRouteBlocksForExport(md, context);
+    expect(processedMarkdown).toContain('<!-- ROUTE_CARD:0 -->');
+    expect(routeCards).toHaveLength(1);
+    expect(routeCards[0].type).toBe('destination-overview');
   });
 
   it('resolves multiple blocks with sequential indices', async () => {
@@ -500,5 +546,29 @@ date: 2025-03-15
     expect(routeCards[0].googleMapsUrl).toContain('google.com/maps/dir');
     expect(routeCards[0].stats.find((s) => s.key === 'stops').label).toBe('3 stops');
     expect(routeCards[0].stats.find((s) => s.key === 'distance').label).toBe('4.2 km');
+  });
+
+  it('uses destination overview geometry when provided', async () => {
+    const md = `:::route
+type: destination-overview
+destinationId: 1
+:::`;
+
+    const { routeCards } = await resolveRouteBlocksForExport(md, {
+      ...context,
+      loadDestinationOverview: vi.fn(async () => ({
+        mapCoordinates: [[12.4964, 41.9028], [12.49, 41.91], [12.48, 41.93]],
+        navigationCoordinates: [[12.4964, 41.9028], [12.49, 41.91], [12.48, 41.93]],
+        travelMode: 'walking',
+        stopCount: 3,
+        dayCount: 2,
+      })),
+    });
+
+    expect(routeCards[0].mapUrl).toContain('path-');
+    expect(routeCards[0].googleMapsUrl).toContain('travelmode=walking');
+    expect(routeCards[0].label).toBe('Rome Route Overview');
+    expect(routeCards[0].stats.find((s) => s.key === 'days').label).toBe('2 days');
+    expect(routeCards[0].stats.find((s) => s.key === 'stops').label).toBe('3 stops');
   });
 });

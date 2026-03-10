@@ -6,6 +6,7 @@ import {
   serializeRouteBlock,
   normalizeDescriptor,
   createTripOverviewBlock,
+  createDestinationOverviewBlock,
   createDayRouteBlock,
   insertRouteBlock,
   replaceRouteBlocks,
@@ -65,6 +66,21 @@ label: Day 1 — Rome Walking Tour
     expect(blocks[0].descriptor.type).toBe('day-route');
     expect(blocks[0].descriptor.destinationId).toBe(7);
     expect(blocks[0].descriptor.date).toBe('2025-03-15');
+    expect(blocks[0].valid).toBe(true);
+  });
+
+  it('parses a single destination-overview block', () => {
+    const md = `:::route
+type: destination-overview
+destinationId: 7
+label: Rome Route Overview
+:::`;
+
+    const blocks = parseRouteBlocks(md);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].descriptor.type).toBe('destination-overview');
+    expect(blocks[0].descriptor.destinationId).toBe(7);
+    expect(blocks[0].descriptor.date).toBeNull();
     expect(blocks[0].valid).toBe(true);
   });
 
@@ -163,6 +179,12 @@ describe('validateDescriptor', () => {
     expect(result.errors).toContain('day-route block requires date');
   });
 
+  it('requires destinationId for destination-overview', () => {
+    const result = validateDescriptor({ type: 'destination-overview' });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('destination-overview block requires destinationId');
+  });
+
   it('rejects unknown types', () => {
     const result = validateDescriptor({ type: 'banana' });
     expect(result.valid).toBe(false);
@@ -197,6 +219,17 @@ describe('serializeRouteBlock', () => {
     });
     expect(result).toBe(
       ':::route\ntype: day-route\ndestinationId: 7\ndate: 2025-03-15\n:::'
+    );
+  });
+
+  it('serializes a destination-overview block', () => {
+    const result = serializeRouteBlock({
+      type: 'destination-overview',
+      destinationId: 7,
+      label: 'Rome Route Overview',
+    });
+    expect(result).toBe(
+      ':::route\ntype: destination-overview\ndestinationId: 7\nlabel: Rome Route Overview\n:::'
     );
   });
 
@@ -292,6 +325,17 @@ describe('createDayRouteBlock', () => {
     expect(d.date).toBe('2025-03-15');
     expect(d.label).toBe('Rome Day');
     expect(d.tripId).toBeNull();
+  });
+});
+
+describe('createDestinationOverviewBlock', () => {
+  it('creates a normalized destination-overview descriptor', () => {
+    const d = createDestinationOverviewBlock(7, 'Rome Route Overview');
+    expect(d.type).toBe('destination-overview');
+    expect(d.destinationId).toBe(7);
+    expect(d.label).toBe('Rome Route Overview');
+    expect(d.tripId).toBeNull();
+    expect(d.date).toBeNull();
   });
 });
 

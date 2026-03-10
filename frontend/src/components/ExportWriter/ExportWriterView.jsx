@@ -9,8 +9,8 @@ import WritingAssistantPanel from './WritingAssistantPanel';
 import TravelContextPanel from './TravelContextPanel';
 import {
   createTripOverviewBlock,
+  createDestinationOverviewBlock,
   createDayRouteBlock,
-  serializeRouteBlock,
   insertRouteBlock,
 } from '../../utils/routeBlockContract';
 
@@ -112,6 +112,11 @@ const ExportWriterView = ({ tripId, trip }) => {
     insertBlockAtCursor(descriptor);
   }, [tripId, trip, insertBlockAtCursor]);
 
+  const handleInsertDestinationRoute = useCallback(({ destinationId, label }) => {
+    const descriptor = createDestinationOverviewBlock(destinationId, label || null);
+    insertBlockAtCursor(descriptor);
+  }, [insertBlockAtCursor]);
+
   // TravelContext action: insert day/destination route block
   const handleInsertDayRoute = useCallback(({ destinationId, date, label }) => {
     const descriptor = createDayRouteBlock(destinationId, date, label || null);
@@ -210,6 +215,7 @@ const ExportWriterView = ({ tripId, trip }) => {
               trip={trip}
               destinations={localDestinations}
               onPreparePrompt={handlePreparePrompt}
+              onInsertDestinationRoute={handleInsertDestinationRoute}
               onInsertDayRoute={handleInsertDayRoute}
             />
           )}
