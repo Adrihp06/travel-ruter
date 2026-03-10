@@ -1,12 +1,26 @@
 /**
  * Travel Context Panel — read-only reference showing POIs and accommodations
  * for the selected document's destination (or trip overview).
+ *
+ * Features:
+ * - POI descriptions are expandable/collapsible on demand
+ * - Day-grouped schedule view when schedule data is available
+ * - Per-POI "Prepare Prompt" action that composes a rich AI prompt
  */
-import React, { useEffect, useRef, useState } from 'react';
-import { MapPin, Bed, ChevronDown, ChevronRight, Globe, Loader2 } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  MapPin, Bed, ChevronDown, ChevronRight, Globe, Loader2,
+  Sparkles, Calendar, Route,
+} from 'lucide-react';
 import usePOIStore, { usePOIsByCategory, usePOIsLoading } from '../../stores/usePOIStore';
 import useAccommodationStore from '../../stores/useAccommodationStore';
+import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import useExportWriterStore from '../../stores/useExportWriterStore';
+import { composePOIPrompt, formatCurrency } from './promptComposer';
+
+function hasRouteCoordinates(poi) {
+  return Number.isFinite(poi?.latitude) && Number.isFinite(poi?.longitude);
+}
 
 const CATEGORY_ICONS = {
   attraction: '🏛️',
@@ -46,7 +60,67 @@ function CollapsibleSection({ title, icon, count, defaultOpen = true, children }
   );
 }
 
-function POICategoryGroup({ category, poiList }) {
+/**
+ * A single POI card with expandable description and a "Prepare Prompt" action.
+ */
+function ExpandablePOICard({ poi, onPreparePrompt, prepareDisabled = false }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasLongDesc = poi.description && poi.description.length > 60;
+
+  return (
+    <div className="flex items-start gap-2 px-2 py-1.5 rounded bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 group">
+      <MapPin className="w-3 h-3 text-amber-500 flex-shrink-0 mt-0.5" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1">
+          <span className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate flex-1">
+            {poi.name}
+          </span>
+          {onPreparePrompt && (
+            <button
+              onClick={(e) => { e.stopPropagation(); if (!prepareDisabled) onPreparePrompt(poi); }}
+              title="Prepare AI prompt for this place"
+              disabled={prepareDisabled}
+              className="opacity-0 group-hover:opacity-100 focus:opacity-100 flex-shrink-0 p-0.5 rounded text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <Sparkles className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+        {poi.description && (
+          <div
+            className={`text-[10px] text-gray-400 dark:text-gray-500 ${
+              !expanded && hasLongDesc ? 'line-clamp-2' : ''
+            }`}
+          >
+            {poi.description}
+          </div>
+        )}
+        {hasLongDesc && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-[10px] text-amber-600 dark:text-amber-400 hover:underline mt-0.5"
+          >
+            {expanded ? 'Show less' : 'Show more'}
+          </button>
+        )}
+        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+          {poi.estimated_cost != null && poi.estimated_cost > 0 && (
+            <span className="text-[10px] text-amber-600 dark:text-amber-400">
+              ~{formatCurrency(poi.estimated_cost, poi.currency)}
+            </span>
+          )}
+          {poi.dwell_time != null && poi.dwell_time > 0 && (
+            <span className="text-[10px] text-gray-400 dark:text-gray-500">
+              {poi.dwell_time} min
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function POICategoryGroup({ category, poiList, onPreparePrompt, prepareDisabled }) {
   const icon = CATEGORY_ICONS[category?.toLowerCase()] || '📍';
 
   return (
@@ -56,30 +130,53 @@ function POICategoryGroup({ category, poiList }) {
       </div>
       <div className="space-y-1">
         {poiList.map((poi) => (
-          <div
-            key={poi.id}
-            className="flex items-start gap-2 px-2 py-1.5 rounded bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800"
-          >
-            <MapPin className="w-3 h-3 text-amber-500 flex-shrink-0 mt-0.5" />
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">
-                {poi.name}
-              </div>
-              {poi.description && (
-                <div className="text-[10px] text-gray-400 dark:text-gray-500 truncate">
-                  {poi.description}
-                </div>
-              )}
-              {poi.estimated_cost != null && poi.estimated_cost > 0 && (
-                <span className="text-[10px] text-amber-600 dark:text-amber-400">
-                  ~{poi.estimated_cost}€
-                </span>
-              )}
-            </div>
-          </div>
+          <ExpandablePOICard key={poi.id} poi={poi} onPreparePrompt={onPreparePrompt} prepareDisabled={prepareDisabled} />
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * Day-based schedule group — shows POIs organized by their scheduled date
+ * with route segment info when available.
+ */
+function DayScheduleGroup({ date, pois, dayRoute, onPreparePrompt, prepareDisabled }) {
+  const dateLabel = (() => {
+    try {
+      return new Date(date + 'T00:00:00').toLocaleDateString(undefined, {
+        weekday: 'short', month: 'short', day: 'numeric',
+      });
+    } catch {
+      return date;
+    }
+  })();
+
+  return (
+    <div className="mb-3 last:mb-0">
+      <div className="flex items-center gap-1.5 mb-1">
+        <Calendar className="w-3 h-3 text-amber-500 flex-shrink-0" />
+        <span className="text-[10px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+          {dateLabel}
+        </span>
+        <span className="text-[10px] text-gray-400 dark:text-gray-500">
+          ({pois.length} {pois.length === 1 ? 'stop' : 'stops'})
+        </span>
+      </div>
+      {dayRoute && dayRoute.totalDistance > 0 && (
+        <div className="flex items-center gap-2 mb-1 ml-4">
+          <Route className="w-2.5 h-2.5 text-gray-400 flex-shrink-0" />
+          <span className="text-[10px] text-gray-400 dark:text-gray-500">
+            {dayRoute.totalDistance.toFixed(1)} km · ~{Math.round(dayRoute.totalDuration || 0)} min travel
+          </span>
+        </div>
+      )}
+        <div className="space-y-1">
+          {pois.map((poi) => (
+            <ExpandablePOICard key={poi.id} poi={poi} onPreparePrompt={onPreparePrompt} prepareDisabled={prepareDisabled} />
+          ))}
+        </div>
+      </div>
   );
 }
 
@@ -109,19 +206,32 @@ function AccommodationCard({ acc }) {
   );
 }
 
-const TravelContextPanel = ({ trip, destinations }) => {
+const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
   const selectedDocId = useExportWriterStore((s) => s.selectedDocId);
   const documents = useExportWriterStore((s) => s.documents);
-  const selectedDoc = selectedDocId ? documents[selectedDocId] : null;
+  const referenceNotes = useExportWriterStore((s) => s.referenceNotes);
+  const selectedDoc = selectedDocId
+    ? (documents[selectedDocId] || referenceNotes?.[selectedDocId] || null)
+    : null;
 
   const pois = usePOIsByCategory();
   const poisLoading = usePOIsLoading();
+  const clearPOIs = usePOIStore((s) => s.clearPOIs);
   const fetchPOIsByDestination = usePOIStore((s) => s.fetchPOIsByDestination);
+  const getPOIsBySchedule = usePOIStore((s) => s.getPOIsBySchedule);
   const accommodations = useAccommodationStore((s) => s.accommodations);
   const accLoading = useAccommodationStore((s) => s.isLoading);
+  const clearAccommodations = useAccommodationStore((s) => s.clearAccommodations);
   const fetchAccommodations = useAccommodationStore((s) => s.fetchAccommodations);
+  const dayRoutes = useDayRoutesStore((s) => s.dayRoutes);
+  const calculateAllDayRoutesImmediate = useDayRoutesStore((s) => s.calculateAllDayRoutesImmediate);
+  const clearRoutes = useDayRoutesStore((s) => s.clearRoutes);
+  const isRouteCalculating = useDayRoutesStore((s) => s.isCalculating);
 
   const lastFetchedDestIdRef = useRef(null);
+
+  // Toggle between "by category" and "by day" views
+  const [viewMode, setViewMode] = useState('category');
 
   const destinationId = selectedDoc?.destinationId || null;
   const destination = destinationId
@@ -130,16 +240,102 @@ const TravelContextPanel = ({ trip, destinations }) => {
 
   // Fetch data when destination changes (parallel)
   useEffect(() => {
-    if (destinationId && destinationId !== lastFetchedDestIdRef.current) {
+    if (!destinationId) {
+      lastFetchedDestIdRef.current = null;
+      clearPOIs?.();
+      clearAccommodations?.();
+      clearRoutes?.();
+      return;
+    }
+
+    if (destinationId !== lastFetchedDestIdRef.current) {
       lastFetchedDestIdRef.current = destinationId;
+      clearPOIs?.();
+      clearAccommodations?.();
+      clearRoutes?.();
       Promise.all([
         fetchPOIsByDestination(destinationId),
         fetchAccommodations(destinationId),
       ]);
     }
-  }, [destinationId, fetchPOIsByDestination, fetchAccommodations]);
+  }, [destinationId, clearPOIs, clearAccommodations, clearRoutes, fetchPOIsByDestination, fetchAccommodations]);
+
+  // Build schedule view from POI store data
+  const scheduleData = useMemo(() => {
+    if (!getPOIsBySchedule) return null;
+    try {
+      return getPOIsBySchedule();
+    } catch {
+      return null;
+    }
+  }, [getPOIsBySchedule, pois]);
+
+  const hasScheduledPOIs = scheduleData?.scheduled && Object.keys(scheduleData.scheduled).length > 0;
+
+  useEffect(() => {
+    setViewMode('category');
+  }, [destinationId]);
+
+  useEffect(() => {
+    if (!hasScheduledPOIs && viewMode === 'schedule') {
+      setViewMode('category');
+    }
+  }, [hasScheduledPOIs, viewMode]);
+
+  useEffect(() => {
+    if (!destinationId) {
+      clearRoutes?.();
+      return;
+    }
+
+    if (poisLoading) {
+      return;
+    }
+
+    const scheduledByDay = scheduleData?.scheduled || {};
+    const routableSchedule = Object.fromEntries(
+      Object.entries(scheduledByDay)
+        .map(([date, dayPois]) => [date, dayPois.filter(hasRouteCoordinates)])
+        .filter(([, dayPois]) => dayPois.length > 1)
+    );
+
+    if (Object.keys(routableSchedule).length === 0) {
+      clearRoutes?.();
+      return;
+    }
+
+    calculateAllDayRoutesImmediate?.(routableSchedule);
+  }, [destinationId, scheduleData, poisLoading, calculateAllDayRoutesImmediate, clearRoutes]);
+
+  useEffect(() => () => {
+    clearRoutes?.();
+  }, [clearRoutes]);
+
+  // Compose a per-POI prompt using available day route data
+  const handlePreparePrompt = (poi) => {
+    const scheduledPois = poi.scheduled_date ? scheduleData?.scheduled?.[poi.scheduled_date] || [] : [];
+    const routedDayRoute = poi.scheduled_date ? dayRoutes[poi.scheduled_date] : null;
+    const dayRoute = poi.scheduled_date
+      ? ({
+          ...(routedDayRoute || {}),
+          itineraryPois: scheduledPois,
+          pois: routedDayRoute?.pois || scheduledPois,
+        })
+      : null;
+    const prompt = composePOIPrompt({
+      poi,
+      destination,
+      dayRoute: dayRoute || null,
+      accommodations,
+      trip,
+    });
+    if (onPreparePrompt) {
+      onPreparePrompt(prompt);
+    }
+  };
 
   const isLoading = poisLoading || accLoading;
+  const isPromptContextLoading = isLoading || isRouteCalculating;
   const totalPOIs = pois.reduce((sum, group) => sum + group.pois.length, 0);
 
   // Trip Overview mode: show all destinations summary
@@ -222,23 +418,91 @@ const TravelContextPanel = ({ trip, destinations }) => {
 
         {!isLoading && (
           <>
-            <CollapsibleSection
-              title="Places of Interest"
-              icon={<MapPin className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
-              count={totalPOIs}
-            >
-              {pois.length > 0 ? (
-                pois.map((group) => (
-                  <POICategoryGroup
-                    key={group.category}
-                    category={group.category}
-                    poiList={group.pois}
-                  />
-                ))
-              ) : (
-                <div className="text-[10px] text-gray-400 italic py-1">No POIs added yet.</div>
-              )}
-            </CollapsibleSection>
+            {/* View mode toggle — only show when schedule data exists */}
+            {hasScheduledPOIs && (
+              <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <button
+                  onClick={() => setViewMode('category')}
+                  className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium transition-colors ${
+                    viewMode === 'category'
+                      ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
+                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  <MapPin className="w-2.5 h-2.5" />
+                  By Category
+                </button>
+                <button
+                  onClick={() => setViewMode('schedule')}
+                  className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium transition-colors ${
+                    viewMode === 'schedule'
+                      ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
+                      : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  <Calendar className="w-2.5 h-2.5" />
+                  By Day
+                </button>
+              </div>
+            )}
+
+            {/* POIs — Category view */}
+            {viewMode === 'category' && (
+              <CollapsibleSection
+                title="Places of Interest"
+                icon={<MapPin className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
+                count={totalPOIs}
+              >
+                {pois.length > 0 ? (
+                  pois.map((group) => (
+                    <POICategoryGroup
+                      key={group.category}
+                      category={group.category}
+                      poiList={group.pois}
+                      onPreparePrompt={handlePreparePrompt}
+                      prepareDisabled={isPromptContextLoading}
+                    />
+                  ))
+                ) : (
+                  <div className="text-[10px] text-gray-400 italic py-1">No POIs added yet.</div>
+                )}
+              </CollapsibleSection>
+            )}
+
+            {/* POIs — Schedule/Day view */}
+            {viewMode === 'schedule' && scheduleData && (
+              <CollapsibleSection
+                title="Daily Schedule"
+                icon={<Calendar className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
+                count={totalPOIs}
+              >
+                {Object.entries(scheduleData.scheduled)
+                  .sort(([a], [b]) => a.localeCompare(b))
+                  .map(([date, datePois]) => (
+                    <DayScheduleGroup
+                      key={date}
+                      date={date}
+                      pois={datePois}
+                      dayRoute={dayRoutes[date]}
+                      onPreparePrompt={handlePreparePrompt}
+                      prepareDisabled={isPromptContextLoading}
+                    />
+                  ))}
+
+                {scheduleData.unscheduled && scheduleData.unscheduled.length > 0 && (
+                  <div className="mt-3">
+                    <div className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
+                      📌 Unscheduled
+                    </div>
+                    <div className="space-y-1">
+                      {scheduleData.unscheduled.map((poi) => (
+                        <ExpandablePOICard key={poi.id} poi={poi} onPreparePrompt={handlePreparePrompt} prepareDisabled={isPromptContextLoading} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CollapsibleSection>
+            )}
 
             <CollapsibleSection
               title="Accommodations"

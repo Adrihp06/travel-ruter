@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+let _accommodationLoadGeneration = 0;
 
 const useAccommodationStore = create((set, get) => ({
   // State
@@ -13,6 +14,7 @@ const useAccommodationStore = create((set, get) => ({
 
   // Actions
   fetchAccommodations: async (destinationId) => {
+    const gen = ++_accommodationLoadGeneration;
     set({ isLoading: true, error: null });
     try {
       const response = await authFetch(
@@ -24,13 +26,18 @@ const useAccommodationStore = create((set, get) => ({
       }
 
       const data = await response.json();
+      if (gen !== _accommodationLoadGeneration) {
+        return [];
+      }
       // Handle paginated response format { items: [...] } or direct array
       const accommodations = Array.isArray(data) ? data : (data.items || []);
       set({ accommodations, isLoading: false });
       return accommodations;
     } catch (error) {
-      set({ error: error.message, isLoading: false });
-      throw error;
+      if (gen === _accommodationLoadGeneration) {
+        set({ error: error.message, isLoading: false });
+      }
+      return [];
     }
   },
 
@@ -133,7 +140,8 @@ const useAccommodationStore = create((set, get) => ({
   },
 
   clearAccommodations: () => {
-    set({ accommodations: [], accommodationsByDestination: {}, selectedAccommodation: null, error: null });
+    _accommodationLoadGeneration++;
+    set({ accommodations: [], accommodationsByDestination: {}, selectedAccommodation: null, isLoading: false, error: null });
   },
 
   clearError: () => set({ error: null }),

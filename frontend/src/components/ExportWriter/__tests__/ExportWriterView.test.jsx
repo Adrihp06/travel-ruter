@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, act, screen } from '@testing-library/react';
+import { render, act, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 
 // Stub child components so the test stays focused on data-flow plumbing.
@@ -27,9 +27,17 @@ vi.mock('../TravelContextPanel', () => ({
 // Mock stores with controllable fetchDestinations.
 const mockReset = vi.fn();
 const mockLoadDocuments = vi.fn().mockResolvedValue(undefined);
+const mockLoadReferenceNotes = vi.fn().mockResolvedValue(undefined);
 
 vi.mock('../../../stores/useExportWriterStore', () => ({
-  default: () => ({ reset: mockReset, loadDocuments: mockLoadDocuments }),
+  default: (selector) => selector({
+    reset: mockReset,
+    loadDocuments: mockLoadDocuments,
+    loadReferenceNotes: mockLoadReferenceNotes,
+    documents: {},
+    getSelectedDocument: () => null,
+    selectDocument: vi.fn(),
+  }),
 }));
 
 let fetchDestinationsImpl = vi.fn();
@@ -61,8 +69,10 @@ describe('ExportWriterView – trip-scoped destinations', () => {
       render(<ExportWriterView tripId={1} trip={trip} />);
     });
 
-    const tree = screen.getByTestId('doc-tree');
-    expect(JSON.parse(tree.dataset.destinations)).toEqual(dests);
+    await waitFor(() => {
+      const tree = screen.getByTestId('doc-tree');
+      expect(JSON.parse(tree.dataset.destinations)).toEqual(dests);
+    });
   });
 
   it('stale in-flight fetchDestinations cannot overwrite local destinations after trip switch', async () => {
@@ -89,8 +99,10 @@ describe('ExportWriterView – trip-scoped destinations', () => {
     });
 
     // Children must show trip 2 destinations, NOT trip 1's stale Berlin data.
-    const tree = screen.getByTestId('doc-tree');
-    expect(JSON.parse(tree.dataset.destinations)).toEqual(trip2Dests);
+    await waitFor(() => {
+      const tree = screen.getByTestId('doc-tree');
+      expect(JSON.parse(tree.dataset.destinations)).toEqual(trip2Dests);
+    });
   });
 
   it('clears local destinations immediately on trip switch', async () => {
@@ -111,10 +123,36 @@ describe('ExportWriterView – trip-scoped destinations', () => {
       rerender(<ExportWriterView tripId={2} trip={{ ...trip, id: 2 }} />);
     });
 
-    const tree = screen.getByTestId('doc-tree');
-    expect(JSON.parse(tree.dataset.destinations)).toEqual([]);
+    expect(screen.queryByTestId('doc-tree')).toBeNull();
 
     // Cleanup: resolve the pending promise.
     await act(async () => resolveTrip2([]));
+  });
+
+  it('renders the writer shell before document and note bootstrap finish', async () => {
+    const dests = [{ id: 1, city_name: 'Paris' }];
+    let resolveDocs;
+    let resolveRefs;
+
+    fetchDestinationsImpl.mockResolvedValue(dests);
+    mockLoadDocuments.mockImplementation(() => new Promise((resolve) => {
+      resolveDocs = resolve;
+    }));
+    mockLoadReferenceNotes.mockImplementation(() => new Promise((resolve) => {
+      resolveRefs = resolve;
+    }));
+
+    render(<ExportWriterView tripId={1} trip={trip} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('doc-tree')).toBeInTheDocument();
+      expect(screen.getByTestId('editor')).toBeInTheDocument();
+      expect(screen.getByTestId('assistant')).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      resolveDocs();
+      resolveRefs();
+    });
   });
 });

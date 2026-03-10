@@ -3,7 +3,7 @@
  * Uses its own WebSocket session separate from the main AI chat.
  */
 import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { Sparkles, PenLine, Plus, Send, Loader2, Bot, ClipboardPaste } from 'lucide-react';
+import { Send, Loader2, Bot } from 'lucide-react';
 import useExportWriterStore, { WRITING_SYSTEM_PROMPT } from '../../stores/useExportWriterStore';
 import useAuthStore from '../../stores/useAuthStore';
 import usePOIStore from '../../stores/usePOIStore';
@@ -35,6 +35,15 @@ function buildDocumentContext(doc, destinations, pois, accommodations) {
   const dest = doc.destinationId
     ? destinations?.find((d) => d.id === doc.destinationId)
     : null;
+  const scopedPois = doc.destinationId
+    ? (pois || []).map((group) => ({
+        ...group,
+        pois: group.pois.filter((poi) => poi.destination_id === doc.destinationId),
+      })).filter((group) => group.pois.length > 0)
+    : (pois || []);
+  const scopedAccommodations = doc.destinationId
+    ? (accommodations || []).filter((acc) => acc.destination_id === doc.destinationId)
+    : (accommodations || []);
 
   let ctx = '';
   if (dest) {
@@ -47,8 +56,8 @@ Current content (${doc.content?.length || 0} chars): ${doc.content?.slice(0, 200
   }
 
   // Append POI data if available
-  if (pois && pois.length > 0) {
-    const poiLines = pois.map((group) => {
+  if (scopedPois.length > 0) {
+    const poiLines = scopedPois.map((group) => {
       const names = group.pois.map((p) => p.name).join(', ');
       return `  ${group.category}: ${names}`;
     }).join('\n');
@@ -56,8 +65,8 @@ Current content (${doc.content?.length || 0} chars): ${doc.content?.slice(0, 200
   }
 
   // Append accommodation data if available
-  if (accommodations && accommodations.length > 0) {
-    const accLines = accommodations.map((a) => {
+  if (scopedAccommodations.length > 0) {
+    const accLines = scopedAccommodations.map((a) => {
       const dates = [a.check_in_date, a.check_out_date].filter(Boolean).join(' – ');
       return `  ${a.name}${dates ? ` (${dates})` : ''}${a.address ? ` — ${a.address}` : ''}`;
     }).join('\n');
@@ -67,9 +76,11 @@ Current content (${doc.content?.length || 0} chars): ${doc.content?.slice(0, 200
   return ctx;
 }
 
-function MessageBubble({ msg, onApply }) {
+function MessageBubble({ msg, onOverwrite, onAppend, onReplaceSelection }) {
   const isUser = msg.role === 'user';
-  const showApply = !isUser && !msg.isStreaming && msg.content && onApply;
+  const showApply = !isUser && !msg.isStreaming && msg.content;
+  const applyBtnClass =
+    'px-2 py-0.5 text-[10px] rounded transition-colors';
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-3`}>
       {!isUser && (
@@ -91,20 +102,39 @@ function MessageBubble({ msg, onApply }) {
           )}
         </div>
         {showApply && (
-          <button
-            onClick={() => onApply(msg.content)}
-            className="mt-1 flex items-center gap-1 px-2 py-1 text-[10px] text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded transition-colors"
-          >
-            <ClipboardPaste className="w-3 h-3" />
-            Apply to editor
-          </button>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {onOverwrite && (
+              <button
+                onClick={() => onOverwrite(msg.content)}
+                className={`${applyBtnClass} text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30`}
+              >
+                Overwrite document
+              </button>
+            )}
+            {onAppend && (
+              <button
+                onClick={() => onAppend(msg.content)}
+                className={`${applyBtnClass} text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700`}
+              >
+                Append to document
+              </button>
+            )}
+            {onReplaceSelection && (
+              <button
+                onClick={() => onReplaceSelection(msg.content)}
+                className={`${applyBtnClass} text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700`}
+              >
+                Replace selection
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
+const WritingAssistantPanel = forwardRef(({ trip, destinations, destinationsReady = true, getEditorSelection }, ref) => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isConnected, setIsConnected] = useState(false);
@@ -112,14 +142,18 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
   const [sessionId, setSessionId] = useState(null);
 
   const wsRef = useRef(null);
+  const isConnectedRef = useRef(false);
   const streamingIdRef = useRef(null);
   const streamingContentRef = useRef('');
+  const pendingDocIdRef = useRef(null);
+  const preparedDocIdRef = useRef(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
-  const autoApplyRef = useRef(false);
-
-  const { documents, selectedDocId, updateContent } = useExportWriterStore();
-  const selectedDoc = selectedDocId ? documents[selectedDocId] : null;
+  const { documents, referenceNotes = {}, selectedDocId, updateContent } = useExportWriterStore();
+  const selectedDoc = selectedDocId
+    ? (documents[selectedDocId] || referenceNotes[selectedDocId] || null)
+    : null;
+  const canApplyToDocument = !!selectedDocId && !selectedDoc?.isReference;
   const { accessToken } = useAuthStore();
 
   // Travel data for enriched AI context
@@ -130,6 +164,10 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
 
   // Create session with writing system prompt
   const createSession = useCallback(async () => {
@@ -175,15 +213,18 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
         ws.send(JSON.stringify({ type: 'auth', token }));
       } else {
         // No auth mode — mark connected directly
+        isConnectedRef.current = true;
         setIsConnected(true);
       }
     };
 
     ws.onclose = () => {
+      isConnectedRef.current = false;
       setIsConnected(false);
     };
 
     ws.onerror = () => {
+      isConnectedRef.current = false;
       setIsConnected(false);
     };
 
@@ -202,6 +243,7 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
   function handleWSMessage(data) {
     switch (data.type) {
       case 'auth_ok':
+        isConnectedRef.current = true;
         setIsConnected(true);
         break;
 
@@ -210,7 +252,13 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
         streamingContentRef.current = '';
         setMessages((prev) => [
           ...prev,
-          { id: data.messageId, role: 'assistant', content: '', isStreaming: true },
+          {
+            id: data.messageId,
+            role: 'assistant',
+            content: '',
+            isStreaming: true,
+            sourceDocId: pendingDocIdRef.current,
+          },
         ]);
         setIsLoading(true);
         break;
@@ -232,19 +280,12 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
 
       case 'end': {
         const finishedId = streamingIdRef.current;
-        const shouldApply = autoApplyRef.current && selectedDocId;
-        const finalContent = streamingContentRef.current;
-        autoApplyRef.current = false;
 
         setMessages((prev) =>
           prev.map((m) =>
             m.id === finishedId ? { ...m, isStreaming: false } : m
           )
         );
-        // Apply content to editor outside the state updater
-        if (shouldApply && finalContent) {
-          updateContent(selectedDocId, finalContent);
-        }
         streamingIdRef.current = null;
         streamingContentRef.current = '';
         setIsLoading(false);
@@ -269,9 +310,35 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
     }
   }
 
+  const waitForConnection = useCallback(() => new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      clearInterval(checkConnection);
+      reject(new Error('Connection timeout'));
+    }, 5000);
+
+    const checkConnection = window.setInterval(() => {
+      if (wsRef.current?.readyState === WebSocket.OPEN && isConnectedRef.current) {
+        clearInterval(checkConnection);
+        clearTimeout(timeout);
+        resolve();
+      }
+    }, 50);
+  }), []);
+
   // Mount: create session + connect WebSocket
   useEffect(() => {
     let cancelled = false;
+
+    setMessages([]);
+    setInputValue('');
+    setSessionId(null);
+    isConnectedRef.current = false;
+    setIsConnected(false);
+    setIsLoading(false);
+    streamingIdRef.current = null;
+    streamingContentRef.current = '';
+    pendingDocIdRef.current = null;
+    preparedDocIdRef.current = null;
 
     const setup = async () => {
       const sid = await createSession();
@@ -281,7 +348,7 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
       }
     };
 
-    if (trip) {
+    if (trip && destinationsReady) {
       setup();
     }
 
@@ -291,39 +358,65 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
         wsRef.current.close(1000);
       }
     };
-  }, [trip?.id]);
+  }, [trip?.id, destinationsReady]);
 
   const sendMessage = useCallback(
     async (content) => {
       if (!content.trim() || isLoading) return;
 
+      setIsLoading(true);
       let currentSessionId = sessionId;
+      const sourceDocId = preparedDocIdRef.current ?? (canApplyToDocument ? selectedDocId : null);
 
       // Create session if needed
       if (!currentSessionId) {
         currentSessionId = await createSession();
-        if (!currentSessionId) return;
+        if (!currentSessionId) {
+          setIsLoading(false);
+          return;
+        }
         setSessionId(currentSessionId);
       }
 
       // Ensure WebSocket connected
-      if (!isConnected || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
         connectWS();
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      if (!isConnectedRef.current || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        try {
+          await waitForConnection();
+        } catch {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `assistant_error_${Date.now()}`,
+              role: 'assistant',
+              content: 'Connection failed. Please try again.',
+              isStreaming: false,
+            },
+          ]);
+          setIsLoading(false);
+          return;
+        }
       }
 
       setMessages((prev) => [
         ...prev,
-        { id: `user_${Date.now()}`, role: 'user', content: content.trim() },
+        { id: `user_${Date.now()}`, role: 'user', content: content.trim(), sourceDocId },
       ]);
+      pendingDocIdRef.current = sourceDocId;
+      preparedDocIdRef.current = null;
 
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(
           JSON.stringify({ type: 'chat', sessionId: currentSessionId, message: content.trim() })
         );
+      } else {
+        setIsLoading(false);
       }
     },
-    [sessionId, isConnected, isLoading, createSession, connectWS]
+    [sessionId, isLoading, createSession, connectWS, waitForConnection, canApplyToDocument, selectedDocId]
   );
 
   const handleSubmit = (e) => {
@@ -341,49 +434,66 @@ const WritingAssistantPanel = forwardRef(({ trip, destinations }, ref) => {
     }
   };
 
-  // Apply AI content to the editor
-  const applyToEditor = useCallback((content) => {
-    if (selectedDocId && content) {
-      updateContent(selectedDocId, content);
+  // Apply AI content to the editor: overwrite entire document
+  const applyOverwrite = useCallback((targetDocId, content) => {
+    if (canApplyToDocument && targetDocId && targetDocId === selectedDocId && content) {
+      updateContent(targetDocId, content);
     }
-  }, [selectedDocId, updateContent]);
+  }, [canApplyToDocument, selectedDocId, updateContent]);
 
-  // Shared prompt builders (used by both imperative handle and quick actions)
+  // Apply AI content to the editor: append to existing content
+  const applyAppend = useCallback((targetDocId, content) => {
+    if (canApplyToDocument && targetDocId && targetDocId === selectedDocId && content) {
+      const existing = selectedDoc?.content || '';
+      const separator = existing.trim() ? '\n\n' : '';
+      updateContent(targetDocId, existing + separator + content);
+    }
+  }, [canApplyToDocument, selectedDocId, selectedDoc, updateContent]);
+
+  // Apply AI content to the editor: replace selected text
+  const applyReplaceSelection = useCallback((targetDocId, content) => {
+    if (!canApplyToDocument || !targetDocId || targetDocId !== selectedDocId || !content) return;
+    const selection = getEditorSelection?.();
+    if (selection) {
+      const existing = selectedDoc?.content || '';
+      const before = existing.substring(0, selection.start);
+      const after = existing.substring(selection.end);
+      updateContent(targetDocId, before + content + after);
+    }
+  }, [canApplyToDocument, selectedDocId, selectedDoc, updateContent, getEditorSelection]);
+
+  // Populate editable prompt for user review before sending
   const generateDraft = useCallback((doc) => {
     if (!doc) return;
-    autoApplyRef.current = true;
+    preparedDocIdRef.current = doc.id;
     const docCtx = buildDocumentContext(doc, destinations, pois, accommodations);
     const prompt = `Please write a complete travel document draft in markdown for: ${docCtx}
 
 Write an engaging, informative document in first person with proper markdown headings, paragraphs, and bullet points. Include highlights, practical tips, and personal observations. Write at least 300 words.`;
-    sendMessage(prompt);
-  }, [sendMessage, destinations, pois, accommodations]);
+    setInputValue(prompt);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, [destinations, pois, accommodations]);
 
   const improveDraft = useCallback((doc) => {
     if (!doc || !doc.content) return;
-    autoApplyRef.current = true;
+    preparedDocIdRef.current = doc.id;
     const prompt = `Please improve the following travel document. Make it more engaging, better structured, and more detailed. Keep the markdown format:\n\n${doc.content}`;
-    sendMessage(prompt);
-  }, [sendMessage]);
+    setInputValue(prompt);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, []);
 
   // Expose imperative actions to parent (via ref from ExportWriterView)
   useImperativeHandle(ref, () => ({
     triggerGenerateDraft: generateDraft,
     triggerImprove: improveDraft,
-  }), [generateDraft, improveDraft]);
+    setPromptInput: (text, targetDocId = selectedDocId) => {
+      preparedDocIdRef.current = targetDocId || null;
+      setInputValue(text);
+      // Focus the textarea so the user can review / edit before sending
+      setTimeout(() => inputRef.current?.focus(), 50);
+    },
+  }), [generateDraft, improveDraft, selectedDocId]);
 
-  // Quick action handlers
-  const handleGenerateDraft = () => generateDraft(selectedDoc);
-  const handleImprove = () => improveDraft(selectedDoc);
-
-  const handleAddDetails = () => {
-    if (!selectedDoc) return;
-    const dest = selectedDoc.destinationId
-      ? destinations?.find((d) => d.id === selectedDoc.destinationId)
-      : null;
-    const place = dest ? dest.city_name : (trip?.name || 'the destination');
-    sendMessage(`Add more interesting details, local tips, and cultural insights for ${place}. Focus on practical advice for travelers.`);
-  };
 
   return (
     <div className="flex flex-col h-full">
@@ -394,36 +504,6 @@ Write an engaging, informative document in first person with proper markdown hea
         <div className={`ml-auto w-2 h-2 rounded-full flex-shrink-0 ${isConnected ? 'bg-green-500' : 'bg-gray-400'}`} title={isConnected ? 'Connected' : 'Connecting...'} />
       </div>
 
-      {/* Quick actions */}
-      <div className="px-3 py-2 border-b border-gray-200 dark:border-gray-700 space-y-1.5 flex-shrink-0">
-        <button
-          onClick={handleGenerateDraft}
-          disabled={isLoading || !selectedDoc}
-          className="w-full flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 rounded-lg text-xs font-medium hover:bg-amber-100 dark:hover:bg-amber-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Sparkles className="w-3.5 h-3.5 flex-shrink-0" />
-          Generate Draft
-        </button>
-        <div className="flex gap-1.5">
-          <button
-            onClick={handleImprove}
-            disabled={isLoading || !selectedDoc?.content}
-            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <PenLine className="w-3 h-3" />
-            Improve
-          </button>
-          <button
-            onClick={handleAddDetails}
-            disabled={isLoading || !selectedDoc}
-            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded-lg text-xs hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Plus className="w-3 h-3" />
-            More details
-          </button>
-        </div>
-      </div>
-
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 py-3 min-h-0">
         {messages.length === 0 && (
@@ -431,13 +511,19 @@ Write an engaging, informative document in first person with proper markdown hea
             <Bot className="w-8 h-8 mx-auto mb-2 opacity-40" />
             <p className="text-xs">
               {selectedDoc
-                ? 'Use the quick actions above or ask me anything about your travel document.'
+                ? 'Use the toolbar buttons or type a message to get writing help.'
                 : 'Select a document to get started.'}
             </p>
           </div>
         )}
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} msg={msg} onApply={applyToEditor} />
+          <MessageBubble
+            key={msg.id}
+            msg={msg}
+            onOverwrite={msg.sourceDocId && msg.sourceDocId === selectedDocId ? (content) => applyOverwrite(msg.sourceDocId, content) : null}
+            onAppend={msg.sourceDocId && msg.sourceDocId === selectedDocId ? (content) => applyAppend(msg.sourceDocId, content) : null}
+            onReplaceSelection={msg.sourceDocId && msg.sourceDocId === selectedDocId ? (content) => applyReplaceSelection(msg.sourceDocId, content) : null}
+          />
         ))}
         <div ref={messagesEndRef} />
       </div>
@@ -453,7 +539,7 @@ Write an engaging, informative document in first person with proper markdown hea
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Ask for writing help..."
-          rows={2}
+          rows={Math.min(6, Math.max(2, (inputValue.match(/\n/g) || []).length + 1))}
           className="flex-1 text-xs px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-600 resize-none focus:outline-none focus:ring-1 focus:ring-amber-500 dark:focus:ring-amber-600"
         />
         <button

@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/shallow';
 import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+let _poiLoadGeneration = 0;
 
 // Helper to build POI lookup map from category groups
 const buildPOIMap = (pois) => {
@@ -33,6 +34,7 @@ const usePOIStore = create((set, get) => ({
   setPOIs: (pois) => set({ pois, poisById: buildPOIMap(pois) }),
 
   fetchPOIsByDestination: async (destinationId) => {
+    const gen = ++_poiLoadGeneration;
     set({ isLoading: true, error: null });
     try {
       const response = await authFetch(`${API_BASE_URL}/destinations/${destinationId}/pois`);
@@ -42,12 +44,24 @@ const usePOIStore = create((set, get) => ({
       }
 
       const data = await response.json();
+      if (gen !== _poiLoadGeneration) {
+        return [];
+      }
       // Handle paginated response format { items: [...] } or direct array
       const pois = Array.isArray(data) ? data : (data.items || []);
       set({ pois, poisById: buildPOIMap(pois), isLoading: false });
+      return pois;
     } catch (error) {
-      set({ error: error.message, isLoading: false, pois: [], poisById: new Map() });
+      if (gen === _poiLoadGeneration) {
+        set({ error: error.message, isLoading: false, pois: [], poisById: new Map() });
+      }
+      return [];
     }
+  },
+
+  clearPOIs: () => {
+    _poiLoadGeneration++;
+    set({ pois: [], poisById: new Map(), selectedPOI: null, isLoading: false, error: null });
   },
 
   createPOI: async (poiData) => {

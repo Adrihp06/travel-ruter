@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Bot, MapPin } from 'lucide-react';
 import useExportWriterStore from '../../stores/useExportWriterStore';
 import useDestinationStore from '../../stores/useDestinationStore';
@@ -8,15 +8,24 @@ import WritingAssistantPanel from './WritingAssistantPanel';
 import TravelContextPanel from './TravelContextPanel';
 
 const ExportWriterView = ({ tripId, trip }) => {
-  const { loadDocuments, reset } = useExportWriterStore();
+  const loadDocuments = useExportWriterStore((s) => s.loadDocuments);
+  const loadReferenceNotes = useExportWriterStore((s) => s.loadReferenceNotes);
+  const reset = useExportWriterStore((s) => s.reset);
+  const documents = useExportWriterStore((s) => s.documents);
+  const getSelectedDocument = useExportWriterStore((s) => s.getSelectedDocument);
+  const selectDocument = useExportWriterStore((s) => s.selectDocument);
   const fetchDestinations = useDestinationStore((s) => s.fetchDestinations);
   const [activeTab, setActiveTab] = useState('assistant');
   // Trip-scoped destinations: immune to stale shared-store writes from
   // older in-flight fetchDestinations calls after the user switches trips.
   const [localDestinations, setLocalDestinations] = useState([]);
+  const [destinationsReady, setDestinationsReady] = useState(false);
+  const [initializedTripId, setInitializedTripId] = useState(null);
 
   // Ref to forward actions from editor toolbar → writing assistant
   const writingAssistantRef = useRef(null);
+  // Ref to access editor selection for replace-selection support
+  const editorRef = useRef(null);
 
   // Single coordinated effect: fetch destinations → load documents.
   // Avoids passive destinations.length triggering and stale-trip races.
@@ -27,15 +36,24 @@ const ExportWriterView = ({ tripId, trip }) => {
       if (!tripId) return;
 
       setLocalDestinations([]);
+      setDestinationsReady(false);
+      setInitializedTripId(null);
       reset();
 
       try {
         const dests = await fetchDestinations(tripId);
         if (cancelled) return;
-        setLocalDestinations(dests || []);
-        await loadDocuments(tripId, dests || []);
+        const scopedDestinations = dests || [];
+        setLocalDestinations(scopedDestinations);
+        setDestinationsReady(true);
+        setInitializedTripId(tripId);
+
+        void loadDocuments(tripId, scopedDestinations);
+        void loadReferenceNotes(tripId);
       } catch (err) {
         if (!cancelled) {
+          setDestinationsReady(true);
+          setInitializedTripId(tripId);
           console.error('Export Writer: failed to initialize trip', err);
         }
       }
@@ -45,9 +63,12 @@ const ExportWriterView = ({ tripId, trip }) => {
 
     return () => {
       cancelled = true;
+      setInitializedTripId(null);
       reset();
     };
   }, [tripId]);
+
+  const isTripReady = initializedTripId === tripId;
 
   // Callback: toolbar "Generate Draft" → writing assistant generates
   const handleGenerateDraft = (doc) => {
@@ -61,21 +82,49 @@ const ExportWriterView = ({ tripId, trip }) => {
     writingAssistantRef.current?.triggerImprove(doc);
   };
 
+  // Stable callback for the assistant to query editor selection
+  const getEditorSelection = useCallback(() => {
+    return editorRef.current?.getSelection?.() || null;
+  }, []);
+
+  // Callback: Travel Data "Prepare Prompt" → populate assistant input
+  const handlePreparePrompt = (prompt) => {
+    const selectedDoc = getSelectedDocument?.();
+    let targetDocId = selectedDoc?.id || null;
+
+    if (selectedDoc?.isReference) {
+      const draftDocs = Object.values(documents);
+      const matchingDraft = draftDocs.find((doc) => doc.destinationId === selectedDoc.destinationId)
+        || draftDocs.find((doc) => !doc.destinationId);
+
+      if (matchingDraft) {
+        targetDocId = matchingDraft.id;
+        selectDocument(matchingDraft.id);
+      }
+    }
+
+    setActiveTab('assistant');
+    writingAssistantRef.current?.setPromptInput(prompt, targetDocId);
+  };
+
   return (
     <div className="flex h-full overflow-hidden">
       {/* Left panel: Document Tree (~220px) */}
       <div className="w-56 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-        <DocumentTree trip={trip} destinations={localDestinations} />
+        {isTripReady && <DocumentTree trip={trip} destinations={localDestinations} />}
       </div>
 
       {/* Center panel: Markdown Editor (flex-1) */}
       <div className="flex-1 min-w-0 border-r border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
-        <MarkdownEditorPanel
-          trip={trip}
-          destinations={localDestinations}
-          onGenerateDraft={handleGenerateDraft}
-          onImprove={handleImprove}
-        />
+        {isTripReady && (
+          <MarkdownEditorPanel
+            ref={editorRef}
+            trip={trip}
+            destinations={localDestinations}
+            onGenerateDraft={handleGenerateDraft}
+            onImprove={handleImprove}
+          />
+        )}
       </div>
 
       {/* Right panel: Tabbed — Writing Assistant | Travel Data (~320px) */}
@@ -109,17 +158,24 @@ const ExportWriterView = ({ tripId, trip }) => {
         {/* Tab content */}
         {/* Both panels stay mounted; hidden panel uses display:none to preserve WS state */}
         <div className={`flex-1 overflow-hidden ${activeTab !== 'assistant' ? 'hidden' : ''}`}>
-          <WritingAssistantPanel
-            ref={writingAssistantRef}
-            trip={trip}
-            destinations={localDestinations}
-          />
+          {isTripReady && (
+            <WritingAssistantPanel
+              ref={writingAssistantRef}
+              trip={trip}
+              destinations={localDestinations}
+              destinationsReady={destinationsReady}
+              getEditorSelection={getEditorSelection}
+            />
+          )}
         </div>
         <div className={`flex-1 overflow-hidden ${activeTab !== 'context' ? 'hidden' : ''}`}>
-          <TravelContextPanel
-            trip={trip}
-            destinations={localDestinations}
-          />
+          {isTripReady && (
+            <TravelContextPanel
+              trip={trip}
+              destinations={localDestinations}
+              onPreparePrompt={handlePreparePrompt}
+            />
+          )}
         </div>
       </div>
     </div>

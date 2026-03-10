@@ -15,6 +15,7 @@ function getDocStatus(content) {
 
 let _autoSaveTimers = {};
 let _loadGeneration = 0;
+let _refLoadGeneration = 0;
 
 const useExportWriterStore = create((set, get) => ({
   // Map of noteId → { id, title, content, destinationId, status }
@@ -25,23 +26,28 @@ const useExportWriterStore = create((set, get) => ({
   selectedForExport: new Set(),
   // 'idle' | 'saving' | 'saved' | 'error'
   saveStatus: 'idle',
+  // Reference notes from the journal (non-export_draft), keyed by noteId
+  referenceNotes: {},
   // Loading state
   isLoading: false,
+  isLoadingRefs: false,
   error: null,
 
   // Load all export_draft notes for a trip. Creates placeholders for missing destinations.
   // Uses a generation counter so stale async completions (from prior trips) are discarded.
   loadDocuments: async (tripId, destinations = []) => {
     const gen = ++_loadGeneration;
+    const isCurrentLoad = () => gen === _loadGeneration;
     set({ isLoading: true, error: null });
     try {
       const params = new URLSearchParams({ note_type: 'export_draft' });
       const url = `${API_BASE_URL}/trips/${tripId}/notes?${params}`;
       const response = await authFetch(url);
       if (!response.ok) throw new Error('Failed to fetch export drafts');
-      if (gen !== _loadGeneration) return;
+      if (!isCurrentLoad()) return;
 
       const data = await response.json();
+      if (!isCurrentLoad()) return;
       const existingNotes = data.notes || [];
 
       const documents = {};
@@ -49,8 +55,9 @@ const useExportWriterStore = create((set, get) => ({
       // Find or create overview document (destination_id = null)
       let overviewNote = existingNotes.find((n) => !n.destination_id);
       if (!overviewNote) {
+        if (!isCurrentLoad()) return;
         overviewNote = await get().createDocument(tripId, null, 'Trip Overview');
-        if (gen !== _loadGeneration) return;
+        if (!isCurrentLoad()) return;
       }
       if (overviewNote) {
         documents[overviewNote.id] = {
@@ -64,11 +71,12 @@ const useExportWriterStore = create((set, get) => ({
 
       // Find or create one document per destination
       for (const dest of destinations) {
-        if (gen !== _loadGeneration) return;
+        if (!isCurrentLoad()) return;
         let note = existingNotes.find((n) => n.destination_id === dest.id);
         if (!note) {
+          if (!isCurrentLoad()) return;
           note = await get().createDocument(tripId, dest.id, dest.city_name);
-          if (gen !== _loadGeneration) return;
+          if (!isCurrentLoad()) return;
         }
         if (note) {
           documents[note.id] = {
@@ -81,10 +89,10 @@ const useExportWriterStore = create((set, get) => ({
         }
       }
 
-      if (gen !== _loadGeneration) return;
+      if (!isCurrentLoad()) return;
 
       // Pre-select first document
-      const firstId = Object.keys(documents)[0] || null;
+      const firstId = Object.values(documents)[0]?.id ?? null;
       set({
         documents,
         selectedDocId: firstId,
@@ -154,6 +162,57 @@ const useExportWriterStore = create((set, get) => ({
     set({ selectedForExport: new Set() });
   },
 
+  // Load non-export_draft notes for the tree (trip-level + destination notes).
+  // Uses its own generation counter so stale loads are safely discarded.
+  loadReferenceNotes: async (tripId) => {
+    const gen = ++_refLoadGeneration;
+    set({ isLoadingRefs: true });
+    try {
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/notes/grouped`);
+      if (!response.ok) throw new Error('Failed to fetch reference notes');
+      if (gen !== _refLoadGeneration) return;
+
+      const data = await response.json();
+      const refNotes = {};
+
+      for (const note of (data.trip_level || [])) {
+        if (note.note_type === 'export_draft') continue;
+        refNotes[note.id] = {
+          id: note.id,
+          title: note.title,
+          content: note.content || '',
+          destinationId: null,
+          status: getDocStatus(note.content),
+          noteType: note.note_type,
+          isReference: true,
+        };
+      }
+
+      for (const destGroup of (data.by_destination || [])) {
+        for (const note of (destGroup.notes || [])) {
+          if (note.note_type === 'export_draft') continue;
+          refNotes[note.id] = {
+            id: note.id,
+            title: note.title,
+            content: note.content || '',
+            destinationId: note.destination_id,
+            status: getDocStatus(note.content),
+            noteType: note.note_type,
+            isReference: true,
+          };
+        }
+      }
+
+      if (gen !== _refLoadGeneration) return;
+      set({ referenceNotes: refNotes, isLoadingRefs: false });
+    } catch (error) {
+      if (gen === _refLoadGeneration) {
+        console.error('Failed to load reference notes:', error);
+        set({ isLoadingRefs: false });
+      }
+    }
+  },
+
   // Update content locally and schedule auto-save
   updateContent: (noteId, content) => {
     set((state) => ({
@@ -204,23 +263,27 @@ const useExportWriterStore = create((set, get) => ({
     }
   },
 
-  // Get selected document data
+  // Get selected document data (checks both export drafts and reference notes)
   getSelectedDocument: () => {
-    const { documents, selectedDocId } = get();
-    return selectedDocId ? documents[selectedDocId] : null;
+    const { documents, referenceNotes, selectedDocId } = get();
+    if (!selectedDocId) return null;
+    return documents[selectedDocId] || referenceNotes[selectedDocId] || null;
   },
 
-  // Reset store and cancel any in-flight loadDocuments
+  // Reset store and cancel any in-flight loadDocuments / loadReferenceNotes
   reset: () => {
     _loadGeneration++;
+    _refLoadGeneration++;
     Object.values(_autoSaveTimers).forEach(clearTimeout);
     _autoSaveTimers = {};
     set({
       documents: {},
+      referenceNotes: {},
       selectedDocId: null,
       selectedForExport: new Set(),
       saveStatus: 'idle',
       isLoading: false,
+      isLoadingRefs: false,
       error: null,
     });
   },

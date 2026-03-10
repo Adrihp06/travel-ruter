@@ -429,6 +429,7 @@ const useDayRoutesStore = create((set, get) => ({
       dayRoutes: {},
       visibleDays: [],
       segmentModes: {},
+      isCalculating: false,
       error: null,
     });
   },
