@@ -2,7 +2,8 @@ import React, { useCallback, useMemo, useRef, forwardRef, useImperativeHandle } 
 import MDEditor from '@uiw/react-md-editor/nohighlight';
 import '@uiw/react-md-editor/markdown-editor.css';
 import DOMPurify from 'dompurify';
-import { Sparkles, PenLine, FileText } from 'lucide-react';
+import { Sparkles, PenLine, FileText, Route } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import useExportWriterStore from '../../stores/useExportWriterStore';
 import usePOIStore from '../../stores/usePOIStore';
 import useAccommodationStore from '../../stores/useAccommodationStore';
@@ -22,25 +23,28 @@ function wordCount(text) {
 }
 
 function SaveStatusIndicator({ status }) {
+  const { t } = useTranslation();
+
   if (status === 'saving') {
     return (
-      <span className="text-xs text-amber-600 dark:text-amber-400">Saving...</span>
+      <span className="text-xs text-amber-600 dark:text-amber-400">{t('exportWriter.editor.saving')}</span>
     );
   }
   if (status === 'saved') {
     return (
-      <span className="text-xs text-green-600 dark:text-green-400">Auto-saved ✓</span>
+      <span className="text-xs text-green-600 dark:text-green-400">{t('exportWriter.editor.saved')}</span>
     );
   }
   if (status === 'error') {
     return (
-      <span className="text-xs text-red-600 dark:text-red-400">Error saving</span>
+      <span className="text-xs text-red-600 dark:text-red-400">{t('exportWriter.editor.saveError')}</span>
     );
   }
   return null;
 }
 
-const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove }, ref) => {
+const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove, onInsertTripRoute, tripId }, ref) => {
+  const { t } = useTranslation();
   const {
     documents,
     referenceNotes,
@@ -59,6 +63,11 @@ const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove }, ref) => 
       if (selectionStart === selectionEnd) return null;
       return { start: selectionStart, end: selectionEnd, text: value.substring(selectionStart, selectionEnd) };
     },
+    getCursorPosition: () => {
+      const textarea = editorContainerRef.current?.querySelector('textarea');
+      if (!textarea) return null;
+      return textarea.selectionStart;
+    },
   }), []);
 
   const selectedDoc = selectedDocId
@@ -68,9 +77,9 @@ const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove }, ref) => 
   const content = selectedDoc?.content || '';
   const sanitizedReferenceContent = useMemo(() => {
     if (!isReference) return '';
-    if (!content) return '<p class="text-gray-400 italic">No content</p>';
+    if (!content) return `<p class="text-gray-400 italic">${t('journal.noContent')}</p>`;
     return DOMPurify.sanitize(content, sanitizeConfig);
-  }, [content, isReference]);
+  }, [content, isReference, t]);
   const words = wordCount(
     isReference
       ? sanitizedReferenceContent.replace(/<[^>]+>/g, ' ')
@@ -92,12 +101,12 @@ const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove }, ref) => 
 
   if (!selectedDoc) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center px-8 text-gray-400 dark:text-gray-500">
-        <FileText className="w-12 h-12 mb-4 opacity-30" />
-        <p className="text-sm font-medium">Select a document</p>
-        <p className="text-xs mt-1">Choose a document from the tree on the left to start writing.</p>
-      </div>
-    );
+        <div className="flex flex-col items-center justify-center h-full text-center px-8 text-gray-400 dark:text-gray-500">
+          <FileText className="w-12 h-12 mb-4 opacity-30" />
+          <p className="text-sm font-medium">{t('exportWriter.editor.selectDocument')}</p>
+          <p className="text-xs mt-1">{t('exportWriter.editor.selectDocumentHint')}</p>
+        </div>
+      );
   }
 
   return (
@@ -108,26 +117,37 @@ const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove }, ref) => 
           {selectedDoc.title}
         </span>
         {isReference ? (
-          <span className="text-xs text-gray-400 dark:text-gray-500 italic">Vault note</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500 italic">{t('exportWriter.editor.vaultNote')}</span>
         ) : (
           <>
             <button
               onClick={() => onGenerateDraft && onGenerateDraft(selectedDoc)}
               disabled={!isGeneratingReady}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-medium hover:bg-amber-700 transition-colors"
-              title="Ask AI to generate a draft"
+              title={t('exportWriter.editor.generateDraftTitle')}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              Generate Draft
+              {t('exportWriter.editor.generateDraft')}
             </button>
             <button
               onClick={() => onImprove && onImprove(selectedDoc)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              title="Ask AI to improve current content"
+              title={t('exportWriter.editor.improveTitle')}
             >
               <PenLine className="w-3.5 h-3.5" />
-              Improve
+              {t('exportWriter.editor.improve')}
             </button>
+            {tripId && (
+              <button
+                onClick={() => onInsertTripRoute && onInsertTripRoute()}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                title={t('exportWriter.editor.insertTripRouteTitle')}
+                data-testid="insert-trip-route-btn"
+              >
+                <Route className="w-3.5 h-3.5" />
+                {t('exportWriter.editor.insertTripRoute')}
+              </button>
+            )}
           </>
         )}
       </div>
@@ -158,7 +178,7 @@ const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove }, ref) => 
       {/* Footer */}
       <div className="flex items-center justify-between px-4 py-1.5 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex-shrink-0">
         <span className="text-xs text-gray-400 dark:text-gray-500">
-          {words} word{words !== 1 ? 's' : ''}
+          {t('exportWriter.editor.wordCount', { count: words })}
         </span>
         {!isReference && <SaveStatusIndicator status={saveStatus} />}
       </div>

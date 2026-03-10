@@ -83,6 +83,91 @@
     "travelRuter": "Travel Ruter"
   },
 
+  "exportWriter": {
+    "documents": {
+      "title": "Documentos",
+      "hasContent": "Tiene contenido",
+      "draft": "Borrador",
+      "empty": "Vacio",
+      "loadingNotes": "Cargando notas...",
+      "noDocuments": "Aun no hay documentos",
+      "selectAllTitle": "Seleccionar todos los borradores de exportacion",
+      "removeFromExport": "Quitar de la exportacion",
+      "addToExport": "Anadir a la exportacion",
+      "exportSelectedCount": "Exportar ({{count}})",
+      "exportAllDrafts": "Exportar todos los borradores"
+    },
+    "editor": {
+      "saving": "Guardando...",
+      "saved": "Guardado automatico ✓",
+      "saveError": "Error al guardar",
+      "selectDocument": "Selecciona un documento",
+      "selectDocumentHint": "Elige un documento del arbol de la izquierda para empezar a escribir.",
+      "vaultNote": "Nota del vault",
+      "generateDraft": "Generar borrador",
+      "generateDraftTitle": "Pedir a la IA que genere un borrador",
+      "improve": "Mejorar",
+      "improveTitle": "Pedir a la IA que mejore el contenido actual",
+      "insertTripRoute": "Mapa de Ruta",
+      "insertTripRouteTitle": "Insertar bloque de mapa de ruta del viaje",
+      "wordCount": "{{count}} palabra",
+      "wordCount_other": "{{count}} palabras"
+    },
+    "travelData": {
+      "title": "Datos de viaje",
+      "tripOverview": "Resumen del viaje",
+      "loading": "Cargando datos del viaje...",
+      "noDestinations": "Todavia no hay destinos anadidos.",
+      "byCategory": "Por categoria",
+      "byDay": "Por dia",
+      "places": "Puntos de interes",
+      "dailySchedule": "Horario diario",
+      "notes": "Notas",
+      "accommodations": "Alojamientos",
+      "noPois": "Todavia no hay POIs anadidos.",
+      "noNotes": "Todavia no hay notas anadidas.",
+      "noAccommodations": "Todavia no hay alojamientos anadidos.",
+      "preparePoiPrompt": "Preparar prompt de IA para este lugar",
+      "showMore": "Ver mas",
+      "showLess": "Ver menos",
+      "unscheduled": "Sin programar",
+      "minutes": "{{count}} min",
+      "stopCount": "{{count}} parada",
+      "stopCount_other": "{{count}} paradas",
+      "routeSummary": "{{distance}} km · ~{{duration}} min de trayecto",
+      "insertDayRoute": "Insertar Ruta"
+    },
+    "writer": {
+      "title": "Asistente de escritura",
+      "connected": "Conectado",
+      "connecting": "Conectando...",
+      "emptyWithDocument": "Usa los botones de la barra o escribe un mensaje para pedir ayuda de redaccion.",
+      "emptyWithoutDocument": "Selecciona un documento para empezar.",
+      "inputPlaceholder": "Pide ayuda de redaccion...",
+      "additionalInstructionsPlaceholder": "Anade instrucciones extra antes de enviar...",
+      "connectionFailed": "La conexion ha fallado. Intentalo de nuevo.",
+      "generateModeLabel": "Redactando {{title}}",
+      "improveModeLabel": "Mejorando documento",
+      "improveSelectionModeLabel": "Mejorando seleccion",
+      "poiModeLabel": "POI preparado: {{name}}",
+      "actions": {
+        "overwrite": "Sobrescribir",
+        "append": "Anadir",
+        "replace": "Reemplazar"
+      },
+      "context": {
+        "document": "Documento",
+        "dates": "Fechas",
+        "destinationNotes": "Notas del destino",
+        "currentContent": "Contenido actual",
+        "empty": "(vacio)",
+        "notes": "Notas de referencia",
+        "pois": "Puntos de interes",
+        "accommodations": "Alojamientos"
+      }
+    }
+  },
+
   "trips": {
     "title": "Viajes",
     "searchPlaceholder": "Buscar viajes por nombre, ubicaci\u00f3n o fecha...",

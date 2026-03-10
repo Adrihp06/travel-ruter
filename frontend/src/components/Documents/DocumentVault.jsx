@@ -218,45 +218,54 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
   const renderByDestinationView = () => {
     if (!groupedDocuments) return renderAllView();
 
+    const byDestinationMap = new Map(
+      groupedDocuments.by_destination.map((destGroup) => [destGroup.destination_id, destGroup])
+    );
+
     return (
       <div className="space-y-3">
         {/* Trip-level documents */}
-        {groupedDocuments.trip_level.length > 0 && (
-          <div className="bg-gray-50 rounded-lg p-3">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-gray-700 flex items-center">
-                <FolderOpen className="w-4 h-4 mr-2 text-gray-500" />
-                {t('documents.tripDocuments')}
-                <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
-                  {groupedDocuments.trip_level.length}
-                </span>
-              </h4>
-            </div>
-            <DocumentList
-              documents={groupedDocuments.trip_level.filter(doc =>
-                selectedCategory === 'all' || doc.document_type === selectedCategory
-              )}
-              onView={handleView}
-              onDownload={handleDownload}
-              onDelete={handleDelete}
-              isLoading={false}
-              compact
-            />
+        <div className="bg-gray-50 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-medium text-gray-700 flex items-center">
+              <FolderOpen className="w-4 h-4 mr-2 text-gray-500" />
+              {t('documents.tripDocuments')}
+              <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
+                {groupedDocuments.trip_level.filter(doc =>
+                  selectedCategory === 'all' || doc.document_type === selectedCategory
+                ).length}
+              </span>
+            </h4>
           </div>
-        )}
+          <DocumentList
+            documents={groupedDocuments.trip_level.filter(doc =>
+              selectedCategory === 'all' || doc.document_type === selectedCategory
+            )}
+            onView={handleView}
+            onDownload={handleDownload}
+            onDelete={handleDelete}
+            isLoading={false}
+            compact
+            emptyMessage={t('documents.noDocuments')}
+          />
+        </div>
 
         {/* Documents by destination */}
-        {groupedDocuments.by_destination.map(destGroup => {
-          const destination = destinations.find(d => d.id === destGroup.destination_id);
-          const isExpanded = expandedDestinations[destGroup.destination_id];
+        {destinations.map(destination => {
+          const destGroup = byDestinationMap.get(destination.id) || {
+            destination_id: destination.id,
+            destination_name: destination.city_name,
+            documents: [],
+          };
+          const isExpanded = expandedDestinations[destination.id];
           const filteredDocs = destGroup.documents.filter(doc =>
             selectedCategory === 'all' || doc.document_type === selectedCategory
           );
 
           return (
-            <div key={destGroup.destination_id} className="border border-gray-200 rounded-lg overflow-hidden">
+            <div key={destination.id} className="border border-gray-200 rounded-lg overflow-hidden">
               <button
-                onClick={() => toggleDestination(destGroup.destination_id)}
+                onClick={() => toggleDestination(destination.id)}
                 className="w-full flex items-center justify-between p-3 bg-white hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center">
@@ -267,7 +276,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
                   )}
                   <MapPin className="w-4 h-4 mr-2 text-[#D97706]" />
                   <span className="font-medium text-gray-900">{destGroup.destination_name}</span>
-                  {destination?.country && (
+                  {destination.country && (
                     <span className="ml-2 text-xs text-gray-500">{destination.country}</span>
                   )}
                 </div>
@@ -287,6 +296,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
                       isLoading={false}
                       compact
                       destinations={destinations}
+                      emptyMessage={t('documents.noDocumentsForDestination')}
                     />
                   ) : (
                     <p className="text-sm text-gray-500 py-2">{t('documents.noDocumentsForDestination')}</p>
@@ -297,7 +307,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
           );
         })}
 
-        {groupedDocuments.by_destination.length === 0 && groupedDocuments.trip_level.length === 0 && (
+        {destinations.length === 0 && groupedDocuments.trip_level.length === 0 && (
           <div className="text-center py-6 text-gray-500 text-sm">
             <FolderOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
             <p>{t('documents.noDocuments')}</p>
@@ -311,37 +321,46 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
   const renderByDayView = () => {
     if (!groupedDocuments) return renderAllView();
 
+    const byDestinationMap = new Map(
+      groupedDocuments.by_destination.map((destGroup) => [destGroup.destination_id, destGroup])
+    );
+
     return (
       <div className="space-y-3">
         {/* Trip-level documents */}
-        {groupedDocuments.trip_level.length > 0 && (
-          <div className="bg-gray-50 rounded-lg p-3">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-medium text-gray-700 flex items-center">
-                <FolderOpen className="w-4 h-4 mr-2 text-gray-500" />
-                {t('documents.tripDocuments')}
-                <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
-                  {groupedDocuments.trip_level.length}
-                </span>
-              </h4>
-            </div>
-            <DocumentList
-              documents={groupedDocuments.trip_level.filter(doc =>
-                selectedCategory === 'all' || doc.document_type === selectedCategory
-              )}
-              onView={handleView}
-              onDownload={handleDownload}
-              onDelete={handleDelete}
-              isLoading={false}
-              compact
-            />
+        <div className="bg-gray-50 rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="text-sm font-medium text-gray-700 flex items-center">
+              <FolderOpen className="w-4 h-4 mr-2 text-gray-500" />
+              {t('documents.tripDocuments')}
+              <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
+                {groupedDocuments.trip_level.filter(doc =>
+                  selectedCategory === 'all' || doc.document_type === selectedCategory
+                ).length}
+              </span>
+            </h4>
           </div>
-        )}
+          <DocumentList
+            documents={groupedDocuments.trip_level.filter(doc =>
+              selectedCategory === 'all' || doc.document_type === selectedCategory
+            )}
+            onView={handleView}
+            onDownload={handleDownload}
+            onDelete={handleDelete}
+            isLoading={false}
+            compact
+            emptyMessage={t('documents.noDocuments')}
+          />
+        </div>
 
         {/* Documents by destination, then by day */}
-        {groupedDocuments.by_destination.map(destGroup => {
-          const destination = destinations.find(d => d.id === destGroup.destination_id);
-          const isDestExpanded = expandedDestinations[destGroup.destination_id];
+        {destinations.map(destination => {
+          const destGroup = byDestinationMap.get(destination.id) || {
+            destination_id: destination.id,
+            destination_name: destination.city_name,
+            documents: [],
+          };
+          const isDestExpanded = expandedDestinations[destination.id];
           const docsByDay = groupDocsByDay(destGroup.documents);
           const numDays = destination ? getDestinationDays(destination) : 0;
           const filteredDocs = destGroup.documents.filter(doc =>
@@ -349,9 +368,9 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
           );
 
           return (
-            <div key={destGroup.destination_id} className="border border-gray-200 rounded-lg overflow-hidden">
+            <div key={destination.id} className="border border-gray-200 rounded-lg overflow-hidden">
               <button
-                onClick={() => toggleDestination(destGroup.destination_id)}
+                onClick={() => toggleDestination(destination.id)}
                 className="w-full flex items-center justify-between p-3 bg-white hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center">
@@ -410,7 +429,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
                       return (
                         <div key={dayKey} className="p-3 border-b border-gray-100 last:border-b-0">
                           <button
-                            onClick={() => toggleDay(destGroup.destination_id, day)}
+                            onClick={() => toggleDay(destination.id, day)}
                             className="flex items-center text-xs font-medium text-gray-600 mb-2 hover:text-gray-900"
                           >
                             {isDayExpanded ? (
@@ -445,7 +464,7 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
           );
         })}
 
-        {groupedDocuments.by_destination.length === 0 && groupedDocuments.trip_level.length === 0 && (
+        {destinations.length === 0 && groupedDocuments.trip_level.length === 0 && (
           <div className="text-center py-6 text-gray-500 text-sm">
             <FolderOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
             <p>{t('documents.noDocuments')}</p>
@@ -465,11 +484,9 @@ const DocumentVault = ({ tripId, isOpen, onClose }) => {
         <div className="flex items-center space-x-2">
           <FolderOpen className="w-5 h-5 text-[#D97706]" />
           <h2 className="font-semibold text-gray-900">{t('documents.vault')}</h2>
-          {documents.length > 0 && (
-            <span className="text-xs bg-amber-100 text-[#D97706] px-2 py-0.5 rounded-full">
-              {documents.length}
-            </span>
-          )}
+          <span className="text-xs bg-amber-100 text-[#D97706] px-2 py-0.5 rounded-full">
+            {documents.length}
+          </span>
         </div>
         <button
           onClick={onClose}

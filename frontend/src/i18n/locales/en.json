@@ -83,6 +83,91 @@
     "travelRuter": "Travel Ruter"
   },
 
+  "exportWriter": {
+    "documents": {
+      "title": "Documents",
+      "hasContent": "Has content",
+      "draft": "Draft",
+      "empty": "Empty",
+      "loadingNotes": "Loading notes...",
+      "noDocuments": "No documents yet",
+      "selectAllTitle": "Select all export drafts",
+      "removeFromExport": "Remove from export",
+      "addToExport": "Add to export",
+      "exportSelectedCount": "Export ({{count}})",
+      "exportAllDrafts": "Export All Drafts"
+    },
+    "editor": {
+      "saving": "Saving...",
+      "saved": "Auto-saved ✓",
+      "saveError": "Error saving",
+      "selectDocument": "Select a document",
+      "selectDocumentHint": "Choose a document from the tree on the left to start writing.",
+      "vaultNote": "Vault note",
+      "generateDraft": "Generate Draft",
+      "generateDraftTitle": "Ask AI to generate a draft",
+      "improve": "Improve",
+      "improveTitle": "Ask AI to improve current content",
+      "insertTripRoute": "Route Map",
+      "insertTripRouteTitle": "Insert trip route map block",
+      "wordCount": "{{count}} word",
+      "wordCount_other": "{{count}} words"
+    },
+    "travelData": {
+      "title": "Travel Data",
+      "tripOverview": "Trip Overview",
+      "loading": "Loading travel data...",
+      "noDestinations": "No destinations added yet.",
+      "byCategory": "By Category",
+      "byDay": "By Day",
+      "places": "Places of Interest",
+      "dailySchedule": "Daily Schedule",
+      "notes": "Notes",
+      "accommodations": "Accommodations",
+      "noPois": "No POIs added yet.",
+      "noNotes": "No notes added yet.",
+      "noAccommodations": "No accommodations added yet.",
+      "preparePoiPrompt": "Prepare AI prompt for this place",
+      "showMore": "Show more",
+      "showLess": "Show less",
+      "unscheduled": "Unscheduled",
+      "minutes": "{{count}} min",
+      "stopCount": "{{count}} stop",
+      "stopCount_other": "{{count}} stops",
+      "routeSummary": "{{distance}} km · ~{{duration}} min travel",
+      "insertDayRoute": "Insert Route"
+    },
+    "writer": {
+      "title": "Writing Assistant",
+      "connected": "Connected",
+      "connecting": "Connecting...",
+      "emptyWithDocument": "Use the toolbar buttons or type a message to get writing help.",
+      "emptyWithoutDocument": "Select a document to get started.",
+      "inputPlaceholder": "Ask for writing help...",
+      "additionalInstructionsPlaceholder": "Add any extra instructions before sending...",
+      "connectionFailed": "Connection failed. Please try again.",
+      "generateModeLabel": "Drafting {{title}}",
+      "improveModeLabel": "Improving document",
+      "improveSelectionModeLabel": "Improving selection",
+      "poiModeLabel": "Prepared POI: {{name}}",
+      "actions": {
+        "overwrite": "Overwrite",
+        "append": "Append",
+        "replace": "Replace"
+      },
+      "context": {
+        "document": "Document",
+        "dates": "Dates",
+        "destinationNotes": "Destination notes",
+        "currentContent": "Current content",
+        "empty": "(empty)",
+        "notes": "Reference notes",
+        "pois": "Places of interest",
+        "accommodations": "Accommodations"
+      }
+    }
+  },
+
   "trips": {
     "title": "Trips",
     "searchPlaceholder": "Search trips by name, location, or date...",

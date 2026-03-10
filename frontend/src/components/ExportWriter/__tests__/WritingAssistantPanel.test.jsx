@@ -2,6 +2,48 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import React, { createRef } from 'react';
 
+const translations = {
+  'exportWriter.writer.context.document': 'Document',
+  'exportWriter.writer.context.dates': 'Dates',
+  'exportWriter.writer.context.destinationNotes': 'Destination notes',
+  'exportWriter.writer.context.currentContent': 'Current content',
+  'exportWriter.writer.context.empty': '(empty)',
+  'exportWriter.writer.context.notes': 'Reference notes',
+  'exportWriter.writer.context.pois': 'Places of interest',
+  'exportWriter.writer.context.accommodations': 'Accommodations',
+  'exportWriter.writer.title': 'Writing Assistant',
+  'exportWriter.writer.connected': 'Connected',
+  'exportWriter.writer.connecting': 'Connecting...',
+  'exportWriter.writer.emptyWithDocument': 'Use the toolbar buttons or type a message to get writing help.',
+  'exportWriter.writer.emptyWithoutDocument': 'Select a document to get started.',
+  'exportWriter.writer.inputPlaceholder': 'Ask for writing help...',
+  'exportWriter.writer.additionalInstructionsPlaceholder': 'Add any extra instructions before sending...',
+  'exportWriter.writer.connectionFailed': 'Connection failed. Please try again.',
+  'exportWriter.writer.generateModeLabel': 'Drafting {{title}}',
+  'exportWriter.writer.improveModeLabel': 'Improving document',
+  'exportWriter.writer.improveSelectionModeLabel': 'Improving selection',
+  'exportWriter.writer.poiModeLabel': 'Prepared POI: {{name}}',
+  'exportWriter.writer.actions.overwrite': 'Overwrite',
+  'exportWriter.writer.actions.append': 'Append',
+  'exportWriter.writer.actions.replace': 'Replace',
+  'exportWriter.travelData.tripOverview': 'Trip Overview',
+  'journal.noContent': 'No content',
+  'common.cancel': 'Cancel',
+};
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key, options = {}) => {
+      const template = translations[key] || key;
+      return template
+        .replace('{{title}}', String(options.title ?? ''))
+        .replace('{{name}}', String(options.name ?? ''))
+        .replace('{{count}}', String(options.count ?? ''));
+    },
+    i18n: { language: 'en' },
+  }),
+}));
+
 // ---- Mocks ----
 
 // jsdom doesn't implement scrollIntoView
@@ -27,7 +69,6 @@ vi.stubGlobal('WebSocket', FakeWebSocket);
 const mockUpdateContent = vi.fn();
 let mockAccessToken = null;
 vi.mock('../../../stores/useExportWriterStore', () => {
-  const WRITING_SYSTEM_PROMPT = 'test-prompt';
   return {
     default: () => ({
       documents: {
@@ -36,7 +77,6 @@ vi.mock('../../../stores/useExportWriterStore', () => {
       selectedDocId: 'doc1',
       updateContent: mockUpdateContent,
     }),
-    WRITING_SYSTEM_PROMPT,
   };
 });
 
@@ -82,7 +122,7 @@ describe('WritingAssistantPanel – prompt workflow refactor', () => {
     expect(screen.queryByRole('button', { name: /More details/i })).toBeNull();
   });
 
-  it('triggerGenerateDraft populates the textarea instead of sending', async () => {
+  it('triggerGenerateDraft stages hidden prepared context instead of injecting the prompt into the textarea', async () => {
     const ref = createRef();
     await act(async () => {
       render(<WritingAssistantPanel ref={ref} trip={trip} destinations={destinations} />);
@@ -91,12 +131,12 @@ describe('WritingAssistantPanel – prompt workflow refactor', () => {
     const doc = { id: 'doc1', title: 'Paris', content: '', destinationId: 1 };
     act(() => ref.current.triggerGenerateDraft(doc));
 
-    const textarea = screen.getByPlaceholderText('Ask for writing help...');
-    expect(textarea.value).toContain('Please write a complete travel document draft');
-    expect(textarea.value).toContain('Paris');
+    const textarea = screen.getByRole('textbox');
+    expect(textarea.value).toBe('');
+    expect(screen.getByText('Drafting Paris')).toBeTruthy();
   });
 
-  it('triggerImprove populates the textarea instead of sending', async () => {
+  it('triggerImprove stages hidden prepared context instead of injecting the prompt into the textarea', async () => {
     const ref = createRef();
     await act(async () => {
       render(<WritingAssistantPanel ref={ref} trip={trip} destinations={destinations} />);
@@ -105,9 +145,9 @@ describe('WritingAssistantPanel – prompt workflow refactor', () => {
     const doc = { id: 'doc1', title: 'Paris', content: '# Draft\nSome content here.', destinationId: 1 };
     act(() => ref.current.triggerImprove(doc));
 
-    const textarea = screen.getByPlaceholderText('Ask for writing help...');
-    expect(textarea.value).toContain('improve the following travel document');
-    expect(textarea.value).toContain('# Draft');
+    const textarea = screen.getByRole('textbox');
+    expect(textarea.value).toBe('');
+    expect(screen.getByText('Improving document')).toBeTruthy();
   });
 
   it('renders overwrite / append / replace-selection buttons on assistant messages', async () => {
@@ -147,9 +187,9 @@ describe('WritingAssistantPanel – prompt workflow refactor', () => {
       wsInstance?.onmessage?.({ data: JSON.stringify({ type: 'end' }) });
     });
 
-    expect(screen.getByText('Overwrite document')).toBeTruthy();
-    expect(screen.getByText('Append to document')).toBeTruthy();
-    expect(screen.getByText('Replace selection')).toBeTruthy();
+    expect(await screen.findByText('Overwrite')).toBeTruthy();
+    expect(await screen.findByText('Append')).toBeTruthy();
+    expect(await screen.findByText('Replace')).toBeTruthy();
   });
 
   it('applyOverwrite replaces document content via updateContent', async () => {
@@ -178,7 +218,7 @@ describe('WritingAssistantPanel – prompt workflow refactor', () => {
       wsInstance?.onmessage?.({ data: JSON.stringify({ type: 'end' }) });
     });
 
-    fireEvent.click(screen.getByText('Overwrite document'));
+    fireEvent.click(await screen.findByText('Overwrite'));
     expect(mockUpdateContent).toHaveBeenCalledWith('doc1', 'New content');
   });
 
@@ -207,7 +247,7 @@ describe('WritingAssistantPanel – prompt workflow refactor', () => {
       wsInstance?.onmessage?.({ data: JSON.stringify({ type: 'end' }) });
     });
 
-    fireEvent.click(screen.getByText('Append to document'));
+    fireEvent.click(await screen.findByText('Append'));
     // Existing content is 'Hello world', so append with separator
     expect(mockUpdateContent).toHaveBeenCalledWith('doc1', 'Hello world\n\nExtra text');
   });

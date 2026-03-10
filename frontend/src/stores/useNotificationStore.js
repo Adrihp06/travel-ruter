@@ -21,6 +21,7 @@ const useNotificationStore = create((set, get) => ({
   unreadCount: 0,
   total: 0,
   isLoading: false,
+  isMarkingAllAsRead: false,
   error: null,
   isPanelOpen: false,
   unreadCountRequestVersion: 0,
@@ -31,6 +32,7 @@ const useNotificationStore = create((set, get) => ({
       unreadCount: 0,
       error: null,
       isPanelOpen: true,
+      isMarkingAllAsRead: false,
       pendingUnreadCountBeforeOpen: state.unreadCount,
       unreadCountRequestVersion: state.unreadCountRequestVersion + 1,
     }));
@@ -40,6 +42,7 @@ const useNotificationStore = create((set, get) => ({
     set((state) => ({
       error: null,
       isPanelOpen,
+      isMarkingAllAsRead: isPanelOpen ? state.isMarkingAllAsRead : false,
       pendingUnreadCountBeforeOpen: isPanelOpen ? state.pendingUnreadCountBeforeOpen : 0,
       unreadCountRequestVersion: isPanelOpen
         ? state.unreadCountRequestVersion
@@ -55,14 +58,15 @@ const useNotificationStore = create((set, get) => ({
       const data = await resp.json();
       if (!isValidNotificationPayload(data)) throw new Error('Invalid notification payload');
       set({
-        notifications: data.notifications,
-        total: data.total,
-        unreadCount: data.unread_count,
-        isLoading: false,
-      });
-    } catch {
-      set({ error: 'loadFailed', isLoading: false });
-    }
+      notifications: data.notifications,
+      total: data.total,
+      unreadCount: data.unread_count,
+      isLoading: false,
+      isMarkingAllAsRead: false,
+    });
+  } catch {
+      set({ error: 'loadFailed', isLoading: false, isMarkingAllAsRead: false });
+  }
   },
 
   markAsRead: async (notificationId) => {
@@ -90,21 +94,34 @@ const useNotificationStore = create((set, get) => ({
   },
 
   markAllAsRead: async () => {
+    if (get().isMarkingAllAsRead) {
+      return false;
+    }
+
+    const hasUnread = get().notifications.some((notification) => !notification.is_read);
+    if (!hasUnread && get().unreadCount === 0) {
+      set({ error: null });
+      return true;
+    }
+
     const previousState = get();
     set((state) => ({
       notifications: state.notifications.map((n) => ({ ...n, is_read: true })),
       unreadCount: 0,
       error: null,
+      isMarkingAllAsRead: true,
     }));
     try {
       const resp = await authFetch(`${API_BASE}/notifications/read-all`, { method: 'POST' });
       if (!resp.ok) throw new Error('Failed to mark all notifications as read');
+      set({ isMarkingAllAsRead: false, error: null, pendingUnreadCountBeforeOpen: 0 });
       return true;
     } catch {
       set({
         notifications: previousState.notifications,
         unreadCount: previousState.unreadCount,
         error: 'markAllFailed',
+        isMarkingAllAsRead: false,
       });
       return false;
     }
@@ -143,6 +160,7 @@ const useNotificationStore = create((set, get) => ({
         total: 0,
         error: 'loadFailed',
         isLoading: false,
+        isMarkingAllAsRead: false,
         pendingUnreadCountBeforeOpen: 0,
         unreadCount: getFailureUnreadCount(get().pendingUnreadCountBeforeOpen),
       });
@@ -181,6 +199,7 @@ const useNotificationStore = create((set, get) => ({
       unreadCount: getFailureUnreadCount(data.unread_count),
       error: null,
       isLoading: false,
+      isMarkingAllAsRead: false,
       pendingUnreadCountBeforeOpen: 0,
     });
 
@@ -190,12 +209,19 @@ const useNotificationStore = create((set, get) => ({
 
     let markResp;
     try {
+      set({ isMarkingAllAsRead: true });
       markResp = await authFetch(`${API_BASE}/notifications/read-all`, { method: 'POST' });
     } catch {
+      if (isActiveOpenRequest()) {
+        set({ isMarkingAllAsRead: false });
+      }
       return false;
     }
 
     if (!markResp.ok || !isActiveOpenRequest()) {
+      if (isActiveOpenRequest()) {
+        set({ isMarkingAllAsRead: false });
+      }
       return false;
     }
 
@@ -203,6 +229,7 @@ const useNotificationStore = create((set, get) => ({
       notifications: data.notifications.map((n) => ({ ...n, is_read: true })),
       unreadCount: 0,
       error: null,
+      isMarkingAllAsRead: false,
     });
     return true;
   },

@@ -51,6 +51,9 @@ class TestNotifications:
         await db.flush()
         resp = await client.post("/api/v1/notifications/read-all", headers=auth_headers)
         assert resp.status_code == 204
+        unread_resp = await client.get("/api/v1/notifications/unread-count", headers=auth_headers)
+        assert unread_resp.status_code == 200
+        assert unread_resp.json()["count"] == 0
 
     async def test_unread_count(self, db, client, created_user, auth_headers):
         db.add(Notification(user_id=created_user.id, type="test", title="A", is_read=False))

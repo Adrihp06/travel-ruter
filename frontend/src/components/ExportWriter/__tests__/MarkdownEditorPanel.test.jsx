@@ -2,6 +2,34 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React, { createRef } from 'react';
 
+const translations = {
+  'exportWriter.editor.generateDraft': 'Generate Draft',
+  'exportWriter.editor.generateDraftTitle': 'Ask AI to generate a draft',
+  'exportWriter.editor.improve': 'Improve',
+  'exportWriter.editor.improveTitle': 'Ask AI to improve current content',
+  'exportWriter.editor.insertTripRoute': 'Route Map',
+  'exportWriter.editor.insertTripRouteTitle': 'Insert trip route map block',
+  'exportWriter.editor.wordCount': '{{count}} word',
+  'exportWriter.editor.wordCount_other': '{{count}} words',
+  'exportWriter.editor.selectDocument': 'Select a document',
+  'exportWriter.editor.selectDocumentHint': 'Choose a document from the tree on the left to start writing.',
+  'exportWriter.editor.vaultNote': 'Vault note',
+  'exportWriter.editor.saving': 'Saving...',
+  'exportWriter.editor.saved': 'Auto-saved ✓',
+  'exportWriter.editor.saveError': 'Error saving',
+  'journal.noContent': 'No content',
+};
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key, options = {}) => {
+      const template = translations[key] || key;
+      return template.replace('{{count}}', String(options.count ?? ''));
+    },
+    i18n: { language: 'en' },
+  }),
+}));
+
 // Mock the MDEditor — render a simple textarea to test getSelection
 vi.mock('@uiw/react-md-editor/nohighlight', () => ({
   default: ({ value, onChange, ...rest }) => (
@@ -146,5 +174,62 @@ describe('MarkdownEditorPanel – toolbar and selection support', () => {
     expect(screen.getByTestId('reference-note-content').innerHTML).toContain('sanitized:');
     expect(screen.getByTestId('reference-note-content').innerHTML).toContain('<p>Safe</p>');
     expect(screen.queryByTestId('mock-editor')).toBeNull();
+  });
+
+  it('renders Route Map button when tripId is provided', () => {
+    render(
+      <MarkdownEditorPanel
+        onGenerateDraft={onGenerateDraft}
+        onImprove={onImprove}
+        tripId={42}
+        onInsertTripRoute={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Route Map')).toBeTruthy();
+    expect(screen.getByTestId('insert-trip-route-btn')).toBeTruthy();
+  });
+
+  it('does NOT render Route Map button when tripId is not provided', () => {
+    render(
+      <MarkdownEditorPanel
+        onGenerateDraft={onGenerateDraft}
+        onImprove={onImprove}
+        onInsertTripRoute={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByTestId('insert-trip-route-btn')).toBeNull();
+  });
+
+  it('calls onInsertTripRoute when Route Map button is clicked', () => {
+    const onInsertTripRoute = vi.fn();
+    render(
+      <MarkdownEditorPanel
+        onGenerateDraft={onGenerateDraft}
+        onImprove={onImprove}
+        tripId={42}
+        onInsertTripRoute={onInsertTripRoute}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('insert-trip-route-btn'));
+    expect(onInsertTripRoute).toHaveBeenCalledTimes(1);
+  });
+
+  it('exposes getCursorPosition via ref', () => {
+    const ref = createRef();
+    render(
+      <MarkdownEditorPanel
+        ref={ref}
+        onGenerateDraft={onGenerateDraft}
+        onImprove={onImprove}
+      />
+    );
+
+    expect(ref.current).toBeTruthy();
+    expect(typeof ref.current.getCursorPosition).toBe('function');
+    const pos = ref.current.getCursorPosition();
+    expect(typeof pos).toBe('number');
   });
 });

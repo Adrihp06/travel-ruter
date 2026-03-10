@@ -1,19 +1,28 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Bot, MapPin } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import useExportWriterStore from '../../stores/useExportWriterStore';
 import useDestinationStore from '../../stores/useDestinationStore';
 import DocumentTree from './DocumentTree';
 import MarkdownEditorPanel from './MarkdownEditorPanel';
 import WritingAssistantPanel from './WritingAssistantPanel';
 import TravelContextPanel from './TravelContextPanel';
+import {
+  createTripOverviewBlock,
+  createDayRouteBlock,
+  serializeRouteBlock,
+  insertRouteBlock,
+} from '../../utils/routeBlockContract';
 
 const ExportWriterView = ({ tripId, trip }) => {
+  const { t } = useTranslation();
   const loadDocuments = useExportWriterStore((s) => s.loadDocuments);
   const loadReferenceNotes = useExportWriterStore((s) => s.loadReferenceNotes);
   const reset = useExportWriterStore((s) => s.reset);
   const documents = useExportWriterStore((s) => s.documents);
   const getSelectedDocument = useExportWriterStore((s) => s.getSelectedDocument);
   const selectDocument = useExportWriterStore((s) => s.selectDocument);
+  const updateContent = useExportWriterStore((s) => s.updateContent);
   const fetchDestinations = useDestinationStore((s) => s.fetchDestinations);
   const [activeTab, setActiveTab] = useState('assistant');
   // Trip-scoped destinations: immune to stale shared-store writes from
@@ -78,17 +87,42 @@ const ExportWriterView = ({ tripId, trip }) => {
 
   // Callback: toolbar "Improve" → writing assistant improves current content
   const handleImprove = (doc) => {
+    const selection = getEditorSelection();
     setActiveTab('assistant');
-    writingAssistantRef.current?.triggerImprove(doc);
+    writingAssistantRef.current?.triggerImprove(doc, selection);
   };
 
   // Stable callback for the assistant to query editor selection
-  const getEditorSelection = useCallback(() => {
-    return editorRef.current?.getSelection?.() || null;
-  }, []);
+  const getEditorSelection = () => editorRef.current?.getSelection?.() || null;
+
+  // --- Route block insertion helpers ---
+  const insertBlockAtCursor = useCallback((descriptor) => {
+    const selectedDoc = getSelectedDocument?.();
+    if (!selectedDoc || selectedDoc.isReference) return;
+    const cursorPos = editorRef.current?.getCursorPosition?.();
+    const position = cursorPos != null ? cursorPos : (selectedDoc.content || '').length;
+    const newContent = insertRouteBlock(selectedDoc.content || '', position, descriptor);
+    updateContent(selectedDoc.id, newContent);
+  }, [getSelectedDocument, updateContent]);
+
+  // Toolbar action: insert trip-level route block
+  const handleInsertTripRoute = useCallback(() => {
+    if (!tripId) return;
+    const descriptor = createTripOverviewBlock(tripId, trip?.name ? `${trip.name} Route` : null);
+    insertBlockAtCursor(descriptor);
+  }, [tripId, trip, insertBlockAtCursor]);
+
+  // TravelContext action: insert day/destination route block
+  const handleInsertDayRoute = useCallback(({ destinationId, date, label }) => {
+    const descriptor = createDayRouteBlock(destinationId, date, label || null);
+    insertBlockAtCursor(descriptor);
+  }, [insertBlockAtCursor]);
 
   // Callback: Travel Data "Prepare Prompt" → populate assistant input
-  const handlePreparePrompt = (prompt) => {
+  const handlePreparePrompt = (preparedPrompt) => {
+    const prompt = typeof preparedPrompt === 'string'
+      ? { prompt: preparedPrompt, label: t('exportWriter.writer.poiModeLabel') }
+      : preparedPrompt;
     const selectedDoc = getSelectedDocument?.();
     let targetDocId = selectedDoc?.id || null;
 
@@ -120,9 +154,11 @@ const ExportWriterView = ({ tripId, trip }) => {
           <MarkdownEditorPanel
             ref={editorRef}
             trip={trip}
+            tripId={tripId}
             destinations={localDestinations}
             onGenerateDraft={handleGenerateDraft}
             onImprove={handleImprove}
+            onInsertTripRoute={handleInsertTripRoute}
           />
         )}
       </div>
@@ -138,10 +174,10 @@ const ExportWriterView = ({ tripId, trip }) => {
                 ? 'text-amber-700 dark:text-amber-400 border-b-2 border-amber-600 dark:border-amber-400 bg-white dark:bg-gray-900'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
             }`}
-          >
-            <Bot className="w-3.5 h-3.5" />
-            Writing Assistant
-          </button>
+            >
+              <Bot className="w-3.5 h-3.5" />
+              {t('exportWriter.writer.title')}
+            </button>
           <button
             onClick={() => setActiveTab('context')}
             className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium transition-colors ${
@@ -149,10 +185,10 @@ const ExportWriterView = ({ tripId, trip }) => {
                 ? 'text-amber-700 dark:text-amber-400 border-b-2 border-amber-600 dark:border-amber-400 bg-white dark:bg-gray-900'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
             }`}
-          >
-            <MapPin className="w-3.5 h-3.5" />
-            Travel Data
-          </button>
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              {t('exportWriter.travelData.title')}
+            </button>
         </div>
 
         {/* Tab content */}
@@ -174,6 +210,7 @@ const ExportWriterView = ({ tripId, trip }) => {
               trip={trip}
               destinations={localDestinations}
               onPreparePrompt={handlePreparePrompt}
+              onInsertDayRoute={handleInsertDayRoute}
             />
           )}
         </div>

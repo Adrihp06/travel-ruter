@@ -125,13 +125,17 @@ def resolve_model_with_key(pydantic_ai_model: str, api_key: str | None):
     return pydantic_ai_model
 
 
-def build_instructions(trip_context: dict | None, chat_mode: str | None = None) -> str:
+def build_instructions(
+    trip_context: dict | None,
+    chat_mode: str | None = None,
+    custom_system_prompt: str | None = None,
+) -> str:
     """Append trip context to the system prompt.
 
     Formats rich context (POIs, accommodations, itinerary) into a readable
     section so the AI can answer contextually without extra tool calls.
     """
-    prompt = SYSTEM_PROMPT
+    prompt = custom_system_prompt or SYSTEM_PROMPT
 
     if chat_mode == "new":
         prompt += """
@@ -278,6 +282,54 @@ The user's existing trips (Japan, Rome, etc.) are completely off-limits. Do not 
                     prompt += f" [{a['checkIn']} → {a['checkOut']}]"
                 if a.get("lat") and a.get("lng"):
                     prompt += f" ({a['lat']}, {a['lng']})"
+                prompt += "\n"
+
+        dest_notes = dest.get("notes")
+        if dest_notes:
+            prompt += f"\n**Destination notes:**\n{dest_notes}\n"
+
+        reference_notes = dest.get("referenceNotes") or dest.get("reference_notes") or []
+        if reference_notes:
+            prompt += f"\n**Destination reference notes ({len(reference_notes)}):**\n"
+            for note in reference_notes:
+                title = note.get("title") or "Untitled"
+                content = (note.get("content") or "").strip()
+                prompt += f"  - {title}"
+                if content:
+                    prompt += f": {content[:280]}"
+                    if len(content) > 280:
+                        prompt += "..."
+                prompt += "\n"
+
+    writer_context = trip_context.get("writerContext") or trip_context.get("writer_context")
+    if writer_context:
+        prompt += "\n### Writing Context\n"
+        current_title = writer_context.get("currentDocumentTitle") or writer_context.get("current_document_title")
+        current_type = writer_context.get("currentDocumentType") or writer_context.get("current_document_type")
+        if current_title:
+            prompt += f"- Current document: {current_title}\n"
+        if current_type:
+            prompt += f"- Document type: {current_type}\n"
+
+        current_excerpt = (
+            writer_context.get("currentDocumentExcerpt")
+            or writer_context.get("current_document_excerpt")
+            or ""
+        ).strip()
+        if current_excerpt:
+            prompt += f"- Current excerpt: {current_excerpt}\n"
+
+        trip_notes = writer_context.get("tripReferenceNotes") or writer_context.get("trip_reference_notes") or []
+        if trip_notes:
+            prompt += f"- Trip reference notes: {len(trip_notes)} available\n"
+            for note in trip_notes:
+                title = note.get("title") or "Untitled"
+                content = (note.get("content") or "").strip()
+                prompt += f"  - {title}"
+                if content:
+                    prompt += f": {content[:200]}"
+                    if len(content) > 200:
+                        prompt += "..."
                 prompt += "\n"
 
     # Legacy fallback

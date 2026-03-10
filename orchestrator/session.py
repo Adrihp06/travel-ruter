@@ -28,6 +28,7 @@ class Session:
     trip_id: int | None = None
     trip_context: dict[str, Any] | None = None
     chat_mode: str | None = None  # 'new' | 'existing' | None
+    custom_system_prompt: str | None = None
     cancel_event: asyncio.Event = field(default_factory=lambda: asyncio.Event())
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _resolved_api_key: str | None = field(default=None, repr=False)
@@ -59,6 +60,7 @@ class SessionManager:
         pydantic_ai_model: str | None = None,
         message_history: list[ModelMessage] | None = None,
         chat_mode: str | None = None,
+        custom_system_prompt: str | None = None,
     ) -> Session:
         from orchestrator.agent import resolve_model_name
 
@@ -76,6 +78,7 @@ class SessionManager:
             trip_id=trip_id,
             trip_context=trip_context,
             chat_mode=chat_mode,
+            custom_system_prompt=custom_system_prompt,
         )
         if message_history:
             session.message_history = message_history

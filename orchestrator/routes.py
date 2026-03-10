@@ -233,6 +233,8 @@ async def create_session(body: CreateSessionRequest, request: Request) -> dict:
     try:
         sm = _sessions(request)
         trip_ctx = body.trip_context.model_dump(by_alias=True) if body.trip_context else None
+        agent_config = body.agent_config or {}
+        custom_system_prompt = agent_config.get("systemPrompt")
 
         # Deserialize restored message history if provided
         restored_history = None
@@ -248,6 +250,7 @@ async def create_session(body: CreateSessionRequest, request: Request) -> dict:
             trip_context=trip_ctx,
             message_history=restored_history,
             chat_mode=body.chat_mode,
+            custom_system_prompt=custom_system_prompt,
         )
         return {
             "sessionId": session.id,
@@ -322,7 +325,11 @@ async def chat(body: ChatRequest, request: Request) -> dict:
 
     request_id = str(uuid4())
     try:
-        instructions = build_instructions(session.trip_context, session.chat_mode)
+        instructions = build_instructions(
+            session.trip_context,
+            session.chat_mode,
+            session.custom_system_prompt,
+        )
         sm.truncate_history(session)
 
         # Resolve trip-level API key for the AI provider
@@ -488,7 +495,11 @@ async def _handle_chat(
     try:
         await ws.send_json({"type": "start", "messageId": message_id})
 
-        instructions = build_instructions(session.trip_context, session.chat_mode)
+        instructions = build_instructions(
+            session.trip_context,
+            session.chat_mode,
+            session.custom_system_prompt,
+        )
         sm.truncate_history(session)
 
         # Resolve trip-level API key for the AI provider

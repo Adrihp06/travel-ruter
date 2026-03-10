@@ -12,6 +12,7 @@ describe('useNotificationStore', () => {
       unreadCount: 0,
       total: 0,
       isLoading: false,
+      isMarkingAllAsRead: false,
       error: null,
       isPanelOpen: false,
       unreadCountRequestVersion: 0,
@@ -49,6 +50,21 @@ describe('useNotificationStore', () => {
     const state = useNotificationStore.getState();
     expect(state.notifications[0].is_read).toBe(true);
     expect(state.unreadCount).toBe(0);
+  });
+
+  it('mark all notifications read', async () => {
+    useNotificationStore.setState({
+      notifications: [{ id: 1, is_read: false }, { id: 2, is_read: false }],
+      unreadCount: 2,
+    });
+    globalThis.fetch = vi.fn(() => Promise.resolve({ ok: true }));
+
+    await expect(useNotificationStore.getState().markAllAsRead()).resolves.toBe(true);
+    const state = useNotificationStore.getState();
+    expect(state.notifications.every((notification) => notification.is_read)).toBe(true);
+    expect(state.unreadCount).toBe(0);
+    expect(state.isMarkingAllAsRead).toBe(false);
+    expect(state.error).toBeNull();
   });
 
   it('mark notification read handles network failures', async () => {

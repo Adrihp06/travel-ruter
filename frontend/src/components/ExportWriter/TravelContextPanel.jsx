@@ -8,9 +8,10 @@
  * - Per-POI "Prepare Prompt" action that composes a rich AI prompt
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   MapPin, Bed, ChevronDown, ChevronRight, Globe, Loader2,
-  Sparkles, Calendar, Route,
+  Sparkles, Calendar, Route, Map,
 } from 'lucide-react';
 import usePOIStore, { usePOIsByCategory, usePOIsLoading } from '../../stores/usePOIStore';
 import useAccommodationStore from '../../stores/useAccommodationStore';
@@ -63,7 +64,7 @@ function CollapsibleSection({ title, icon, count, defaultOpen = true, children }
 /**
  * A single POI card with expandable description and a "Prepare Prompt" action.
  */
-function ExpandablePOICard({ poi, onPreparePrompt, prepareDisabled = false }) {
+function ExpandablePOICard({ poi, onPreparePrompt, prepareDisabled = false, t }) {
   const [expanded, setExpanded] = useState(false);
   const hasLongDesc = poi.description && poi.description.length > 60;
 
@@ -78,7 +79,7 @@ function ExpandablePOICard({ poi, onPreparePrompt, prepareDisabled = false }) {
           {onPreparePrompt && (
             <button
               onClick={(e) => { e.stopPropagation(); if (!prepareDisabled) onPreparePrompt(poi); }}
-              title="Prepare AI prompt for this place"
+              title={t('exportWriter.travelData.preparePoiPrompt')}
               disabled={prepareDisabled}
               className="opacity-0 group-hover:opacity-100 focus:opacity-100 flex-shrink-0 p-0.5 rounded text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             >
@@ -100,7 +101,7 @@ function ExpandablePOICard({ poi, onPreparePrompt, prepareDisabled = false }) {
             onClick={() => setExpanded(!expanded)}
             className="text-[10px] text-amber-600 dark:text-amber-400 hover:underline mt-0.5"
           >
-            {expanded ? 'Show less' : 'Show more'}
+            {expanded ? t('exportWriter.travelData.showLess') : t('exportWriter.travelData.showMore')}
           </button>
         )}
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -111,7 +112,7 @@ function ExpandablePOICard({ poi, onPreparePrompt, prepareDisabled = false }) {
           )}
           {poi.dwell_time != null && poi.dwell_time > 0 && (
             <span className="text-[10px] text-gray-400 dark:text-gray-500">
-              {poi.dwell_time} min
+              {t('exportWriter.travelData.minutes', { count: poi.dwell_time })}
             </span>
           )}
         </div>
@@ -120,7 +121,7 @@ function ExpandablePOICard({ poi, onPreparePrompt, prepareDisabled = false }) {
   );
 }
 
-function POICategoryGroup({ category, poiList, onPreparePrompt, prepareDisabled }) {
+function POICategoryGroup({ category, poiList, onPreparePrompt, prepareDisabled, t }) {
   const icon = CATEGORY_ICONS[category?.toLowerCase()] || '📍';
 
   return (
@@ -130,7 +131,13 @@ function POICategoryGroup({ category, poiList, onPreparePrompt, prepareDisabled 
       </div>
       <div className="space-y-1">
         {poiList.map((poi) => (
-          <ExpandablePOICard key={poi.id} poi={poi} onPreparePrompt={onPreparePrompt} prepareDisabled={prepareDisabled} />
+          <ExpandablePOICard
+            key={poi.id}
+            poi={poi}
+            onPreparePrompt={onPreparePrompt}
+            prepareDisabled={prepareDisabled}
+            t={t}
+          />
         ))}
       </div>
     </div>
@@ -141,7 +148,7 @@ function POICategoryGroup({ category, poiList, onPreparePrompt, prepareDisabled 
  * Day-based schedule group — shows POIs organized by their scheduled date
  * with route segment info when available.
  */
-function DayScheduleGroup({ date, pois, dayRoute, onPreparePrompt, prepareDisabled }) {
+function DayScheduleGroup({ date, pois, dayRoute, onPreparePrompt, onInsertDayRoute, prepareDisabled, destinationId, t }) {
   const dateLabel = (() => {
     try {
       return new Date(date + 'T00:00:00').toLocaleDateString(undefined, {
@@ -160,20 +167,40 @@ function DayScheduleGroup({ date, pois, dayRoute, onPreparePrompt, prepareDisabl
           {dateLabel}
         </span>
         <span className="text-[10px] text-gray-400 dark:text-gray-500">
-          ({pois.length} {pois.length === 1 ? 'stop' : 'stops'})
+          ({t('exportWriter.travelData.stopCount', { count: pois.length })})
         </span>
       </div>
       {dayRoute && dayRoute.totalDistance > 0 && (
         <div className="flex items-center gap-2 mb-1 ml-4">
           <Route className="w-2.5 h-2.5 text-gray-400 flex-shrink-0" />
           <span className="text-[10px] text-gray-400 dark:text-gray-500">
-            {dayRoute.totalDistance.toFixed(1)} km · ~{Math.round(dayRoute.totalDuration || 0)} min travel
+            {t('exportWriter.travelData.routeSummary', {
+              distance: dayRoute.totalDistance.toFixed(1),
+              duration: Math.round(dayRoute.totalDuration || 0),
+            })}
           </span>
         </div>
       )}
+      {onInsertDayRoute && destinationId && (
+        <button
+          onClick={() => onInsertDayRoute({ destinationId, date, label: `${dateLabel} Route` })}
+          className="flex items-center gap-1 ml-4 mb-1 px-2 py-1 rounded text-[10px] font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors"
+          title={t('exportWriter.travelData.insertDayRoute')}
+          data-testid={`insert-day-route-${date}`}
+        >
+          <Map className="w-2.5 h-2.5" />
+          {t('exportWriter.travelData.insertDayRoute')}
+        </button>
+      )}
         <div className="space-y-1">
           {pois.map((poi) => (
-            <ExpandablePOICard key={poi.id} poi={poi} onPreparePrompt={onPreparePrompt} prepareDisabled={prepareDisabled} />
+            <ExpandablePOICard
+              key={poi.id}
+              poi={poi}
+              onPreparePrompt={onPreparePrompt}
+              prepareDisabled={prepareDisabled}
+              t={t}
+            />
           ))}
         </div>
       </div>
@@ -206,7 +233,23 @@ function AccommodationCard({ acc }) {
   );
 }
 
-const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
+function NoteCard({ note, t }) {
+  const preview = (note.content || '').replace(/\s+/g, ' ').trim();
+
+  return (
+    <div className="px-2 py-1.5 rounded bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
+      <div className="text-xs font-medium text-gray-700 dark:text-gray-200 truncate">
+        {note.title || t('common.note')}
+      </div>
+      <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
+        {preview || t('journal.noContent')}
+      </div>
+    </div>
+  );
+}
+
+const TravelContextPanel = ({ trip, destinations, onPreparePrompt, onInsertDayRoute }) => {
+  const { t, i18n } = useTranslation();
   const selectedDocId = useExportWriterStore((s) => s.selectedDocId);
   const documents = useExportWriterStore((s) => s.documents);
   const referenceNotes = useExportWriterStore((s) => s.referenceNotes);
@@ -237,6 +280,10 @@ const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
   const destination = destinationId
     ? destinations?.find((d) => d.id === destinationId)
     : null;
+  const destinationNotes = useMemo(
+    () => Object.values(referenceNotes || {}).filter((note) => note.destinationId === destinationId),
+    [referenceNotes, destinationId]
+  );
 
   // Fetch data when destination changes (parallel)
   useEffect(() => {
@@ -268,19 +315,10 @@ const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
     } catch {
       return null;
     }
-  }, [getPOIsBySchedule, pois]);
+  }, [getPOIsBySchedule]);
 
   const hasScheduledPOIs = scheduleData?.scheduled && Object.keys(scheduleData.scheduled).length > 0;
-
-  useEffect(() => {
-    setViewMode('category');
-  }, [destinationId]);
-
-  useEffect(() => {
-    if (!hasScheduledPOIs && viewMode === 'schedule') {
-      setViewMode('category');
-    }
-  }, [hasScheduledPOIs, viewMode]);
+  const activeViewMode = hasScheduledPOIs ? viewMode : 'category';
 
   useEffect(() => {
     if (!destinationId) {
@@ -328,9 +366,13 @@ const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
       dayRoute: dayRoute || null,
       accommodations,
       trip,
+      language: i18n.language,
     });
     if (onPreparePrompt) {
-      onPreparePrompt(prompt);
+      onPreparePrompt({
+        prompt,
+        label: t('exportWriter.writer.poiModeLabel', { name: poi.name }),
+      });
     }
   };
 
@@ -344,7 +386,7 @@ const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
       <div className="flex flex-col h-full">
         <div className="px-3 py-2.5 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2 flex-shrink-0 bg-white dark:bg-gray-900">
           <Globe className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Trip Overview</span>
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">{t('exportWriter.travelData.tripOverview')}</span>
         </div>
 
         <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
@@ -361,7 +403,7 @@ const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
           )}
 
           <CollapsibleSection
-            title="Destinations"
+            title={t('trips.destinations')}
             icon={<MapPin className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
             count={destinations?.length || 0}
           >
@@ -382,7 +424,7 @@ const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
                 </div>
               ))}
               {(!destinations || destinations.length === 0) && (
-                <div className="text-[10px] text-gray-400 italic">No destinations added yet.</div>
+                <div className="text-[10px] text-gray-400 italic">{t('exportWriter.travelData.noDestinations')}</div>
               )}
             </div>
           </CollapsibleSection>
@@ -398,7 +440,7 @@ const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
         <MapPin className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
         <div className="min-w-0 flex-1">
           <span className="text-sm font-semibold text-gray-700 dark:text-gray-200 truncate block">
-            {destination?.city_name || 'Destination'}
+            {destination?.city_name || t('trips.destination')}
           </span>
           {destination?.arrival_date && destination?.departure_date && (
             <span className="text-[10px] text-gray-400 dark:text-gray-500">
@@ -412,7 +454,7 @@ const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
         {isLoading && (
           <div className="flex items-center justify-center py-6 text-gray-400">
             <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            <span className="text-xs">Loading travel data...</span>
+            <span className="text-xs">{t('exportWriter.travelData.loading')}</span>
           </div>
         )}
 
@@ -424,32 +466,32 @@ const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
                 <button
                   onClick={() => setViewMode('category')}
                   className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium transition-colors ${
-                    viewMode === 'category'
+                    activeViewMode === 'category'
                       ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
                       : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
-                >
-                  <MapPin className="w-2.5 h-2.5" />
-                  By Category
-                </button>
+                  >
+                    <MapPin className="w-2.5 h-2.5" />
+                    {t('exportWriter.travelData.byCategory')}
+                  </button>
                 <button
                   onClick={() => setViewMode('schedule')}
                   className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-[10px] font-medium transition-colors ${
-                    viewMode === 'schedule'
+                    activeViewMode === 'schedule'
                       ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
                       : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                   }`}
-                >
-                  <Calendar className="w-2.5 h-2.5" />
-                  By Day
-                </button>
-              </div>
-            )}
+                  >
+                    <Calendar className="w-2.5 h-2.5" />
+                    {t('exportWriter.travelData.byDay')}
+                  </button>
+                </div>
+              )}
 
             {/* POIs — Category view */}
-            {viewMode === 'category' && (
+            {activeViewMode === 'category' && (
               <CollapsibleSection
-                title="Places of Interest"
+                title={t('exportWriter.travelData.places')}
                 icon={<MapPin className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
                 count={totalPOIs}
               >
@@ -461,18 +503,19 @@ const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
                       poiList={group.pois}
                       onPreparePrompt={handlePreparePrompt}
                       prepareDisabled={isPromptContextLoading}
+                      t={t}
                     />
                   ))
                 ) : (
-                  <div className="text-[10px] text-gray-400 italic py-1">No POIs added yet.</div>
+                  <div className="text-[10px] text-gray-400 italic py-1">{t('exportWriter.travelData.noPois')}</div>
                 )}
               </CollapsibleSection>
             )}
 
             {/* POIs — Schedule/Day view */}
-            {viewMode === 'schedule' && scheduleData && (
+            {activeViewMode === 'schedule' && scheduleData && (
               <CollapsibleSection
-                title="Daily Schedule"
+                title={t('exportWriter.travelData.dailySchedule')}
                 icon={<Calendar className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
                 count={totalPOIs}
               >
@@ -485,18 +528,27 @@ const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
                       pois={datePois}
                       dayRoute={dayRoutes[date]}
                       onPreparePrompt={handlePreparePrompt}
+                      onInsertDayRoute={onInsertDayRoute}
                       prepareDisabled={isPromptContextLoading}
+                      destinationId={destinationId}
+                      t={t}
                     />
                   ))}
 
                 {scheduleData.unscheduled && scheduleData.unscheduled.length > 0 && (
                   <div className="mt-3">
                     <div className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
-                      📌 Unscheduled
+                      📌 {t('exportWriter.travelData.unscheduled')}
                     </div>
                     <div className="space-y-1">
                       {scheduleData.unscheduled.map((poi) => (
-                        <ExpandablePOICard key={poi.id} poi={poi} onPreparePrompt={handlePreparePrompt} prepareDisabled={isPromptContextLoading} />
+                        <ExpandablePOICard
+                          key={poi.id}
+                          poi={poi}
+                          onPreparePrompt={handlePreparePrompt}
+                          prepareDisabled={isPromptContextLoading}
+                          t={t}
+                        />
                       ))}
                     </div>
                   </div>
@@ -505,7 +557,24 @@ const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
             )}
 
             <CollapsibleSection
-              title="Accommodations"
+              title={t('exportWriter.travelData.notes')}
+              icon={<Sparkles className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
+              count={destinationNotes.length}
+              defaultOpen={destinationNotes.length > 0}
+            >
+              {destinationNotes.length > 0 ? (
+                <div className="space-y-1">
+                  {destinationNotes.map((note) => (
+                    <NoteCard key={note.id} note={note} t={t} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-[10px] text-gray-400 italic py-1">{t('exportWriter.travelData.noNotes')}</div>
+              )}
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              title={t('exportWriter.travelData.accommodations')}
               icon={<Bed className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
               count={accommodations.length}
               defaultOpen={accommodations.length > 0}
@@ -517,7 +586,7 @@ const TravelContextPanel = ({ trip, destinations, onPreparePrompt }) => {
                   ))}
                 </div>
               ) : (
-                <div className="text-[10px] text-gray-400 italic py-1">No accommodations added yet.</div>
+                <div className="text-[10px] text-gray-400 italic py-1">{t('exportWriter.travelData.noAccommodations')}</div>
               )}
             </CollapsibleSection>
           </>

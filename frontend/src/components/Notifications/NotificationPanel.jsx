@@ -28,9 +28,9 @@ function ActorAvatar({ name, avatarUrl, size = 'sm' }) {
   );
 }
 
-export default function NotificationPanel({ onClose, position = 'bottom-right', variant = 'dropdown' }) {
+export default function NotificationPanel({ onClose: _onClose, position = 'bottom-right', variant = 'dropdown' }) {
   const { t } = useTranslation();
-  const { notifications, isLoading, error, openNotifications, markAsRead, markAllAsRead } =
+  const { notifications, isLoading, isMarkingAllAsRead, error, openNotifications, markAsRead, markAllAsRead } =
     useNotificationStore();
 
   useEffect(() => {
@@ -53,9 +53,10 @@ export default function NotificationPanel({ onClose, position = 'bottom-right', 
         </h3>
         <button
           onClick={markAllAsRead}
-          className="text-[11px] text-[#D97706] hover:text-[#B45309] font-medium"
+          disabled={isMarkingAllAsRead || isLoading}
+          className="text-[11px] text-[#D97706] hover:text-[#B45309] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {t('notifications.markAllRead')}
+          {isMarkingAllAsRead ? t('common.loading', 'Loading...') : t('notifications.markAllRead')}
         </button>
       </div>
       <div className={isInline ? 'max-h-60 overflow-y-auto' : 'max-h-80 overflow-y-auto'}>

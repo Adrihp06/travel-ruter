@@ -63,6 +63,7 @@ async def mark_as_read(
     notification.is_read = True
     notification.read_at = datetime.now(timezone.utc)
     await db.flush()
+    await db.commit()
     await db.refresh(notification)
     return NotificationResponse.model_validate(notification)
 
@@ -79,6 +80,7 @@ async def mark_all_as_read(
     )
     await db.execute(stmt)
     await db.flush()
+    await db.commit()
 
 
 @router.get("/unread-count", response_model=UnreadCount)
