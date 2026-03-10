@@ -847,9 +847,9 @@
       "connectionError": "No se pudo conectar al orquestador. Asegúrate de que el servicio esté corriendo en {{url}}",
       "noModels": "No hay modelos IA disponibles. Configura al menos un proveedor (Claude, Gemini u Ollama).",
       "availableProviders": "Proveedores de IA disponibles (últimos modelos):",
-      "providerClaude": "Claude Opus 4.6 — El modelo más potente para planificación de viajes",
+      "providerClaude": "Claude Sonnet 4.5 — Equilibrio ideal entre velocidad e inteligencia",
       "providerOpenAI": "GPT-5.2 — El modelo frontera más avanzado",
-      "providerGemini": "Gemini 3 Flash (Vertex AI) — Inteligencia frontera a velocidad relámpago",
+      "providerGemini": "Gemini 3.1 Flash Lite (Vertex AI) — Inteligencia frontera ultraeficiente",
       "providerOllama": "Modelos locales — Privados, sin necesidad de clave API",
       "providerOpenAISearch": "Impulsa la búsqueda inteligente de POIs con recomendaciones de viajes obtenidas de la web",
       "addApiKeysHint": "Añade tus claves API arriba para habilitar cada proveedor. Solo necesitas un proveedor activo para usar el asistente IA."

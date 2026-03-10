@@ -56,6 +56,15 @@ export async function exportTripAsPDFs(selectedDocuments, trip, destinations, ma
 
   // Step 2: Generate PDF blobs for each document
   const zip = new JSZip();
+  const routeContext = {
+    trip,
+    destinations,
+    mapboxToken,
+    cache: {
+      tripSegments: new Map(),
+      dayRoutes: new Map(),
+    },
+  };
 
   for (let i = 0; i < selectedDocuments.length; i++) {
     const doc = selectedDocuments[i];
@@ -64,7 +73,7 @@ export async function exportTripAsPDFs(selectedDocuments, trip, destinations, ma
     // Resolve route blocks (:::route ... :::) into renderable cards
     const { processedMarkdown, routeCards } = await resolveRouteBlocksForExport(
       doc.content || '',
-      { trip, destinations, mapboxToken }
+      routeContext
     );
 
     const docElement = markdownToPDFDocument(

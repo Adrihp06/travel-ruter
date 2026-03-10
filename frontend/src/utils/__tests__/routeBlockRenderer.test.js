@@ -437,4 +437,68 @@ tripId: 42
     expect(processedMarkdown).toContain('- List item 1');
     expect(processedMarkdown).toContain('- List item 2');
   });
+
+  it('uses trip segment geometry and transit links when provided', async () => {
+    const md = `:::route
+type: trip-overview
+tripId: 42
+:::`;
+
+    const { routeCards } = await resolveRouteBlocksForExport(md, {
+      ...context,
+      loadTripSegments: vi.fn(async () => [
+        {
+          from_destination_id: 1,
+          to_destination_id: 2,
+          travel_mode: 'train',
+          distance_km: 230.4,
+          duration_minutes: 90,
+          route_geometry: {
+            coordinates: [[12.4964, 41.9028], [11.9, 42.9], [11.2558, 43.7696]],
+          },
+        },
+        {
+          from_destination_id: 2,
+          to_destination_id: 3,
+          travel_mode: 'train',
+          distance_km: 260,
+          duration_minutes: 110,
+          route_geometry: {
+            coordinates: [[11.2558, 43.7696], [11.8, 44.6], [12.3155, 45.4408]],
+          },
+        },
+      ]),
+    });
+
+    expect(routeCards[0].mapUrl).toContain('path-');
+    expect(routeCards[0].googleMapsUrl).toContain('travelmode=transit');
+    expect(routeCards[0].stats.find((s) => s.key === 'distance').label).toBe('490.4 km');
+    expect(routeCards[0].stats.find((s) => s.key === 'duration').label).toBe('200 min');
+  });
+
+  it('uses day route geometry and walking directions when provided', async () => {
+    const md = `:::route
+type: day-route
+destinationId: 1
+date: 2025-03-15
+:::`;
+
+    const { routeCards } = await resolveRouteBlocksForExport(md, {
+      ...context,
+      loadDayRoute: vi.fn(async () => ({
+        mapCoordinates: [[12.4964, 41.9028], [12.49, 41.91], [12.48, 41.93]],
+        navigationCoordinates: [[12.4964, 41.9028], [12.49, 41.91], [12.48, 41.93]],
+        travelMode: 'walking',
+        stopCount: 3,
+        totalDistanceKm: 4.2,
+        totalDurationMin: 55,
+      })),
+    });
+
+    expect(routeCards[0].mapUrl).toContain('path-');
+    expect(routeCards[0].googleMapsUrl).toContain('travelmode=walking');
+    expect(routeCards[0].googleMapsUrl).toContain('google.com/maps/dir');
+    expect(routeCards[0].stats.find((s) => s.key === 'stops').label).toBe('3 stops');
+    expect(routeCards[0].stats.find((s) => s.key === 'distance').label).toBe('4.2 km');
+  });
 });

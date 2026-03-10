@@ -847,9 +847,9 @@
       "connectionError": "Could not connect to orchestrator. Make sure the service is running at {{url}}",
       "noModels": "No AI models available. Configure at least one provider (Claude, Gemini, or Ollama).",
       "availableProviders": "Available AI Providers (Latest Models):",
-      "providerClaude": "Claude Opus 4.6 — Most powerful model for travel planning",
+      "providerClaude": "Claude Sonnet 4.5 — Best balance of speed and intelligence",
       "providerOpenAI": "GPT-5.2 — Most advanced frontier model",
-      "providerGemini": "Gemini 3 Flash (Vertex AI) — Frontier intelligence at lightning speed",
+      "providerGemini": "Gemini 3.1 Flash Lite (Vertex AI) — Cost-efficient frontier intelligence",
       "providerOllama": "Local models — Private, no API key needed",
       "providerOpenAISearch": "Powers intelligent POI search with web-sourced travel recommendations",
       "addApiKeysHint": "Add your API keys above to enable each provider. You only need one active provider to use the AI assistant."

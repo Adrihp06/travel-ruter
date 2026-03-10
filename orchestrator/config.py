@@ -306,13 +306,6 @@ class ModelInfo:
 STATIC_MODELS: list[ModelInfo] = [
     # Anthropic (Claude)
     ModelInfo(
-        id="claude-opus-4-6",
-        pydantic_ai_name="anthropic:claude-opus-4-6",
-        display_name="Claude Opus 4.6",
-        provider="claude",
-        description="Most intelligent, best for complex reasoning",
-    ),
-    ModelInfo(
         id="claude-sonnet-4-5-20241022",
         pydantic_ai_name="anthropic:claude-sonnet-4-5-20241022",
         display_name="Claude Sonnet 4.5",
@@ -335,29 +328,6 @@ STATIC_MODELS: list[ModelInfo] = [
         description="Most capable OpenAI model",
     ),
     ModelInfo(
-        id="gpt-5.2-codex",
-        pydantic_ai_name="openai:gpt-5.2-codex",
-        display_name="GPT-5.2 Codex",
-        provider="openai",
-        description="Optimized for code and structured output",
-    ),
-    ModelInfo(
-        id="o3",
-        pydantic_ai_name="openai:o3",
-        display_name="o3",
-        provider="openai",
-        supports_streaming=False,
-        description="Advanced reasoning model",
-    ),
-    ModelInfo(
-        id="o4-mini",
-        pydantic_ai_name="openai:o4-mini",
-        display_name="o4-mini",
-        provider="openai",
-        supports_streaming=False,
-        description="Fast reasoning model",
-    ),
-    ModelInfo(
         id="gpt-4.1",
         pydantic_ai_name="openai:gpt-4.1",
         display_name="GPT-4.1",
@@ -366,26 +336,12 @@ STATIC_MODELS: list[ModelInfo] = [
     ),
     # Google (Gemini)
     ModelInfo(
-        id="gemini-3-flash-preview",
-        pydantic_ai_name="google-gla:gemini-3-flash-preview",
-        display_name="Gemini 3 Flash",
+        id="gemini-3.1-flash-lite-preview",
+        pydantic_ai_name="google-gla:gemini-3.1-flash-lite-preview",
+        display_name="Gemini 3.1 Flash Lite",
         provider="gemini",
         is_default=True,
-        description="Frontier intelligence at lightning speed",
-    ),
-    ModelInfo(
-        id="gemini-3-pro-preview",
-        pydantic_ai_name="google-gla:gemini-3-pro-preview",
-        display_name="Gemini 3 Pro",
-        provider="gemini",
-        description="Most capable Gemini model",
-    ),
-    ModelInfo(
-        id="gemini-2.5-pro",
-        pydantic_ai_name="google-gla:gemini-2.5-pro",
-        display_name="Gemini 2.5 Pro",
-        provider="gemini",
-        description="Advanced reasoning and coding",
+        description="Cost-efficient frontier intelligence at lightning speed",
     ),
     ModelInfo(
         id="gemini-2.5-flash",

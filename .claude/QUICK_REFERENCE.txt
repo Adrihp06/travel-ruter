@@ -1,0 +1,334 @@
+═════════════════════════════════════════════════════════════════════════════════
+  EXPORT WRITER ROUTE & MAP CAPABILITIES - EXECUTIVE SUMMARY
+═════════════════════════════════════════════════════════════════════════════════
+
+🎯 RECOMMENDATION: Phase 1 - Mapbox Static Route Images
+   ├─ Effort: LOW (3-4 hours)
+   ├─ Risk: LOW (reuses existing Mapbox code)
+   ├─ Value: HIGH (visual route previews in PDFs)
+   └─ No new API keys or backends required
+
+═════════════════════════════════════════════════════════════════════════════════
+  1. EXISTING ROUTE STORAGE
+═════════════════════════════════════════════════════════════════════════════════
+
+FRONTEND STORES (Zustand):
+┌─ useDayRoutesStore ⭐ PRIMARY FOR EXPORT WRITER
+│  ├─ dayRoutes[date]: { pois, segments, geometry (GeoJSON LineString), totalDistance, totalDuration }
+│  ├─ geometry format: { type: 'LineString', coordinates: [[lng,lat], ...] }
+│  ├─ Each day has distinct color (Amber, Lime, Orange, etc.)
+│  ├─ API endpoint: POST /routes/day-segment (per-POI-to-POI calculation)
+│  └─ Methods: calculateDayRoute(), exportDayToGoogleMaps(), getVisibleRoutes()
+│
+├─ useRouteStore (single inter-city route)
+│  ├─ routeGeometry: GeoJSON LineString
+│  ├─ routeDetails: { distance_km, duration_min, profile, segments }
+│  └─ Methods: calculateORSRoute(), calculateMapboxRoute(), exportToGoogleMaps()
+│
+└─ useExportWriterStore
+   ├─ documents: { [noteId]: { id, title, content, destinationId, status } }
+   └─ Linked to destinations via destinationId
+
+═════════════════════════════════════════════════════════════════════════════════
+  2. GOOGLE MAPS EXPORT URLS
+═════════════════════════════════════════════════════════════════════════════════
+
+✅ ALREADY FULLY IMPLEMENTED:
+
+Frontend: frontend/src/utils/googleMaps.js
+  generateGoogleMapsUrl(origin, destination, waypoints=[], travelMode='driving')
+  → Returns: https://www.google.com/maps/dir/?api=1&origin=lat,lng&...
+
+Backend: app/services/google_maps_service.py
+  generate_directions_url() [same format]
+
+API Endpoint: POST /routes/export/google-maps
+  Input: { origin, destination, waypoints, travel_mode }
+  Output: { url, origin, destination, waypoints_count, travel_mode }
+
+Supported Travel Modes: DRIVING, WALKING, BICYCLING, TRANSIT
+
+Current Usage:
+  - Backend endpoint `/routes/export/google-maps` fully functional
+  - Frontend can open URLs directly
+  - Ready to embed in PDFs as clickable links
+
+═════════════════════════════════════════════════════════════════════════════════
+  3. STATIC MAP IMAGE GENERATION (ALREADY IMPLEMENTED)
+═════════════════════════════════════════════════════════════════════════════════
+
+✅ MAPBOX STATIC API ALREADY INTEGRATED:
+
+File: frontend/src/utils/mapboxStaticImage.js
+  ├─ buildTripOverviewMapUrl(destinations, token)
+  │  └─ Returns Mapbox Static API URL with markers for all destinations
+  │
+  ├─ buildDestinationMapUrl(lng, lat, token, zoom=11)
+  │  └─ Returns single destination centered map
+  │
+  └─ fetchMapAsBase64(url)
+     └─ Fetches image, converts to base64 data URI for PDF embedding
+
+Current PDF Flow:
+  pdfExport.js → exportTripAsPDFs()
+    ├─ Step 1: Pre-fetch all map images in parallel
+    │   └─ fetchMapAsBase64() → data:image/png;base64,...
+    ├─ Step 2: Generate PDFs with embedded maps
+    │   └─ markdownToPDF.jsx receives mapImageDataUri
+    └─ Step 3: ZIP and download
+
+Mapbox Token Source:
+  ├─ Runtime injection (Docker)
+  ├─ Build-time env (Vite)
+  └─ localStorage (user-provided)
+  └─ Available via: useMapboxToken() hook
+
+═════════════════════════════════════════════════════════════════════════════════
+  4. ROUTE IMAGE OPTIONS - COMPARISON
+═════════════════════════════════════════════════════════════════════════════════
+
+OPTION A: Mapbox Static API (Route Polyline) ⭐ RECOMMENDED
+├─ Implementation: buildRouteMapUrl(geometry, token) with polyline overlay
+├─ Pros:
+│  ✅ Token already integrated (MapboxContext)
+│  ✅ Reuses fetchMapAsBase64() function
+│  ✅ Minimal new code (100-200 LOC)
+│  ✅ No external dependencies
+│  ✅ Proven technology (destination maps already work)
+├─ Cons:
+│  ❌ Polyline encoding complexity
+│  ❌ 2000 char URL limit (complex routes may need decimation)
+├─ Effort: 3-4 hours
+├─ Cost: FREE (included in Mapbox token)
+└─ File: frontend/src/utils/mapboxStaticImage.js [EXTEND]
+
+OPTION B: Google Maps Static API
+├─ Pros:
+│  ✅ Familiar visual style
+│  ✅ Routing already integrated
+├─ Cons:
+│  ❌ Needs separate API key
+│  ❌ Billing per image ($2/1000)
+│  ❌ Complex URL encoding
+├─ Effort: 4-5 hours
+├─ Cost: $2 per 1000 requests (~$2-5/month)
+└─ File: app/services/google_maps_service.py [NEW ENDPOINT]
+
+OPTION C: Canvas/Screenshot Rendering
+├─ Concept: Render Mapbox GL on hidden canvas, convert to blob
+├─ Pros:
+│  ✅ Complete visual control
+├─ Cons:
+│  ❌ VERY complex (500+ LOC)
+│  ❌ Performance issues (blocks main thread)
+│  ❌ Browser CORS issues
+├─ Effort: 8-12 hours
+└─ ❌ NOT RECOMMENDED
+
+OPTION D: Server-Side Image Generation
+├─ Concept: New backend endpoint to generate images
+├─ Pros:
+│  ✅ Centralized, cacheable
+│  ✅ Scalable
+├─ Cons:
+│  ❌ Additional endpoint to maintain
+│  ❌ Adds export latency
+├─ Effort: 5-6 hours
+└─ Consider for Phase 3
+
+═════════════════════════════════════════════════════════════════════════════════
+  5. CONCRETE FILES TO MODIFY
+═════════════════════════════════════════════════════════════════════════════════
+
+PHASE 1: Route Images (3-4 hours)
+
+1. frontend/src/utils/mapboxStaticImage.js [EXTEND]
+   Add: buildAndFetchDayRouteMap(dayRoute, token)
+   ├─ Extract route coordinates from dayRoute.geometry
+   ├─ Build Mapbox Static URL with polyline
+   ├─ Fetch and convert to base64
+   └─ Return data URI or undefined
+
+2. frontend/src/utils/pdfExport.js [MODIFY]
+   Update: exportTripAsPDFs() step 1
+   ├─ For destination documents (with destinationId):
+   │  └─ Check useDayRoutesStore for dayRoute
+   │     └─ Call buildAndFetchDayRouteMap() if geometry exists
+   ├─ Fallback to destination pin map if no route
+   └─ Handle edge cases (no Mapbox token, empty routes)
+
+3. frontend/src/components/PDF/PDFStyles.js [NO CHANGE]
+   Already has mapImage style: { width: '100%', height: 160 }
+
+4. frontend/src/utils/markdownToPDF.jsx [NO CHANGE]
+   Already handles image rendering from dataUri
+
+PHASE 2: Google Maps Links (2-3 hours)
+
+1. frontend/src/utils/googleMaps.js [EXTEND]
+   Add: generateDayRouteLinks(dayRoute, modes=['driving', 'walking'])
+   ├─ Extract origin, destination, waypoints from dayRoute.pois
+   ├─ Generate Google Maps URL for each mode
+   └─ Return markdown: `[Driving](#url) • [Walking](#url)`
+
+2. frontend/src/components/ExportWriter/WritingAssistantPanel.jsx [OPTIONAL]
+   Add: "Insert Route Links" action in toolbar
+   ├─ Or auto-inject into document on creation
+
+═════════════════════════════════════════════════════════════════════════════════
+  6. KEY TECHNICAL APIS & DATA FLOWS
+═════════════════════════════════════════════════════════════════════════════════
+
+Route Data at Export Time:
+  useDayRoutesStore.getState().dayRoutes[destinationId]
+    ├─ .pois: Array<POI> with latitude, longitude
+    ├─ .segments: Array<{ fromPoi, toPoi, mode, distance, duration, geometry }>
+    ├─ .geometry: { type: 'LineString', coordinates: [[lng, lat], ...] }
+    ├─ .totalDistance: number (km)
+    └─ .totalDuration: number (minutes)
+
+Export Flow:
+  DocumentTree component
+    ├─ User clicks "Export Selected" or "Export All"
+    ├─ Calls: exportTripAsPDFs(selectedDocuments, trip, destinations, mapboxToken)
+    │
+    ├─ Step 1: Pre-fetch map images (parallel)
+    │   ├─ For overview (no destinationId):
+    │   │  └─ buildTripOverviewMapUrl(destinations, token)
+    │   ├─ For destination docs (with destinationId):
+    │   │  ├─ [NEW] Get dayRoute from useDayRoutesStore
+    │   │  ├─ [NEW] buildAndFetchDayRouteMap(dayRoute, token)
+    │   │  └─ Fallback: buildDestinationMapUrl()
+    │   └─ Fetch all URLs → base64
+    │
+    ├─ Step 2: Generate PDF blobs
+    │   └─ markdownToPDFDocument(content, mapImageDataUri, title, tripName)
+    │
+    └─ Step 3: ZIP and download
+
+Google Maps Link Generation:
+  [NEW] generateDayRouteLinks(dayRoute)
+    ├─ Extract: origin, destination, waypoints from dayRoute.pois
+    ├─ Call: generateGoogleMapsUrl() for each travel mode
+    ├─ Return: Markdown with links or auto-inject into document
+    └─ Result: Clickable links in PDF
+
+═════════════════════════════════════════════════════════════════════════════════
+  7. BACKEND ENDPOINTS (ALREADY AVAILABLE)
+═════════════════════════════════════════════════════════════════════════════════
+
+✅ POST /routes/day-segment
+   Calculate single POI-to-POI segment within day
+   └─ Returns: { distance_km, duration_min, geometry (GeoJSON), travel_mode, is_fallback }
+
+✅ POST /routes/export/google-maps
+   Generate Google Maps directions URL
+   └─ Returns: { url, origin, destination, waypoints_count, travel_mode }
+
+✅ POST /routes/google-maps/multi-waypoint
+   Calculate full day route via Google Maps Routes API
+   └─ Returns: { distance_km, duration_min, geometry, travel_mode, polyline, transit_details }
+
+All routes support: DRIVING, WALKING, BICYCLING, TRANSIT, TRAIN, BUS
+
+═════════════════════════════════════════════════════════════════════════════════
+  8. CONSTRAINTS & GOTCHAS
+═════════════════════════════════════════════════════════════════════════════════
+
+⚠️  URL Length: Mapbox Static API has ~2000 char limit
+    → Complex routes (1000+ points) may fail
+    → Solution: Simplify/decimate polyline coordinates
+
+⚠️  Mapbox Token: May not be available
+    → User-provided or environment-based
+    → Gracefully fallback to text-only summaries
+
+⚠️  Coordinate Order: GeoJSON uses [lon, lat]
+    → Google Maps uses lat,lon
+    → Google Maps Routes API uses {latitude, longitude}
+    → ✅ Code already handles this correctly
+
+⚠️  Day Routes May Be Incomplete: export happens during editing
+    → Only fetch maps for routes that are calculated
+    → Check dayRoute.geometry before attempting map generation
+
+⚠️  Multiple Routing Backends: ORS, Mapbox, Google Maps Routes
+    → Day segments may use different providers
+    → Geometry format unified (GeoJSON LineString)
+    → ✅ Should work transparently
+
+═════════════════════════════════════════════════════════════════════════════════
+  9. QUICK START - PHASE 1 IMPLEMENTATION
+═════════════════════════════════════════════════════════════════════════════════
+
+Step 1: Extend mapboxStaticImage.js (50 LOC)
+────────────────────────────────────────────
+  export async function buildAndFetchDayRouteMap(dayRoute, token) {
+    if (!token || !dayRoute?.geometry?.coordinates?.length) return undefined;
+    
+    // Extract start/end POIs
+    const start = dayRoute.pois[0];
+    const end = dayRoute.pois[dayRoute.pois.length - 1];
+    
+    // Build markers
+    const markers = [
+      `pin-s+00FF00(${start.longitude},${start.latitude})`,
+      `pin-s+FF0000(${end.longitude},${end.latitude})`
+    ].join(',');
+    
+    // Encode polyline (or use library)
+    const encoded = encodePolyline(dayRoute.geometry.coordinates);
+    const path = `path-3+D97706-0.7(${encoded})`;
+    
+    // Build URL
+    const url = `${MAPBOX_STATIC_BASE}/${markers},${path}/auto/800x400@2x?access_token=${token}&padding=50`;
+    
+    // Fetch and convert
+    return fetchMapAsBase64(url);
+  }
+
+Step 2: Update pdfExport.js (30 LOC modification)
+──────────────────────────────────────────────────
+  In exportTripAsPDFs(), inside map image fetch loop:
+  
+  if (!doc.destinationId) {
+    // Overview
+    url = buildTripOverviewMapUrl(destinations, mapboxToken);
+  } else {
+    // Get day route for this destination
+    const dayRoute = useDayRoutesStore.getState().dayRoutes[doc.destinationId];
+    if (dayRoute?.geometry?.coordinates?.length > 1) {
+      const routeDataUri = await buildAndFetchDayRouteMap(dayRoute, mapboxToken);
+      if (routeDataUri) return [doc.id, routeDataUri];
+    }
+    // Fallback to destination pin
+    const dest = destinations.find(d => d.id === doc.destinationId);
+    if (dest) url = buildDestinationMapUrl(dest.longitude, dest.latitude, mapboxToken);
+  }
+
+Step 3: Test
+────────────
+  npm run test:e2e  # Run existing export tests
+  # Verify route maps appear in PDFs
+
+═════════════════════════════════════════════════════════════════════════════════
+  10. TRADE-OFFS SUMMARY
+═════════════════════════════════════════════════════════════════════════════════
+
+Choose Mapbox Static (Option A) because:
+  ✅ Already have Mapbox token (no new config)
+  ✅ Reuses proven code (fetchMapAsBase64)
+  ✅ Simple implementation (minimal new code)
+  ✅ Low risk (established technology)
+  ✅ No additional costs
+  ✅ Works for most routes (<1000 waypoints)
+
+If routes consistently fail (complex multi-waypoint):
+  → Add fallback to Google Maps Static (requires API key)
+  → Or simplify polyline (decimate coordinates)
+
+For future scalability:
+  → Consider server-side image generation (Phase 3)
+  → Centralizes caching and error handling
+
+═════════════════════════════════════════════════════════════════════════════════
