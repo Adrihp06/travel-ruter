@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 describe('MicroMap', () => {
   describe('Supercluster configuration (Bug 10)', () => {
@@ -168,6 +168,41 @@ describe('MicroMap', () => {
       // Look for the flyTo pattern without zoom
       expect(fileContent).toContain('flyTo');
       expect(fileContent).toContain('duration: 800');
+    });
+  });
+
+  describe('POI shortcut behavior', () => {
+    it('should support Cmd/Ctrl+click quick add on the map', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const filePath = path.resolve(
+        import.meta.dirname,
+        '..',
+        'MicroMap.jsx'
+      );
+
+      const fileContent = fs.readFileSync(filePath, 'utf-8');
+
+      expect(fileContent).toContain("event.originalEvent?.metaKey || event.originalEvent?.ctrlKey");
+      expect(fileContent).toContain('!(enableAddPOI && onAddPOI && isModifierClick)');
+    });
+
+    it('should let Escape cancel add POI mode outside typing contexts', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const filePath = path.resolve(
+        import.meta.dirname,
+        '..',
+        'MicroMap.jsx'
+      );
+
+      const fileContent = fs.readFileSync(filePath, 'utf-8');
+
+      expect(fileContent).toContain("event.key !== 'Escape'");
+      expect(fileContent).toContain('isTypingElement(event.target)');
+      expect(fileContent).toContain("document.addEventListener('keydown', handleKeyDown)");
     });
   });
 });

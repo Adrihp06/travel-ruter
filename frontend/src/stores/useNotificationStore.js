@@ -110,8 +110,9 @@ const useNotificationStore = create((set, get) => ({
     }
   },
 
-  // Coordinated panel-open flow: clears badge immediately, fetches list
-  // without reintroducing stale unreadCount, and marks all as read server-side.
+  // Coordinated panel-open flow: clears badge immediately, fetches the list
+  // without reintroducing stale unreadCount, then attempts to mark the
+  // fetched notifications as read without surfacing an automatic error banner.
   openNotifications: async (limit = 20, offset = 0) => {
     if (!get().isPanelOpen) {
       get().prepareToOpenPanel();
@@ -133,7 +134,7 @@ const useNotificationStore = create((set, get) => ({
       return fallbackUnreadCount;
     };
 
-    const failOpenNotifications = (markSucceeded) => {
+    const failOpenNotifications = () => {
       if (!isActiveOpenRequest()) {
         return false;
       }
@@ -143,65 +144,67 @@ const useNotificationStore = create((set, get) => ({
         error: 'loadFailed',
         isLoading: false,
         pendingUnreadCountBeforeOpen: 0,
-        unreadCount: markSucceeded ? 0 : getFailureUnreadCount(get().pendingUnreadCountBeforeOpen),
+        unreadCount: getFailureUnreadCount(get().pendingUnreadCountBeforeOpen),
       });
       return false;
     };
 
-    const [fetchResult, markResult] = await Promise.allSettled([
-      authFetch(`${API_BASE}/notifications/?limit=${limit}&offset=${offset}`),
-      authFetch(`${API_BASE}/notifications/read-all`, { method: 'POST' }),
-    ]);
-
-    if (fetchResult.status === 'rejected') {
-      const markSucceeded = markResult.status === 'fulfilled' && markResult.value.ok;
-      return failOpenNotifications(markSucceeded);
+    let resp;
+    try {
+      resp = await authFetch(`${API_BASE}/notifications/?limit=${limit}&offset=${offset}`);
+    } catch {
+      return failOpenNotifications();
     }
 
-    const resp = fetchResult.value;
     if (!resp.ok) {
-      const markSucceeded = markResult.status === 'fulfilled' && markResult.value.ok;
-      return failOpenNotifications(markSucceeded);
+      return failOpenNotifications();
     }
 
     let data;
     try {
       data = await resp.json();
     } catch {
-      const markSucceeded = markResult.status === 'fulfilled' && markResult.value.ok;
-      return failOpenNotifications(markSucceeded);
+      return failOpenNotifications();
     }
 
     if (!isValidNotificationPayload(data)) {
-      const markSucceeded = markResult.status === 'fulfilled' && markResult.value.ok;
-      return failOpenNotifications(markSucceeded);
+      return failOpenNotifications();
     }
 
     if (!isActiveOpenRequest()) {
       return false;
     }
 
-    if (markResult.status === 'fulfilled' && markResult.value.ok) {
-      set({
-        notifications: data.notifications.map((n) => ({ ...n, is_read: true })),
-        total: data.total,
-        unreadCount: 0,
-        error: null,
-        isLoading: false,
-        pendingUnreadCountBeforeOpen: 0,
-      });
-      return true;
-    }
-
     set({
       notifications: data.notifications,
       total: data.total,
       unreadCount: getFailureUnreadCount(data.unread_count),
-      error: 'markAllFailed',
+      error: null,
       isLoading: false,
       pendingUnreadCountBeforeOpen: 0,
     });
-    return false;
+
+    if (data.unread_count === 0) {
+      return true;
+    }
+
+    let markResp;
+    try {
+      markResp = await authFetch(`${API_BASE}/notifications/read-all`, { method: 'POST' });
+    } catch {
+      return false;
+    }
+
+    if (!markResp.ok || !isActiveOpenRequest()) {
+      return false;
+    }
+
+    set({
+      notifications: data.notifications.map((n) => ({ ...n, is_read: true })),
+      unreadCount: 0,
+      error: null,
+    });
+    return true;
   },
 
   fetchUnreadCount: async () => {

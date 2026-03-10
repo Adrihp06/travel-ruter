@@ -424,11 +424,11 @@ const POIMarker = ({
 /**
  * Add POI Mode Overlay - Enhanced Warm Explorer theme
  */
-const AddPOIModeOverlay = ({ onCancel }) => (
+const AddPOIModeOverlay = ({ onCancel, label }) => (
   <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10">
     <div className="add-mode-overlay">
       <Plus className="w-4 h-4" />
-      <span>Click on the map to add a POI</span>
+      <span>{label}</span>
       <button
         onClick={onCancel}
         className="add-mode-overlay-close"
@@ -443,6 +443,11 @@ const AddPOIModeOverlay = ({ onCancel }) => (
  * POI Popup Photo - loads a Google Places photo from metadata or on-demand lookup
  */
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
+const isTypingElement = (target) =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable ||
+    ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 
 const POIPopupPhoto = ({ poi }) => {
   const [photoUrl, setPhotoUrl] = useState(null);
@@ -1419,7 +1424,8 @@ const MicroMap = ({
       setPopupType(null);
     }
 
-    if (!isAddMode) return;
+    const isModifierClick = event.originalEvent?.metaKey || event.originalEvent?.ctrlKey;
+    if (!isAddMode && !(enableAddPOI && onAddPOI && isModifierClick)) return;
 
     const { lngLat } = event;
     setPendingLocation({
@@ -1434,7 +1440,7 @@ const MicroMap = ({
         longitude: lngLat.lng,
       });
     }
-  }, [isAddMode, onAddPOI, popupInfo]);
+  }, [enableAddPOI, isAddMode, onAddPOI, popupInfo]);
 
   // Handle marker drag end
   const handleMarkerDragEnd = useCallback((poi, event) => {
@@ -1465,6 +1471,27 @@ const MicroMap = ({
     setPendingLocation(null);
     setPopupInfo(null);
   }, []);
+
+  useEffect(() => {
+    if (!isAddMode) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Escape' || isTypingElement(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      setIsAddMode(false);
+      setPendingLocation(null);
+      setPopupInfo(null);
+      setPopupType(null);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isAddMode]);
 
   // Toggle category visibility
   const handleToggleCategory = useCallback((category) => {
@@ -1544,10 +1571,11 @@ const MicroMap = ({
         {enableAddPOI && onAddPOI && !isAddMode && !isSearchExpanded && (
           <button
             onClick={toggleAddMode}
+            title={t('map.addPoiShortcutHint')}
             className="pointer-events-auto shrink-0 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 px-3 py-2.5 rounded-xl shadow-lg flex items-center space-x-1.5 text-sm font-medium transition-colors border border-gray-200 dark:border-gray-600"
           >
             <Plus className="w-4 h-4" />
-            <span>Add POI</span>
+            <span>{t('poi.addPoi')}</span>
           </button>
         )}
         <div className="pointer-events-auto">
@@ -1561,7 +1589,12 @@ const MicroMap = ({
       </div>
 
       {/* Add POI Mode Overlay */}
-      {isAddMode && <AddPOIModeOverlay onCancel={toggleAddMode} />}
+      {isAddMode && (
+        <AddPOIModeOverlay
+          onCancel={toggleAddMode}
+          label={t('map.clickToAddPoi')}
+        />
+      )}
 
       <Map
         ref={mapRef}
