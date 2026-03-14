@@ -315,8 +315,8 @@ const AIChatSlideover = ({ isOpen, onClose, tripContext = null }) => {
     if (isOpen) {
       initialize();
       // Auto-select trip from Layout context (e.g. when on /trips/:id)
-      if (tripContext && tripContext.id && !chatMode) {
-        selectTripForChat(tripContext.id, tripContext);
+      if (tripContext && (tripContext.tripId || tripContext.id) && !chatMode) {
+        selectTripForChat(tripContext.tripId || tripContext.id, tripContext);
       }
     }
   }, [isOpen, initialize, tripContext, chatMode, selectTripForChat]);
@@ -326,10 +326,14 @@ const AIChatSlideover = ({ isOpen, onClose, tripContext = null }) => {
     if (isOpen && chatMode && !isConnected) {
       connectWebSocket();
     }
-    return () => {
-      if (!isOpen) disconnect();
-    };
-  }, [isOpen, chatMode, isConnected, connectWebSocket, disconnect]);
+  }, [isOpen, chatMode, isConnected, connectWebSocket]);
+
+  // Disconnect when panel closes
+  useEffect(() => {
+    if (!isOpen) {
+      disconnect();
+    }
+  }, [isOpen, disconnect]);
 
   // Track whether the user is near the bottom of the chat
   const isNearBottomRef = useRef(true);
@@ -350,16 +354,27 @@ const AIChatSlideover = ({ isOpen, onClose, tripContext = null }) => {
 
   // Focus input when entering chat mode
   useEffect(() => {
+    let focusTimer;
     if (isOpen && chatMode) {
-      setTimeout(() => inputRef.current?.focus(), 300);
+      focusTimer = setTimeout(() => inputRef.current?.focus(), 300);
     }
+    return () => {
+      if (focusTimer) clearTimeout(focusTimer);
+    };
   }, [isOpen, chatMode]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (inputValue.trim() && !isLoading) {
-      sendMessage(inputValue);
+    const trimmed = inputValue.trim();
+    if (trimmed && !isLoading) {
       setInputValue('');
+      if (inputRef.current) inputRef.current.style.height = 'auto';
+      try {
+        await sendMessage(trimmed);
+      } catch (err) {
+        console.error('Failed to send message:', err);
+        setInputValue(trimmed);
+      }
     }
   };
 
@@ -628,7 +643,7 @@ const AIChatSlideover = ({ isOpen, onClose, tripContext = null }) => {
               </form>
 
               <div className="flex items-center justify-between mt-2 px-1">
-                <ConnectionStatus isConnected={isConnected} isConnecting={!isConnected && !connectionError} error={null} />
+                <ConnectionStatus isConnected={isConnected} isConnecting={!isConnected && !connectionError} error={connectionError} />
                 <span className="text-xs text-gray-400 dark:text-gray-500">{t('ai.sendHint')}</span>
               </div>
             </div>

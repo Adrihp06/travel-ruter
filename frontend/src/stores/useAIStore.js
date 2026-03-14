@@ -136,7 +136,7 @@ const useAIStore = create((set, get) => ({
    * Initialize the AI store - fetch available models
    */
   initialize: async () => {
-    set({ modelsLoading: true });
+    set({ modelsLoading: true, connectionError: null });
 
     try {
       const response = await authFetch(`${ORCHESTRATOR_URL}/api/models`);
@@ -316,9 +316,14 @@ const useAIStore = create((set, get) => ({
    */
   backToTripSelection: async () => {
     await get()._autoSaveConversation();
+    get().disconnect();
     set({
       chatMode: null,
       showHistory: false,
+      selectedTripId: null,
+      tripContext: null,
+      destinationContext: null,
+      conversationId: null,
     });
   },
 
@@ -431,10 +436,14 @@ const useAIStore = create((set, get) => ({
   startNewConversation: async () => {
     await get()._autoSaveConversation();
     set({
+      conversationId: null,
       messages: [],
       sessionId: null,
-      conversationId: null,
       showHistory: false,
+      destinationContext: null,
+      connectionError: null,
+      streamingMessageId: null,
+      isLoading: false,
     });
     await get().loadConversationsList();
   },
@@ -451,10 +460,10 @@ const useAIStore = create((set, get) => ({
   /**
    * Toggle the history panel visibility.
    */
-  toggleHistory: () => {
+  toggleHistory: async () => {
     const { showHistory } = get();
     if (!showHistory) {
-      get().loadConversationsList();
+      await get().loadConversationsList();
     }
     set({ showHistory: !showHistory });
   },
@@ -676,6 +685,17 @@ const useAIStore = create((set, get) => ({
     ws.onclose = (event) => {
       console.log('WebSocket disconnected', event.code);
       set({ isConnected: false, _ws: null });
+
+      // Reset loading state if a message was in-flight
+      const { isLoading, streamingMessageId, messages } = get();
+      if (isLoading || streamingMessageId) {
+        const updatedMessages = streamingMessageId
+          ? messages.map(m => m.id === streamingMessageId
+              ? { ...m, isStreaming: false, parts: [...(m.parts || []), { type: 'text', content: '\n\n*[Connection lost]*' }] }
+              : m)
+          : messages;
+        set({ isLoading: false, streamingMessageId: null, messages: updatedMessages });
+      }
 
       // Auth failure (4001) — don't reconnect, show error
       if (event.code === 4001) {
@@ -940,11 +960,17 @@ const useAIStore = create((set, get) => ({
     }));
 
     // Send via WebSocket
-    get()._ws.send(JSON.stringify({
-      type: 'chat',
-      sessionId: currentSessionId,
-      message: content.trim(),
-    }));
+    try {
+      get()._ws.send(JSON.stringify({
+        type: 'chat',
+        sessionId: currentSessionId,
+        message: content.trim(),
+      }));
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      set({ isLoading: false });
+      throw error;
+    }
   },
 
   /**
@@ -999,6 +1025,10 @@ const useAIStore = create((set, get) => ({
       sessionId: null,
       _reconnectTimer: null,
       _reconnectAttempts: 0,
+      isLoading: false,
+      streamingMessageId: null,
+      connectionError: null,
+      showHistory: false,
     });
   },
 

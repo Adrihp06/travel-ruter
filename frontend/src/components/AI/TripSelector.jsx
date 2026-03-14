@@ -80,20 +80,28 @@ const TripSelector = () => {
     return null;
   };
 
-  const handleShowHistory = () => {
-    const convs = listConversations();
-    setAllConversations(convs);
+  const handleShowHistory = async () => {
+    const convs = await listConversations();
+    setAllConversations(convs || []);
     setShowChatHistory(true);
   };
 
-  const handleSelectConversation = (conv) => {
-    loadConversationFromHistory(conv.id);
+  const handleSelectConversation = async (conv) => {
+    try {
+      await loadConversationFromHistory(conv.id);
+    } catch (err) {
+      console.error('Failed to load conversation:', err);
+    }
   };
 
-  const handleDeleteConversation = (e, conv) => {
+  const handleDeleteConversation = async (e, conv) => {
     e.stopPropagation();
-    removeConversation(conv.id);
     setAllConversations((prev) => prev.filter((c) => c.id !== conv.id));
+    try {
+      await removeConversation(conv.id);
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+    }
   };
 
   const formatTimeAgo = (dateStr) => {

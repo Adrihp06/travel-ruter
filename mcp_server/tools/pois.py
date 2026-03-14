@@ -494,6 +494,19 @@ def register_tools(server: FastMCP):
                             },
                         }
 
+                    # Refine coordinates via Google Places API
+                    if name and latitude is not None and longitude is not None:
+                        try:
+                            places_service = get_google_places_service()
+                            if places_service and places_service._has_api_key:
+                                refined = await GooglePlacesService.find_place_coordinates(
+                                    name, latitude, longitude
+                                )
+                                if refined:
+                                    latitude, longitude = refined
+                        except Exception as e:
+                            logger.warning("Google coordinate refinement failed for '%s': %s", name, e)
+
                     db_poi = POI(
                         destination_id=destination_id,
                         name=name,
@@ -636,6 +649,18 @@ def register_tools(server: FastMCP):
 
                     # Update PostGIS coordinates if both provided
                     if latitude is not None and longitude is not None:
+                        # Refine coordinates via Google Places API
+                        poi_name = name or db_poi.name
+                        try:
+                            places_service = get_google_places_service()
+                            if places_service and places_service._has_api_key:
+                                refined = await GooglePlacesService.find_place_coordinates(
+                                    poi_name, latitude, longitude
+                                )
+                                if refined:
+                                    latitude, longitude = refined
+                        except Exception as e:
+                            logger.warning("Google coordinate refinement failed for '%s': %s", poi_name, e)
                         db_poi.coordinates = ST_SetSRID(
                             ST_MakePoint(longitude, latitude), 4326
                         )

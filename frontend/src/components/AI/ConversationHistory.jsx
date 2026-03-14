@@ -77,9 +77,13 @@ const ConversationHistory = () => {
                     </p>
                   </div>
                   <button
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.stopPropagation();
-                      removeConversation(conv.id);
+                      try {
+                        await removeConversation(conv.id);
+                      } catch (err) {
+                        console.error('Failed to delete conversation:', err);
+                      }
                     }}
                     className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-all"
                     title={t('ai.deleteConversation')}

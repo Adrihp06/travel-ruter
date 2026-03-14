@@ -49,7 +49,14 @@ const AIChat = ({ tripContext = null, isOpen, onToggle, onClose }) => {
   // Keyboard shortcut to toggle chat (Ctrl/Cmd + Shift + A)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'a') {
+      // Skip shortcuts when typing in form elements
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+        if (e.key === 'Escape' && isOpen) {
+          onClose();
+        }
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'a') {
         e.preventDefault();
         onToggle();
       }
