@@ -24,14 +24,16 @@ import type {
   TripTravelSegmentsResponse,
 } from '../types/schemas.js';
 
+const REQUEST_TIMEOUT_MS = 30_000;
+
 export class TravelRuterClient {
   private baseUrl: string;
   private token: string | undefined;
 
   constructor(baseUrl?: string, token?: string) {
     this.baseUrl = baseUrl || process.env.TRAVEL_RUTER_API_URL || 'http://localhost:8000/api/v1';
-    this.token = token || process.env.TRAVEL_RUTER_TOKEN;
-    // Remove trailing slash if present
+    const rawToken = (token || process.env.TRAVEL_RUTER_TOKEN || '').trim();
+    this.token = rawToken || undefined;
     if (this.baseUrl.endsWith('/')) {
       this.baseUrl = this.baseUrl.slice(0, -1);
     }
@@ -45,7 +47,6 @@ export class TravelRuterClient {
   ): Promise<T> {
     let url = `${this.baseUrl}${path}`;
 
-    // Add query parameters
     if (queryParams) {
       const params = new URLSearchParams();
       for (const [key, value] of Object.entries(queryParams)) {
@@ -59,44 +60,79 @@ export class TravelRuterClient {
       }
     }
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = {};
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
+    const hasBody = body && (method === 'POST' || method === 'PUT' || method === 'PATCH');
+    if (hasBody) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
     const options: RequestInit = {
       method,
       headers,
+      signal: controller.signal,
     };
 
-    if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+    if (hasBody) {
       options.body = JSON.stringify(body);
     }
 
-    const response = await fetch(url, options);
+    try {
+      const response = await fetch(url, options);
+      clearTimeout(timeout);
 
-    if (!response.ok) {
-      let errorDetail = `HTTP ${response.status}`;
-      try {
-        const errorBody = await response.json() as { detail?: string };
-        if (errorBody && typeof errorBody.detail === 'string') {
-          errorDetail = errorBody.detail;
-        }
-      } catch {
-        // If we can't parse JSON, use status text
-        errorDetail = response.statusText || errorDetail;
+      if (!response.ok) {
+        const errorDetail = await this.parseErrorDetail(response);
+        throw new Error(errorDetail);
       }
-      throw new Error(errorDetail);
-    }
 
-    // Handle 204 No Content
-    if (response.status === 204) {
-      return undefined as T;
-    }
+      if (response.status === 204) {
+        return undefined as T;
+      }
 
-    return response.json() as Promise<T>;
+      return response.json() as Promise<T>;
+    } catch (error) {
+      clearTimeout(timeout);
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new Error(`Request timed out after ${REQUEST_TIMEOUT_MS / 1000}s: ${method} ${path}`);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Parse error detail from FastAPI responses.
+   * Handles both string detail (401, 404) and array detail (422 validation).
+   */
+  private async parseErrorDetail(response: Response): Promise<string> {
+    const fallback = `HTTP ${response.status}`;
+    try {
+      const errorBody = await response.json() as { detail?: unknown };
+      if (!errorBody?.detail) return fallback;
+
+      if (typeof errorBody.detail === 'string') {
+        return errorBody.detail;
+      }
+
+      // FastAPI 422 returns detail as array of validation errors
+      if (Array.isArray(errorBody.detail)) {
+        const messages = errorBody.detail.map((err: { loc?: unknown[]; msg?: string }) => {
+          const field = err.loc ? (err.loc as unknown[]).slice(1).join('.') : 'unknown';
+          return `${field}: ${err.msg || 'invalid'}`;
+        });
+        return `Validation error — ${messages.join('; ')}`;
+      }
+
+      return fallback;
+    } catch {
+      return response.statusText || fallback;
+    }
   }
 
   // ============================================================================

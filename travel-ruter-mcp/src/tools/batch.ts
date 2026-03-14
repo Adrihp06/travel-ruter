@@ -65,16 +65,25 @@ export function registerBatchTools(server: McpServer): void {
         // Create the trip first
         const trip = await client.createTrip(tripData as TripCreate);
 
-        // Create all destinations
+        // Create all destinations, rollback trip on partial failure
         const createdDestinations: DestinationResponse[] = [];
-        for (let i = 0; i < destinationInputs.length; i++) {
-          const destInput = destinationInputs[i];
-          const destination = await client.createDestination({
-            ...destInput,
-            trip_id: trip.id,
-            order_index: i,
-          } as DestinationCreate);
-          createdDestinations.push(destination);
+        try {
+          for (let i = 0; i < destinationInputs.length; i++) {
+            const destInput = destinationInputs[i];
+            const destination = await client.createDestination({
+              ...destInput,
+              trip_id: trip.id,
+              order_index: i,
+            } as DestinationCreate);
+            createdDestinations.push(destination);
+          }
+        } catch (destError) {
+          // Rollback: delete the trip (cascades to any created destinations)
+          try { await client.deleteTrip(trip.id); } catch { /* best-effort cleanup */ }
+          throw new Error(
+            `Failed creating destination ${createdDestinations.length + 1}/${destinationInputs.length}: ` +
+            `${destError instanceof Error ? destError.message : String(destError)}. Trip rolled back.`
+          );
         }
 
         const result: CreateTripWithDestinationsResult = {
@@ -116,17 +125,20 @@ export function registerBatchTools(server: McpServer): void {
         // Calculate date offset if new_start_date is provided
         let dateOffset = 0;
         if (args.new_start_date) {
-          const originalStart = new Date(originalTrip.start_date);
-          const newStart = new Date(args.new_start_date);
-          dateOffset = Math.floor((newStart.getTime() - originalStart.getTime()) / (1000 * 60 * 60 * 24));
+          // Parse YYYY-MM-DD strings as pure dates (no timezone conversion)
+          const parseDate = (s: string) => {
+            const [y, m, d] = s.split('-').map(Number);
+            return Date.UTC(y, m - 1, d);
+          };
+          dateOffset = Math.round((parseDate(args.new_start_date) - parseDate(originalTrip.start_date)) / 86_400_000);
         }
 
-        // Helper function to shift a date
+        // Timezone-safe date shifting using UTC arithmetic
         const shiftDate = (dateStr: string): string => {
           if (dateOffset === 0) return dateStr;
-          const date = new Date(dateStr);
-          date.setDate(date.getDate() + dateOffset);
-          return date.toISOString().split('T')[0];
+          const [y, m, d] = dateStr.split('-').map(Number);
+          const shifted = new Date(Date.UTC(y, m - 1, d + dateOffset));
+          return shifted.toISOString().split('T')[0];
         };
 
         // Create the new trip
@@ -145,22 +157,30 @@ export function registerBatchTools(server: McpServer): void {
           tags: originalTrip.tags,
         });
 
-        // Duplicate destinations
+        // Duplicate destinations with rollback on failure
         const newDestinations: DestinationResponse[] = [];
-        for (const dest of originalTrip.destinations || []) {
-          const newDest = await client.createDestination({
-            trip_id: newTrip.id,
-            city_name: dest.city_name,
-            country: dest.country,
-            arrival_date: shiftDate(dest.arrival_date),
-            departure_date: shiftDate(dest.departure_date),
-            latitude: dest.latitude,
-            longitude: dest.longitude,
-            description: dest.description,
-            notes: dest.notes,
-            order_index: dest.order_index,
-          });
-          newDestinations.push(newDest);
+        try {
+          for (const dest of originalTrip.destinations || []) {
+            const newDest = await client.createDestination({
+              trip_id: newTrip.id,
+              city_name: dest.city_name,
+              country: dest.country,
+              arrival_date: shiftDate(dest.arrival_date),
+              departure_date: shiftDate(dest.departure_date),
+              latitude: dest.latitude,
+              longitude: dest.longitude,
+              description: dest.description,
+              notes: dest.notes,
+              order_index: dest.order_index,
+            });
+            newDestinations.push(newDest);
+          }
+        } catch (destError) {
+          try { await client.deleteTrip(newTrip.id); } catch { /* best-effort cleanup */ }
+          throw new Error(
+            `Failed duplicating destination ${newDestinations.length + 1}: ` +
+            `${destError instanceof Error ? destError.message : String(destError)}. Duplicate trip rolled back.`
+          );
         }
 
         const result: DuplicateTripResult = {
