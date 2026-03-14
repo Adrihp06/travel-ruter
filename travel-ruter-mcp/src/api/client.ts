@@ -26,9 +26,11 @@ import type {
 
 export class TravelRuterClient {
   private baseUrl: string;
+  private token: string | undefined;
 
-  constructor(baseUrl?: string) {
+  constructor(baseUrl?: string, token?: string) {
     this.baseUrl = baseUrl || process.env.TRAVEL_RUTER_API_URL || 'http://localhost:8000/api/v1';
+    this.token = token || process.env.TRAVEL_RUTER_TOKEN;
     // Remove trailing slash if present
     if (this.baseUrl.endsWith('/')) {
       this.baseUrl = this.baseUrl.slice(0, -1);
@@ -57,11 +59,16 @@ export class TravelRuterClient {
       }
     }
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
     const options: RequestInit = {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     };
 
     if (body && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {

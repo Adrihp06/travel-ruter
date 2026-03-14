@@ -4,7 +4,8 @@
       "command": "node",
       "args": ["travel-ruter-mcp/dist/index.js"],
       "env": {
-        "TRAVEL_RUTER_API_URL": "http://localhost:8000/api/v1"
+        "TRAVEL_RUTER_API_URL": "http://localhost:8000/api/v1",
+        "TRAVEL_RUTER_TOKEN": ""
       }
     }
   }

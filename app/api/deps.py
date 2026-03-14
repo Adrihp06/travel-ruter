@@ -14,7 +14,7 @@ from app.models.user import User
 from app.services.auth_service import decode_token
 
 _INTERNAL_SERVICE_KEY = os.environ.get("INTERNAL_SERVICE_KEY", "")
-_DEV_USER_ID = 3  # Default user for development when AUTH_ENABLED=false
+_DEV_USER_ID = 1  # Default user for development when AUTH_ENABLED=false
 
 
 class PaginationParams:
