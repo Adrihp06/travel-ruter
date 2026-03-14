@@ -333,7 +333,14 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
     const navigationCoordinates = scheduledPois
       .map((poi) => getCoordinatePairFromLocation(poi))
       .filter(Boolean);
-    const uniqueDays = new Set(scheduledPois.map((poi) => poi.scheduled_date).filter(Boolean));
+
+    // Group POIs by day
+    const poisByDay = new Map();
+    for (const poi of scheduledPois) {
+      const day = poi.scheduled_date;
+      if (!poisByDay.has(day)) poisByDay.set(day, []);
+      poisByDay.get(day).push(poi);
+    }
 
     if (navigationCoordinates.length === 0) {
       return {
@@ -347,14 +354,55 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
       };
     }
 
+    // Compute real routed paths for each day (same approach as loadDayRouteData)
+    const mapCoordinates = [];
+    let totalDistanceKm = 0;
+    let totalDurationMin = 0;
+
+    for (const [, dayPois] of [...poisByDay.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+      for (let index = 0; index < dayPois.length - 1; index += 1) {
+        const fromPoi = dayPois[index];
+        const toPoi = dayPois[index + 1];
+
+        const response = await authFetch(`${API_BASE_URL}/routes/day-segment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            origin_lat: fromPoi.latitude,
+            origin_lng: fromPoi.longitude,
+            destination_lat: toPoi.latitude,
+            destination_lng: toPoi.longitude,
+            mode: DEFAULT_DAY_ROUTE_MODE,
+          }),
+        });
+
+        if (!response.ok) {
+          appendCoordinates(mapCoordinates, [
+            [fromPoi.longitude, fromPoi.latitude],
+            [toPoi.longitude, toPoi.latitude],
+          ]);
+          continue;
+        }
+
+        const segment = await response.json();
+        appendCoordinates(mapCoordinates, segment?.geometry?.coordinates);
+        if (Number.isFinite(segment?.distance_km)) {
+          totalDistanceKm += segment.distance_km;
+        }
+        if (Number.isFinite(segment?.duration_min)) {
+          totalDurationMin += segment.duration_min;
+        }
+      }
+    }
+
     return {
-      mapCoordinates: navigationCoordinates,
+      mapCoordinates: mapCoordinates.length >= 2 ? mapCoordinates : navigationCoordinates,
       navigationCoordinates,
       travelMode: GoogleMapsTravelMode.WALKING,
       stopCount: scheduledPois.length,
-      totalDistanceKm: null,
-      totalDurationMin: null,
-      dayCount: uniqueDays.size,
+      totalDistanceKm: totalDistanceKm > 0 ? totalDistanceKm : null,
+      totalDurationMin: totalDurationMin > 0 ? totalDurationMin : null,
+      dayCount: poisByDay.size,
     };
   })().catch(() => {
     const fallbackCoordinates = buildRouteCoordinates(descriptor, context.destinations);

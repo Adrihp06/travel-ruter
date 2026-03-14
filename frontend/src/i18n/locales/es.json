@@ -136,7 +136,9 @@
       "stopCount_other": "{{count}} paradas",
       "routeSummary": "{{distance}} km · ~{{duration}} min de trayecto",
       "insertDestinationRoute": "Insertar mapa de ruta",
-      "insertDayRoute": "Insertar Ruta"
+      "insertDayRoute": "Insertar Ruta",
+      "insertAllDayRoutes": "Insertar todas las rutas del día",
+      "insertAllRoutes": "Insertar todas las rutas"
     },
     "writer": {
       "title": "Asistente de escritura",

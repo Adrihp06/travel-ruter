@@ -136,7 +136,9 @@
       "stopCount_other": "{{count}} stops",
       "routeSummary": "{{distance}} km · ~{{duration}} min travel",
       "insertDestinationRoute": "Insert Route Map",
-      "insertDayRoute": "Insert Route"
+      "insertDayRoute": "Insert Route",
+      "insertAllDayRoutes": "Insert All Day Routes",
+      "insertAllRoutes": "Insert All Routes"
     },
     "writer": {
       "title": "Writing Assistant",

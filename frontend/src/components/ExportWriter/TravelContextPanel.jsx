@@ -254,6 +254,7 @@ const TravelContextPanel = ({
   onPreparePrompt,
   onInsertDestinationRoute,
   onInsertDayRoute,
+  onInsertAllDayRoutes,
 }) => {
   const { t, i18n } = useTranslation();
   const selectedDocId = useExportWriterStore((s) => s.selectedDocId);
@@ -408,6 +409,18 @@ const TravelContextPanel = ({
             </div>
           )}
 
+          {onInsertAllDayRoutes && destinations?.length > 0 && (
+            <button
+              onClick={() => onInsertAllDayRoutes(null)}
+              className="flex items-center gap-1.5 w-full px-3 py-2 rounded-lg text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors justify-center"
+              title={t('exportWriter.travelData.insertAllRoutes')}
+              data-testid="insert-all-routes-btn"
+            >
+              <Route className="w-3 h-3" />
+              {t('exportWriter.travelData.insertAllRoutes')}
+            </button>
+          )}
+
           <CollapsibleSection
             title={t('trips.destinations')}
             icon={<MapPin className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
@@ -539,6 +552,29 @@ const TravelContextPanel = ({
                 icon={<Calendar className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
                 count={totalPOIs}
               >
+                {onInsertAllDayRoutes && destinationId && Object.keys(scheduleData.scheduled).length > 1 && (
+                  <button
+                    onClick={() => {
+                      const sortedDays = Object.keys(scheduleData.scheduled).sort();
+                      onInsertAllDayRoutes(sortedDays.map((date) => {
+                        const dateLabel = (() => {
+                          try {
+                            return new Date(date + 'T00:00:00').toLocaleDateString(undefined, {
+                              weekday: 'short', month: 'short', day: 'numeric',
+                            });
+                          } catch { return date; }
+                        })();
+                        return { destinationId, date, label: `${dateLabel} Route` };
+                      }));
+                    }}
+                    className="flex items-center gap-1 mb-2 px-2 py-1.5 rounded text-[10px] font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors w-full justify-center"
+                    title={t('exportWriter.travelData.insertAllDayRoutes')}
+                    data-testid="insert-all-day-routes-btn"
+                  >
+                    <Route className="w-2.5 h-2.5" />
+                    {t('exportWriter.travelData.insertAllDayRoutes')}
+                  </button>
+                )}
                 {Object.entries(scheduleData.scheduled)
                   .sort(([a], [b]) => a.localeCompare(b))
                   .map(([date, datePois]) => (

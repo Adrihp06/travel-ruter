@@ -123,6 +123,62 @@ const ExportWriterView = ({ tripId, trip }) => {
     insertBlockAtCursor(descriptor);
   }, [insertBlockAtCursor]);
 
+  // Bulk action: insert all day-route blocks at once
+  const handleInsertAllDayRoutes = useCallback(async (dayRouteDescriptors) => {
+    const selectedDoc = getSelectedDocument?.();
+    if (!selectedDoc || selectedDoc.isReference) return;
+
+    // If called with null (trip overview), fetch POIs for all destinations
+    let descriptors = dayRouteDescriptors;
+    if (!descriptors) {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+      descriptors = [];
+      for (const dest of (localDestinations || [])) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/destinations/${dest.id}/pois`);
+          if (!response.ok) continue;
+          const data = await response.json();
+          const pois = Array.isArray(data) ? data : (data.items || []).flatMap((g) => g.pois || []);
+          const scheduledDates = [...new Set(
+            pois.filter((p) => p?.scheduled_date).map((p) => p.scheduled_date)
+          )].sort();
+          for (const date of scheduledDates) {
+            const dateLabel = (() => {
+              try {
+                return new Date(date + 'T00:00:00').toLocaleDateString(undefined, {
+                  weekday: 'short', month: 'short', day: 'numeric',
+                });
+              } catch { return date; }
+            })();
+            const destName = dest.city_name || dest.name || '';
+            descriptors.push({
+              destinationId: dest.id,
+              date,
+              label: `${destName} — ${dateLabel} Route`,
+            });
+          }
+        } catch {
+          // Skip destinations that fail to load
+        }
+      }
+    }
+
+    if (descriptors.length === 0) return;
+
+    // Insert all blocks sequentially into the document
+    let content = selectedDoc.content || '';
+    let position = editorRef.current?.getCursorPosition?.();
+    if (position == null) position = content.length;
+
+    for (const { destinationId, date, label } of descriptors) {
+      const descriptor = createDayRouteBlock(destinationId, date, label || null);
+      content = insertRouteBlock(content, position, descriptor);
+      position = content.length;
+    }
+
+    updateContent(selectedDoc.id, content);
+  }, [getSelectedDocument, updateContent, localDestinations]);
+
   // Callback: Travel Data "Prepare Prompt" → populate assistant input
   const handlePreparePrompt = (preparedPrompt) => {
     const prompt = typeof preparedPrompt === 'string'
@@ -217,6 +273,7 @@ const ExportWriterView = ({ tripId, trip }) => {
               onPreparePrompt={handlePreparePrompt}
               onInsertDestinationRoute={handleInsertDestinationRoute}
               onInsertDayRoute={handleInsertDayRoute}
+              onInsertAllDayRoutes={handleInsertAllDayRoutes}
             />
           )}
         </div>

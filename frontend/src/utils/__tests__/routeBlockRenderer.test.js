@@ -571,4 +571,27 @@ destinationId: 1
     expect(routeCards[0].stats.find((s) => s.key === 'days').label).toBe('2 days');
     expect(routeCards[0].stats.find((s) => s.key === 'stops').label).toBe('3 stops');
   });
+
+  it('destination overview includes distance and duration when provided', async () => {
+    const md = `:::route
+type: destination-overview
+destinationId: 1
+:::`;
+
+    const { routeCards } = await resolveRouteBlocksForExport(md, {
+      ...context,
+      loadDestinationOverview: vi.fn(async () => ({
+        mapCoordinates: [[12.4964, 41.9028], [12.49, 41.91], [12.48, 41.93]],
+        navigationCoordinates: [[12.4964, 41.9028], [12.49, 41.91], [12.48, 41.93]],
+        travelMode: 'walking',
+        stopCount: 5,
+        dayCount: 2,
+        totalDistanceKm: 8.3,
+        totalDurationMin: 105,
+      })),
+    });
+
+    expect(routeCards[0].stats.find((s) => s.key === 'distance').label).toBe('8.3 km');
+    expect(routeCards[0].stats.find((s) => s.key === 'duration').label).toBe('105 min');
+  });
 });
