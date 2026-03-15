@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -28,7 +29,7 @@ const useWaypointStore = create((set, get) => ({
     }));
 
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/travel-segments/${segmentId}/waypoints`
       );
 
@@ -70,7 +71,7 @@ const useWaypointStore = create((set, get) => ({
     }));
 
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/travel-segments/${segmentId}/waypoints`,
         {
           method: 'POST',
@@ -115,7 +116,7 @@ const useWaypointStore = create((set, get) => ({
     }));
 
     try {
-      const response = await fetch(`${API_BASE_URL}/waypoints/${waypointId}`, {
+      const response = await authFetch(`${API_BASE_URL}/waypoints/${waypointId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(waypointData),
@@ -166,7 +167,7 @@ const useWaypointStore = create((set, get) => ({
     }));
 
     try {
-      const response = await fetch(`${API_BASE_URL}/waypoints/${waypointId}`, {
+      const response = await authFetch(`${API_BASE_URL}/waypoints/${waypointId}`, {
         method: 'DELETE',
       });
 
@@ -201,7 +202,7 @@ const useWaypointStore = create((set, get) => ({
     }));
 
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/travel-segments/${segmentId}/waypoints/reorder`,
         {
           method: 'POST',

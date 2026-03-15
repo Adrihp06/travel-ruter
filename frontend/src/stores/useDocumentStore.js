@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -24,7 +25,7 @@ const useDocumentStore = create((set, get) => ({
   fetchPOIDocuments: async (poiId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/pois/${poiId}/documents`);
+      const response = await authFetch(`${API_BASE_URL}/pois/${poiId}/documents`);
       if (!response.ok) {
         throw new Error('Failed to fetch POI documents');
       }
@@ -49,7 +50,7 @@ const useDocumentStore = create((set, get) => ({
       const queryString = params.toString();
       const url = `${API_BASE_URL}/trips/${tripId}/documents${queryString ? `?${queryString}` : ''}`;
 
-      const response = await fetch(url);
+      const response = await authFetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch trip documents');
       }
@@ -66,7 +67,7 @@ const useDocumentStore = create((set, get) => ({
   fetchTripDocumentsGrouped: async (tripId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}/documents/grouped`);
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/documents/grouped`);
       if (!response.ok) {
         throw new Error('Failed to fetch grouped documents');
       }
@@ -97,7 +98,7 @@ const useDocumentStore = create((set, get) => ({
       const queryString = params.toString();
       const url = `${API_BASE_URL}/destinations/${destinationId}/documents${queryString ? `?${queryString}` : ''}`;
 
-      const response = await fetch(url);
+      const response = await authFetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch destination documents');
       }
@@ -114,7 +115,7 @@ const useDocumentStore = create((set, get) => ({
   fetchDestinationDocumentsByDay: async (destinationId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/destinations/${destinationId}/documents/by-day`);
+      const response = await authFetch(`${API_BASE_URL}/destinations/${destinationId}/documents/by-day`);
       if (!response.ok) {
         throw new Error('Failed to fetch documents by day');
       }
@@ -137,7 +138,7 @@ const useDocumentStore = create((set, get) => ({
       if (metadata.title) formData.append('title', metadata.title);
       if (metadata.description) formData.append('description', metadata.description);
 
-      const response = await fetch(`${API_BASE_URL}/pois/${poiId}/documents`, {
+      const response = await authFetch(`${API_BASE_URL}/pois/${poiId}/documents`, {
         method: 'POST',
         body: formData,
       });
@@ -172,7 +173,7 @@ const useDocumentStore = create((set, get) => ({
       if (metadata.destination_id) formData.append('destination_id', metadata.destination_id);
       if (metadata.day_number) formData.append('day_number', metadata.day_number);
 
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}/documents`, {
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/documents`, {
         method: 'POST',
         body: formData,
       });
@@ -205,7 +206,7 @@ const useDocumentStore = create((set, get) => ({
   updateDocument: async (documentId, updates) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/documents/${documentId}`, {
+      const response = await authFetch(`${API_BASE_URL}/documents/${documentId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -248,7 +249,7 @@ const useDocumentStore = create((set, get) => ({
   deleteDocument: async (documentId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/documents/${documentId}`, {
+      const response = await authFetch(`${API_BASE_URL}/documents/${documentId}`, {
         method: 'DELETE',
       });
 

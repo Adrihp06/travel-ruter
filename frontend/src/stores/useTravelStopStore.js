@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -17,7 +18,7 @@ const useTravelStopStore = create((set, get) => ({
   fetchStopsForSegment: async (segmentId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE_URL}/travel-segments/${segmentId}/stops`);
+      const response = await authFetch(`${API_BASE_URL}/travel-segments/${segmentId}/stops`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch travel stops');
@@ -48,7 +49,7 @@ const useTravelStopStore = create((set, get) => ({
     try {
       const results = await Promise.all(
         segmentIds.map(async (segmentId) => {
-          const response = await fetch(`${API_BASE_URL}/travel-segments/${segmentId}/stops`);
+          const response = await authFetch(`${API_BASE_URL}/travel-segments/${segmentId}/stops`);
           if (!response.ok) return { segmentId, stops: [] };
           const stops = await response.json();
           return { segmentId, stops };
@@ -76,7 +77,7 @@ const useTravelStopStore = create((set, get) => ({
   // Returns { stop, segmentId } so caller can refetch segment for updated route
   createStop: async (segmentId, stopData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/travel-segments/${segmentId}/stops`, {
+      const response = await authFetch(`${API_BASE_URL}/travel-segments/${segmentId}/stops`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -113,7 +114,7 @@ const useTravelStopStore = create((set, get) => ({
   // Returns { stop, segmentId } so caller can refetch segment for updated route
   updateStop: async (stopId, stopData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/stops/${stopId}`, {
+      const response = await authFetch(`${API_BASE_URL}/stops/${stopId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(stopData),
@@ -153,7 +154,7 @@ const useTravelStopStore = create((set, get) => ({
   // Returns { segmentId } so caller can refetch segment for updated route
   deleteStop: async (stopId, segmentId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/stops/${stopId}`, {
+      const response = await authFetch(`${API_BASE_URL}/stops/${stopId}`, {
         method: 'DELETE',
       });
 
@@ -181,7 +182,7 @@ const useTravelStopStore = create((set, get) => ({
   // Reorder stops within a segment
   reorderStops: async (segmentId, stopIds) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/travel-segments/${segmentId}/stops/reorder`, {
+      const response = await authFetch(`${API_BASE_URL}/travel-segments/${segmentId}/stops/reorder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stop_ids: stopIds }),

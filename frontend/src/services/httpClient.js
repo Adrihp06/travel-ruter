@@ -209,14 +209,14 @@ const request = async (url, options = {}) => {
     config = await interceptor(config);
   }
 
-  // Setup abort controller
-  const { controller, timeoutId } = createAbortController(timeout, requestId);
-  config.signal = controller.signal;
-
   let lastError;
   let attempt = 0;
 
   while (attempt <= (skipRetry ? 0 : retries)) {
+    // Create a fresh AbortController per attempt so retries aren't pre-aborted
+    const { controller, timeoutId } = createAbortController(timeout, requestId);
+    config.signal = controller.signal;
+
     try {
       const response = await fetch(url, config);
 

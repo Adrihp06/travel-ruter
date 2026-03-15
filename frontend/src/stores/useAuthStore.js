@@ -85,7 +85,11 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
+  _isRefreshing: false,
+
   refreshAccessToken: async () => {
+    if (get()._isRefreshing) return;
+    set({ _isRefreshing: true });
     try {
       const resp = await fetch(`${API_BASE}/auth/refresh`, {
         method: 'POST',
@@ -104,6 +108,8 @@ const useAuthStore = create((set, get) => ({
       }
       set({ isLoading: false, isAuthenticated: false, accessToken: null, user: null });
       localStorage.removeItem('accessToken');
+    } finally {
+      set({ _isRefreshing: false });
     }
   },
 

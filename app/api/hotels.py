@@ -10,10 +10,11 @@ Provides:
 
 import logging
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 
 from app.services.amadeus_service import search_hotels, get_hotel_offers
 from app.services.google_places_service import GooglePlacesService
+from app.api.deps import get_current_user
 from app.schemas.hotel_search import (
     HotelPhoto,
     HotelSearchResult,
@@ -30,7 +31,7 @@ router = APIRouter()
 # ==================== Google Places Discovery Endpoints ====================
 
 
-@router.get("/hotels/discover", response_model=HotelSearchResponse)
+@router.get("/hotels/discover", response_model=HotelSearchResponse, dependencies=[Depends(get_current_user)])
 async def discover_hotels(
     latitude: float = Query(..., description="Center latitude"),
     longitude: float = Query(..., description="Center longitude"),
@@ -85,7 +86,7 @@ async def discover_hotels(
         raise HTTPException(status_code=502, detail=f"Hotel discovery error: {str(e)}")
 
 
-@router.get("/hotels/discover/{place_id}", response_model=HotelDetailResult)
+@router.get("/hotels/discover/{place_id}", response_model=HotelDetailResult, dependencies=[Depends(get_current_user)])
 async def get_hotel_details(place_id: str):
     """Get detailed hotel information from Google Places API."""
     try:
@@ -152,7 +153,7 @@ async def get_hotel_details(place_id: str):
 # ==================== Amadeus Endpoints (legacy) ====================
 
 
-@router.get("/hotels/search")
+@router.get("/hotels/search", dependencies=[Depends(get_current_user)])
 async def search_hotels_endpoint(
     checkInDate: str = Query(..., description="Check-in date (YYYY-MM-DD)"),
     checkOutDate: str = Query(..., description="Check-out date (YYYY-MM-DD)"),
@@ -198,7 +199,7 @@ async def search_hotels_endpoint(
         raise HTTPException(status_code=502, detail=f"Hotel search service error: {str(e)}")
 
 
-@router.get("/hotels/{hotel_id}/offers")
+@router.get("/hotels/{hotel_id}/offers", dependencies=[Depends(get_current_user)])
 async def get_hotel_offers_endpoint(
     hotel_id: str,
     checkInDate: str = Query(..., description="Check-in date (YYYY-MM-DD)"),

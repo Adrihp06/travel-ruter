@@ -26,7 +26,14 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown events."""
-    # Startup
+    # Startup — log security configuration status (never log actual secrets)
+    logger.info(
+        "Security config validated: AUTH_ENABLED=%s, SECRET_KEY=%s, FERNET_KEY=%s, INTERNAL_SERVICE_KEY=%s",
+        settings.AUTH_ENABLED,
+        "set" if settings.SECRET_KEY else "unset",
+        "set" if settings.FERNET_KEY else "unset",
+        "set" if getattr(settings, "INTERNAL_SERVICE_KEY", None) else "unset",
+    )
     yield
     # Shutdown
     await close_http_client()

@@ -66,7 +66,12 @@ async def get_conversation(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get a full conversation (including JSONB blobs)."""
+    """Get a full conversation (including JSONB blobs).
+
+    User-scoped: the service filters by current_user.id, so users can only
+    access their own conversations.  An additional trip-membership check
+    ensures users removed from a trip lose access to linked conversations.
+    """
     conversation = await ConversationService.get_conversation(
         db, conversation_id, current_user.id
     )
@@ -75,6 +80,8 @@ async def get_conversation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Conversation not found",
         )
+    if conversation.trip_id:
+        await check_trip_membership(db, conversation.trip_id, current_user, "viewer")
     return conversation
 
 
@@ -85,7 +92,22 @@ async def update_conversation(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update a conversation (partial update)."""
+    """Update a conversation (partial update).
+
+    User-scoped: filtered by current_user.id.  Also verifies trip membership
+    (editor role) when the conversation is associated with a trip.
+    """
+    existing = await ConversationService.get_conversation(
+        db, conversation_id, current_user.id
+    )
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found",
+        )
+    if existing.trip_id:
+        await check_trip_membership(db, existing.trip_id, current_user, "editor")
+
     conversation = await ConversationService.update_conversation(
         db, conversation_id, current_user.id, data
     )
@@ -106,7 +128,22 @@ async def delete_conversation(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Delete a conversation."""
+    """Delete a conversation.
+
+    User-scoped: filtered by current_user.id.  Also verifies trip membership
+    (editor role) when the conversation is associated with a trip.
+    """
+    existing = await ConversationService.get_conversation(
+        db, conversation_id, current_user.id
+    )
+    if not existing:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation not found",
+        )
+    if existing.trip_id:
+        await check_trip_membership(db, existing.trip_id, current_user, "editor")
+
     deleted = await ConversationService.delete_conversation(
         db, conversation_id, current_user.id
     )

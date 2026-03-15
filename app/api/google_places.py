@@ -2,9 +2,10 @@ import logging
 from urllib.parse import urlencode
 
 import httpx
-from fastapi import APIRouter, Query, HTTPException, Request
+from fastapi import APIRouter, Query, HTTPException, Request, Depends
 from fastapi.responses import Response
 from typing import Optional
+from app.api.deps import get_current_user
 from app.schemas.google_maps_places import (
     GooglePlacesSearchResponse,
     GooglePlacesDetailResult,
@@ -21,7 +22,7 @@ router = APIRouter()
 def _build_photo_proxy_url(request: Request, photo_reference: str, max_width: int = 400) -> str:
     return f"{request.url_for('get_place_photo')}?{urlencode({'photo_reference': photo_reference, 'max_width': max_width})}"
 
-@router.get("/autocomplete", response_model=GooglePlacesSearchResponse)
+@router.get("/autocomplete", response_model=GooglePlacesSearchResponse, dependencies=[Depends(get_current_user)])
 async def autocomplete_places(
     q: str = Query(..., min_length=2, description="Search query"),
     location: Optional[str] = Query(None, description="Location to bias results (lat,lng)"),
@@ -42,7 +43,7 @@ async def autocomplete_places(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Autocomplete failed: {str(e)}")
 
-@router.get("/details/{place_id}", response_model=GooglePlacesDetailResult)
+@router.get("/details/{place_id}", response_model=GooglePlacesDetailResult, dependencies=[Depends(get_current_user)])
 async def get_place_details(place_id: str):
     """
     Get place details using Google Places API.
@@ -58,7 +59,7 @@ async def get_place_details(place_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to get place details: {str(e)}")
 
 
-@router.get("/photo-url", response_model=GooglePlacesPhotoUrlResponse)
+@router.get("/photo-url", response_model=GooglePlacesPhotoUrlResponse, dependencies=[Depends(get_current_user)])
 async def get_photo_url(
     request: Request,
     photo_reference: str = Query(..., description="Google Places photo reference"),
@@ -77,7 +78,7 @@ async def get_photo_url(
         raise HTTPException(status_code=500, detail=f"Failed to generate photo URL: {str(e)}")
 
 
-@router.get("/photo", name="get_place_photo")
+@router.get("/photo", name="get_place_photo", dependencies=[Depends(get_current_user)])
 async def get_place_photo(
     photo_reference: str = Query(..., description="Google Places photo reference"),
     max_width: int = Query(400, ge=1, le=1600, description="Maximum photo width"),
@@ -104,7 +105,7 @@ async def get_place_photo(
         raise HTTPException(status_code=500, detail=f"Failed to proxy Google place photo: {str(e)}")
 
 
-@router.get("/{place_id}/photos", response_model=GooglePlacesPhotosResponse)
+@router.get("/{place_id}/photos", response_model=GooglePlacesPhotosResponse, dependencies=[Depends(get_current_user)])
 async def get_place_photos(place_id: str, request: Request):
     """
     Fetch photo URLs for a Google place. Uses cached place details when available.

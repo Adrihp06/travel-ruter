@@ -77,32 +77,60 @@ async def calculate_intra_city_route(request: RouteRequest, current_user: User =
 
 
 @router.get("/routes")
-async def get_routes(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def get_routes(
+    trip_id: int = Query(..., description="Trip ID to list routes for"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Get all routes"""
+    await check_trip_membership(db, trip_id, current_user, "viewer")
     return {"message": "Get all routes", "data": []}
 
 
 @router.get("/routes/{route_id}")
-async def get_route(route_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def get_route(
+    route_id: int,
+    trip_id: int = Query(..., description="Trip ID for permission check"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Get a specific route by ID"""
+    await check_trip_membership(db, trip_id, current_user, "viewer")
     return {"message": f"Get route {route_id}", "data": None}
 
 
 @router.post("/routes")
-async def create_route(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def create_route(
+    trip_id: int = Query(..., description="Trip ID for permission check"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Create a new route"""
+    await check_trip_membership(db, trip_id, current_user, "editor")
     return {"message": "Create route", "data": None}
 
 
 @router.put("/routes/{route_id}")
-async def update_route(route_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def update_route(
+    route_id: int,
+    trip_id: int = Query(..., description="Trip ID for permission check"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Update a route"""
+    await check_trip_membership(db, trip_id, current_user, "editor")
     return {"message": f"Update route {route_id}", "data": None}
 
 
 @router.delete("/routes/{route_id}")
-async def delete_route(route_id: int, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def delete_route(
+    route_id: int,
+    trip_id: int = Query(..., description="Trip ID for permission check"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Delete a route"""
+    await check_trip_membership(db, trip_id, current_user, "editor")
     return {"message": f"Delete route {route_id}", "data": None}
 
 

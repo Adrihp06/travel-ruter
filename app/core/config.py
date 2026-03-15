@@ -1,7 +1,11 @@
+import logging
 import os
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_cors_origins() -> list[str]:
@@ -38,7 +42,7 @@ class Settings(BaseSettings):
     BACKEND_CORS_ORIGINS: list[str] = _parse_cors_origins()
 
     # Authentication
-    AUTH_ENABLED: bool = False  # Set to true in production or when VITE_AUTH_ENABLED=true
+    AUTH_ENABLED: bool = True  # Secure by default; set to False explicitly for local dev
 
     # JWT
     SECRET_KEY: str = ""
@@ -92,6 +96,41 @@ class Settings(BaseSettings):
     # Geocoding Cache
     GEOCODING_CACHE_TTL_HOURS: int = 24
     GEOCODING_CACHE_MAX_SIZE: int = 1000
+
+    # Inter-service authentication
+    INTERNAL_SERVICE_KEY: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _validate_security_settings(self) -> "Settings":
+        # CR-2: Reject empty/weak SECRET_KEY when auth is on
+        if self.AUTH_ENABLED:
+            key = self.SECRET_KEY
+            if not key or len(key) < 32:
+                raise ValueError(
+                    "SECRET_KEY must be at least 32 characters when AUTH_ENABLED=True. "
+                    "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+                )
+            if key.startswith("your-"):
+                raise ValueError(
+                    "SECRET_KEY appears to be a placeholder (starts with 'your-'). "
+                    "Set a real secret key for production."
+                )
+
+        # CR-9: Warn if FERNET_KEY is empty (encryption silently disabled)
+        if not self.FERNET_KEY:
+            logger.warning(
+                "FERNET_KEY is not set — per-trip API key encryption is disabled. "
+                "Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+            )
+
+        # S14: Warn if INTERNAL_SERVICE_KEY is empty when auth is on
+        if self.AUTH_ENABLED and not self.INTERNAL_SERVICE_KEY:
+            logger.warning(
+                "INTERNAL_SERVICE_KEY is not set while AUTH_ENABLED=True — "
+                "inter-service authentication is disabled."
+            )
+
+        return self
 
     class Config:
         env_file = ".env"

@@ -5,11 +5,12 @@ Supports multiple providers (Nominatim, Mapbox) with caching.
 
 import logging
 
-from fastapi import APIRouter, Query, HTTPException, Header
+from fastapi import APIRouter, Query, HTTPException, Header, Depends
 from typing import Optional
 from pydantic import BaseModel
 
 from app.services.geocoding_service import GeocodingService, GeocodingResult
+from app.api.deps import get_current_user
 
 logger = logging.getLogger(__name__)
 from app.services.mapbox_geocoding_service import MapboxGeocodingService
@@ -50,7 +51,7 @@ def get_effective_provider(
         return GeocodingProvider.NOMINATIM
 
 
-@router.get("/search", response_model=GeocodingSearchResponse)
+@router.get("/search", response_model=GeocodingSearchResponse, dependencies=[Depends(get_current_user)])
 async def search_locations(
     q: str = Query(..., min_length=2, description="Search query"),
     limit: int = Query(5, ge=1, le=10, description="Maximum number of results"),
@@ -101,7 +102,7 @@ async def search_locations(
         raise HTTPException(status_code=500, detail=f"Geocoding search failed: {str(e)}")
 
 
-@router.get("/reverse", response_model=Optional[GeocodingResult])
+@router.get("/reverse", response_model=Optional[GeocodingResult], dependencies=[Depends(get_current_user)])
 async def reverse_geocode(
     lat: float = Query(..., ge=-90, le=90, description="Latitude"),
     lon: float = Query(..., ge=-180, le=180, description="Longitude"),
@@ -147,7 +148,7 @@ async def reverse_geocode(
         raise HTTPException(status_code=500, detail=f"Reverse geocoding failed: {str(e)}")
 
 
-@router.get("/status", response_model=GeocodingStatusResponse)
+@router.get("/status", response_model=GeocodingStatusResponse, dependencies=[Depends(get_current_user)])
 async def get_provider_status():
     """
     Get availability status of geocoding providers.
@@ -167,7 +168,7 @@ async def get_provider_status():
     )
 
 
-@router.get("/cache/stats", response_model=CacheStatsResponse)
+@router.get("/cache/stats", response_model=CacheStatsResponse, dependencies=[Depends(get_current_user)])
 async def get_cache_stats():
     """
     Get cache statistics for all providers.
@@ -180,7 +181,7 @@ async def get_cache_stats():
     )
 
 
-@router.delete("/cache")
+@router.delete("/cache", dependencies=[Depends(get_current_user)])
 async def clear_cache():
     """
     Clear all geocoding caches.

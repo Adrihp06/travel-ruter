@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -57,7 +58,7 @@ const useTravelSegmentStore = create((set, get) => ({
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/trips/${tripId}/travel-segments`);
+      const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/travel-segments`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch travel segments');
@@ -97,7 +98,7 @@ const useTravelSegmentStore = create((set, get) => ({
     }));
 
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/destinations/${fromId}/travel-segment/${toId}`,
         {
           method: 'POST',
@@ -150,7 +151,7 @@ const useTravelSegmentStore = create((set, get) => ({
   recalculateTrip: async (tripId) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/trips/${tripId}/travel-segments/recalculate`,
         { method: 'POST' }
       );
@@ -171,7 +172,7 @@ const useTravelSegmentStore = create((set, get) => ({
   // Delete a segment
   deleteSegment: async (segmentId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/travel-segments/${segmentId}`, {
+      const response = await authFetch(`${API_BASE_URL}/travel-segments/${segmentId}`, {
         method: 'DELETE',
       });
 

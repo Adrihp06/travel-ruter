@@ -5,6 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models import Destination
+from app.api.deps import get_current_user
+from app.models.user import User
+from app.api.permissions import check_trip_membership
 from app.schemas import WeatherResponse
 from app.services.weather_service import WeatherService
 
@@ -20,6 +23,7 @@ async def get_destination_weather(
         le=12,
         description="Month number (1-12). If not provided, uses the arrival month of the destination."
     ),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -37,6 +41,9 @@ async def get_destination_weather(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Destination with id {id} not found"
         )
+
+    # Verify permission
+    await check_trip_membership(db, destination.trip_id, current_user, "viewer")
 
     # Check if destination has coordinates
     if destination.latitude is None or destination.longitude is None:
