@@ -16,10 +16,10 @@ class ORSProfile(str, Enum):
 
 class MatrixLocation(BaseModel):
     """A location for matrix calculation."""
-    id: str = Field(..., description="Location ID (e.g., 'poi_123' or 'accom_day1')")
-    lat: float = Field(..., description="Latitude coordinate")
-    lon: float = Field(..., description="Longitude coordinate")
-    type: str = Field(..., description="Location type: 'poi' or 'accommodation'")
+    id: str = Field(..., max_length=255, description="Location ID (e.g., 'poi_123' or 'accom_day1')")
+    lat: float = Field(..., ge=-90, le=90, description="Latitude coordinate")
+    lon: float = Field(..., ge=-180, le=180, description="Longitude coordinate")
+    type: str = Field(..., max_length=100, description="Location type: 'poi' or 'accommodation'")
 
 
 class TravelMatrixRequest(BaseModel):

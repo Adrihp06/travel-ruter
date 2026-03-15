@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class TravelStopBase(BaseModel):
     """Base schema for travel stops."""
     name: str = Field(..., min_length=1, max_length=255, description="Name of the stop location")
-    description: Optional[str] = Field(None, description="Notes or description about the stop")
+    description: Optional[str] = Field(None, max_length=10000, description="Notes or description about the stop")
     latitude: float = Field(..., ge=-90, le=90, description="Stop latitude coordinate")
     longitude: float = Field(..., ge=-180, le=180, description="Stop longitude coordinate")
     address: Optional[str] = Field(None, max_length=500, description="Full address of the stop")
@@ -34,7 +34,7 @@ class TravelStopCreate(TravelStopBase):
 class TravelStopUpdate(BaseModel):
     """Schema for updating a travel stop."""
     name: Optional[str] = Field(None, min_length=1, max_length=255, description="Name of the stop location")
-    description: Optional[str] = Field(None, description="Notes or description about the stop")
+    description: Optional[str] = Field(None, max_length=10000, description="Notes or description about the stop")
     latitude: Optional[float] = Field(None, ge=-90, le=90, description="Stop latitude coordinate")
     longitude: Optional[float] = Field(None, ge=-180, le=180, description="Stop longitude coordinate")
     address: Optional[str] = Field(None, max_length=500, description="Full address of the stop")

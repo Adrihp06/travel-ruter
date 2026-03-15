@@ -4,14 +4,14 @@ from pydantic import BaseModel, Field, ConfigDict
 
 
 class CommentCreate(BaseModel):
-    entity_type: str = Field(..., description="Type: poi, accommodation, destination")
+    entity_type: str = Field(..., max_length=100, description="Type: poi, accommodation, destination")
     entity_id: int = Field(..., description="ID of the entity")
-    content: str = Field(..., min_length=1, description="Comment text")
+    content: str = Field(..., min_length=1, max_length=10000, description="Comment text")
     parent_id: Optional[int] = Field(None, description="Parent comment ID for replies")
 
 
 class CommentUpdate(BaseModel):
-    content: str = Field(..., min_length=1, description="Updated comment text")
+    content: str = Field(..., min_length=1, max_length=10000, description="Updated comment text")
 
 
 class CommentResponse(BaseModel):

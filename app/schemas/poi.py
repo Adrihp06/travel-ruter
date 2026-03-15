@@ -7,10 +7,10 @@ from pydantic import BaseModel, ConfigDict, Field
 class POIBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="POI name")
     category: str = Field(..., min_length=1, max_length=100, description="POI category")
-    description: Optional[str] = Field(None, description="POI description")
+    description: Optional[str] = Field(None, max_length=10000, description="POI description")
     address: Optional[str] = Field(None, max_length=500, description="Address")
-    latitude: Optional[float] = Field(None, description="Latitude coordinate")
-    longitude: Optional[float] = Field(None, description="Longitude coordinate")
+    latitude: Optional[float] = Field(None, ge=-90, le=90, description="Latitude coordinate")
+    longitude: Optional[float] = Field(None, ge=-180, le=180, description="Longitude coordinate")
     estimated_cost: Optional[Decimal] = Field(None, description="Estimated cost")
     actual_cost: Optional[Decimal] = Field(None, description="Actual cost spent")
     currency: str = Field(default="USD", max_length=3, description="Currency code")
@@ -35,10 +35,10 @@ class POICreate(POIBase):
 class POIUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255, description="POI name")
     category: Optional[str] = Field(None, min_length=1, max_length=100, description="POI category")
-    description: Optional[str] = Field(None, description="POI description")
+    description: Optional[str] = Field(None, max_length=10000, description="POI description")
     address: Optional[str] = Field(None, max_length=500, description="Address")
-    latitude: Optional[float] = Field(None, description="Latitude coordinate")
-    longitude: Optional[float] = Field(None, description="Longitude coordinate")
+    latitude: Optional[float] = Field(None, ge=-90, le=90, description="Latitude coordinate")
+    longitude: Optional[float] = Field(None, ge=-180, le=180, description="Longitude coordinate")
     estimated_cost: Optional[Decimal] = Field(None, description="Estimated cost")
     actual_cost: Optional[Decimal] = Field(None, description="Actual cost spent")
     currency: Optional[str] = Field(None, max_length=3, description="Currency code")
@@ -102,8 +102,8 @@ class POIBulkScheduleUpdate(BaseModel):
 
 class StartLocation(BaseModel):
     """Start location for route optimization"""
-    lat: float = Field(..., description="Latitude of start location")
-    lon: float = Field(..., description="Longitude of start location")
+    lat: float = Field(..., ge=-90, le=90, description="Latitude of start location")
+    lon: float = Field(..., ge=-180, le=180, description="Longitude of start location")
 
 
 class POIOptimizationRequest(BaseModel):
@@ -116,10 +116,10 @@ class POIOptimizationRequest(BaseModel):
 class OptimizedPOI(BaseModel):
     """POI with computed visit time"""
     id: int
-    name: str
-    category: str
-    latitude: Optional[float]
-    longitude: Optional[float]
+    name: str = Field(..., max_length=255)
+    category: str = Field(..., max_length=100)
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
     dwell_time: Optional[int]
     estimated_arrival: str = Field(..., description="Estimated arrival time in HH:MM format")
     estimated_departure: str = Field(..., description="Estimated departure time in HH:MM format")

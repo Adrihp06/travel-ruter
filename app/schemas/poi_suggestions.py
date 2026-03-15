@@ -51,11 +51,11 @@ class POISuggestionMetadata(BaseModel):
 
 class POISuggestion(BaseModel):
     """Single POI suggestion"""
-    name: str
-    category: str
-    address: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
+    name: str = Field(..., max_length=255)
+    category: str = Field(..., max_length=100)
+    address: Optional[str] = Field(None, max_length=500)
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
     external_id: str = Field(..., description="Google Place ID")
     external_source: str = Field(default="google_places")
     metadata: POISuggestionMetadata
@@ -83,5 +83,6 @@ class BulkAddPOIsRequest(BaseModel):
     place_ids: List[str] = Field(..., min_length=1, description="List of Google Place IDs to add")
     category_override: Optional[str] = Field(
         None,
+        max_length=100,
         description="Override category for all POIs"
     )

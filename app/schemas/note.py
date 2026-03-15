@@ -24,7 +24,7 @@ class MediaFile(BaseModel):
 
 class NoteBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=255, description="Note title")
-    content: Optional[str] = Field(None, description="Rich text content (HTML or JSON)")
+    content: Optional[str] = Field(None, max_length=10000, description="Rich text content (HTML or JSON)")
     note_type: NoteTypeEnum = Field(
         default=NoteTypeEnum.GENERAL,
         description="Type of note (general, destination, day, poi)"
@@ -35,8 +35,8 @@ class NoteBase(BaseModel):
     is_private: bool = Field(default=True, description="For future collaborative features")
 
     # Location tagging
-    location_lat: Optional[float] = Field(None, description="Latitude for location tagging")
-    location_lng: Optional[float] = Field(None, description="Longitude for location tagging")
+    location_lat: Optional[float] = Field(None, ge=-90, le=90, description="Latitude for location tagging")
+    location_lng: Optional[float] = Field(None, ge=-180, le=180, description="Longitude for location tagging")
     location_name: Optional[str] = Field(None, max_length=255, description="Location name")
 
     # Mood/weather tags
@@ -64,7 +64,7 @@ class NoteCreate(NoteBase):
 
 class NoteUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=255, description="Note title")
-    content: Optional[str] = Field(None, description="Rich text content")
+    content: Optional[str] = Field(None, max_length=10000, description="Rich text content")
     note_type: Optional[NoteTypeEnum] = Field(None, description="Type of note")
 
     # Relationship updates
@@ -77,8 +77,8 @@ class NoteUpdate(BaseModel):
     is_private: Optional[bool] = Field(None, description="Privacy setting")
 
     # Location tagging
-    location_lat: Optional[float] = Field(None, description="Latitude")
-    location_lng: Optional[float] = Field(None, description="Longitude")
+    location_lat: Optional[float] = Field(None, ge=-90, le=90, description="Latitude")
+    location_lng: Optional[float] = Field(None, ge=-180, le=180, description="Longitude")
     location_name: Optional[str] = Field(None, max_length=255, description="Location name")
 
     # Mood/weather tags

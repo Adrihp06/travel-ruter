@@ -1,0 +1,20 @@
+# Development overrides — auto-loaded by docker compose locally.
+# NOT deployed to production (only docker-compose.yml is synced to NAS).
+services:
+  db:
+    # Expose database port for local development tools (pgAdmin, DBeaver, etc.)
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+  backend:
+    volumes:
+      # Dev overrides — live-reload source code
+      - ./app:/app/app:ro
+  orchestrator:
+    volumes:
+      # Mount Claude credentials (read-only)
+      - ${HOME}/.claude:/root/.claude:ro
+      # Mount Google Cloud credentials (read-only)
+      - ${HOME}/.config/gcloud:/home/appuser/.config/gcloud:ro
+      # Dev overrides — live-reload source code
+      - ./mcp_server:/app/mcp_server:ro
+      - ./app:/app/app:ro

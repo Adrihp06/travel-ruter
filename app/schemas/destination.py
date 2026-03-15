@@ -8,15 +8,15 @@ class DestinationBase(BaseModel):
     country: Optional[str] = Field(None, max_length=255, description="Country")
     arrival_date: date = Field(..., description="Arrival date")
     departure_date: date = Field(..., description="Departure date")
-    notes: Optional[str] = Field(None, description="Additional notes")
+    notes: Optional[str] = Field(None, max_length=10000, description="Additional notes")
     order_index: int = Field(default=0, description="Order of destination in trip")
 
     # Additional fields for destination details
-    name: Optional[str] = Field(None, description="Destination name")
-    description: Optional[str] = Field(None, description="Destination description")
-    address: Optional[str] = Field(None, description="Address")
-    latitude: Optional[float] = Field(None, description="Latitude coordinate")
-    longitude: Optional[float] = Field(None, description="Longitude coordinate")
+    name: Optional[str] = Field(None, max_length=255, description="Destination name")
+    description: Optional[str] = Field(None, max_length=10000, description="Destination description")
+    address: Optional[str] = Field(None, max_length=500, description="Address")
+    latitude: Optional[float] = Field(None, ge=-90, le=90, description="Latitude coordinate")
+    longitude: Optional[float] = Field(None, ge=-180, le=180, description="Longitude coordinate")
 
 
 class DestinationCreate(DestinationBase):
@@ -28,13 +28,13 @@ class DestinationUpdate(BaseModel):
     country: Optional[str] = Field(None, min_length=1, max_length=255, description="Country")
     arrival_date: Optional[date] = Field(None, description="Arrival date")
     departure_date: Optional[date] = Field(None, description="Departure date")
-    notes: Optional[str] = Field(None, description="Additional notes")
+    notes: Optional[str] = Field(None, max_length=10000, description="Additional notes")
     order_index: Optional[int] = Field(None, description="Order of destination in trip")
-    name: Optional[str] = Field(None, description="Destination name")
-    description: Optional[str] = Field(None, description="Destination description")
-    address: Optional[str] = Field(None, description="Address")
-    latitude: Optional[float] = Field(None, description="Latitude coordinate")
-    longitude: Optional[float] = Field(None, description="Longitude coordinate")
+    name: Optional[str] = Field(None, max_length=255, description="Destination name")
+    description: Optional[str] = Field(None, max_length=10000, description="Destination description")
+    address: Optional[str] = Field(None, max_length=500, description="Address")
+    latitude: Optional[float] = Field(None, ge=-90, le=90, description="Latitude coordinate")
+    longitude: Optional[float] = Field(None, ge=-180, le=180, description="Longitude coordinate")
 
 
 class DestinationResponse(DestinationBase):

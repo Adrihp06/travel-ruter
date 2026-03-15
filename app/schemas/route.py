@@ -9,7 +9,7 @@ class GeoPoint(BaseModel):
 
 class RoutePoint(GeoPoint):
     dwell_time: int = Field(0, ge=0, description="Dwell time in minutes")
-    name: Optional[str] = Field(None, description="Name of the location")
+    name: Optional[str] = Field(None, max_length=255, description="Name of the location")
 
 
 class RouteRequest(BaseModel):
@@ -22,7 +22,7 @@ class RouteLeg(BaseModel):
     end_point: RoutePoint
     distance_km: float
     travel_time_minutes: float
-    description: str
+    description: str = Field(..., max_length=10000)
 
 
 class RouteResponse(BaseModel):

@@ -19,7 +19,7 @@ class DocumentBase(BaseModel):
         description="Type of document"
     )
     title: Optional[str] = Field(None, max_length=255, description="Document title")
-    description: Optional[str] = Field(None, description="Document description")
+    description: Optional[str] = Field(None, max_length=10000, description="Document description")
 
 
 class DocumentCreate(DocumentBase):
@@ -38,7 +38,7 @@ class DocumentCreate(DocumentBase):
 class DocumentUpdate(BaseModel):
     document_type: Optional[DocumentTypeEnum] = Field(None, description="Type of document")
     title: Optional[str] = Field(None, max_length=255, description="Document title")
-    description: Optional[str] = Field(None, description="Document description")
+    description: Optional[str] = Field(None, max_length=10000, description="Document description")
     destination_id: Optional[int] = Field(None, description="Destination ID to link document to")
     day_number: Optional[int] = Field(None, ge=1, description="Day number within destination (1-indexed)")
 
