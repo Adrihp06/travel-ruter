@@ -92,7 +92,8 @@ async def upload_cover_image(
 
     # Return the URL that can be used to access the image
     # This assumes a static files route is configured
-    url = f"/api/v1/trips/covers/{unique_filename}"
+    # Return path without /v1/ — nginx rewrites /api/* → /api/v1/* automatically
+    url = f"/api/trips/covers/{unique_filename}"
 
     return CoverImageUploadResponse(url=url, filename=unique_filename)
 

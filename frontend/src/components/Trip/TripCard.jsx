@@ -216,7 +216,10 @@ const TripCard = React.memo(function TripCard({
 
   // Memoize default cover image based on location keywords
   const coverImage = useMemo(() => {
-    if (trip.cover_image) return trip.cover_image;
+    if (trip.cover_image) {
+      // Normalize: backend may have stored /api/v1/ but nginx expects /api/
+      return trip.cover_image.replace('/api/v1/', '/api/');
+    }
 
     const location = (trip.location || '').toLowerCase();
     if (location.includes('beach') || location.includes('hawaii') || location.includes('caribbean')) {

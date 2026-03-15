@@ -519,7 +519,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
                 {formData.cover_image && (
                   <div className="mt-3 rounded-xl overflow-hidden h-28 ring-1 ring-gray-200 dark:ring-gray-700">
                     <img
-                      src={formData.cover_image}
+                      src={formData.cover_image.replace('/api/v1/', '/api/')}
                       alt="Cover preview"
                       className="w-full h-full object-cover"
                       onError={(e) => {
