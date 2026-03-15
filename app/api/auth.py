@@ -103,17 +103,10 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)
 
+    # Access token in URL for SPA consumption (short-lived, consumed immediately).
+    # Refresh token as HttpOnly cookie (long-lived, never exposed to JS).
     response = Response(status_code=status.HTTP_302_FOUND)
-    response.headers["location"] = f"{settings.FRONTEND_URL}/auth/callback"
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60 if hasattr(settings, 'ACCESS_TOKEN_EXPIRE_MINUTES') else 900,
-        path="/",
-    )
+    response.headers["location"] = f"{settings.FRONTEND_URL}/auth/callback?access_token={access_token}"
     _set_refresh_cookie(response, refresh_token)
     return response
 
@@ -153,16 +146,7 @@ async def github_callback(request: Request, db: AsyncSession = Depends(get_db)):
     refresh_token = create_refresh_token(user.id)
 
     response = Response(status_code=status.HTTP_302_FOUND)
-    response.headers["location"] = f"{settings.FRONTEND_URL}/auth/callback"
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60 if hasattr(settings, 'ACCESS_TOKEN_EXPIRE_MINUTES') else 900,
-        path="/",
-    )
+    response.headers["location"] = f"{settings.FRONTEND_URL}/auth/callback?access_token={access_token}"
     _set_refresh_cookie(response, refresh_token)
     return response
 
