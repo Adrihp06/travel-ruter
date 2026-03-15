@@ -171,11 +171,6 @@ const useNoteStore = create((set, get) => ({
         isLoading: false,
       }));
 
-      // Refresh grouped notes if we have them
-      if (get().groupedNotes) {
-        await get().fetchTripNotesGrouped(tripId);
-      }
-
       return newNote;
     } catch (error) {
       set({ error: error.message, isLoading: false });

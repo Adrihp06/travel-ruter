@@ -99,10 +99,12 @@ const Journal = ({
     setIsSaving(true);
     try {
       await createNote(tripId, noteData);
+      await Promise.all([
+        fetchTripNotesGrouped(tripId),
+        fetchNoteStats(tripId),
+      ]);
       setShowNoteModal(false);
       setEditingNote(null);
-      fetchTripNotesGrouped(tripId);
-      fetchNoteStats(tripId);
     } catch (error) {
       console.error('Failed to create note:', error);
     } finally {
@@ -116,9 +118,9 @@ const Journal = ({
     setIsSaving(true);
     try {
       await updateNote(editingNote.id, noteData);
+      await fetchTripNotesGrouped(tripId);
       setShowNoteModal(false);
       setEditingNote(null);
-      fetchTripNotesGrouped(tripId);
     } catch (error) {
       console.error('Failed to update note:', error);
     } finally {
@@ -131,17 +133,20 @@ const Journal = ({
     try {
       await deleteNote(noteId);
       setSelectedNote(null);
-      fetchNoteStats(tripId);
+      await Promise.all([
+        fetchTripNotesGrouped(tripId),
+        fetchNoteStats(tripId),
+      ]);
     } catch (error) {
       console.error('Failed to delete note:', error);
     }
-  }, [deleteNote, tripId, fetchNoteStats]);
+  }, [deleteNote, tripId, fetchNoteStats, fetchTripNotesGrouped]);
 
   // Handle pin toggle
   const handleTogglePin = useCallback(async (noteId) => {
     try {
       await togglePin(noteId);
-      fetchTripNotesGrouped(tripId);
+      await fetchTripNotesGrouped(tripId);
     } catch (error) {
       console.error('Failed to toggle pin:', error);
     }
