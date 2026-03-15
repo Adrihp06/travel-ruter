@@ -110,10 +110,11 @@ class Settings(BaseSettings):
                     "SECRET_KEY must be at least 32 characters when AUTH_ENABLED=True. "
                     "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
                 )
-            if key.startswith("your-"):
+            placeholder_prefixes = ("your-", "change-", "generate-", "replace-", "set-a-")
+            if any(key.startswith(p) for p in placeholder_prefixes):
                 raise ValueError(
-                    "SECRET_KEY appears to be a placeholder (starts with 'your-'). "
-                    "Set a real secret key for production."
+                    "SECRET_KEY appears to be a placeholder. "
+                    "Generate a real key with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
                 )
 
         # CR-9: Warn if FERNET_KEY is empty (encryption silently disabled)

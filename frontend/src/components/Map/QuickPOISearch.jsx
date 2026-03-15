@@ -6,6 +6,7 @@ import StarIcon from '@/components/icons/star-icon';
 import XIcon from '@/components/icons/x-icon';
 import CameraIcon from '@/components/icons/camera-icon';
 import HotelIcon from '@/components/icons/hotel-icon';
+import authFetch from '../../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -78,7 +79,7 @@ const QuickPOISearch = ({
         url += `&types=${category.types}`;
       }
 
-      const response = await fetch(url);
+      const response = await authFetch(url);
       if (!response.ok) throw new Error('Search failed');
       const data = await response.json();
       setResults(data.results || []);
@@ -119,7 +120,7 @@ const QuickPOISearch = ({
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/google-places/details/${result.place_id}`);
+      const response = await authFetch(`${API_BASE_URL}/google-places/details/${result.place_id}`);
       if (!response.ok) throw new Error('Failed to get details');
       const details = await response.json();
       

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import useTripStore from '../stores/useTripStore';
 import useDestinationStore from '../stores/useDestinationStore';
+import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
@@ -63,7 +64,7 @@ const useBreadcrumbData = () => {
     const fetchTrip = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch(`${API_BASE_URL}/trips/${tripId}`);
+        const response = await authFetch(`${API_BASE_URL}/trips/${tripId}`);
         if (response.ok) {
           const trip = await response.json();
           setTripName(trip.name || trip.title);

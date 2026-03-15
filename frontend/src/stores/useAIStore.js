@@ -1035,9 +1035,12 @@ const useAIStore = create((set, get) => ({
    */
   disconnect: () => {
     get()._autoSaveConversation();
-    const { _ws, _reconnectTimer } = get();
+    const { _ws, _reconnectTimer, _refetchTimer } = get();
     if (_reconnectTimer) {
       clearTimeout(_reconnectTimer);
+    }
+    if (_refetchTimer) {
+      clearTimeout(_refetchTimer);
     }
     if (_ws) {
       _ws.close(1000); // Normal closure - won't trigger reconnect
@@ -1047,6 +1050,7 @@ const useAIStore = create((set, get) => ({
       isConnected: false,
       sessionId: null,
       _reconnectTimer: null,
+      _refetchTimer: null,
       _reconnectAttempts: 0,
       isLoading: false,
       streamingMessageId: null,

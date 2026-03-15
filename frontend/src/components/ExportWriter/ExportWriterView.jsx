@@ -3,6 +3,7 @@ import { Bot, MapPin } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import useExportWriterStore from '../../stores/useExportWriterStore';
 import useDestinationStore from '../../stores/useDestinationStore';
+import authFetch from '../../utils/authFetch';
 import DocumentTree from './DocumentTree';
 import MarkdownEditorPanel from './MarkdownEditorPanel';
 import WritingAssistantPanel from './WritingAssistantPanel';
@@ -135,7 +136,7 @@ const ExportWriterView = ({ tripId, trip }) => {
       descriptors = [];
       for (const dest of (localDestinations || [])) {
         try {
-          const response = await fetch(`${API_BASE_URL}/destinations/${dest.id}/pois`);
+          const response = await authFetch(`${API_BASE_URL}/destinations/${dest.id}/pois`);
           if (!response.ok) continue;
           const data = await response.json();
           const pois = Array.isArray(data) ? data : (data.items || []).flatMap((g) => g.pois || []);

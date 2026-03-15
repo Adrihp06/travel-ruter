@@ -7,6 +7,7 @@ import useDestinationStore from '../../stores/useDestinationStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import DateRangePicker from '../common/DateRangePicker';
 import Spinner from '../UI/Spinner';
+import authFetch from '../../utils/authFetch';
 import { findDateCollisions, formatDateShort } from '../../utils/dateFormat';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
@@ -118,7 +119,7 @@ const DestinationFormModal = ({
   const reverseGeocode = async (latitude, longitude) => {
     setIsReverseGeocoding(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/geocoding/reverse?lat=${latitude}&lon=${longitude}`);
+      const res = await authFetch(`${API_BASE_URL}/geocoding/reverse?lat=${latitude}&lon=${longitude}`);
       if (res.ok) {
         const data = await res.json();
         if (data?.display_name) {

@@ -289,8 +289,9 @@ async def get_accommodation(
     # Resolve trip membership for this accommodation
     dest_result = await db.execute(select(Destination).where(Destination.id == acc.destination_id))
     destination = dest_result.scalar_one_or_none()
-    if destination:
-        await check_trip_membership(db, destination.trip_id, current_user, "viewer")
+    if not destination:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot verify resource ownership")
+    await check_trip_membership(db, destination.trip_id, current_user, "viewer")
 
     return accommodation_to_response(acc, lat, lng)
 
@@ -316,8 +317,9 @@ async def update_accommodation(
     dest_result = await db.execute(select(Destination).where(Destination.id == db_accommodation.destination_id))
     destination = dest_result.scalar_one_or_none()
 
-    if destination:
-        await check_trip_membership(db, destination.trip_id, current_user, "editor")
+    if not destination:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot verify resource ownership")
+    await check_trip_membership(db, destination.trip_id, current_user, "editor")
 
     # Update fields
     update_data = accommodation_update.model_dump(exclude_unset=True)
@@ -448,8 +450,9 @@ async def delete_accommodation(
     dest_result = await db.execute(select(Destination).where(Destination.id == db_accommodation.destination_id))
     destination = dest_result.scalar_one_or_none()
 
-    if destination:
-        await check_trip_membership(db, destination.trip_id, current_user, "owner")
+    if not destination:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot verify resource ownership")
+    await check_trip_membership(db, destination.trip_id, current_user, "owner")
 
     await db.delete(db_accommodation)
 

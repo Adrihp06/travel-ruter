@@ -258,8 +258,8 @@ async def save_provider_keys(request: Request) -> dict:
 
 @router.post("/api/sessions")
 async def create_session(body: CreateSessionRequest, request: Request) -> dict:
+    await verify_token(request)
     try:
-        await verify_token(request)
         sm = _sessions(request)
         trip_ctx = body.trip_context.model_dump(by_alias=True) if body.trip_context else None
         agent_config = body.agent_config or {}

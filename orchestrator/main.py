@@ -82,7 +82,7 @@ app = FastAPI(title="Travel Bridge Orchestrator", lifespan=lifespan)
 
 # CORS – configurable origins from environment
 # CR-6: Only allow credentials when specific origins are listed (not wildcard)
-_cors_raw = os.environ.get("CORS_ORIGINS", "")
+_cors_raw = os.environ.get("CORS_ORIGINS", "") or settings.cors_origins
 if _cors_raw and _cors_raw != "*":
     _cors_origins = [o.strip() for o in _cors_raw.split(",")]
     _allow_credentials = True

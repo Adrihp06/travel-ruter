@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { MapPin, Navigation, Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useMapboxToken } from '../../contexts/MapboxContext';
+import authFetch from '../../utils/authFetch';
 import { BRAND_COLORS, ROUTE_STYLES } from './mapStyles';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './mapStyles.css';
@@ -77,7 +78,7 @@ const MacroMap = ({
           }
 
           try {
-            const response = await fetch(`${API_BASE_URL}/trips/${tripId}/travel-segments`);
+            const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/travel-segments`);
             if (response.ok) {
               const data = await response.json();
               newSegments[tripId] = data.segments || [];

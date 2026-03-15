@@ -224,8 +224,9 @@ async def get_poi(
     # Resolve trip membership through destination
     dest_result = await db.execute(select(Destination).where(Destination.id == poi.destination_id))
     destination = dest_result.scalar_one_or_none()
-    if destination:
-        await check_trip_membership(db, destination.trip_id, current_user, "viewer")
+    if not destination:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot verify resource ownership")
+    await check_trip_membership(db, destination.trip_id, current_user, "viewer")
 
     return poi_to_response(poi, lat, lng)
 
@@ -250,8 +251,9 @@ async def update_poi(
     # Resolve trip membership through destination
     dest_result = await db.execute(select(Destination).where(Destination.id == db_poi.destination_id))
     _dest = dest_result.scalar_one_or_none()
-    if _dest:
-        await check_trip_membership(db, _dest.trip_id, current_user, "editor")
+    if not _dest:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot verify resource ownership")
+    await check_trip_membership(db, _dest.trip_id, current_user, "editor")
 
     # Update fields
     update_data = poi_update.model_dump(exclude_unset=True)
@@ -321,8 +323,9 @@ async def delete_poi(
     dest_result = await db.execute(select(Destination).where(Destination.id == db_poi.destination_id))
     destination = dest_result.scalar_one_or_none()
 
-    if destination:
-        await check_trip_membership(db, destination.trip_id, current_user, "owner")
+    if not destination:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot verify resource ownership")
+    await check_trip_membership(db, destination.trip_id, current_user, "owner")
 
     await db.delete(db_poi)
 
@@ -979,7 +982,7 @@ async def get_poi_suggestions(
 
         # Calculate distance
         distance = None
-        if suggestion_data.get("latitude") and suggestion_data.get("longitude"):
+        if suggestion_data.get("latitude") is not None and suggestion_data.get("longitude") is not None:
             distance = calculate_distance_km(
                 latitude, longitude,
                 suggestion_data["latitude"], suggestion_data["longitude"]
