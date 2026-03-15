@@ -51,12 +51,18 @@ async def lifespan(server: FastMCP):
         logger.info("MCP server shutdown complete")
 
 
-def create_server(transport: str = "stdio") -> FastMCP:
+def create_server(
+    transport: str = "stdio",
+    host: str | None = None,
+    port: int | None = None,
+) -> FastMCP:
     """
     Create and configure the FastMCP server with all tools registered.
 
     Args:
         transport: "stdio" for orchestrator subprocess, "streamable-http" for remote access
+        host: HTTP bind address (only used for streamable-http transport)
+        port: HTTP listen port (only used for streamable-http transport)
 
     Returns:
         Configured FastMCP server instance
@@ -71,6 +77,8 @@ def create_server(transport: str = "stdio") -> FastMCP:
         from mcp_server.auth import TravelRuterTokenVerifier
         from mcp.server.auth.settings import AuthSettings
 
+        kwargs["host"] = host or mcp_settings.MCP_HTTP_HOST
+        kwargs["port"] = port or mcp_settings.MCP_HTTP_PORT
         kwargs["token_verifier"] = TravelRuterTokenVerifier()
         kwargs["auth"] = AuthSettings(
             issuer_url=AnyHttpUrl(mcp_settings.MCP_AUTH_ISSUER_URL),
