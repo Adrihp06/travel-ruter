@@ -97,6 +97,23 @@ def create_server(
 
         return JSONResponse({"status": "ok", "service": mcp_settings.MCP_SERVER_NAME})
 
+    # OAuth authorization server metadata (RFC 8414)
+    # Required by MCP SDK clients to complete the auth discovery flow.
+    # Since we use a custom TokenVerifier with pre-issued JWTs (not a real
+    # OAuth server), this returns minimal metadata indicating Bearer token support.
+    @server.custom_route("/.well-known/oauth-authorization-server", methods=["GET"])
+    async def oauth_authorization_server_metadata(request):
+        from starlette.responses import JSONResponse
+
+        return JSONResponse({
+            "issuer": mcp_settings.MCP_AUTH_ISSUER_URL,
+            "token_endpoint": f"{mcp_settings.MCP_AUTH_ISSUER_URL}/oauth/token",
+            "response_types_supported": ["token"],
+            "grant_types_supported": ["client_credentials"],
+            "token_endpoint_auth_methods_supported": ["none"],
+            "scopes_supported": ["mcp"],
+        })
+
     # Register all tools
     _register_tools(server)
 
