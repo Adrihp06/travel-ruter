@@ -81,13 +81,19 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Travel Bridge Orchestrator", lifespan=lifespan)
 
 # CORS – configurable origins from environment
-_cors_raw = os.environ.get("CORS_ORIGINS", "*")
-_cors_origins = [o.strip() for o in _cors_raw.split(",")] if _cors_raw != "*" else ["*"]
+# CR-6: Only allow credentials when specific origins are listed (not wildcard)
+_cors_raw = os.environ.get("CORS_ORIGINS", "")
+if _cors_raw and _cors_raw != "*":
+    _cors_origins = [o.strip() for o in _cors_raw.split(",")]
+    _allow_credentials = True
+else:
+    _cors_origins = ["*"]
+    _allow_credentials = False
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    allow_credentials=True,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

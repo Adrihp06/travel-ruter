@@ -12,7 +12,7 @@ from typing import Any
 from uuid import uuid4
 
 import httpx
-from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import JSONResponse
 from jose import JWTError, jwt as jose_jwt
 
@@ -52,6 +52,28 @@ from orchestrator.schemas import (
 from orchestrator.session import Session, SessionManager
 
 logger = logging.getLogger("orchestrator.routes")
+
+# TTL for per-trip API key cache (seconds)
+_KEY_TTL = 300  # 5 minutes
+
+
+# ---------------------------------------------------------------------------
+# JWT verification dependency for management endpoints (CR-7)
+# ---------------------------------------------------------------------------
+
+async def verify_token(request: Request) -> int:
+    """Verify JWT from Authorization header. Returns user_id."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing authorization")
+    token = auth.split(" ", 1)[1]
+    try:
+        payload = jose_jwt.decode(
+            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM],
+        )
+        return int(payload["sub"])
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 
 def _get_model_settings(pydantic_ai_model: str):
@@ -104,7 +126,10 @@ async def _resolve_trip_api_key(
     Uses internal service auth (X-Internal-Key) instead of user JWT.
     """
     if session._resolved_api_key is not None:
-        return session._resolved_api_key
+        if (time.monotonic() - session._resolved_api_key_at) < _KEY_TTL:
+            return session._resolved_api_key
+        # TTL expired, clear cached value
+        session._resolved_api_key = None
 
     if not session.trip_id:
         return None
@@ -130,6 +155,7 @@ async def _resolve_trip_api_key(
                 key = data.get("key")
                 if key:
                     session._resolved_api_key = key
+                    session._resolved_api_key_at = time.monotonic()
                     logger.info("Resolved trip-level %s key for trip_id=%s", provider, session.trip_id)
                     return key
     except Exception as exc:
@@ -191,8 +217,9 @@ _PROVIDER_ENV_MAP = {
 
 
 @router.get("/api/providers/status")
-async def provider_status() -> dict:
+async def provider_status(request: Request) -> dict:
     """Return which providers have API keys configured (no values exposed)."""
+    await verify_token(request)
     import os
     providers = {}
     for provider_id, env_var in _PROVIDER_ENV_MAP.items():
@@ -207,6 +234,7 @@ async def save_provider_keys(request: Request) -> dict:
 
     Keys are NOT persisted to disk — use the .env file for persistence across restarts.
     """
+    await verify_token(request)
     import os
     body = await request.json()
     keys = body.get("keys", {})
@@ -231,6 +259,7 @@ async def save_provider_keys(request: Request) -> dict:
 @router.post("/api/sessions")
 async def create_session(body: CreateSessionRequest, request: Request) -> dict:
     try:
+        await verify_token(request)
         sm = _sessions(request)
         trip_ctx = body.trip_context.model_dump(by_alias=True) if body.trip_context else None
         agent_config = body.agent_config or {}
@@ -264,6 +293,7 @@ async def create_session(body: CreateSessionRequest, request: Request) -> dict:
 
 @router.get("/api/sessions/{session_id}")
 async def get_session(session_id: str, request: Request) -> dict:
+    await verify_token(request)
     sm = _sessions(request)
     session = sm.get_session(session_id)
     if not session:
@@ -279,12 +309,14 @@ async def get_session(session_id: str, request: Request) -> dict:
 
 @router.get("/api/sessions")
 async def list_sessions(request: Request) -> dict:
+    await verify_token(request)
     sm = _sessions(request)
     return {"sessions": sm.list_sessions()}
 
 
 @router.delete("/api/sessions/{session_id}")
 async def delete_session(session_id: str, request: Request) -> dict:
+    await verify_token(request)
     sm = _sessions(request)
     if sm.delete_session(session_id):
         return {"success": True}
@@ -293,6 +325,7 @@ async def delete_session(session_id: str, request: Request) -> dict:
 
 @router.get("/api/sessions/{session_id}/history")
 async def get_session_history(session_id: str, request: Request) -> dict:
+    await verify_token(request)
     sm = _sessions(request)
     session = sm.get_session(session_id)
     if not session:
@@ -303,6 +336,7 @@ async def get_session_history(session_id: str, request: Request) -> dict:
 
 @router.patch("/api/sessions/{session_id}")
 async def update_session(session_id: str, body: UpdateSessionRequest, request: Request) -> dict:
+    await verify_token(request)
     sm = _sessions(request)
     trip_ctx = body.trip_context.model_dump(by_alias=True)
     session = sm.update_context(session_id, trip_ctx)
@@ -313,6 +347,7 @@ async def update_session(session_id: str, body: UpdateSessionRequest, request: R
 
 @router.post("/api/chat")
 async def chat(body: ChatRequest, request: Request) -> dict:
+    await verify_token(request)
     sm = _sessions(request)
     agent = _agent(request)
 
@@ -382,6 +417,38 @@ async def chat(body: ChatRequest, request: Request) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# MCP subprocess health check (CR-12)
+# ---------------------------------------------------------------------------
+
+async def _ensure_mcp_alive(app) -> None:
+    """Check if MCP subprocess is alive, restart if needed."""
+    mcp = app.state.mcp
+    proc = getattr(mcp, '_process', None) or getattr(mcp, 'process', None)
+    if proc is None:
+        return
+    # Check for both sync (poll) and async (returncode) subprocess APIs
+    is_dead = False
+    if hasattr(proc, 'poll') and proc.poll() is not None:
+        is_dead = True
+    elif hasattr(proc, 'returncode') and proc.returncode is not None:
+        is_dead = True
+    if not is_dead:
+        return
+    logger.warning("MCP subprocess died, restarting...")
+    try:
+        await mcp.__aexit__(None, None, None)
+    except Exception:
+        pass
+    try:
+        await mcp.__aenter__()
+        app.state.mcp_connected = True
+        logger.info("MCP subprocess restarted successfully")
+    except Exception as exc:
+        app.state.mcp_connected = False
+        logger.error("MCP subprocess restart failed: %s", exc)
+
+
+# ---------------------------------------------------------------------------
 # WebSocket streaming endpoint
 # ---------------------------------------------------------------------------
 
@@ -401,7 +468,6 @@ async def websocket_chat_stream(ws: WebSocket) -> None:
             auth_data["token"],
             settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM],
-            options={"verify_exp": False},
         )
         user_id = int(payload["sub"])
         logger.info("WebSocket authenticated for user_id=%s", user_id)
@@ -536,6 +602,9 @@ async def _handle_chat(
             session.custom_system_prompt,
         )
         sm.truncate_history(session)
+
+        # Ensure MCP subprocess is alive before running the agent (CR-12)
+        await _ensure_mcp_alive(ws.app)
 
         # Resolve trip-level API key for the AI provider
         trip_api_key = await _resolve_trip_api_key(session)

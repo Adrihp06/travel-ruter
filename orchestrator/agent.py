@@ -66,9 +66,12 @@ def resolve_model_name(frontend_model_id: str) -> str:
     info = _MODEL_MAP.get(frontend_model_id)
     if info:
         return info.pydantic_ai_name
-    # Check if it looks like an Ollama model (contains ":" like "llama3.2:latest")
+    # Check if it looks like an Ollama model (format: "model:tag")
     if ":" in frontend_model_id:
-        return f"ollama:{frontend_model_id}"
+        parts = frontend_model_id.split(":")
+        _known_prefixes = {"anthropic", "openai", "google", "gpt", "claude", "gemini"}
+        if len(parts) == 2 and not any(p in parts[0].lower() for p in _known_prefixes):
+            return f"ollama:{frontend_model_id}"
     valid_ids = sorted(_MODEL_MAP.keys())
     raise ValueError(
         f"Unknown model ID '{frontend_model_id}'. "

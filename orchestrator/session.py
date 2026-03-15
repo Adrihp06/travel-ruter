@@ -32,6 +32,7 @@ class Session:
     cancel_event: asyncio.Event = field(default_factory=lambda: asyncio.Event())
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _resolved_api_key: str | None = field(default=None, repr=False)
+    _resolved_api_key_at: float = field(default=0.0, repr=False)
 
 
 class SessionManager:
@@ -124,15 +125,25 @@ class SessionManager:
 
     @staticmethod
     def truncate_history(session: Session) -> None:
-        """Keep first 2 + last N messages (same as manager.ts lines 298-308)."""
+        """Keep first 2 + last N messages, ensuring cuts land on ModelRequest boundaries.
+
+        PydanticAI messages alternate ModelRequest and ModelResponse.  A naive
+        slice can split a tool-call / tool-result pair, which confuses the model.
+        After computing the cut point we advance it to the nearest ModelRequest
+        so that no orphaned ModelResponse is left at the boundary.
+        """
         max_history = settings.max_session_history
-        if len(session.message_history) > max_history:
-            keep_start = 2
-            keep_end = max_history - keep_start
-            session.message_history = (
-                session.message_history[:keep_start]
-                + session.message_history[-keep_end:]
-            )
+        msgs = session.message_history
+        if len(msgs) <= max_history:
+            return
+        keep_start = 2
+        keep_end = max_history - keep_start
+        cut_index = len(msgs) - keep_end
+        # Adjust cut to fall on a ModelRequest boundary
+        from pydantic_ai.messages import ModelRequest
+        while cut_index < len(msgs) and not isinstance(msgs[cut_index], ModelRequest):
+            cut_index += 1
+        session.message_history = msgs[:keep_start] + msgs[cut_index:]
 
     # -- cancellation --------------------------------------------------------
 
