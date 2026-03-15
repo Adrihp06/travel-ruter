@@ -88,6 +88,7 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: self-hosted # NAS runner — see setup notes below
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -96,35 +97,60 @@ jobs:
           mkdir -p ${{ env.DEPLOY_DIR }}
           cp docker-compose.yml ${{ env.DEPLOY_DIR }}/docker-compose.yml
 
-      - name: Debug deploy directory
+      - name: Pre-deploy diagnostics
         run: |
+          echo "=== System resources ==="
+          free -h || true
+          df -h /volume1 || df -h / || true
+          echo "=== Docker disk usage ==="
+          docker system df || true
           echo "=== Runner user ==="
-          whoami
-          id
-          echo "=== Deploy dir contents ==="
+          whoami && id
+          echo "=== Deploy dir ==="
           ls -la ${{ env.DEPLOY_DIR }}/
-          echo "=== Looking for .env ==="
-          file ${{ env.DEPLOY_DIR }}/.env 2>&1 || echo ".env not found by runner"
+          file ${{ env.DEPLOY_DIR }}/.env 2>&1 || echo ".env not found"
 
-      - name: Deploy with Docker Compose
+      - name: Pull images sequentially
         working-directory: ${{ env.DEPLOY_DIR }}
         run: |
-          docker compose --profile prod down --timeout 30 || true
-          docker compose --profile prod pull
-          docker compose --profile prod up -d --remove-orphans
-          sleep 10
+          # Pull one at a time to avoid saturating NAS memory/network
+          echo "Pulling backend..."
+          docker pull ${{ env.BACKEND_IMAGE }}:latest
+          echo "Pulling frontend..."
+          docker pull ${{ env.FRONTEND_IMAGE }}:latest
+          echo "Pulling orchestrator..."
+          docker pull ${{ env.ORCHESTRATOR_IMAGE }}:latest
+          echo "Pulling mcp-remote..."
+          docker pull ${{ env.MCP_REMOTE_IMAGE }}:latest
+
+      - name: Rolling deploy
+        working-directory: ${{ env.DEPLOY_DIR }}
+        run: |
+          # Rolling update: recreate containers without tearing everything down first.
+          # docker compose up -d will only recreate containers whose image changed.
+          docker compose --profile prod up -d --remove-orphans --wait --wait-timeout 120
+          echo "=== All services reported healthy ==="
+
+      - name: Post-deploy status
+        if: always()
+        working-directory: ${{ env.DEPLOY_DIR }}
+        run: |
           echo "=== Container status ==="
           docker compose --profile prod ps
-          echo "=== Frontend logs ==="
-          docker logs travel_ruter_frontend 2>&1 || true
-          echo "=== Backend logs ==="
-          docker logs travel_ruter_backend 2>&1 | tail -30 || true
-          echo "=== Orchestrator logs ==="
-          docker logs travel_ruter_orchestrator 2>&1 | tail -30 || true
-          echo "=== DB logs ==="
-          docker logs travel_ruter_db 2>&1 | tail -15 || true
-          # Check if frontend is healthy
-          docker inspect --format='{{.State.Health.Status}}' travel_ruter_frontend
+          echo "=== Frontend logs (last 15) ==="
+          docker logs travel_ruter_frontend 2>&1 | tail -15 || true
+          echo "=== Backend logs (last 15) ==="
+          docker logs travel_ruter_backend 2>&1 | tail -15 || true
+          echo "=== Orchestrator logs (last 15) ==="
+          docker logs travel_ruter_orchestrator 2>&1 | tail -15 || true
+
+      - name: Cleanup old images
+        if: always()
+        run: |
+          # Remove dangling images and build cache to free NAS disk space
+          docker image prune -f || true
+          # Remove images older than 48h that are no longer used
+          docker image prune -a --filter "until=48h" -f 2>/dev/null || true
 
 # =============================================================================
 # Self-hosted runner setup (NAS)
