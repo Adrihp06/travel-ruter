@@ -40,15 +40,15 @@ export default function NotificationPanel({ onClose: _onClose, position = 'botto
   const isInline = variant === 'inline';
 
   const containerClass = isInline
-    ? 'w-full bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700'
-    : `absolute w-80 max-w-[calc(100vw-1rem)] bg-white dark:bg-gray-800 rounded-xl shadow-xl border dark:border-gray-700 z-50 ${
+    ? 'w-full bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700'
+    : `absolute w-80 max-w-[calc(100vw-1rem)] bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 ${
         position === 'top-left' ? 'left-0 bottom-full mb-2' : 'right-0 mt-2'
       }`;
 
   return (
     <div className={containerClass}>
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-700">
-        <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 dark:border-gray-700">
+        <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">
           {t('notifications.title')}
         </h3>
         <button
@@ -76,8 +76,8 @@ export default function NotificationPanel({ onClose: _onClose, position = 'botto
             <div
               key={n.id}
               onClick={() => !n.is_read && markAsRead(n.id)}
-              className={`px-4 py-3 border-b border-gray-50 dark:border-gray-700/50 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                !n.is_read ? 'bg-amber-50/60 dark:bg-amber-900/10' : ''
+              className={`px-4 py-3 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors ${
+                !n.is_read ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-white dark:bg-gray-800'
               }`}
             >
               <div className="flex items-start gap-2.5">
@@ -87,7 +87,7 @@ export default function NotificationPanel({ onClose: _onClose, position = 'botto
                 />
                 <div className="flex-1 min-w-0">
                   {n.data?.actor_name && (
-                    <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                    <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
                       {n.data.actor_name}
                     </p>
                   )}
@@ -95,12 +95,12 @@ export default function NotificationPanel({ onClose: _onClose, position = 'botto
                     {n.title}
                   </p>
                   {n.message && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
+                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5 line-clamp-2">
                       {n.message}
                     </p>
                   )}
                   {n.created_at && (
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
                       {timeAgo(n.created_at)}
                     </p>
                   )}
