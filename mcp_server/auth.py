@@ -53,19 +53,19 @@ class TravelRuterTokenVerifier(TokenVerifier):
                 secret,
                 algorithms=[mcp_settings.JWT_ALGORITHM],
             )
-        except (ExpiredSignatureError, JWTError):
-            logger.warning(_AUTH_FAILED)
+        except (ExpiredSignatureError, JWTError) as e:
+            logger.warning(f"MCP auth: JWT decode failed: {type(e).__name__}")
             return None
 
         # Verify it's an MCP-scoped token
         token_scope = payload.get("scope", "")
         if token_scope != "mcp":
-            logger.warning(_AUTH_FAILED)
+            logger.warning(f"MCP auth: wrong scope '{token_scope}'")
             return None
 
         user_id = payload.get("sub")
         if not user_id:
-            logger.warning(_AUTH_FAILED)
+            logger.warning("MCP auth: no sub claim")
             return None
 
         # Verify user exists, is active, and token is not revoked
@@ -84,7 +84,7 @@ class TravelRuterTokenVerifier(TokenVerifier):
                 user = result.scalar_one_or_none()
 
                 if not user:
-                    logger.warning(_AUTH_FAILED)
+                    logger.warning(f"MCP auth: user {user_id} not found or inactive")
                     return None
 
                 # Check token revocation
@@ -92,7 +92,7 @@ class TravelRuterTokenVerifier(TokenVerifier):
                     db, payload, int(user_id)
                 )
                 if is_revoked:
-                    logger.warning(_AUTH_FAILED)
+                    logger.warning(f"MCP auth: token revoked for user {user_id}")
                     return None
 
                 logger.info(f"MCP auth: verified user {user_id}")
@@ -102,8 +102,8 @@ class TravelRuterTokenVerifier(TokenVerifier):
                     scopes=["mcp"],
                     expires_at=payload.get("exp"),
                 )
-        except Exception:
-            logger.error(_AUTH_FAILED)
+        except Exception as e:
+            logger.error(f"MCP auth: DB error: {type(e).__name__}: {e}")
             return None
 
     async def _is_token_revoked(
