@@ -41,7 +41,35 @@ def main():
         port=args.port,
     )
 
-    server.run(transport=args.transport)
+    if args.transport == "streamable-http":
+        _run_http_with_rate_limiting(server)
+    else:
+        server.run(transport=args.transport)
+
+
+def _run_http_with_rate_limiting(server):
+    """Run the HTTP server with rate limiting middleware injected."""
+    import anyio
+    import uvicorn
+    from mcp_server.rate_limit import RateLimitMiddleware
+
+    async def serve():
+        # Get the Starlette app from FastMCP
+        starlette_app = server.streamable_http_app()
+
+        # Add rate limiting middleware
+        starlette_app.add_middleware(RateLimitMiddleware)
+
+        config = uvicorn.Config(
+            starlette_app,
+            host=server.settings.host,
+            port=server.settings.port,
+            log_level=server.settings.log_level.lower(),
+        )
+        uvi_server = uvicorn.Server(config)
+        await uvi_server.serve()
+
+    anyio.run(serve)
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ from app.models.poi_vote import POIVote
 from app.models.activity_log import ActivityLog
 from app.models.comment import Comment
 from app.models.conversation import Conversation
+from app.models.revoked_token import RevokedToken
 
 __all__ = [
     "BaseModel",
@@ -40,4 +41,5 @@ __all__ = [
     "ActivityLog",
     "Comment",
     "Conversation",
+    "RevokedToken",
 ]

@@ -9,6 +9,7 @@ Provides:
 """
 
 import logging
+from datetime import datetime, timezone
 from typing import Optional
 
 from jose import jwt, JWTError, ExpiredSignatureError
@@ -25,13 +26,19 @@ from mcp_server.config import mcp_settings
 
 logger = logging.getLogger(__name__)
 
+# Generic message returned for all auth failures to prevent enumeration
+_AUTH_FAILED = "Authentication failed"
+
 
 class TravelRuterTokenVerifier(TokenVerifier):
     """Validates Bearer JWTs issued by the Travel Ruter backend.
 
     Decodes the token using the shared SECRET_KEY, verifies the user
-    exists and is active in the DB, then returns an AccessToken with
-    client_id set to the user_id (as string).
+    exists and is active in the DB, checks token revocation status,
+    then returns an AccessToken with client_id set to the user_id (as string).
+
+    All failure paths return None with the same generic log message
+    to prevent information leakage.
     """
 
     async def verify_token(self, token: str) -> AccessToken | None:
@@ -46,29 +53,27 @@ class TravelRuterTokenVerifier(TokenVerifier):
                 secret,
                 algorithms=[mcp_settings.JWT_ALGORITHM],
             )
-        except ExpiredSignatureError:
-            logger.warning("MCP auth: token expired")
-            return None
-        except JWTError as e:
-            logger.warning(f"MCP auth: invalid token — {e}")
+        except (ExpiredSignatureError, JWTError):
+            logger.warning(_AUTH_FAILED)
             return None
 
         # Verify it's an MCP-scoped token
         token_scope = payload.get("scope", "")
         if token_scope != "mcp":
-            logger.warning(f"MCP auth: token scope is '{token_scope}', expected 'mcp'")
+            logger.warning(_AUTH_FAILED)
             return None
 
         user_id = payload.get("sub")
         if not user_id:
-            logger.warning("MCP auth: token missing 'sub' claim")
+            logger.warning(_AUTH_FAILED)
             return None
 
-        # Verify user exists and is active
+        # Verify user exists, is active, and token is not revoked
         from mcp_server.context import get_db_session
 
         try:
             async with get_db_session() as db:
+                # Check user
                 from app.models.user import User
 
                 stmt = select(User).where(
@@ -79,19 +84,71 @@ class TravelRuterTokenVerifier(TokenVerifier):
                 user = result.scalar_one_or_none()
 
                 if not user:
-                    logger.warning(f"MCP auth: user {user_id} not found or inactive")
+                    logger.warning(_AUTH_FAILED)
                     return None
 
-                logger.info(f"MCP auth: verified user {user_id} ({user.email})")
+                # Check token revocation
+                is_revoked = await self._is_token_revoked(
+                    db, payload, int(user_id)
+                )
+                if is_revoked:
+                    logger.warning(_AUTH_FAILED)
+                    return None
+
+                logger.info(f"MCP auth: verified user {user_id}")
                 return AccessToken(
                     token=token,
                     client_id=str(user_id),
                     scopes=["mcp"],
                     expires_at=payload.get("exp"),
                 )
-        except Exception as e:
-            logger.error(f"MCP auth: DB verification failed — {e}")
+        except Exception:
+            logger.error(_AUTH_FAILED)
             return None
+
+    async def _is_token_revoked(
+        self,
+        db: AsyncSession,
+        payload: dict,
+        user_id: int,
+    ) -> bool:
+        """Check if a token has been revoked (by jti or bulk revoke-all).
+
+        Returns True if the token should be rejected.
+        """
+        from app.models.revoked_token import RevokedToken
+
+        jti = payload.get("jti")
+
+        # If the token has a jti, check direct revocation
+        if jti:
+            stmt = select(RevokedToken).where(RevokedToken.jti == jti)
+            result = await db.execute(stmt)
+            if result.scalar_one_or_none():
+                return True
+
+        # Check bulk revoke-all markers for this user
+        stmt = (
+            select(RevokedToken)
+            .where(
+                RevokedToken.user_id == user_id,
+                RevokedToken.jti.like("revoke-all-%"),
+            )
+            .order_by(RevokedToken.created_at.desc())
+            .limit(1)
+        )
+        result = await db.execute(stmt)
+        marker = result.scalar_one_or_none()
+
+        if marker and marker.revoked_at:
+            # Token issued before the revoke-all marker should be rejected
+            token_iat = payload.get("iat")
+            if token_iat:
+                token_issued = datetime.fromtimestamp(token_iat, tz=timezone.utc)
+                if token_issued < marker.revoked_at.replace(tzinfo=timezone.utc):
+                    return True
+
+        return False
 
 
 async def verify_trip_access(
@@ -143,8 +200,8 @@ async def resolve_trip_id(
     """Resolve the trip_id for an entity that belongs to a destination.
 
     Handles two patterns:
-    - Direct: destination_id → Destination.trip_id
-    - Chained: entity_id (POI/Accommodation) → entity.destination_id → Destination.trip_id
+    - Direct: destination_id -> Destination.trip_id
+    - Chained: entity_id (POI/Accommodation) -> entity.destination_id -> Destination.trip_id
 
     Returns the trip_id if found, None otherwise.
     """
@@ -176,7 +233,7 @@ def get_user_id_from_context(ctx: Context) -> Optional[int]:
     """Extract user_id from MCP request context.
 
     In HTTP mode, ctx.client_id is set by the TokenVerifier to the user_id.
-    In stdio mode (orchestrator), ctx.client_id is None — return None to
+    In stdio mode (orchestrator), ctx.client_id is None -- return None to
     skip all permission checks (backward compatible).
     """
     client_id = ctx.client_id
@@ -185,5 +242,5 @@ def get_user_id_from_context(ctx: Context) -> Optional[int]:
     try:
         return int(client_id)
     except (ValueError, TypeError):
-        logger.warning(f"Invalid client_id in context: {client_id}")
+        logger.warning(_AUTH_FAILED)
         return None
