@@ -4,6 +4,9 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
+from app.api.deps import get_current_user
+from app.api.permissions import check_trip_membership
+from app.models.user import User
 from app.models.route_waypoint import RouteWaypoint
 from app.models.travel_segment import TravelSegment
 from app.schemas.route_waypoint import (
@@ -18,15 +21,28 @@ from app.services.travel_segment_service import TravelSegmentService
 router = APIRouter()
 
 
+async def _resolve_trip_from_segment(db: AsyncSession, segment_id: int) -> int:
+    """Resolve trip_id from a travel segment."""
+    result = await db.execute(select(TravelSegment.trip_id).where(TravelSegment.id == segment_id))
+    trip_id = result.scalar_one_or_none()
+    if trip_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Travel segment {segment_id} not found")
+    return trip_id
+
+
 @router.get(
     "/travel-segments/{segment_id}/waypoints",
     response_model=SegmentWaypointsResponse
 )
 async def get_segment_waypoints(
     segment_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get all waypoints for a travel segment, ordered by order_index."""
+    trip_id = await _resolve_trip_from_segment(db, segment_id)
+    await check_trip_membership(db, trip_id, current_user, "viewer")
+
     # Verify segment exists
     segment = await db.get(TravelSegment, segment_id)
     if not segment:
@@ -53,13 +69,17 @@ async def get_segment_waypoints(
 async def create_waypoint(
     segment_id: int,
     waypoint_data: RouteWaypointCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a new waypoint for a travel segment.
     If order_index is not provided, appends to the end.
     After creation, the segment route is recalculated to include the new waypoint.
     """
+    trip_id = await _resolve_trip_from_segment(db, segment_id)
+    await check_trip_membership(db, trip_id, current_user, "editor")
+
     # Verify segment exists and load it
     segment = await db.get(TravelSegment, segment_id)
     if not segment:
@@ -116,7 +136,8 @@ async def create_waypoint(
 async def update_waypoint(
     waypoint_id: int,
     waypoint_data: RouteWaypointUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update a waypoint's name or position.
@@ -128,6 +149,9 @@ async def update_waypoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Waypoint with id {waypoint_id} not found"
         )
+
+    trip_id = await _resolve_trip_from_segment(db, waypoint.travel_segment_id)
+    await check_trip_membership(db, trip_id, current_user, "editor")
 
     # Track if position changed
     position_changed = False
@@ -163,7 +187,8 @@ async def update_waypoint(
 )
 async def delete_waypoint(
     waypoint_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Delete a waypoint and recalculate the segment route.
@@ -174,6 +199,9 @@ async def delete_waypoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Waypoint with id {waypoint_id} not found"
         )
+
+    trip_id = await _resolve_trip_from_segment(db, waypoint.travel_segment_id)
+    await check_trip_membership(db, trip_id, current_user, "owner")
 
     segment_id = waypoint.travel_segment_id
     deleted_order = waypoint.order_index
@@ -207,13 +235,17 @@ async def delete_waypoint(
 async def reorder_waypoints(
     segment_id: int,
     reorder_data: RouteWaypointReorderRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Reorder waypoints within a segment.
     Provide a list of waypoint IDs with their new order indices.
     After reordering, the segment route is recalculated.
     """
+    trip_id = await _resolve_trip_from_segment(db, segment_id)
+    await check_trip_membership(db, trip_id, current_user, "editor")
+
     # Verify segment exists
     segment = await db.get(TravelSegment, segment_id)
     if not segment:

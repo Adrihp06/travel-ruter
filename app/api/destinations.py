@@ -12,6 +12,7 @@ from app.api.deps import PaginationParams, get_current_user
 from app.models.user import User
 from app.services.travel_segment_service import TravelSegmentService
 from app.services.activity_service import log_activity
+from app.api.permissions import require_viewer, require_editor, require_owner, check_trip_membership
 
 router = APIRouter()
 
@@ -32,6 +33,8 @@ async def create_destination(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Trip with id {destination.trip_id} not found"
         )
+
+    await check_trip_membership(db, destination.trip_id, current_user, "editor")
 
     # Create destination
     db_destination = Destination(**destination.model_dump())
@@ -69,6 +72,7 @@ async def list_destinations_by_trip(
     pagination: PaginationParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_viewer),
 ):
     """Get all destinations for a specific trip with pagination"""
     # Verify that the trip exists
@@ -121,6 +125,8 @@ async def get_destination(
             detail=f"Destination with id {id} not found"
         )
 
+    await check_trip_membership(db, destination.trip_id, current_user, "viewer")
+
     return destination
 
 
@@ -140,6 +146,8 @@ async def update_destination(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Destination with id {id} not found"
         )
+
+    await check_trip_membership(db, db_destination.trip_id, current_user, "editor")
 
     # Update fields
     update_data = destination_update.model_dump(exclude_unset=True)
@@ -191,6 +199,8 @@ async def delete_destination(
             detail=f"Destination with id {id} not found"
         )
 
+    await check_trip_membership(db, db_destination.trip_id, current_user, "owner")
+
     trip_id = db_destination.trip_id
     dest_id = db_destination.id
     dest_name = db_destination.city_name
@@ -231,6 +241,7 @@ async def reorder_destinations(
     reorder_request: DestinationReorderRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ):
     """Reorder destinations within a trip by providing destination IDs in new order.
 

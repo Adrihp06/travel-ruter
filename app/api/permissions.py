@@ -43,3 +43,26 @@ class TripPermission:
 require_viewer = TripPermission("viewer")
 require_editor = TripPermission("editor")
 require_owner = TripPermission("owner")
+
+
+async def check_trip_membership(
+    db: AsyncSession,
+    trip_id: int,
+    user: User,
+    min_role: str = "viewer",
+) -> None:
+    """Imperatively verify trip membership for endpoints without trip_id in the URL path."""
+    stmt = select(TripMember).where(
+        TripMember.trip_id == trip_id,
+        TripMember.user_id == user.id,
+        TripMember.status == "accepted",
+    )
+    result = await db.execute(stmt)
+    member = result.scalar_one_or_none()
+
+    if not member:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of this trip")
+
+    user_level = ROLE_HIERARCHY.get(member.role, -1)
+    if user_level < ROLE_HIERARCHY[min_role]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")

@@ -5,6 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.core.database import get_db
+from app.api.deps import get_current_user
+from app.api.permissions import check_trip_membership
+from app.models.user import User
 from app.models.travel_stop import TravelStop
 from app.models.travel_segment import TravelSegment
 from app.schemas.travel_stop import (
@@ -21,6 +24,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+async def _resolve_trip_from_segment(db: AsyncSession, segment_id: int) -> int:
+    """Resolve trip_id from a travel segment."""
+    result = await db.execute(select(TravelSegment.trip_id).where(TravelSegment.id == segment_id))
+    trip_id = result.scalar_one_or_none()
+    if trip_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Travel segment {segment_id} not found")
+    return trip_id
+
+
 @router.get(
     "/travel-segments/{segment_id}/stops",
     response_model=list[TravelStopResponse],
@@ -28,9 +40,13 @@ router = APIRouter()
 )
 async def get_segment_stops(
     segment_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get all planned stops for a travel segment, ordered by order_index."""
+    trip_id = await _resolve_trip_from_segment(db, segment_id)
+    await check_trip_membership(db, trip_id, current_user, "viewer")
+
     # Verify segment exists
     segment = await db.get(TravelSegment, segment_id)
     if not segment:
@@ -56,7 +72,8 @@ async def get_segment_stops(
 )
 async def get_stop(
     stop_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get details of a specific travel stop."""
     stop = await db.get(TravelStop, stop_id)
@@ -65,6 +82,10 @@ async def get_stop(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Travel stop with id {stop_id} not found"
         )
+
+    trip_id = await _resolve_trip_from_segment(db, stop.travel_segment_id)
+    await check_trip_membership(db, trip_id, current_user, "viewer")
+
     return stop
 
 
@@ -77,12 +98,16 @@ async def get_stop(
 async def create_stop(
     segment_id: int,
     stop_data: TravelStopCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a new planned stop for a travel segment.
     If order_index is not provided, appends to the end.
     """
+    trip_id = await _resolve_trip_from_segment(db, segment_id)
+    await check_trip_membership(db, trip_id, current_user, "editor")
+
     # Verify segment exists
     segment = await db.get(TravelSegment, segment_id)
     if not segment:
@@ -154,9 +179,13 @@ async def create_stop(
 async def create_stops_bulk(
     segment_id: int,
     bulk_data: TravelStopBulkCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create multiple stops for a travel segment in one request."""
+    trip_id = await _resolve_trip_from_segment(db, segment_id)
+    await check_trip_membership(db, trip_id, current_user, "editor")
+
     # Verify segment exists
     segment = await db.get(TravelSegment, segment_id)
     if not segment:
@@ -214,7 +243,8 @@ async def create_stops_bulk(
 async def update_stop(
     stop_id: int,
     stop_data: TravelStopUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Update a travel stop's details."""
     stop = await db.get(TravelStop, stop_id)
@@ -223,6 +253,9 @@ async def update_stop(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Travel stop with id {stop_id} not found"
         )
+
+    trip_id = await _resolve_trip_from_segment(db, stop.travel_segment_id)
+    await check_trip_membership(db, trip_id, current_user, "editor")
 
     # Update fields if provided
     update_data = stop_data.model_dump(exclude_unset=True)
@@ -259,7 +292,8 @@ async def update_stop(
 )
 async def delete_stop(
     stop_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a travel stop and reorder remaining stops."""
     stop = await db.get(TravelStop, stop_id)
@@ -268,6 +302,9 @@ async def delete_stop(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Travel stop with id {stop_id} not found"
         )
+
+    trip_id = await _resolve_trip_from_segment(db, stop.travel_segment_id)
+    await check_trip_membership(db, trip_id, current_user, "owner")
 
     segment_id = stop.travel_segment_id
     deleted_order = stop.order_index
@@ -306,12 +343,16 @@ async def delete_stop(
 async def reorder_stops(
     segment_id: int,
     reorder_data: TravelStopReorderRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Reorder stops within a segment.
     Provide a list of stop IDs in the desired order.
     """
+    trip_id = await _resolve_trip_from_segment(db, segment_id)
+    await check_trip_membership(db, trip_id, current_user, "editor")
+
     # Verify segment exists
     segment = await db.get(TravelSegment, segment_id)
     if not segment:

@@ -12,8 +12,13 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.config import settings
 from app.api.deps import get_current_user
+from app.api.permissions import TripPermission, check_trip_membership
 from app.models.user import User
 from app.models import POI, Trip, Document, Destination
+
+require_viewer = TripPermission("viewer")
+require_editor = TripPermission("editor")
+require_owner = TripPermission("owner")
 from app.schemas.document import (
     DocumentResponse,
     DocumentListResponse,
@@ -85,6 +90,20 @@ async def save_file(file: UploadFile, poi_id: Optional[int] = None, trip_id: Opt
     return unique_filename, file_path
 
 
+async def _resolve_document_trip_id(db: AsyncSession, document: Document) -> int | None:
+    """Resolve the owning trip_id for a document (via trip_id or poi → destination)."""
+    if document.trip_id:
+        return document.trip_id
+    if document.poi_id:
+        result = await db.execute(
+            select(Destination.trip_id)
+            .join(POI, POI.destination_id == Destination.id)
+            .where(POI.id == document.poi_id)
+        )
+        return result.scalar_one_or_none()
+    return None
+
+
 @router.post("/pois/{poi_id}/documents", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
 async def upload_poi_document(
     poi_id: int,
@@ -96,8 +115,10 @@ async def upload_poi_document(
     current_user: User = Depends(get_current_user),
 ):
     """Upload a document and link it to a POI"""
-    # Verify POI exists
-    result = await db.execute(select(POI).where(POI.id == poi_id))
+    # Verify POI exists and check trip membership
+    result = await db.execute(
+        select(POI).options(selectinload(POI.destination)).where(POI.id == poi_id)
+    )
     poi = result.scalar_one_or_none()
 
     if not poi:
@@ -105,6 +126,8 @@ async def upload_poi_document(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"POI with id {poi_id} not found"
         )
+
+    await check_trip_membership(db, poi.destination.trip_id, current_user, "editor")
 
     # Validate file
     validate_file(file)
@@ -115,22 +138,28 @@ async def upload_poi_document(
     # Get file size
     file_size = os.path.getsize(file_path)
 
-    # Create document record
-    db_document = Document(
-        filename=filename,
-        original_filename=file.filename,
-        file_path=file_path,
-        file_size=file_size,
-        mime_type=file.content_type,
-        document_type=document_type.value,
-        title=title,
-        description=description,
-        poi_id=poi_id,
-    )
+    # Create document record — wrap in try/except for atomicity (H-11)
+    try:
+        db_document = Document(
+            filename=filename,
+            original_filename=file.filename,
+            file_path=file_path,
+            file_size=file_size,
+            mime_type=file.content_type,
+            document_type=document_type.value,
+            title=title,
+            description=description,
+            poi_id=poi_id,
+        )
 
-    db.add(db_document)
-    await db.flush()
-    await db.refresh(db_document)
+        db.add(db_document)
+        await db.flush()
+        await db.refresh(db_document)
+    except Exception:
+        # DB write failed — clean up the saved file
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise
 
     return db_document
 
@@ -146,6 +175,7 @@ async def upload_trip_document(
     day_number: Optional[int] = Form(default=None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ):
     """Upload a document and link it to a Trip, optionally to a destination and day"""
     # Verify Trip exists
@@ -195,24 +225,29 @@ async def upload_trip_document(
     # Get file size
     file_size = os.path.getsize(file_path)
 
-    # Create document record
-    db_document = Document(
-        filename=filename,
-        original_filename=file.filename,
-        file_path=file_path,
-        file_size=file_size,
-        mime_type=file.content_type,
-        document_type=document_type.value,
-        title=title,
-        description=description,
-        trip_id=trip_id,
-        destination_id=destination_id,
-        day_number=day_number,
-    )
+    # Create document record — wrap in try/except for atomicity (H-11)
+    try:
+        db_document = Document(
+            filename=filename,
+            original_filename=file.filename,
+            file_path=file_path,
+            file_size=file_size,
+            mime_type=file.content_type,
+            document_type=document_type.value,
+            title=title,
+            description=description,
+            trip_id=trip_id,
+            destination_id=destination_id,
+            day_number=day_number,
+        )
 
-    db.add(db_document)
-    await db.flush()
-    await db.refresh(db_document)
+        db.add(db_document)
+        await db.flush()
+        await db.refresh(db_document)
+    except Exception:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise
 
     return db_document
 
@@ -224,8 +259,10 @@ async def list_poi_documents(
     current_user: User = Depends(get_current_user),
 ):
     """List all documents for a specific POI"""
-    # Verify POI exists
-    result = await db.execute(select(POI).where(POI.id == poi_id))
+    # Verify POI exists and check trip membership
+    result = await db.execute(
+        select(POI).options(selectinload(POI.destination)).where(POI.id == poi_id)
+    )
     poi = result.scalar_one_or_none()
 
     if not poi:
@@ -233,6 +270,8 @@ async def list_poi_documents(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"POI with id {poi_id} not found"
         )
+
+    await check_trip_membership(db, poi.destination.trip_id, current_user, "viewer")
 
     # Get documents
     result = await db.execute(
@@ -253,6 +292,7 @@ async def list_trip_documents(
     document_type: Optional[DocumentTypeEnum] = Query(None, description="Filter by document type"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_viewer),
 ):
     """List all documents for a specific Trip with optional filtering"""
     # Verify Trip exists
@@ -300,6 +340,7 @@ async def list_trip_documents_grouped(
     trip_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_viewer),
 ):
     """List all documents for a trip, grouped by destination"""
     # Verify Trip exists
@@ -372,6 +413,10 @@ async def get_document(
             detail=f"Document with id {document_id} not found"
         )
 
+    trip_id = await _resolve_document_trip_id(db, document)
+    if trip_id:
+        await check_trip_membership(db, trip_id, current_user, "viewer")
+
     return document
 
 
@@ -390,6 +435,10 @@ async def download_document(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Document with id {document_id} not found"
         )
+
+    trip_id = await _resolve_document_trip_id(db, document)
+    if trip_id:
+        await check_trip_membership(db, trip_id, current_user, "viewer")
 
     if not os.path.exists(document.file_path):
         raise HTTPException(
@@ -420,6 +469,10 @@ async def view_document(
             detail=f"Document with id {document_id} not found"
         )
 
+    trip_id = await _resolve_document_trip_id(db, document)
+    if trip_id:
+        await check_trip_membership(db, trip_id, current_user, "viewer")
+
     if not os.path.exists(document.file_path):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -449,6 +502,10 @@ async def update_document(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Document with id {document_id} not found"
         )
+
+    trip_id = await _resolve_document_trip_id(db, db_document)
+    if trip_id:
+        await check_trip_membership(db, trip_id, current_user, "editor")
 
     # Update fields
     update_data = document_update.model_dump(exclude_unset=True)
@@ -507,12 +564,19 @@ async def delete_document(
             detail=f"Document with id {document_id} not found"
         )
 
-    # Delete file from disk
-    if os.path.exists(db_document.file_path):
-        os.remove(db_document.file_path)
+    trip_id = await _resolve_document_trip_id(db, db_document)
+    if trip_id:
+        await check_trip_membership(db, trip_id, current_user, "owner")
 
-    # Delete database record
+    # H-11: Delete DB record first, then file — avoids orphaned DB rows if file
+    # deletion fails, and get_db auto-commit ensures the DB change persists.
+    file_path = db_document.file_path
     await db.delete(db_document)
+    await db.flush()
+
+    # Now safe to delete from disk (DB record will be committed by get_db)
+    if os.path.exists(file_path):
+        os.remove(file_path)
 
     return None
 
@@ -535,6 +599,8 @@ async def list_destination_documents(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Destination with id {destination_id} not found"
         )
+
+    await check_trip_membership(db, destination.trip_id, current_user, "viewer")
 
     # Build query with filters
     query = select(Document).where(Document.destination_id == destination_id)
@@ -573,6 +639,8 @@ async def list_destination_documents_by_day(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Destination with id {destination_id} not found"
         )
+
+    await check_trip_membership(db, destination.trip_id, current_user, "viewer")
 
     # Get all documents for the destination
     doc_result = await db.execute(

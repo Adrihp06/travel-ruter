@@ -11,6 +11,7 @@ from app.schemas.trip import TripCreate, TripUpdate, TripResponse, TripWithDesti
 from app.services.trip_service import TripService
 from app.services.travel_segment_service import TravelSegmentService
 from app.api.deps import get_current_user
+from app.api.permissions import require_viewer, require_editor, require_owner
 
 # Fields that affect origin/return segments
 _ORIGIN_RETURN_FIELDS = {
@@ -229,6 +230,7 @@ async def get_trip(
     trip_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_viewer),
 ) -> TripWithDestinationsResponse:
     """Get a specific trip by ID with destinations"""
     trip = await TripService.get_trip_with_destinations(db, trip_id)
@@ -251,6 +253,7 @@ async def update_trip(
     trip_data: TripUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ) -> TripResponse:
     """Update a trip"""
     # Check if origin/return fields are being changed
@@ -283,6 +286,7 @@ async def duplicate_trip(
     duplicate_request: TripDuplicateRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_viewer),
 ) -> TripResponse:
     """Duplicate a trip with specified options"""
     new_trip = await TripService.duplicate_trip(db, trip_id, duplicate_request, user_id=current_user.id)
@@ -304,6 +308,7 @@ async def delete_trip(
     trip_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_owner),
 ) -> None:
     """Delete a trip"""
     success = await TripService.delete_trip(db, trip_id)
@@ -345,6 +350,7 @@ async def get_trip_budget(
     trip_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_viewer),
 ) -> BudgetSummary:
     """Get budget summary for a trip"""
     budget = await TripService.get_budget_summary(db, trip_id)
@@ -366,6 +372,7 @@ async def get_trip_poi_stats(
     trip_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_viewer),
 ) -> POIStats:
     """Get POI statistics for a trip"""
     # Verify trip exists

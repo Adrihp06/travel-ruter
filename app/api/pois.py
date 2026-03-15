@@ -8,6 +8,7 @@ from geoalchemy2.functions import ST_SetSRID, ST_MakePoint, ST_X, ST_Y
 
 from app.core.database import get_db
 from app.api.deps import PaginationParams, get_current_user, get_optional_user
+from app.api.permissions import check_trip_membership
 
 logger = logging.getLogger(__name__)
 from app.models import POI, Destination, Accommodation
@@ -82,6 +83,8 @@ async def create_poi(
             detail=f"Destination with id {poi.destination_id} not found"
         )
 
+    await check_trip_membership(db, destination.trip_id, current_user, "editor")
+
     # Create POI
     poi_data = poi.model_dump()
     # Remove latitude/longitude as they're not direct model fields
@@ -142,6 +145,8 @@ async def list_pois_by_destination(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Destination with id {destination_id} not found"
         )
+
+    await check_trip_membership(db, destination.trip_id, current_user, "viewer")
 
     # Get total count
     count_result = await db.execute(
@@ -215,6 +220,13 @@ async def get_poi(
         )
 
     poi, lat, lng = row
+
+    # Resolve trip membership through destination
+    dest_result = await db.execute(select(Destination).where(Destination.id == poi.destination_id))
+    destination = dest_result.scalar_one_or_none()
+    if destination:
+        await check_trip_membership(db, destination.trip_id, current_user, "viewer")
+
     return poi_to_response(poi, lat, lng)
 
 
@@ -234,6 +246,12 @@ async def update_poi(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"POI with id {id} not found"
         )
+
+    # Resolve trip membership through destination
+    dest_result = await db.execute(select(Destination).where(Destination.id == db_poi.destination_id))
+    _dest = dest_result.scalar_one_or_none()
+    if _dest:
+        await check_trip_membership(db, _dest.trip_id, current_user, "editor")
 
     # Update fields
     update_data = poi_update.model_dump(exclude_unset=True)
@@ -303,6 +321,9 @@ async def delete_poi(
     dest_result = await db.execute(select(Destination).where(Destination.id == db_poi.destination_id))
     destination = dest_result.scalar_one_or_none()
 
+    if destination:
+        await check_trip_membership(db, destination.trip_id, current_user, "owner")
+
     await db.delete(db_poi)
 
     if destination:
@@ -334,6 +355,13 @@ async def vote_poi(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"POI with id {id} not found"
         )
+
+    # Resolve trip membership through destination when user is authenticated
+    if user:
+        dest_result = await db.execute(select(Destination).where(Destination.id == db_poi.destination_id))
+        _dest = dest_result.scalar_one_or_none()
+        if _dest:
+            await check_trip_membership(db, _dest.trip_id, user, "viewer")
 
     current_user_vote = None
 
@@ -410,6 +438,8 @@ async def bulk_update_poi_schedule(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Destination with id {destination_id} not found"
         )
+
+    await check_trip_membership(db, destination.trip_id, current_user, "editor")
 
     # Fetch all POIs in a single query instead of N individual SELECTs
     poi_ids = [item.id for item in schedule_update.updates]
@@ -497,6 +527,8 @@ async def get_travel_matrix(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Destination with id {destination_id} not found"
         )
+
+    await check_trip_membership(db, destination.trip_id, current_user, "viewer")
 
     # Validate locations have coordinates
     valid_locations = [loc for loc in request.locations if loc.lat is not None and loc.lon is not None]
@@ -596,6 +628,8 @@ async def optimize_day_route(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Destination with id {destination_id} not found"
         )
+
+    await check_trip_membership(db, destination.trip_id, current_user, "viewer")
 
     # Calculate the target date based on day_number
     if not destination.arrival_date:
@@ -765,6 +799,8 @@ async def get_accommodation_for_day(
 
     destination, dest_lat, dest_lon = dest_row
 
+    await check_trip_membership(db, destination.trip_id, current_user, "viewer")
+
     if not destination.arrival_date:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -862,6 +898,8 @@ async def get_poi_suggestions(
         )
 
     destination, dest_lat, dest_lon = dest_row
+
+    await check_trip_membership(db, destination.trip_id, current_user, "viewer")
 
     # Use coordinates from PostGIS or fallback to latitude/longitude fields
     latitude = dest_lat or destination.latitude
@@ -1014,6 +1052,8 @@ async def bulk_add_suggested_pois(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Destination with id {destination_id} not found"
         )
+
+    await check_trip_membership(db, destination.trip_id, current_user, "editor")
 
     # Fetch details for all place_ids in parallel (fixes N+1 query issue)
     details_map = await GooglePlacesService.get_place_details_batch(request.place_ids)

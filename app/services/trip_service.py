@@ -38,7 +38,6 @@ class TripService:
             db.add(member)
             await db.flush()
 
-        await db.commit()
         await db.refresh(trip)
         return trip
 

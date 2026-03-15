@@ -4,7 +4,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.database import AsyncSessionLocal
 from app.models.user import User
 from app.models.trip_member import TripMember
 from app.services.auth_service import decode_token
@@ -35,6 +35,19 @@ async def trip_websocket(
     if not user_id:
         await websocket.close(code=4001, reason="Invalid token payload")
         return
+
+    # Verify user is a member of the trip before allowing connection
+    async with AsyncSessionLocal() as db:
+        stmt = select(TripMember).where(
+            TripMember.trip_id == trip_id,
+            TripMember.user_id == user_id,
+            TripMember.status == "accepted",
+        )
+        result = await db.execute(stmt)
+        member = result.scalar_one_or_none()
+        if not member:
+            await websocket.close(code=4003, reason="Not a member of this trip")
+            return
 
     await manager.connect(trip_id, user_id, websocket)
 

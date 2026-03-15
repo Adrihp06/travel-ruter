@@ -5,7 +5,12 @@ from sqlalchemy import select
 from pydantic import BaseModel
 
 from app.core.database import get_db
+from app.api.deps import get_current_user
+from app.api.permissions import TripPermission, check_trip_membership
+from app.models.user import User
 from app.models.trip import Trip
+from app.models.destination import Destination
+from app.models.travel_segment import TravelSegment
 from app.schemas.travel_segment import (
     TravelMode,
     TravelSegmentResponse,
@@ -14,6 +19,10 @@ from app.schemas.travel_segment import (
     TripTravelSegmentsWithOriginReturnResponse,
 )
 from app.services.travel_segment_service import TravelSegmentService
+
+require_viewer = TripPermission("viewer")
+require_editor = TripPermission("editor")
+require_owner = TripPermission("owner")
 
 
 class RecalculateAllResponse(BaseModel):
@@ -34,12 +43,20 @@ async def calculate_travel_segment(
     from_id: int,
     to_id: int,
     request: TravelSegmentCalculateRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Calculate and save travel segment between two destinations.
     If a segment already exists, it will be updated with the new mode.
     """
+    # Resolve trip_id from from_destination and check editor permission
+    dest_result = await db.execute(select(Destination.trip_id).where(Destination.id == from_id))
+    trip_id = dest_result.scalar_one_or_none()
+    if trip_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Destination {from_id} not found")
+    await check_trip_membership(db, trip_id, current_user, "editor")
+
     try:
         segment = await TravelSegmentService.calculate_and_save_segment(
             db, from_id, to_id, request.travel_mode
@@ -60,9 +77,16 @@ async def calculate_travel_segment(
 async def get_travel_segment(
     from_id: int,
     to_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get the travel segment between two destinations"""
+    dest_result = await db.execute(select(Destination.trip_id).where(Destination.id == from_id))
+    trip_id = dest_result.scalar_one_or_none()
+    if trip_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Destination {from_id} not found")
+    await check_trip_membership(db, trip_id, current_user, "viewer")
+
     segment = await TravelSegmentService.get_segment(db, from_id, to_id)
 
     if not segment:
@@ -81,7 +105,9 @@ async def get_travel_segment(
 async def get_trip_travel_segments(
     trip_id: int,
     include_origin_return: bool = True,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_viewer),
 ):
     """
     Get all travel segments for a trip.
@@ -125,7 +151,9 @@ async def get_trip_travel_segments(
 )
 async def recalculate_trip_travel_segments(
     trip_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ):
     """
     Recalculate all travel segments for a trip.
@@ -142,9 +170,17 @@ async def recalculate_trip_travel_segments(
 )
 async def delete_travel_segment(
     segment_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a travel segment"""
+    # Resolve trip_id from segment
+    seg_result = await db.execute(select(TravelSegment.trip_id).where(TravelSegment.id == segment_id))
+    trip_id = seg_result.scalar_one_or_none()
+    if trip_id is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Travel segment {segment_id} not found")
+    await check_trip_membership(db, trip_id, current_user, "owner")
+
     deleted = await TravelSegmentService.delete_segment(db, segment_id)
 
     if not deleted:
@@ -162,7 +198,8 @@ async def delete_travel_segment(
     response_model=RecalculateAllResponse
 )
 async def recalculate_all_travel_segments(
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Recalculate all travel segments for all trips in the system.

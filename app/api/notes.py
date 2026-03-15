@@ -17,6 +17,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.models import Trip, Destination, Note
 from app.services.note_service import NoteService
+from app.api.permissions import require_viewer, require_editor, require_owner, check_trip_membership
 from app.schemas.note import (
     NoteCreate,
     NoteUpdate,
@@ -41,6 +42,7 @@ async def create_note(
     note_data: NoteCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_editor),
 ):
     """Create a new note for a trip"""
     # Ensure trip_id in path matches body
@@ -72,6 +74,7 @@ async def list_trip_notes(
     limit: int = Query(100, ge=1, le=500, description="Number of items to return"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_viewer),
 ):
     """List all notes for a trip with optional filtering"""
     # Verify trip exists
@@ -110,6 +113,7 @@ async def list_trip_notes_grouped(
     trip_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_viewer),
 ):
     """List all notes for a trip, grouped by destination"""
     try:
@@ -126,6 +130,7 @@ async def get_trip_note_stats(
     trip_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_viewer),
 ):
     """Get statistics about notes for a trip"""
     # Verify trip exists
@@ -146,6 +151,7 @@ async def search_trip_notes(
     search_request: NoteSearchRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_viewer),
 ):
     """Search notes within a trip"""
     # Verify trip exists
@@ -179,6 +185,7 @@ async def export_trip_notes_markdown(
     note_ids: Optional[str] = Query(None, description="Comma-separated note IDs to export"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    _: User = Depends(require_viewer),
 ):
     """Export notes to markdown format"""
     # Verify trip exists
@@ -236,6 +243,8 @@ async def list_destination_notes(
             detail=f"Destination with id {destination_id} not found"
         )
 
+    await check_trip_membership(db, destination.trip_id, current_user, "viewer")
+
     notes = await NoteService.get_notes_by_trip(
         db,
         trip_id=destination.trip_id,
@@ -263,6 +272,8 @@ async def list_destination_notes_by_day(
             detail=f"Destination with id {destination_id} not found"
         )
 
+    await check_trip_membership(db, destination.trip_id, current_user, "viewer")
+
     return await NoteService.get_notes_by_day(db, destination_id)
 
 
@@ -281,6 +292,9 @@ async def get_note(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Note with id {note_id} not found"
         )
+
+    await check_trip_membership(db, note.trip_id, current_user, "viewer")
+
     return note
 
 
@@ -292,6 +306,15 @@ async def update_note(
     current_user: User = Depends(get_current_user),
 ):
     """Update a note"""
+    # Check viewer access first (note must exist and user must be a member)
+    existing_note = await NoteService.get_note(db, note_id)
+    if not existing_note:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Note with id {note_id} not found"
+        )
+    await check_trip_membership(db, existing_note.trip_id, current_user, "editor")
+
     try:
         note = await NoteService.update_note(db, note_id, note_data)
         if not note:
@@ -314,6 +337,15 @@ async def delete_note(
     current_user: User = Depends(get_current_user),
 ):
     """Delete a note"""
+    # Verify note exists and check permission
+    existing_note = await NoteService.get_note(db, note_id)
+    if not existing_note:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Note with id {note_id} not found"
+        )
+    await check_trip_membership(db, existing_note.trip_id, current_user, "owner")
+
     deleted = await NoteService.delete_note(db, note_id)
     if not deleted:
         raise HTTPException(
@@ -330,6 +362,14 @@ async def toggle_note_pin(
     current_user: User = Depends(get_current_user),
 ):
     """Toggle the pinned status of a note"""
+    existing_note = await NoteService.get_note(db, note_id)
+    if not existing_note:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Note with id {note_id} not found"
+        )
+    await check_trip_membership(db, existing_note.trip_id, current_user, "editor")
+
     note = await NoteService.toggle_pin(db, note_id)
     if not note:
         raise HTTPException(
@@ -349,6 +389,15 @@ async def upload_note_media(
     current_user: User = Depends(get_current_user),
 ):
     """Upload a media file to a note"""
+    # Check note exists and verify trip membership
+    existing_note = await NoteService.get_note(db, note_id)
+    if not existing_note:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Note with id {note_id} not found"
+        )
+    await check_trip_membership(db, existing_note.trip_id, current_user, "editor")
+
     # Validate file type before reading any content
     if file.content_type not in NoteService.ALLOWED_MEDIA_TYPES:
         raise HTTPException(
@@ -420,6 +469,14 @@ async def delete_note_media(
     current_user: User = Depends(get_current_user),
 ):
     """Remove a media file from a note"""
+    existing_note = await NoteService.get_note(db, note_id)
+    if not existing_note:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Note with id {note_id} not found"
+        )
+    await check_trip_membership(db, existing_note.trip_id, current_user, "editor")
+
     try:
         note = await NoteService.remove_media_from_note(db, note_id, filename)
         if not note:
@@ -449,6 +506,8 @@ async def get_note_media(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Note with id {note_id} not found"
         )
+
+    await check_trip_membership(db, note.trip_id, current_user, "viewer")
 
     # Find the media file
     media_file = None

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.api.deps import get_current_user
+from app.api.permissions import check_trip_membership
 from app.models.user import User
 from app.services.conversation_service import ConversationService
 from app.schemas.conversation import (
@@ -26,6 +27,8 @@ async def list_conversations(
     current_user: User = Depends(get_current_user),
 ):
     """List the current user's conversations (summaries only)."""
+    if trip_id:
+        await check_trip_membership(db, trip_id, current_user, "viewer")
     conversations = await ConversationService.list_conversations(
         db, current_user.id, trip_id=trip_id, skip=skip, limit=limit
     )
@@ -49,6 +52,8 @@ async def create_conversation(
     current_user: User = Depends(get_current_user),
 ):
     """Create a new conversation."""
+    if data.trip_id:
+        await check_trip_membership(db, data.trip_id, current_user, "viewer")
     conversation = await ConversationService.create_conversation(
         db, current_user.id, data
     )

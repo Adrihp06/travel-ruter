@@ -12,6 +12,7 @@ from app.api.deps import PaginationParams, get_current_user
 from app.models.user import User
 from app.services.geocoding_service import GeocodingService
 from app.services.activity_service import log_activity
+from app.api.permissions import check_trip_membership
 
 router = APIRouter()
 
@@ -114,6 +115,8 @@ async def create_accommodation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Destination with id {accommodation.destination_id} not found"
         )
+
+    await check_trip_membership(db, destination.trip_id, current_user, "editor")
 
     # Validate dates are within destination range
     date_errors = validate_accommodation_dates(
@@ -228,6 +231,8 @@ async def list_accommodations_by_destination(
             detail=f"Destination with id {destination_id} not found"
         )
 
+    await check_trip_membership(db, destination.trip_id, current_user, "viewer")
+
     # Get total count
     count_result = await db.execute(
         select(func.count()).select_from(Accommodation).where(Accommodation.destination_id == destination_id)
@@ -280,6 +285,13 @@ async def get_accommodation(
         )
 
     acc, lat, lng = row
+
+    # Resolve trip membership for this accommodation
+    dest_result = await db.execute(select(Destination).where(Destination.id == acc.destination_id))
+    destination = dest_result.scalar_one_or_none()
+    if destination:
+        await check_trip_membership(db, destination.trip_id, current_user, "viewer")
+
     return accommodation_to_response(acc, lat, lng)
 
 
@@ -303,6 +315,9 @@ async def update_accommodation(
     # Get the destination for validation
     dest_result = await db.execute(select(Destination).where(Destination.id == db_accommodation.destination_id))
     destination = dest_result.scalar_one_or_none()
+
+    if destination:
+        await check_trip_membership(db, destination.trip_id, current_user, "editor")
 
     # Update fields
     update_data = accommodation_update.model_dump(exclude_unset=True)
@@ -432,6 +447,9 @@ async def delete_accommodation(
     acc_name = db_accommodation.name
     dest_result = await db.execute(select(Destination).where(Destination.id == db_accommodation.destination_id))
     destination = dest_result.scalar_one_or_none()
+
+    if destination:
+        await check_trip_membership(db, destination.trip_id, current_user, "owner")
 
     await db.delete(db_accommodation)
 

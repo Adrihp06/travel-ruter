@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.api.deps import get_current_user
+from app.api.permissions import check_trip_membership
 from app.models.user import User
 from app.services import api_key_service
 from app.schemas.routing import RoutingRequest, RoutingResponse
@@ -122,6 +123,8 @@ async def get_mapbox_route(
     - cycling: Bicycle routing
     """
     try:
+        if trip_id:
+            await check_trip_membership(db, trip_id, current_user, "viewer")
         access_token = await api_key_service.get_key(db, trip_id, "mapbox") if trip_id else None
         service = MapboxService(access_token=access_token)
         profile = MapboxRoutingProfile(request.profile.value)
@@ -166,6 +169,8 @@ async def get_mapbox_multi_waypoint_route(
     Requires at least 2 waypoints. Routes are calculated in order.
     """
     try:
+        if trip_id:
+            await check_trip_membership(db, trip_id, current_user, "viewer")
         access_token = await api_key_service.get_key(db, trip_id, "mapbox") if trip_id else None
         service = MapboxService(access_token=access_token)
         profile = MapboxRoutingProfile(request.profile.value)
@@ -225,6 +230,8 @@ async def get_ors_status(
     Returns the status of the OpenRouteService API configuration.
     If not available, provides instructions on how to configure it.
     """
+    if trip_id:
+        await check_trip_membership(db, trip_id, current_user, "viewer")
     api_key = await api_key_service.get_key(db, trip_id, "openrouteservice") if trip_id else None
     service = OpenRouteServiceService(api_key=api_key)
     if service.is_available():
@@ -264,6 +271,8 @@ async def get_ors_route(
     https://openrouteservice.org/dev/#/signup
     """
     try:
+        if trip_id:
+            await check_trip_membership(db, trip_id, current_user, "viewer")
         api_key = await api_key_service.get_key(db, trip_id, "openrouteservice") if trip_id else None
         service = OpenRouteServiceService(api_key=api_key)
         profile = ORSRoutingProfile(request.profile.value)
@@ -312,6 +321,8 @@ async def get_ors_multi_waypoint_route(
     and durations along actual roads.
     """
     try:
+        if trip_id:
+            await check_trip_membership(db, trip_id, current_user, "viewer")
         api_key = await api_key_service.get_key(db, trip_id, "openrouteservice") if trip_id else None
         service = OpenRouteServiceService(api_key=api_key)
         profile = ORSRoutingProfile(request.profile.value)
@@ -356,6 +367,8 @@ async def get_google_maps_status(
     Returns the status of the Google Maps API configuration.
     If not available, provides instructions on how to configure it.
     """
+    if trip_id:
+        await check_trip_membership(db, trip_id, current_user, "viewer")
     api_key = await api_key_service.get_key(db, trip_id, "google_maps") if trip_id else None
     service = GoogleMapsRoutesService(api_key=api_key)
     if service.is_available():
@@ -393,6 +406,8 @@ async def get_google_maps_route(
     Get a key at https://console.cloud.google.com/apis/credentials
     """
     try:
+        if trip_id:
+            await check_trip_membership(db, trip_id, current_user, "viewer")
         api_key = await api_key_service.get_key(db, trip_id, "google_maps") if trip_id else None
         service = GoogleMapsRoutesService(api_key=api_key)
         travel_mode = GoogleMapsRouteTravelMode(request.travel_mode.value)
@@ -452,6 +467,8 @@ async def get_google_maps_multi_waypoint_route(
     Supports all travel modes including TRANSIT for public transport.
     """
     try:
+        if trip_id:
+            await check_trip_membership(db, trip_id, current_user, "viewer")
         api_key = await api_key_service.get_key(db, trip_id, "google_maps") if trip_id else None
         service = GoogleMapsRoutesService(api_key=api_key)
         travel_mode = GoogleMapsRouteTravelMode(request.travel_mode.value)
@@ -496,6 +513,8 @@ async def get_routing_preferences(
     Returns which routing service is configured to be used and
     the availability status of each service.
     """
+    if trip_id:
+        await check_trip_membership(db, trip_id, current_user, "viewer")
     google_key = await api_key_service.get_key(db, trip_id, "google_maps") if trip_id else None
     ors_key = await api_key_service.get_key(db, trip_id, "openrouteservice") if trip_id else None
     google_service = GoogleMapsRoutesService(api_key=google_key)
@@ -529,6 +548,8 @@ async def update_routing_preferences(
     Note: If a service is not available (API key not configured),
     the system will fall back to the next available service.
     """
+    if trip_id:
+        await check_trip_membership(db, trip_id, current_user, "editor")
     global _current_routing_preference
     _current_routing_preference = request.preference
     TravelSegmentService.set_routing_preference(request.preference)
