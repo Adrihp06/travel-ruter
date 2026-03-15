@@ -90,6 +90,19 @@ def create_server(
 
     server = FastMCP(**kwargs)
 
+    # Inject rate limiting middleware for HTTP transport
+    if transport == "streamable-http":
+        _original_streamable_http_app = server.streamable_http_app
+
+        def _patched_streamable_http_app():
+            from mcp_server.rate_limit import RateLimitMiddleware
+
+            app = _original_streamable_http_app()
+            app.add_middleware(RateLimitMiddleware)
+            return app
+
+        server.streamable_http_app = _patched_streamable_http_app
+
     # Health endpoint for Docker health checks and debugging
     @server.custom_route("/health", methods=["GET"])
     async def health_check(request):
