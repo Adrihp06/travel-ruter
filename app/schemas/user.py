@@ -6,11 +6,11 @@ from pydantic import BaseModel, Field, ConfigDict
 class UserBase(BaseModel):
     email: str = Field(..., max_length=255, description="User email address")
     name: Optional[str] = Field(None, max_length=255, description="Display name")
-    avatar_url: Optional[str] = Field(None, max_length=2000, description="Avatar URL")
+    avatar_url: Optional[str] = Field(None, max_length=500, description="Avatar URL")
 
 
 class UserCreate(UserBase):
-    oauth_provider: str = Field(..., max_length=100, description="OAuth provider (google, github)")
+    oauth_provider: str = Field(..., max_length=50, description="OAuth provider (google, github)")
     oauth_id: str = Field(..., max_length=255, description="OAuth provider user ID")
 
 

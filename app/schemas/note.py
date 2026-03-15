@@ -24,7 +24,7 @@ class MediaFile(BaseModel):
 
 class NoteBase(BaseModel):
     title: str = Field(..., min_length=1, max_length=255, description="Note title")
-    content: Optional[str] = Field(None, max_length=10000, description="Rich text content (HTML or JSON)")
+    content: Optional[str] = Field(None, description="Rich text content (HTML or JSON)")
     note_type: NoteTypeEnum = Field(
         default=NoteTypeEnum.GENERAL,
         description="Type of note (general, destination, day, poi)"
@@ -64,7 +64,7 @@ class NoteCreate(NoteBase):
 
 class NoteUpdate(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=255, description="Note title")
-    content: Optional[str] = Field(None, max_length=10000, description="Rich text content")
+    content: Optional[str] = Field(None, description="Rich text content")
     note_type: Optional[NoteTypeEnum] = Field(None, description="Type of note")
 
     # Relationship updates

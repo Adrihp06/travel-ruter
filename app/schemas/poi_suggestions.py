@@ -51,9 +51,9 @@ class POISuggestionMetadata(BaseModel):
 
 class POISuggestion(BaseModel):
     """Single POI suggestion"""
-    name: str = Field(..., max_length=255)
-    category: str = Field(..., max_length=100)
-    address: Optional[str] = Field(None, max_length=500)
+    name: str
+    category: str
+    address: Optional[str] = None
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     external_id: str = Field(..., description="Google Place ID")

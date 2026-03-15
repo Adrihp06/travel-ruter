@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class POIBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255, description="POI name")
     category: str = Field(..., min_length=1, max_length=100, description="POI category")
-    description: Optional[str] = Field(None, max_length=10000, description="POI description")
+    description: Optional[str] = Field(None, description="POI description")
     address: Optional[str] = Field(None, max_length=500, description="Address")
     latitude: Optional[float] = Field(None, ge=-90, le=90, description="Latitude coordinate")
     longitude: Optional[float] = Field(None, ge=-180, le=180, description="Longitude coordinate")
@@ -35,7 +35,7 @@ class POICreate(POIBase):
 class POIUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255, description="POI name")
     category: Optional[str] = Field(None, min_length=1, max_length=100, description="POI category")
-    description: Optional[str] = Field(None, max_length=10000, description="POI description")
+    description: Optional[str] = Field(None, description="POI description")
     address: Optional[str] = Field(None, max_length=500, description="Address")
     latitude: Optional[float] = Field(None, ge=-90, le=90, description="Latitude coordinate")
     longitude: Optional[float] = Field(None, ge=-180, le=180, description="Longitude coordinate")
