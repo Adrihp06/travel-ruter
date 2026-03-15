@@ -1601,7 +1601,13 @@ const DetailViewContent = () => {
         }}
         tripId={Number(id)}
         destination={editingDestination}
-        onSuccess={() => fetchTripDetails(id)}
+        onSuccess={async () => {
+          await fetchTripDetails(id);
+          try {
+            const { useTravelSegmentStore } = await import('../stores/useTravelSegmentStore');
+            await useTravelSegmentStore.getState().recalculateTrip(id);
+          } catch (_) { /* segments will refresh on next load */ }
+        }}
         trip={selectedTrip}
         preFilledLocation={destinationPreFilledLocation}
       />

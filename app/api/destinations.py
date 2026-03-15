@@ -147,15 +147,20 @@ async def update_destination(
         setattr(db_destination, field, value)
 
     # Update coordinates if latitude and longitude are provided
+    coordinates_changed = False
     if "latitude" in update_data and "longitude" in update_data:
         if update_data["latitude"] is not None and update_data["longitude"] is not None:
             db_destination.coordinates = ST_SetSRID(
                 ST_MakePoint(update_data["longitude"], update_data["latitude"]),
                 4326
             )
+            coordinates_changed = True
 
     await db.flush()
     await db.refresh(db_destination)
+
+    if coordinates_changed:
+        await TravelSegmentService.recalculate_trip_segments(db, db_destination.trip_id)
 
     await log_activity(
         db,

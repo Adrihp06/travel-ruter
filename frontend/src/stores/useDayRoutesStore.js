@@ -405,9 +405,9 @@ const useDayRoutesStore = create((set, get) => ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          origin: { lat: origin.latitude, lon: origin.longitude },
-          destination: { lat: destination.latitude, lon: destination.longitude },
-          waypoints: waypoints.map(w => ({ lat: w.latitude, lon: w.longitude })),
+          origin: { lat: origin.latitude, lng: origin.longitude },
+          destination: { lat: destination.latitude, lng: destination.longitude },
+          waypoints: waypoints.map(w => ({ lat: w.latitude, lng: w.longitude })),
           travel_mode: 'walking', // Default mode for overall trip
         }),
       });
