@@ -63,9 +63,9 @@ async def get_current_user(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
         return user
 
-    # Normal JWT path
-    if not credentials:
-        # In development mode, return a default user instead of 401
+    # Normal JWT path — check Bearer header first, then access_token cookie
+    token = credentials.credentials if credentials else request.cookies.get("access_token")
+    if not token:
         if not settings.AUTH_ENABLED:
             stmt = select(User).where(User.id == _DEV_USER_ID, User.is_active == True)
             result = await db.execute(stmt)
@@ -74,7 +74,7 @@ async def get_current_user(
                 return user
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     try:
-        payload = decode_token(credentials.credentials)
+        payload = decode_token(token)
     except ExpiredSignatureError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
     except JWTError:
