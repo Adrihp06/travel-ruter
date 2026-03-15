@@ -233,12 +233,18 @@ The user's existing trips (Japan, Rome, etc.) are completely off-limits. Do not 
     dest = trip_context.get("destination")
     if dest:
         dest_id = dest.get("id")
-        prompt += f"\n### Currently Viewing: {dest.get('name', 'Unknown')}"
+        dest_name = dest.get('name', 'Unknown')
+        prompt += f"\n### Currently Viewing: {dest_name}"
         if dest.get("country"):
             prompt += f", {dest['country']}"
         prompt += "\n"
         if dest_id:
             prompt += f"- Destination ID: {dest_id}\n"
+            prompt += (
+                f"\n⚠️ ACTIVE DESTINATION: {dest_name} [destination_id={dest_id}]\n"
+                f"ALL POI and accommodation operations MUST use destination_id={dest_id}.\n"
+                f"Do NOT use destination IDs from previous messages or other destinations.\n\n"
+            )
         if dest.get("latitude") and dest.get("longitude"):
             prompt += f"- Coordinates: ({dest['latitude']}, {dest['longitude']})\n"
         if dest.get("arrivalDate") and dest.get("departureDate"):

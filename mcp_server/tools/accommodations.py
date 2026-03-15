@@ -221,11 +221,12 @@ def register_tools(server: FastMCP):
 
                     # Confirmation guard: return preview without touching DB
                     if not confirmed:
+                        dest_label = getattr(dest, 'city_name', None) or f"destination {destination_id}"
                         return {
                             "operation": operation,
                             "success": False,
                             "requires_confirmation": True,
-                            "message": f"CONFIRMATION REQUIRED: Would create accommodation '{name}' ({type}) in destination {destination_id}. Please confirm to proceed.",
+                            "message": f"CONFIRMATION REQUIRED: Would create accommodation '{name}' ({type}) in **{dest_label}** (destination {destination_id}). Please confirm to proceed.",
                             "preview": {
                                 "destination_id": destination_id,
                                 "name": name,
@@ -461,6 +462,17 @@ def register_tools(server: FastMCP):
                             message=f"Accommodation with ID {accommodation_id} not found",
                         ).model_dump()
 
+                    # Guard: if destination_id provided, verify accommodation belongs to it
+                    if destination_id and db_acc.destination_id != destination_id:
+                        return ManageAccommodationOutput(
+                            operation=operation, success=False,
+                            message=(
+                                f"Accommodation '{db_acc.name}' (ID {accommodation_id}) belongs to "
+                                f"destination {db_acc.destination_id}, not destination {destination_id}. "
+                                f"Refusing to delete — verify you are targeting the correct destination."
+                            ),
+                        ).model_dump()
+
                     acc_name = db_acc.name
 
                     # Confirmation guard: return preview without touching DB
@@ -469,7 +481,7 @@ def register_tools(server: FastMCP):
                             "operation": operation,
                             "success": False,
                             "requires_confirmation": True,
-                            "message": f"CONFIRMATION REQUIRED: Would delete accommodation '{acc_name}' (ID {accommodation_id}). This cannot be undone. Please confirm to proceed.",
+                            "message": f"CONFIRMATION REQUIRED: Would delete accommodation '{acc_name}' (ID {accommodation_id}) from destination {db_acc.destination_id}. This cannot be undone. Please confirm to proceed.",
                             "preview": {
                                 "accommodation_id": accommodation_id,
                                 "name": acc_name,

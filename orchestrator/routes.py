@@ -445,6 +445,19 @@ async def websocket_chat_stream(ws: WebSocket) -> None:
                     session = sm.get_session(session_id)
                     if session:
                         session.user_id = user_id
+                        # Cross-check destinationId hint from frontend
+                        hint_dest_id = data.get("destinationId")
+                        if hint_dest_id is not None:
+                            current_dest = (session.trip_context or {}).get("destination", {})
+                            current_dest_id = current_dest.get("id")
+                            if current_dest_id is not None and current_dest_id != hint_dest_id:
+                                logger.warning(
+                                    "Destination mismatch in session %s: session has %s, message says %s — updating",
+                                    session_id, current_dest_id, hint_dest_id,
+                                )
+                                # Update the destination id in the session context
+                                if session.trip_context and "destination" in session.trip_context:
+                                    session.trip_context["destination"]["id"] = hint_dest_id
                 await _handle_chat(ws, data, agent, sm)
                 continue
 
@@ -494,6 +507,28 @@ async def _handle_chat(
 
     try:
         await ws.send_json({"type": "start", "messageId": message_id})
+
+        # Detect destination switch — inject anti-poison system note
+        current_dest = (session.trip_context or {}).get("destination", {})
+        current_dest_id = current_dest.get("id")
+        current_dest_name = current_dest.get("name", "Unknown")
+        prev_dest_id = getattr(session, "_prev_destination_id", None)
+        if current_dest_id is not None and prev_dest_id is not None and current_dest_id != prev_dest_id:
+            logger.info(
+                "Destination switched %s → %s (%s) in session %s",
+                prev_dest_id, current_dest_id, current_dest_name, session_id,
+            )
+            from pydantic_ai.messages import ModelRequest, UserPromptPart
+            switch_note = ModelRequest(parts=[UserPromptPart(
+                content=(
+                    f"[SYSTEM] Context switched to {current_dest_name} "
+                    f"(destination_id={current_dest_id}). "
+                    f"All subsequent POI and accommodation operations must target "
+                    f"destination_id={current_dest_id}. Disregard previous destination IDs."
+                ),
+            )])
+            session.message_history.append(switch_note)
+        session._prev_destination_id = current_dest_id  # type: ignore[attr-defined]
 
         instructions = build_instructions(
             session.trip_context,

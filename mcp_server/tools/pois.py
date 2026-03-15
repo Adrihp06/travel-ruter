@@ -476,11 +476,12 @@ def register_tools(server: FastMCP):
 
                     # Confirmation guard: return preview without touching DB
                     if not confirmed:
+                        dest_label = getattr(dest, 'city_name', None) or f"destination {destination_id}"
                         return {
                             "operation": operation,
                             "success": False,
                             "requires_confirmation": True,
-                            "message": f"CONFIRMATION REQUIRED: Would create POI '{name}' ({category}) in destination {destination_id}. Please confirm to proceed.",
+                            "message": f"CONFIRMATION REQUIRED: Would create POI '{name}' ({category}) in **{dest_label}** (destination {destination_id}). Please confirm to proceed.",
                             "preview": {
                                 "destination_id": destination_id,
                                 "name": name,
@@ -702,6 +703,17 @@ def register_tools(server: FastMCP):
                             message=f"POI with ID {poi_id} not found",
                         ).model_dump()
 
+                    # Guard: if destination_id provided, verify POI belongs to it
+                    if destination_id and db_poi.destination_id != destination_id:
+                        return ManagePOIOutput(
+                            operation=operation, success=False,
+                            message=(
+                                f"POI '{db_poi.name}' (ID {poi_id}) belongs to destination "
+                                f"{db_poi.destination_id}, not destination {destination_id}. "
+                                f"Refusing to delete — verify you are targeting the correct destination."
+                            ),
+                        ).model_dump()
+
                     poi_name = db_poi.name
 
                     # Confirmation guard: return preview without touching DB
@@ -710,7 +722,7 @@ def register_tools(server: FastMCP):
                             "operation": operation,
                             "success": False,
                             "requires_confirmation": True,
-                            "message": f"CONFIRMATION REQUIRED: Would delete POI '{poi_name}' (ID {poi_id}). This cannot be undone. Please confirm to proceed.",
+                            "message": f"CONFIRMATION REQUIRED: Would delete POI '{poi_name}' (ID {poi_id}) from destination {db_poi.destination_id}. This cannot be undone. Please confirm to proceed.",
                             "preview": {
                                 "poi_id": poi_id,
                                 "name": poi_name,

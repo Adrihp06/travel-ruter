@@ -122,6 +122,9 @@ const useAIStore = create((set, get) => ({
   // Agent customization
   agentConfig: loadAgentConfig(),
 
+  // Pending context PATCH promise — sendMessage awaits this
+  _contextPatchPromise: null,
+
   // WebSocket instance
   _ws: null,
   _messageIdCounter: 0,
@@ -223,16 +226,22 @@ const useAIStore = create((set, get) => ({
       return;
     }
 
-    // PATCH backend session context
+    // PATCH backend session context — store promise so sendMessage can await it
     const enrichedContext = tripContext
       ? { ...tripContext, destination: context }
       : { destination: context };
 
-    authFetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}`, {
+    const patchPromise = authFetch(`${ORCHESTRATOR_URL}/api/sessions/${sessionId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tripContext: enrichedContext }),
-    }).catch((err) => console.warn('Failed to PATCH session context:', err));
+    }).catch((err) => console.warn('Failed to PATCH session context:', err))
+      .finally(() => {
+        // Clear promise once settled (only if it's still the same one)
+        if (get()._contextPatchPromise === patchPromise) {
+          set({ _contextPatchPromise: null });
+        }
+      });
 
     // Insert a visual divider message if destination actually changed
     const prevName = prev?.name || prev?.city;
@@ -247,10 +256,11 @@ const useAIStore = create((set, get) => ({
       };
       set((state) => ({
         destinationContext: context,
+        _contextPatchPromise: patchPromise,
         messages: [...state.messages, divider],
       }));
     } else {
-      set({ destinationContext: context });
+      set({ destinationContext: context, _contextPatchPromise: patchPromise });
     }
   },
 
@@ -920,7 +930,12 @@ const useAIStore = create((set, get) => ({
   sendMessage: async (content) => {
     if (!content.trim()) return;
 
-    const { sessionId, isConnected, _ws } = get();
+    const { sessionId, isConnected, _ws, _contextPatchPromise, destinationContext } = get();
+
+    // Await any pending context PATCH to ensure orchestrator has fresh destination
+    if (_contextPatchPromise) {
+      await _contextPatchPromise;
+    }
 
     // Ensure we have a session
     let currentSessionId = sessionId;
@@ -959,13 +974,17 @@ const useAIStore = create((set, get) => ({
       isLoading: true,
     }));
 
-    // Send via WebSocket
+    // Send via WebSocket — include destinationId hint for cross-check
     try {
-      get()._ws.send(JSON.stringify({
+      const payload = {
         type: 'chat',
         sessionId: currentSessionId,
         message: content.trim(),
-      }));
+      };
+      if (destinationContext?.id) {
+        payload.destinationId = destinationContext.id;
+      }
+      get()._ws.send(JSON.stringify(payload));
     } catch (error) {
       console.error('Failed to send message:', error);
       set({ isLoading: false });
