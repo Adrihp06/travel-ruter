@@ -91,10 +91,16 @@ async def get_db_session():
     """
     Async context manager for database sessions.
 
+    Lazily initializes the application context if needed (handles cases
+    where the MCP lifespan hasn't triggered init_context yet, e.g. when
+    the token verifier runs before the first MCP request).
+
     Usage:
         async with get_db_session() as db:
             result = await db.execute(query)
     """
+    if _context is None:
+        await init_context()
     ctx = get_context()
     async with ctx.session_factory() as session:
         try:
