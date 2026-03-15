@@ -414,8 +414,9 @@ async def get_document(
         )
 
     trip_id = await _resolve_document_trip_id(db, document)
-    if trip_id:
-        await check_trip_membership(db, trip_id, current_user, "viewer")
+    if not trip_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot determine document ownership")
+    await check_trip_membership(db, trip_id, current_user, "viewer")
 
     return document
 
@@ -437,8 +438,9 @@ async def download_document(
         )
 
     trip_id = await _resolve_document_trip_id(db, document)
-    if trip_id:
-        await check_trip_membership(db, trip_id, current_user, "viewer")
+    if not trip_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot determine document ownership")
+    await check_trip_membership(db, trip_id, current_user, "viewer")
 
     if not os.path.exists(document.file_path):
         raise HTTPException(
@@ -470,8 +472,9 @@ async def view_document(
         )
 
     trip_id = await _resolve_document_trip_id(db, document)
-    if trip_id:
-        await check_trip_membership(db, trip_id, current_user, "viewer")
+    if not trip_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot determine document ownership")
+    await check_trip_membership(db, trip_id, current_user, "viewer")
 
     if not os.path.exists(document.file_path):
         raise HTTPException(
@@ -504,8 +507,9 @@ async def update_document(
         )
 
     trip_id = await _resolve_document_trip_id(db, db_document)
-    if trip_id:
-        await check_trip_membership(db, trip_id, current_user, "editor")
+    if not trip_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot determine document ownership")
+    await check_trip_membership(db, trip_id, current_user, "editor")
 
     # Update fields
     update_data = document_update.model_dump(exclude_unset=True)
@@ -565,8 +569,9 @@ async def delete_document(
         )
 
     trip_id = await _resolve_document_trip_id(db, db_document)
-    if trip_id:
-        await check_trip_membership(db, trip_id, current_user, "owner")
+    if not trip_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot determine document ownership")
+    await check_trip_membership(db, trip_id, current_user, "owner")
 
     # H-11: Delete DB record first, then file — avoids orphaned DB rows if file
     # deletion fails, and get_db auto-commit ensures the DB change persists.

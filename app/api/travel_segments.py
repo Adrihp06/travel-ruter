@@ -6,11 +6,12 @@ from pydantic import BaseModel
 
 from app.core.database import get_db
 from app.api.deps import get_current_user
-from app.api.permissions import TripPermission, check_trip_membership
+from app.api.permissions import TripPermission, check_trip_membership, ROLE_HIERARCHY
 from app.models.user import User
 from app.models.trip import Trip
 from app.models.destination import Destination
 from app.models.travel_segment import TravelSegment
+from app.models.trip_member import TripMember
 from app.schemas.travel_segment import (
     TravelMode,
     TravelSegmentResponse,
@@ -202,11 +203,20 @@ async def recalculate_all_travel_segments(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Recalculate all travel segments for all trips in the system.
+    Recalculate all travel segments for trips the user has editor access to.
     Useful after updating routing service configuration or API keys.
     """
-    # Get all trips
-    result = await db.execute(select(Trip))
+    # Only recalculate trips where user has at least editor access
+    editor_roles = [r for r, lvl in ROLE_HIERARCHY.items() if lvl >= ROLE_HIERARCHY["editor"]]
+    result = await db.execute(
+        select(Trip)
+        .join(TripMember, TripMember.trip_id == Trip.id)
+        .where(
+            TripMember.user_id == current_user.id,
+            TripMember.status == "accepted",
+            TripMember.role.in_(editor_roles),
+        )
+    )
     trips = list(result.scalars().all())
 
     trips_processed = 0
