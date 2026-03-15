@@ -9,6 +9,8 @@ Usage:
 
 import argparse
 
+import anyio
+
 from mcp_server.server import create_server
 from mcp_server.config import mcp_settings
 
@@ -40,10 +42,12 @@ def main():
     if args.transport == "streamable-http":
         host = args.host or mcp_settings.MCP_HTTP_HOST
         port = args.port or mcp_settings.MCP_HTTP_PORT
-        server.run(
-            transport="streamable-http",
-            host=host,
-            port=port,
+        # Call run_streamable_http_async directly via anyio to avoid
+        # older mcp SDK versions where run() doesn't forward **kwargs.
+        anyio.run(
+            lambda: server.run_streamable_http_async(host=host, port=port),
+            backend="asyncio",
+            backend_options={"use_uvloop": False},
         )
     else:
         server.run()
