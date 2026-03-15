@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext,
@@ -30,6 +30,7 @@ import {
   MapPin,
   ShoppingBag,
   Calendar,
+  CalendarPlus,
   ThumbsDown,
   Footprints,
   Bike,
@@ -54,6 +55,7 @@ import SparklesIcon from '@/components/icons/sparkles-icon';
 import { useToast } from '../common/Toast';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import usePOIStore from '../../stores/usePOIStore';
+import { buildPoiGoogleMapsUrl } from '../../utils/googleMaps';
 import { formatDateWithWeekday, formatDateRangeShort, parseDateString } from '../../utils/dateFormat';
 
 // Lazy load heavy modal components
@@ -112,9 +114,12 @@ const TRANSPORT_MODES = [
 ];
 
 // Transport Mode Connector between POIs - memoized to prevent re-renders
-const TransportModeConnector = React.memo(function TransportModeConnector({ fromPoiId, toPoiId, segment, t }) {
-  const { getSegmentMode, setSegmentMode } = useDayRoutesStore();
+const TransportModeConnector = React.memo(function TransportModeConnector({ fromPoiId, toPoiId, t }) {
+  const { getSegmentMode, setSegmentMode, getSegmentData } = useDayRoutesStore();
   const currentMode = getSegmentMode(fromPoiId, toPoiId);
+  const segment = useDayRoutesStore(
+    (state) => state.getSegmentData(fromPoiId, toPoiId),
+  );
 
   const handleModeChange = (mode) => {
     setSegmentMode(fromPoiId, toPoiId, mode);
@@ -205,8 +210,75 @@ const generateDays = (arrivalDate, departureDate) => {
   return days;
 };
 
+// MoveToDay dropdown for quick scheduling
+const MoveToDayDropdown = React.memo(function MoveToDayDropdown({ poi, days, currentDate, onMoveToDay, t }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const availableDays = days.filter((d) => d.date !== currentDate);
+  if (availableDays.length === 0 && currentDate) return null;
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        className="p-1 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded transition-colors"
+        title={t('itinerary.moveToDay')}
+      >
+        <CalendarPlus className="w-3 h-3 text-indigo-500 dark:text-indigo-400" />
+      </button>
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-[140px]">
+          {currentDate && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveToDay(poi, null);
+                setIsOpen(false);
+              }}
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+            >
+              {t('itinerary.unschedule')}
+            </button>
+          )}
+          {currentDate && availableDays.length > 0 && (
+            <div className="border-t border-gray-100 dark:border-gray-700 my-1" />
+          )}
+          {availableDays.map((day) => (
+            <button
+              key={day.date}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMoveToDay(poi, day.date);
+                setIsOpen(false);
+              }}
+              className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
+            >
+              {t('itinerary.dayNumber', { number: day.dayNumber })} · {day.displayDate}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
+
 // Sortable POI Item
-const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onClick, onAddNote, noteCount = 0, t }) => {
+const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onClick, onAddNote, noteCount = 0, days, currentDate, onMoveToDay, isDragActive, t }) => {
   const {
     attributes,
     listeners,
@@ -224,10 +296,7 @@ const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onC
 
   const CategoryIcon = categoryIcons[poi.category] || MapPin;
   const score = (poi.likes || 0) - (poi.vetoes || 0);
-  const mapsUrl = poi.metadata_json?.url
-    || (poi.latitude && poi.longitude
-        ? `https://www.google.com/maps/search/?api=1&query=${poi.latitude},${poi.longitude}`
-        : null);
+  const mapsUrl = buildPoiGoogleMapsUrl(poi);
 
   return (
     <div
@@ -317,10 +386,19 @@ const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onC
                 rel="noopener noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 className="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition-colors"
-                title="Ver en Google Maps"
+                title={t('common.viewOnGoogleMaps')}
               >
                 <ExternalLink className="w-3 h-3 text-blue-500 dark:text-blue-400" />
               </a>
+            )}
+            {onMoveToDay && days && !isDragActive && (
+              <MoveToDayDropdown
+                poi={poi}
+                days={days}
+                currentDate={currentDate}
+                onMoveToDay={onMoveToDay}
+                t={t}
+              />
             )}
             {onEdit && (
               <button
@@ -375,6 +453,9 @@ const DayColumn = React.memo(function DayColumn({
   isOptimizing,
   onAddDayNote,
   onAddPOINote,
+  days,
+  onMoveToDay,
+  isDragActive,
   t,
 }) {
   const totalTime = totalDwellTime + (transportTime || 0);
@@ -505,6 +586,10 @@ const DayColumn = React.memo(function DayColumn({
                       onVote={onVote}
                       onClick={onPOIClick}
                       onAddNote={onAddPOINote ? () => onAddPOINote(poi) : null}
+                      days={days}
+                      currentDate={day.date}
+                      onMoveToDay={onMoveToDay}
+                      isDragActive={isDragActive}
                       t={t}
                     />
                     {/* Transport mode connector between POIs */}
@@ -527,7 +612,7 @@ const DayColumn = React.memo(function DayColumn({
 });
 
 // Unscheduled POIs Section - memoized to prevent re-renders when days change
-const UnscheduledSection = React.memo(function UnscheduledSection({ pois, isExpanded, onToggle, onEdit, onDelete, onVote, onPOIClick, onAddPOINote, onSmartSchedule, t }) {
+const UnscheduledSection = React.memo(function UnscheduledSection({ pois, isExpanded, onToggle, onEdit, onDelete, onVote, onPOIClick, onAddPOINote, onSmartSchedule, days, onMoveToDay, isDragActive, t }) {
   return (
     <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden bg-gray-50 dark:bg-gray-800/50">
       <div className="flex items-center justify-between px-3 py-2.5 gap-2">
@@ -596,6 +681,10 @@ const UnscheduledSection = React.memo(function UnscheduledSection({ pois, isExpa
                   onVote={onVote}
                   onClick={onPOIClick}
                   onAddNote={onAddPOINote ? () => onAddPOINote(poi) : null}
+                  days={days}
+                  currentDate={null}
+                  onMoveToDay={onMoveToDay}
+                  isDragActive={isDragActive}
                   t={t}
                 />
               ))
@@ -893,6 +982,44 @@ const DailyItinerary = ({
     }
   };
 
+  // Handle moving POI to a specific day via dropdown
+  const handleMoveToDay = useCallback((poi, targetDate) => {
+    if (!onScheduleChange) return;
+
+    const sourceDate = poi.scheduled_date || null;
+    if (sourceDate === targetDate) return;
+
+    const updates = [];
+
+    // Update source container: reindex remaining POIs
+    const sourceContainer = sourceDate === null ? 'unscheduled' : sourceDate;
+    const sourceItems = sourceContainer === 'unscheduled'
+      ? unscheduled.filter((p) => p.id !== poi.id)
+      : (scheduledByDay[sourceContainer] || []).filter((p) => p.id !== poi.id);
+    sourceItems.forEach((p, index) => {
+      updates.push({
+        id: p.id,
+        scheduled_date: sourceDate,
+        day_order: index,
+      });
+    });
+
+    // Add moved POI to target at end
+    const targetContainer = targetDate === null ? 'unscheduled' : targetDate;
+    const targetItems = targetContainer === 'unscheduled'
+      ? [...unscheduled]
+      : [...(scheduledByDay[targetContainer] || [])];
+    const newOrder = targetItems.length;
+
+    updates.push({
+      id: poi.id,
+      scheduled_date: targetDate,
+      day_order: newOrder,
+    });
+
+    onScheduleChange(updates);
+  }, [onScheduleChange, scheduledByDay, unscheduled]);
+
   const toggleDay = (date) => {
     setExpandedDays((prev) => ({
       ...prev,
@@ -1083,6 +1210,9 @@ const DailyItinerary = ({
               isOptimizing={optimizingDay === day.dayNumber && isOptimizing}
               onAddDayNote={onAddDayNote}
               onAddPOINote={onAddPOINote}
+              days={days}
+              onMoveToDay={handleMoveToDay}
+              isDragActive={!!activePOI}
               t={t}
             />
           ))}
@@ -1098,6 +1228,9 @@ const DailyItinerary = ({
             onPOIClick={onPOIClick}
             onAddPOINote={onAddPOINote}
             onSmartSchedule={handleOpenSmartScheduler}
+            days={days}
+            onMoveToDay={handleMoveToDay}
+            isDragActive={!!activePOI}
             t={t}
           />
 

@@ -1162,7 +1162,9 @@ const TripMap = ({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          const url = `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`;
+                          const destName = destination.name || destination.city_name || '';
+                          const query = destName ? `${destName}, ${coords.lat},${coords.lng}` : `${coords.lat},${coords.lng}`;
+                          const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
                           window.open(url, '_blank', 'noopener,noreferrer');
                         }}
                         className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 font-medium"

@@ -23,6 +23,7 @@ import AccommodationList from '../components/Accommodation/AccommodationList';
 import AccommodationTimeline from '../components/Accommodation/AccommodationTimeline';
 const AccommodationFormModal = lazy(() => import('../components/Accommodation/AccommodationFormModal'));
 import { formatDateWithWeekday, parseDateString } from '../utils/dateFormat';
+import { buildPoiGoogleMapsUrl } from '../utils/googleMaps';
 
 // Layout components
 import { ItineraryUIProvider, useItineraryUI, calendarAnimationClasses } from '../contexts/ItineraryUIContext';
@@ -361,17 +362,14 @@ const EditPOIModal = ({ isOpen, onClose, onSubmit, poi, isSaving }) => {
             </div>
           </div>
           {(() => {
-            const mapsUrl = poi?.metadata_json?.url
-              || (poi?.latitude && poi?.longitude
-                  ? `https://www.google.com/maps/search/?api=1&query=${poi.latitude},${poi.longitude}`
-                  : null);
+            const mapsUrl = buildPoiGoogleMapsUrl(poi);
             return (mapsUrl || poi.metadata_json?.rating || poi.metadata_json?.website || poi.metadata_json?.opening_hours) ? (
               <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-2 border border-gray-200 dark:border-gray-600">
                 {mapsUrl && (
                   <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
                      className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400">
                     <ExternalLink className="w-4 h-4 flex-shrink-0" />
-                    <span>Ver en Google Maps</span>
+                    <span>{t('common.viewOnGoogleMaps')}</span>
                   </a>
                 )}
                 {poi.metadata_json?.rating && (

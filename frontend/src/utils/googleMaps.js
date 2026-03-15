@@ -42,6 +42,60 @@ export function generateGoogleMapsUrl(origin, destination, waypoints = [], trave
   return `${GOOGLE_MAPS_DIRECTIONS_BASE}?${params.toString()}`;
 }
 
+const GOOGLE_MAPS_SEARCH_BASE = 'https://www.google.com/maps/search/';
+
+/**
+ * Build a Google Maps URL for a single POI.
+ *
+ * Priority:
+ *  1. metadata_json.url — canonical Google Maps listing URL (validated)
+ *  2. query + query_place_id via external_id (Google Places)
+ *  3. query by name + coordinates
+ *  4. query by coordinates only
+ *
+ * @param {object} poi - POI object with name, latitude, longitude, external_id, external_source, metadata_json
+ * @returns {string|null}
+ */
+export function buildPoiGoogleMapsUrl(poi) {
+  if (!poi) return null;
+
+  // Priority 1: canonical Google Maps URL from metadata
+  const metaUrl = poi.metadata_json?.url;
+  if (metaUrl && typeof metaUrl === 'string' && /^https:\/\/(www\.)?google\.[a-z.]+\/maps\b/i.test(metaUrl)) {
+    return metaUrl;
+  }
+
+  const hasCoords = Number.isFinite(poi.latitude) && Number.isFinite(poi.longitude);
+  const hasPlaceId = poi.external_id && poi.external_source === 'google_places';
+  const hasName = typeof poi.name === 'string' && poi.name.trim().length > 0;
+
+  // Priority 2: name + place_id (most reliable for Google-sourced POIs)
+  if (hasPlaceId && hasName) {
+    const params = new URLSearchParams({
+      api: '1',
+      query: poi.name,
+      query_place_id: poi.external_id,
+    });
+    return `${GOOGLE_MAPS_SEARCH_BASE}?${params.toString()}`;
+  }
+
+  // Priority 3: name + coordinates
+  if (hasName && hasCoords) {
+    const params = new URLSearchParams({
+      api: '1',
+      query: `${poi.name}, ${poi.latitude},${poi.longitude}`,
+    });
+    return `${GOOGLE_MAPS_SEARCH_BASE}?${params.toString()}`;
+  }
+
+  // Priority 4: coordinates only
+  if (hasCoords) {
+    return `${GOOGLE_MAPS_SEARCH_BASE}?api=1&query=${poi.latitude},${poi.longitude}`;
+  }
+
+  return null;
+}
+
 /**
  * Open Google Maps URL in a new tab/window
  * On mobile devices, this may trigger the Google Maps app

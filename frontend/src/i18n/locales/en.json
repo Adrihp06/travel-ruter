@@ -1163,7 +1163,9 @@
     "start": "Start:",
     "accommodationDefault": "Accommodation",
     "optimizedSchedule": "Optimized schedule",
-    "applyOrder": "Apply Order"
+    "applyOrder": "Apply Order",
+    "moveToDay": "Move to day",
+    "unschedule": "Unschedule"
   },
 
   "scheduler": {

@@ -175,6 +175,7 @@ async function loadDayRouteData(descriptor, context = {}) {
       stopCount: 0,
       totalDistanceKm: null,
       totalDurationMin: null,
+      stops: null,
     };
   }
 
@@ -187,6 +188,7 @@ async function loadDayRouteData(descriptor, context = {}) {
       stopCount: Number.isFinite(result?.stopCount) ? result.stopCount : 0,
       totalDistanceKm: Number.isFinite(result?.totalDistanceKm) ? result.totalDistanceKm : null,
       totalDurationMin: Number.isFinite(result?.totalDurationMin) ? result.totalDurationMin : null,
+      stops: Array.isArray(result?.stops) ? result.stops : null,
     };
   }
 
@@ -205,6 +207,14 @@ async function loadDayRouteData(descriptor, context = {}) {
       .map((poi) => getCoordinatePairFromLocation(poi))
       .filter(Boolean);
 
+    // Extract stop metadata for Google Maps URL construction
+    const stops = scheduledPois
+      .filter((poi) => getCoordinatePairFromLocation(poi))
+      .map((poi) => ({
+        name: poi.name || null,
+        placeId: poi.external_source === 'google_places' ? poi.external_id : null,
+      }));
+
     if (navigationCoordinates.length === 0) {
       return {
         mapCoordinates: null,
@@ -213,6 +223,7 @@ async function loadDayRouteData(descriptor, context = {}) {
         stopCount: 0,
         totalDistanceKm: null,
         totalDurationMin: null,
+        stops: null,
       };
     }
 
@@ -224,6 +235,7 @@ async function loadDayRouteData(descriptor, context = {}) {
         stopCount: 1,
         totalDistanceKm: null,
         totalDurationMin: null,
+        stops,
       };
     }
 
@@ -272,6 +284,7 @@ async function loadDayRouteData(descriptor, context = {}) {
       stopCount: scheduledPois.length,
       totalDistanceKm: totalDistanceKm > 0 ? totalDistanceKm : null,
       totalDurationMin: totalDurationMin > 0 ? totalDurationMin : null,
+      stops,
     };
   })().catch(() => {
     const fallbackCoordinates = buildRouteCoordinates(descriptor, context.destinations);
@@ -282,6 +295,7 @@ async function loadDayRouteData(descriptor, context = {}) {
       stopCount: 0,
       totalDistanceKm: null,
       totalDurationMin: null,
+      stops: null,
     };
   });
 
@@ -333,6 +347,13 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
     const navigationCoordinates = scheduledPois
       .map((poi) => getCoordinatePairFromLocation(poi))
       .filter(Boolean);
+
+    const stops = scheduledPois
+      .filter((poi) => getCoordinatePairFromLocation(poi))
+      .map((poi) => ({
+        name: poi.name || null,
+        placeId: poi.external_source === 'google_places' ? poi.external_id : null,
+      }));
 
     // Group POIs by day
     const poisByDay = new Map();
@@ -403,6 +424,7 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
       totalDistanceKm: totalDistanceKm > 0 ? totalDistanceKm : null,
       totalDurationMin: totalDurationMin > 0 ? totalDurationMin : null,
       dayCount: poisByDay.size,
+      stops,
     };
   })().catch(() => {
     const fallbackCoordinates = buildRouteCoordinates(descriptor, context.destinations);
@@ -414,6 +436,7 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
       totalDistanceKm: null,
       totalDurationMin: null,
       dayCount: 0,
+      stops: null,
     };
   });
 
@@ -429,6 +452,12 @@ async function resolveTripOverviewData(descriptor, context = {}) {
     .map((destination) => getCoordinatePairFromLocation(destination))
     .filter(Boolean);
 
+  // Build stop metadata for Google Maps URL
+  const stops = orderedDestinations.map((d) => ({
+    name: d.name || d.city_name || null,
+    placeId: null,
+  }));
+
   const segments = await loadTripSegments(descriptor.tripId, context);
   if (!segments.length) {
     return {
@@ -438,6 +467,7 @@ async function resolveTripOverviewData(descriptor, context = {}) {
       stopCount: navigationCoordinates.length,
       totalDistanceKm: null,
       totalDurationMin: null,
+      stops,
     };
   }
 
@@ -486,6 +516,7 @@ async function resolveTripOverviewData(descriptor, context = {}) {
     stopCount: navigationCoordinates.length,
     totalDistanceKm: hasDistance ? totalDistanceKm : null,
     totalDurationMin: hasDuration ? totalDurationMin : null,
+    stops,
   };
 }
 
@@ -535,29 +566,58 @@ export function buildRouteCoordinates(descriptor, destinations) {
  *
  * - Multi-point routes get a directions URL with origin, destination, and waypoints.
  * - Single-point routes get a place URL centered on the coordinate.
+ * - When `stops` array is provided, uses POI names for better Google Maps resolution.
  *
- * @param {Array<[number,number]>|null} coordinates
+ * @param {Array<[number,number]>|null} coordinates - [lng, lat] pairs
+ * @param {string} travelMode
+ * @param {Array<{name: string|null, placeId: string|null}>|null} stops - POI metadata aligned with coordinates
  * @returns {string|null}
  */
-export function buildGoogleMapsUrlForRoute(coordinates, travelMode = GoogleMapsTravelMode.DRIVING) {
+export function buildGoogleMapsUrlForRoute(coordinates, travelMode = GoogleMapsTravelMode.DRIVING, stops = null) {
   if (!coordinates || coordinates.length === 0) return null;
 
   if (coordinates.length === 1) {
     const [lng, lat] = coordinates[0];
+    const name = stops?.[0]?.name;
+    if (name) {
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}&query=${lat},${lng}`;
+    }
     return `https://www.google.com/maps/@${lat},${lng},14z`;
   }
 
-  const origin = { lat: coordinates[0][1], lng: coordinates[0][0] };
-  const dest = {
-    lat: coordinates[coordinates.length - 1][1],
-    lng: coordinates[coordinates.length - 1][0],
+  // Build location strings using name when available, coordinates as fallback
+  const buildLocation = (coord, stop) => {
+    if (stop?.name) return stop.name;
+    return `${coord[1]},${coord[0]}`;
   };
-  const waypoints =
-    coordinates.length > 2
-      ? coordinates.slice(1, -1).map(([lng, lat]) => ({ lat, lng }))
-      : [];
 
-  return generateGoogleMapsUrl(origin, dest, waypoints, travelMode);
+  const origin = buildLocation(coordinates[0], stops?.[0]);
+  const destination = buildLocation(
+    coordinates[coordinates.length - 1],
+    stops?.[stops.length - 1],
+  );
+
+  // Google Maps supports max 9 waypoints
+  const middleCoords = coordinates.slice(1, -1);
+  const middleStops = stops?.slice(1, -1);
+  const maxWaypoints = Math.min(middleCoords.length, 9);
+  const waypointStrs = [];
+  for (let i = 0; i < maxWaypoints; i += 1) {
+    waypointStrs.push(buildLocation(middleCoords[i], middleStops?.[i]));
+  }
+
+  const params = new URLSearchParams({
+    api: '1',
+    origin,
+    destination,
+    travelmode: travelMode,
+  });
+
+  if (waypointStrs.length > 0) {
+    params.set('waypoints', waypointStrs.join('|'));
+  }
+
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -749,7 +809,7 @@ export async function resolveRouteBlocksForExport(markdown, context = {}) {
     const mapCoordinates = routeData.mapCoordinates || fallbackCoordinates;
     const navigationCoordinates = routeData.navigationCoordinates || fallbackCoordinates;
     const mapUrl = buildMapUrlForRoute(descriptor, mapCoordinates, destinations, mapboxToken);
-    const googleMapsUrl = buildGoogleMapsUrlForRoute(navigationCoordinates, routeData.travelMode);
+    const googleMapsUrl = buildGoogleMapsUrlForRoute(navigationCoordinates, routeData.travelMode, routeData.stops);
     const label = descriptor.label || defaultRouteLabel(descriptor, destinations);
     const stats = buildRouteStats(descriptor, navigationCoordinates, destinations, routeData);
 

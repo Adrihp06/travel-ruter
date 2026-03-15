@@ -54,6 +54,7 @@ import {
 } from './mapStyles';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import './mapStyles.css';
+import { buildPoiGoogleMapsUrl } from '../../utils/googleMaps';
 
 /**
  * Get icon component for a POI category
@@ -648,10 +649,7 @@ const POIPopupContent = ({ poi, onVote, onEdit, onDelete }) => {
         )}
         {/* Google Maps link */}
         {(() => {
-          const mapsUrl = poi.metadata_json?.url
-            || (poi.latitude && poi.longitude
-                ? `https://www.google.com/maps/search/?api=1&query=${poi.latitude},${poi.longitude}`
-                : null);
+          const mapsUrl = buildPoiGoogleMapsUrl(poi);
           return mapsUrl ? (
             <div className="flex items-center gap-2">
               <div className="w-5 h-5 rounded-md bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">

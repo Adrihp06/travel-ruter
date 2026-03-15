@@ -1163,7 +1163,9 @@
     "start": "Inicio:",
     "accommodationDefault": "Alojamiento",
     "optimizedSchedule": "Horario optimizado",
-    "applyOrder": "Aplicar orden"
+    "applyOrder": "Aplicar orden",
+    "moveToDay": "Mover al día",
+    "unschedule": "Desprogramar"
   },
 
   "scheduler": {

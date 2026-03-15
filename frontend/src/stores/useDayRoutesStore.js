@@ -85,6 +85,18 @@ const useDayRoutesStore = create((set, get) => ({
     return get().segmentModes[segmentKey] || 'walking';
   },
 
+  // Get segment data (distance, duration) for a POI pair
+  getSegmentData: (fromPoiId, toPoiId) => {
+    const { dayRoutes } = get();
+    for (const route of Object.values(dayRoutes)) {
+      const seg = route.segments?.find(
+        (s) => s.fromPoi?.id === fromPoiId && s.toPoi?.id === toPoiId,
+      );
+      if (seg) return seg;
+    }
+    return null;
+  },
+
   // Toggle day visibility
   toggleDayVisibility: (date) => {
     set((state) => {
