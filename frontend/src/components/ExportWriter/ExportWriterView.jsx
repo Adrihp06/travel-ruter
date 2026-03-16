@@ -113,6 +113,45 @@ const ExportWriterView = ({ tripId, trip }) => {
     insertBlockAtCursor(descriptor);
   }, [tripId, trip, insertBlockAtCursor]);
 
+  // Toolbar action: insert trip overview + all day routes for every destination
+  const handleInsertAllRoutes = useCallback(async () => {
+    if (!tripId) return;
+    const selectedDoc = getSelectedDocument?.();
+    if (!selectedDoc || selectedDoc.isReference) return;
+
+    const tripDescriptor = createTripOverviewBlock(tripId, trip?.name ? `${trip.name} Route` : null);
+    let content = insertRouteBlock(selectedDoc.content || '', (selectedDoc.content || '').length, tripDescriptor);
+
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+    for (const dest of (localDestinations || [])) {
+      try {
+        const response = await authFetch(`${API_BASE_URL}/destinations/${dest.id}/pois`);
+        if (!response.ok) continue;
+        const data = await response.json();
+        const pois = Array.isArray(data) ? data : (data.items || []).flatMap((g) => g.pois || []);
+        const scheduledDates = [...new Set(
+          pois.filter((p) => p?.scheduled_date).map((p) => p.scheduled_date)
+        )].sort();
+        for (const date of scheduledDates) {
+          const dateLabel = (() => {
+            try {
+              return new Date(date + 'T00:00:00').toLocaleDateString(undefined, {
+                weekday: 'short', month: 'short', day: 'numeric',
+              });
+            } catch { return date; }
+          })();
+          const destName = dest.city_name || dest.name || '';
+          const descriptor = createDayRouteBlock(dest.id, date, `${destName} — ${dateLabel} Route`);
+          content = insertRouteBlock(content, content.length, descriptor);
+        }
+      } catch {
+        // Skip destinations that fail to load
+      }
+    }
+
+    updateContent(selectedDoc.id, content);
+  }, [tripId, trip, getSelectedDocument, updateContent, localDestinations]);
+
   const handleInsertDestinationRoute = useCallback(({ destinationId, label }) => {
     const descriptor = createDestinationOverviewBlock(destinationId, label || null);
     insertBlockAtCursor(descriptor);
@@ -221,6 +260,7 @@ const ExportWriterView = ({ tripId, trip }) => {
             onGenerateDraft={handleGenerateDraft}
             onImprove={handleImprove}
             onInsertTripRoute={handleInsertTripRoute}
+            onInsertAllRoutes={handleInsertAllRoutes}
           />
         )}
       </div>

@@ -1,8 +1,8 @@
-import React, { useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import MDEditor from '@uiw/react-md-editor/nohighlight';
 import '@uiw/react-md-editor/markdown-editor.css';
 import DOMPurify from 'dompurify';
-import { Sparkles, PenLine, FileText, Route } from 'lucide-react';
+import { Sparkles, PenLine, FileText, Route, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import useExportWriterStore from '../../stores/useExportWriterStore';
 import usePOIStore from '../../stores/usePOIStore';
@@ -43,7 +43,7 @@ function SaveStatusIndicator({ status }) {
   return null;
 }
 
-const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove, onInsertTripRoute, tripId }, ref) => {
+const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove, onInsertTripRoute, onInsertAllRoutes, tripId }, ref) => {
   const { t } = useTranslation();
   const {
     documents,
@@ -54,6 +54,20 @@ const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove, onInsertTr
   } = useExportWriterStore();
 
   const editorContainerRef = useRef(null);
+  const [routeMenuOpen, setRouteMenuOpen] = useState(false);
+  const routeMenuRef = useRef(null);
+
+  // Close route dropdown on outside click
+  useEffect(() => {
+    if (!routeMenuOpen) return;
+    const handleClickOutside = (e) => {
+      if (routeMenuRef.current && !routeMenuRef.current.contains(e.target)) {
+        setRouteMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [routeMenuOpen]);
 
   useImperativeHandle(ref, () => ({
     getSelection: () => {
@@ -138,15 +152,36 @@ const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove, onInsertTr
               {t('exportWriter.editor.improve')}
             </button>
             {tripId && (
-              <button
-                onClick={() => onInsertTripRoute && onInsertTripRoute()}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                title={t('exportWriter.editor.insertTripRouteTitle')}
-                data-testid="insert-trip-route-btn"
-              >
-                <Route className="w-3.5 h-3.5" />
-                {t('exportWriter.editor.insertTripRoute')}
-              </button>
+              <div className="relative" ref={routeMenuRef}>
+                <button
+                  onClick={() => setRouteMenuOpen((prev) => !prev)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                  title={t('exportWriter.editor.insertTripRouteTitle')}
+                  data-testid="insert-trip-route-btn"
+                >
+                  <Route className="w-3.5 h-3.5" />
+                  {t('exportWriter.editor.insertTripRoute')}
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+                {routeMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50 py-1">
+                    <button
+                      onClick={() => { onInsertTripRoute?.(); setRouteMenuOpen(false); }}
+                      className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      data-testid="insert-trip-route-option"
+                    >
+                      {t('exportWriter.editor.insertTripRouteOnly')}
+                    </button>
+                    <button
+                      onClick={() => { onInsertAllRoutes?.(); setRouteMenuOpen(false); }}
+                      className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      data-testid="insert-all-routes-option"
+                    >
+                      {t('exportWriter.editor.insertAllRoutes')}
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </>
         )}

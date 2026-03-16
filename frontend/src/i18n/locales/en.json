@@ -109,7 +109,9 @@
       "improve": "Improve",
       "improveTitle": "Ask AI to improve current content",
       "insertTripRoute": "Route Map",
-      "insertTripRouteTitle": "Insert trip route map block",
+      "insertTripRouteTitle": "Insert route map blocks",
+      "insertTripRouteOnly": "Trip Route Only",
+      "insertAllRoutes": "All Routes (Trip + Days)",
       "wordCount": "{{count}} word",
       "wordCount_other": "{{count}} words"
     },

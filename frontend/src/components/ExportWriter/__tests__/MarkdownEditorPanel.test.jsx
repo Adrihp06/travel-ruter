@@ -202,7 +202,7 @@ describe('MarkdownEditorPanel – toolbar and selection support', () => {
     expect(screen.queryByTestId('insert-trip-route-btn')).toBeNull();
   });
 
-  it('calls onInsertTripRoute when Route Map button is clicked', () => {
+  it('calls onInsertTripRoute when Route Map dropdown Trip Route option is clicked', () => {
     const onInsertTripRoute = vi.fn();
     render(
       <MarkdownEditorPanel
@@ -213,8 +213,32 @@ describe('MarkdownEditorPanel – toolbar and selection support', () => {
       />
     );
 
+    // Open the dropdown
     fireEvent.click(screen.getByTestId('insert-trip-route-btn'));
+    // Click the trip route option
+    fireEvent.click(screen.getByTestId('insert-trip-route-option'));
     expect(onInsertTripRoute).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onInsertAllRoutes when All Routes option is clicked', () => {
+    const onInsertTripRoute = vi.fn();
+    const onInsertAllRoutes = vi.fn();
+    render(
+      <MarkdownEditorPanel
+        onGenerateDraft={onGenerateDraft}
+        onImprove={onImprove}
+        tripId={42}
+        onInsertTripRoute={onInsertTripRoute}
+        onInsertAllRoutes={onInsertAllRoutes}
+      />
+    );
+
+    // Open the dropdown
+    fireEvent.click(screen.getByTestId('insert-trip-route-btn'));
+    // Click the all routes option
+    fireEvent.click(screen.getByTestId('insert-all-routes-option'));
+    expect(onInsertAllRoutes).toHaveBeenCalledTimes(1);
+    expect(onInsertTripRoute).not.toHaveBeenCalled();
   });
 
   it('exposes getCursorPosition via ref', () => {

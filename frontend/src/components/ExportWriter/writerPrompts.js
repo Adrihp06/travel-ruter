@@ -22,6 +22,7 @@ const WRITER_COPY = {
       'Match the language of the current page and preserve markdown formatting when the user is editing a document.',
       'When improving text, keep the user intent, keep the factual meaning, and only expand beyond the source when the trip context supports it.',
       'Favor strong scene-setting introductions, smooth transitions between stops, and useful local tips without sounding robotic.',
+      'IMPORTANT: Never use emojis or emoticons in your writing. The output must be compatible with PDF export, which cannot render emoji characters.',
     ].join(' '),
     draftPrompt: (docContext) => [
       'Write a complete markdown draft for this travel document using a vivid, story-telling style.',
@@ -62,6 +63,7 @@ const WRITER_COPY = {
       'Responde en el idioma activo de la pagina y conserva el markdown cuando el usuario este editando un documento.',
       'Cuando mejores un texto, respeta la intencion original y amplia solo con detalles respaldados por el contexto del viaje.',
       'Prioriza introducciones con gancho, descripciones atmosfericas, orden narrativo claro y consejos utiles sin sonar robotico.',
+      'IMPORTANTE: Nunca uses emojis ni emoticones en tu escritura. El resultado debe ser compatible con la exportacion a PDF, que no puede renderizar caracteres emoji.',
     ].join(' '),
     draftPrompt: (docContext) => [
       'Redacta un borrador completo en markdown para este documento de viaje con un estilo narrativo y envolvente.',

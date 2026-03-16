@@ -109,7 +109,9 @@
       "improve": "Mejorar",
       "improveTitle": "Pedir a la IA que mejore el contenido actual",
       "insertTripRoute": "Mapa de Ruta",
-      "insertTripRouteTitle": "Insertar bloque de mapa de ruta del viaje",
+      "insertTripRouteTitle": "Insertar bloques de mapa de ruta",
+      "insertTripRouteOnly": "Solo ruta del viaje",
+      "insertAllRoutes": "Todas las rutas (Viaje + Dias)",
       "wordCount": "{{count}} palabra",
       "wordCount_other": "{{count}} palabras"
     },
