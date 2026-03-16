@@ -207,7 +207,7 @@ async def generate_mcp_token(
             ],
         },
         "codex": {
-            "name": "Codex CLI",
+            "name": "Codex",
             "icon": "terminal",
             "instructions": [
                 {
@@ -217,7 +217,7 @@ async def generate_mcp_token(
                 },
                 {
                     "type": "toml",
-                    "label": "~/.codex/config.toml",
+                    "label": "~/.codex/config.toml (CLI & App)",
                     "content": codex_toml,
                 },
             ],
