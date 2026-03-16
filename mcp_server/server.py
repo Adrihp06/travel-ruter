@@ -10,8 +10,8 @@ Integrates with the existing FastAPI backend services for:
 - Budget calculation
 
 Supports dual transport:
-- stdio (default): used by the orchestrator subprocess
-- streamable-http: used by remote Claude Desktop/Code clients
+- stdio (default): used by the orchestrator subprocess (all tools including web_search)
+- streamable-http: used by remote AI clients (web_search excluded — clients use their own)
 """
 
 import logging
@@ -128,13 +128,19 @@ def create_server(
         })
 
     # Register all tools
-    _register_tools(server)
+    _register_tools(server, transport)
 
     return server
 
 
-def _register_tools(server: FastMCP):
-    """Register all MCP tools with the server."""
+def _register_tools(server: FastMCP, transport: str = "stdio"):
+    """Register MCP tools with the server.
+
+    The ``web_search`` tool is only registered for the stdio transport
+    (internal orchestrator).  Remote clients connecting over HTTP already
+    have their own built-in web search (Claude, Codex, Gemini, Copilot),
+    so exposing ours would just incur unnecessary API costs.
+    """
 
     # Import tool modules - they register themselves when imported
     from mcp_server.tools import destinations
@@ -144,7 +150,6 @@ def _register_tools(server: FastMCP):
     from mcp_server.tools import budget
     from mcp_server.tools import scheduler
     from mcp_server.tools import accommodations
-    from mcp_server.tools import web_search
     from mcp_server.tools import notes
 
     # Register tools from each module
@@ -155,8 +160,16 @@ def _register_tools(server: FastMCP):
     budget.register_tools(server)
     scheduler.register_tools(server)
     accommodations.register_tools(server)
-    web_search.register_tools(server)
     notes.register_tools(server)
+
+    # Only expose web_search to the internal orchestrator (stdio).
+    # Remote clients should use their provider's built-in web search.
+    if transport == "stdio":
+        from mcp_server.tools import web_search
+        web_search.register_tools(server)
+        logger.info("web_search tool registered (stdio transport)")
+    else:
+        logger.info("web_search tool skipped (remote clients use their own)")
 
     logger.info("All MCP tools registered successfully")
 
