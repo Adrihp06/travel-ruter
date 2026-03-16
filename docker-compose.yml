@@ -276,6 +276,8 @@ services:
       PYTHONPATH: /app
       # Database
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-travel_ruter}
+      # Backend Settings() is imported transitively and needs SECRET_KEY
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set in .env}
       # JWT (must match backend SECRET_KEY)
       JWT_SECRET_KEY: ${SECRET_KEY:?SECRET_KEY must be set in .env}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
