@@ -2,12 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, forwardRef, u
 import MDEditor from '@uiw/react-md-editor/nohighlight';
 import '@uiw/react-md-editor/markdown-editor.css';
 import DOMPurify from 'dompurify';
-import { Sparkles, PenLine, FileText, Route, ChevronDown } from 'lucide-react';
+import { Sparkles, PenLine, FileText, Route, ChevronDown, MapPin, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import useExportWriterStore from '../../stores/useExportWriterStore';
 import usePOIStore from '../../stores/usePOIStore';
 import useAccommodationStore from '../../stores/useAccommodationStore';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
+import authFetch from '../../utils/authFetch';
 
 const sanitizeConfig = {
   ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'strong', 'em', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'blockquote', 'a', 'img', 'span', 'div'],
@@ -43,7 +44,7 @@ function SaveStatusIndicator({ status }) {
   return null;
 }
 
-const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove, onInsertTripRoute, onInsertAllRoutes, tripId }, ref) => {
+const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove, onInsertTripRoute, onInsertAllRoutes, onInsertDayRoute, onInsertDestinationRoute, tripId, destinations }, ref) => {
   const { t } = useTranslation();
   const {
     documents,
@@ -56,6 +57,44 @@ const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove, onInsertTr
   const editorContainerRef = useRef(null);
   const [routeMenuOpen, setRouteMenuOpen] = useState(false);
   const routeMenuRef = useRef(null);
+  // Cache of { [destinationId]: { name, dates: ['2025-04-19', ...] } }
+  const [destDayRoutes, setDestDayRoutes] = useState(null);
+  const [loadingDayRoutes, setLoadingDayRoutes] = useState(false);
+
+  // Lazy-fetch scheduled dates per destination when dropdown opens
+  useEffect(() => {
+    if (!routeMenuOpen || destDayRoutes || loadingDayRoutes) return;
+    if (!destinations || destinations.length === 0) return;
+
+    let cancelled = false;
+    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
+    setLoadingDayRoutes(true);
+    (async () => {
+      const result = {};
+      for (const dest of destinations) {
+        try {
+          const response = await authFetch(`${API_BASE_URL}/destinations/${dest.id}/pois`);
+          if (!response.ok) continue;
+          const data = await response.json();
+          const pois = Array.isArray(data) ? data : (data.items || []).flatMap((g) => g.pois || []);
+          const dates = [...new Set(pois.filter((p) => p?.scheduled_date).map((p) => p.scheduled_date))].sort();
+          if (dates.length > 0) {
+            result[dest.id] = { name: dest.city_name || dest.name || `Destination ${dest.id}`, dates };
+          }
+        } catch { /* skip */ }
+      }
+      if (!cancelled) {
+        setDestDayRoutes(result);
+        setLoadingDayRoutes(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [routeMenuOpen, destDayRoutes, loadingDayRoutes, destinations]);
+
+  // Reset cache when destinations change
+  useEffect(() => { setDestDayRoutes(null); }, [destinations]);
 
   // Close route dropdown on outside click
   useEffect(() => {
@@ -164,17 +203,63 @@ const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove, onInsertTr
                   <ChevronDown className="w-3 h-3" />
                 </button>
                 {routeMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50 py-1">
+                  <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50 py-1 max-h-72 overflow-y-auto">
+                    {/* Trip Overview */}
                     <button
                       onClick={() => { onInsertTripRoute?.(); setRouteMenuOpen(false); }}
-                      className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium"
                       data-testid="insert-trip-route-option"
                     >
                       {t('exportWriter.editor.insertTripRouteOnly')}
                     </button>
+
+                    {/* Per-destination day routes */}
+                    {loadingDayRoutes && (
+                      <div className="flex items-center gap-2 px-3 py-2 text-xs text-gray-400">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        {t('common.loading', 'Loading…')}
+                      </div>
+                    )}
+                    {destDayRoutes && Object.keys(destDayRoutes).length > 0 && (
+                      <>
+                        <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
+                        {Object.entries(destDayRoutes).map(([destId, { name, dates }]) => (
+                          <div key={destId}>
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                              <MapPin className="w-3 h-3" />
+                              {name}
+                            </div>
+                            {dates.map((date) => {
+                              const dateLabel = (() => {
+                                try {
+                                  return new Date(date + 'T00:00:00').toLocaleDateString(undefined, {
+                                    weekday: 'short', month: 'short', day: 'numeric',
+                                  });
+                                } catch { return date; }
+                              })();
+                              return (
+                                <button
+                                  key={`${destId}-${date}`}
+                                  onClick={() => {
+                                    onInsertDayRoute?.({ destinationId: Number(destId), date, label: `${name} — ${dateLabel}` });
+                                    setRouteMenuOpen(false);
+                                  }}
+                                  className="w-full text-left pl-7 pr-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                >
+                                  {dateLabel}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </>
+                    )}
+
+                    {/* All Routes */}
+                    <div className="border-t border-gray-200 dark:border-gray-600 my-1" />
                     <button
                       onClick={() => { onInsertAllRoutes?.(); setRouteMenuOpen(false); }}
-                      className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors font-medium"
                       data-testid="insert-all-routes-option"
                     >
                       {t('exportWriter.editor.insertAllRoutes')}

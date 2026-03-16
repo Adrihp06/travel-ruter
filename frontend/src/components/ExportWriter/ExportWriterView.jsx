@@ -261,6 +261,8 @@ const ExportWriterView = ({ tripId, trip }) => {
             onImprove={handleImprove}
             onInsertTripRoute={handleInsertTripRoute}
             onInsertAllRoutes={handleInsertAllRoutes}
+            onInsertDayRoute={handleInsertDayRoute}
+            onInsertDestinationRoute={handleInsertDestinationRoute}
           />
         )}
       </div>

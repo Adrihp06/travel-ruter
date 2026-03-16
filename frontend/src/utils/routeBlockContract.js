@@ -378,7 +378,8 @@ export function replaceRouteBlocks(markdown, resolver) {
  *   path-{strokeWidth}+{color}-{opacity}({coords})
  *   coords are comma-separated lon,lat pairs joined by commas.
  *
- * Coordinates are rounded to 5 decimal places to keep URLs short.
+ * Coordinates are encoded using the Google Polyline Encoding Algorithm for
+ * compact URLs and smooth rendering by the Mapbox Static API.
  *
  * @param {Array<[number,number]>} coordinates - [[lng, lat], …]
  * @param {string} [color='D97706'] - Hex color without #
@@ -389,15 +390,16 @@ export function replaceRouteBlocks(markdown, resolver) {
 export function encodePathOverlay(coordinates, color = 'D97706', strokeWidth = 3, opacity = 1) {
   if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
 
-  // Mapbox limits URL to ~8192 chars; subsample if needed
-  const maxPoints = 100;
+  // Subsample for very long routes to stay within URL limits
+  const maxPoints = 200;
   const sampled =
     coordinates.length > maxPoints ? subsampleCoordinates(coordinates, maxPoints) : coordinates;
 
-  const coordStr = sampled.map(([lng, lat]) => `${round5(lng)},${round5(lat)}`).join(',');
+  const polyline = encodePolyline(sampled);
   const opacityStr = opacity < 1 ? `-${opacity}` : '';
 
-  return `path-${strokeWidth}+${color}${opacityStr}(${coordStr})`;
+  // URL-encode only the polyline (may contain ?, \, etc.) — not the overlay syntax
+  return `path-${strokeWidth}+${color}${opacityStr}(${encodeURIComponent(polyline)})`;
 }
 
 /**
@@ -426,12 +428,48 @@ export function buildRouteMapUrl(coordinates, token, options = {}) {
   const MAPBOX_STATIC_BASE = 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/static';
   const suffix = retina ? '@2x' : '';
 
-  return `${MAPBOX_STATIC_BASE}/${encodeURIComponent(overlay)}/auto/${width}x${height}${suffix}?access_token=${token}&padding=${padding}`;
+  // Overlay syntax (+, parens) must NOT be re-encoded — only polyline internals are encoded above
+  return `${MAPBOX_STATIC_BASE}/${overlay}/auto/${width}x${height}${suffix}?access_token=${token}&padding=${padding}`;
 }
 
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Google Polyline Encoding Algorithm — encodes an array of [lng, lat]
+ * coordinates into a compact ASCII string understood by the Mapbox Static API.
+ * @see https://developers.google.com/maps/documentation/utilities/polylinealgorithm
+ */
+function encodePolyline(coordinates) {
+  let result = '';
+  let prevLat = 0;
+  let prevLng = 0;
+
+  for (const [lng, lat] of coordinates) {
+    const latE5 = Math.round(lat * 1e5);
+    const lngE5 = Math.round(lng * 1e5);
+
+    result += encodeSignedValue(latE5 - prevLat);
+    result += encodeSignedValue(lngE5 - prevLng);
+
+    prevLat = latE5;
+    prevLng = lngE5;
+  }
+
+  return result;
+}
+
+function encodeSignedValue(value) {
+  let v = value < 0 ? ~(value << 1) : value << 1;
+  let encoded = '';
+  while (v >= 0x20) {
+    encoded += String.fromCharCode(((v & 0x1f) | 0x20) + 63);
+    v >>= 5;
+  }
+  encoded += String.fromCharCode(v + 63);
+  return encoded;
+}
 
 function round5(n) {
   return Math.round(n * 1e5) / 1e5;
