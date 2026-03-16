@@ -1,13 +1,29 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Copy, Check, Terminal, Monitor } from 'lucide-react';
+import { Copy, Check, Terminal, Monitor, Code, Sparkles } from 'lucide-react';
 import authFetch from '../../utils/authFetch';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
+const ICON_MAP = {
+  terminal: Terminal,
+  monitor: Monitor,
+  code: Code,
+  sparkles: Sparkles,
+};
+
+const PROVIDER_ORDER = [
+  'claude_code',
+  'claude_desktop',
+  'codex',
+  'gemini',
+  'copilot_vscode',
+  'copilot_cli',
+];
+
 const CopyButton = ({ text, isCopied, onCopy }) => (
   <button
     onClick={() => onCopy(text)}
-    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors shrink-0"
   >
     {isCopied ? (
       <>
@@ -23,25 +39,20 @@ const CopyButton = ({ text, isCopied, onCopy }) => (
   </button>
 );
 
-const InstructionBlock = ({ icon: Icon, title, description, content, textColor, isCopied, onCopy }) => (
-  <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700">
-    <div className="flex items-center gap-2 mb-4">
-      <Icon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-      <h3 className="text-base font-semibold text-gray-900 dark:text-white">
-        {title}
-      </h3>
-    </div>
-    <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
-      {description}
-    </p>
-    <div className="flex items-start gap-2">
-      <pre className={`flex-1 p-3 rounded-lg bg-gray-900 ${textColor} text-xs font-mono overflow-x-auto whitespace-pre-wrap`}>
-        {content}
-      </pre>
-      <CopyButton text={content} isCopied={isCopied} onCopy={onCopy} />
-    </div>
-  </div>
-);
+const formatContent = (instruction) => {
+  if (instruction.type === 'json') {
+    return typeof instruction.content === 'string'
+      ? instruction.content
+      : JSON.stringify(instruction.content, null, 2);
+  }
+  return instruction.content;
+};
+
+const COLOR_MAP = {
+  command: 'text-green-400',
+  json: 'text-blue-300',
+  toml: 'text-amber-300',
+};
 
 const MCP_TOOLS = [
   { name: 'manage_trip', desc: 'Create, read, update, delete trips' },
@@ -58,23 +69,19 @@ const MCP_TOOLS = [
   { name: 'schedule_pois', desc: 'Bulk-apply POI schedules' },
 ];
 
-const ClaudeCodeSection = () => {
+const MCPConnectionSection = () => {
   const [tokenData, setTokenData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [expiryDays, setExpiryDays] = useState(30);
   const [copied, setCopied] = useState({});
+  const [activeProvider, setActiveProvider] = useState('claude_code');
   const timersRef = useRef({});
 
   useEffect(() => {
     const timers = timersRef.current;
     return () => Object.values(timers).forEach(clearTimeout);
   }, []);
-
-  const desktopConfigString = useMemo(
-    () => tokenData ? JSON.stringify(tokenData.claude_desktop_config, null, 2) : '',
-    [tokenData]
-  );
 
   const generateToken = async () => {
     setLoading(true);
@@ -111,6 +118,14 @@ const ClaudeCodeSection = () => {
     }
   };
 
+  const clients = tokenData?.clients || {};
+  const orderedProviders = useMemo(
+    () => PROVIDER_ORDER.filter((id) => clients[id]),
+    [clients]
+  );
+
+  const activeClient = clients[activeProvider];
+
   return (
     <div className="space-y-6">
       {/* Explanation */}
@@ -119,11 +134,11 @@ const ClaudeCodeSection = () => {
           How it works
         </h2>
         <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-          Generate a personal MCP token to connect your Claude Desktop or Claude Code
-          directly to Travel Ruter's planning tools. Your own Claude subscription
-          handles the AI, while Travel Ruter provides the trip data and APIs. This
-          means you can plan trips in Claude with full access to your destinations,
-          POIs, budgets, and schedules.
+          Generate a personal MCP token to connect your AI coding tool directly
+          to Travel Ruter's planning tools. Your own subscription handles the AI
+          inference, while Travel Ruter provides the trip data and APIs. This
+          means you can plan trips with full access to your destinations, POIs,
+          budgets, and schedules — from any supported tool.
         </p>
       </div>
 
@@ -189,27 +204,78 @@ const ClaudeCodeSection = () => {
       </div>
 
       {/* Connection Instructions */}
-      {tokenData && (
-        <>
-          <InstructionBlock
-            icon={Terminal}
-            title="Claude Code"
-            description="Run this command in your terminal:"
-            content={tokenData.claude_code_command}
-            textColor="text-green-400"
-            isCopied={copied['claude-code']}
-            onCopy={(text) => copyToClipboard(text, 'claude-code')}
-          />
-          <InstructionBlock
-            icon={Monitor}
-            title="Claude Desktop"
-            description={<>Add this to your Claude Desktop config (<code className="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">claude_desktop_config.json</code>):</>}
-            content={desktopConfigString}
-            textColor="text-blue-300"
-            isCopied={copied['claude-desktop']}
-            onCopy={(text) => copyToClipboard(text, 'claude-desktop')}
-          />
-        </>
+      {tokenData && orderedProviders.length > 0 && (
+        <div>
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
+            Connection Instructions
+          </h3>
+
+          {/* Provider Tabs */}
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {orderedProviders.map((id) => {
+              const client = clients[id];
+              const IconComponent = ICON_MAP[client.icon] || Terminal;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setActiveProvider(id)}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                    activeProvider === id
+                      ? 'bg-[#D97706] text-white shadow-sm'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  <IconComponent className="w-3.5 h-3.5" />
+                  {client.name}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active Provider Instructions */}
+          {activeClient && (
+            <div className="space-y-4">
+              {activeClient.instructions.map((instruction, idx) => {
+                const copyKey = `${activeProvider}-${idx}`;
+                const content = formatContent(instruction);
+                return (
+                  <div
+                    key={copyKey}
+                    className="p-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        {instruction.type === 'command' ? (
+                          'Run this command in your terminal:'
+                        ) : (
+                          <>
+                            Add to{' '}
+                            <code className="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
+                              {instruction.label}
+                            </code>
+                            :
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <pre
+                        className={`flex-1 p-3 rounded-lg bg-gray-900 ${COLOR_MAP[instruction.type] || 'text-gray-300'} text-xs font-mono overflow-x-auto whitespace-pre-wrap`}
+                      >
+                        {content}
+                      </pre>
+                      <CopyButton
+                        text={content}
+                        isCopied={copied[copyKey]}
+                        onCopy={(text) => copyToClipboard(text, copyKey)}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Available Tools */}
@@ -237,4 +303,4 @@ const ClaudeCodeSection = () => {
   );
 };
 
-export default ClaudeCodeSection;
+export default MCPConnectionSection;

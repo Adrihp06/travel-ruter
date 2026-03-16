@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, Wand2, Terminal } from 'lucide-react';
+import { Bot, Wand2, Plug } from 'lucide-react';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import AISettingsSection from '../components/AI/AISettingsSection';
 import AgentCustomizationSection from '../components/AI/AgentCustomizationSection';
-import ClaudeCodeSection from '../components/AI/ClaudeCodeSection';
+import MCPConnectionSection from '../components/AI/MCPConnectionSection';
 
 const SETTINGS_KEY = 'travel-ruter-settings';
 
@@ -36,7 +36,7 @@ const AISettingsPage = () => {
   const tabs = [
     { id: 'assistant', label: t('settings.sections.ai'), icon: Bot },
     { id: 'agent', label: t('settings.sections.agentCustomization'), icon: Wand2 },
-    { id: 'claude-code', label: 'Claude Code', icon: Terminal },
+    { id: 'mcp-connection', label: 'MCP Connection', icon: Plug },
   ];
 
   return (
@@ -83,8 +83,8 @@ const AISettingsPage = () => {
           {activeTab === 'agent' && (
             <AgentCustomizationSection />
           )}
-          {activeTab === 'claude-code' && (
-            <ClaudeCodeSection />
+          {activeTab === 'mcp-connection' && (
+            <MCPConnectionSection />
           )}
         </div>
       </div>

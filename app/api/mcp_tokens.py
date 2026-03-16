@@ -2,8 +2,11 @@
 MCP Access Token API endpoints.
 
 Generates long-lived JWTs with scope="mcp" so users with their own
-Claude Pro/Max/Code subscriptions can connect directly to the
-Travel Ruter MCP server at travelruter.com/mcp.
+AI coding tool subscriptions can connect directly to the Travel Ruter
+MCP server at travelruter.com/mcp.
+
+Supports connection instructions for Claude Code, Claude Desktop,
+OpenAI Codex CLI, Gemini CLI, and GitHub Copilot (VS Code & CLI).
 
 Includes token revocation, listing, and cleanup utilities.
 """
@@ -39,8 +42,11 @@ class MCPTokenResponse(BaseModel):
     jti: str
     expires_at: str
     connection_url: str
+    # Legacy fields kept for backward compatibility
     claude_code_command: str
     claude_desktop_config: dict
+    # All client connection configs keyed by provider id
+    clients: dict
 
 
 class RevokeTokenRequest(BaseModel):
@@ -85,9 +91,9 @@ async def generate_mcp_token(
 ):
     """Generate a long-lived MCP access token.
 
-    This token lets you connect your Claude Desktop or Claude Code
-    directly to Travel Ruter's MCP tools, using your own Claude
-    subscription for AI inference.
+    This token lets you connect your AI coding tool (Claude, Codex,
+    Gemini, or GitHub Copilot) directly to Travel Ruter's MCP tools,
+    using your own subscription for AI inference.
     """
     now = datetime.now(timezone.utc)
     expires = now + timedelta(days=expiry_days)
@@ -106,11 +112,13 @@ async def generate_mcp_token(
 
     connection_url = "https://travelruter.com/mcp"
 
+    # --- Claude Code ---
     claude_code_cmd = (
         f'claude mcp add --transport http travel-ruter {connection_url} '
         f'--header "Authorization: Bearer {token}"'
     )
 
+    # --- Claude Desktop ---
     claude_desktop_cfg = {
         "mcpServers": {
             "travel-ruter": {
@@ -125,6 +133,130 @@ async def generate_mcp_token(
         }
     }
 
+    # --- Codex CLI ---
+    codex_toml = (
+        "[mcp_servers.travel-ruter]\n"
+        f'url = "{connection_url}"\n'
+        f'http_headers = {{ "Authorization" = "Bearer {token}" }}'
+    )
+    codex_cmd = (
+        f"codex mcp add travel-ruter "
+        f"--url {connection_url} "
+        f'--header "Authorization: Bearer {token}"'
+    )
+
+    # --- Gemini CLI ---
+    gemini_cfg = {
+        "mcpServers": {
+            "travel-ruter": {
+                "httpUrl": connection_url,
+                "headers": {
+                    "Authorization": f"Bearer {token}",
+                },
+            }
+        }
+    }
+
+    # --- GitHub Copilot (VS Code) ---
+    copilot_vscode_cfg = {
+        "servers": {
+            "travel-ruter": {
+                "type": "http",
+                "url": connection_url,
+                "headers": {
+                    "Authorization": f"Bearer {token}",
+                },
+            }
+        }
+    }
+
+    # --- GitHub Copilot CLI ---
+    copilot_cli_cfg = {
+        "mcpServers": {
+            "travel-ruter": {
+                "type": "http",
+                "url": connection_url,
+                "headers": {
+                    "Authorization": f"Bearer {token}",
+                },
+            }
+        }
+    }
+
+    clients = {
+        "claude_code": {
+            "name": "Claude Code",
+            "icon": "terminal",
+            "instructions": [
+                {
+                    "type": "command",
+                    "label": "Run in terminal",
+                    "content": claude_code_cmd,
+                },
+            ],
+        },
+        "claude_desktop": {
+            "name": "Claude Desktop",
+            "icon": "monitor",
+            "instructions": [
+                {
+                    "type": "json",
+                    "label": "claude_desktop_config.json",
+                    "content": claude_desktop_cfg,
+                },
+            ],
+        },
+        "codex": {
+            "name": "Codex CLI",
+            "icon": "terminal",
+            "instructions": [
+                {
+                    "type": "command",
+                    "label": "Run in terminal",
+                    "content": codex_cmd,
+                },
+                {
+                    "type": "toml",
+                    "label": "~/.codex/config.toml",
+                    "content": codex_toml,
+                },
+            ],
+        },
+        "gemini": {
+            "name": "Gemini CLI",
+            "icon": "sparkles",
+            "instructions": [
+                {
+                    "type": "json",
+                    "label": "~/.gemini/settings.json",
+                    "content": gemini_cfg,
+                },
+            ],
+        },
+        "copilot_vscode": {
+            "name": "GitHub Copilot (VS Code)",
+            "icon": "code",
+            "instructions": [
+                {
+                    "type": "json",
+                    "label": ".vscode/mcp.json",
+                    "content": copilot_vscode_cfg,
+                },
+            ],
+        },
+        "copilot_cli": {
+            "name": "GitHub Copilot CLI",
+            "icon": "terminal",
+            "instructions": [
+                {
+                    "type": "json",
+                    "label": "~/.copilot/mcp-config.json",
+                    "content": copilot_cli_cfg,
+                },
+            ],
+        },
+    }
+
     return MCPTokenResponse(
         token=token,
         jti=token_jti,
@@ -132,6 +264,7 @@ async def generate_mcp_token(
         connection_url=connection_url,
         claude_code_command=claude_code_cmd,
         claude_desktop_config=claude_desktop_cfg,
+        clients=clients,
     )
 
 
