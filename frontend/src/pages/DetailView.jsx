@@ -928,6 +928,8 @@ const DetailViewContent = () => {
     if (dest) {
       setSelectedDestination(dest);
     }
+    // Push history entry so browser back returns to trip level instead of home
+    window.history.pushState({ destinationId: destId }, '');
     // On mobile, show the map when selecting a destination
     if (isMobile) {
       setMobileActiveTab('map');
@@ -1164,6 +1166,19 @@ const DetailViewContent = () => {
       fetchAccommodations(selectedDestinationId);
     }
   }, [selectedDestinationId, fetchPOIsByDestination, fetchAccommodations]);
+
+  // Handle browser back button: return to trip level instead of navigating away
+  useEffect(() => {
+    const handlePopState = (e) => {
+      if (selectedDestinationId) {
+        setSelectedDestinationId(null);
+        setSelectedPOIs([]);
+        resetSelectedDestination();
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [selectedDestinationId, resetSelectedDestination]);
 
   // Sync local state with store (for breadcrumb navigation back to trip level)
   useEffect(() => {

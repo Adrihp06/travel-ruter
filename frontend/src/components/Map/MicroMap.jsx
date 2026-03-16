@@ -1224,6 +1224,27 @@ const MicroMap = ({
     }
   }, [pois, pendingLocation]);
 
+  // Clear popup/context menu when the displayed POI no longer exists (e.g., after deletion)
+  useEffect(() => {
+    if (popupInfo && popupType === 'poi') {
+      const stillExists = pois.some(group =>
+        group.pois?.some(p => p.id === popupInfo.id)
+      );
+      if (!stillExists) {
+        setPopupInfo(null);
+        setPopupType(null);
+      }
+    }
+    if (contextMenu?.poi) {
+      const stillExists = pois.some(group =>
+        group.pois?.some(p => p.id === contextMenu.poi.id)
+      );
+      if (!stillExists) {
+        setContextMenu(null);
+      }
+    }
+  }, [pois, popupInfo, popupType, contextMenu]);
+
   // Clear pending location when triggered externally (e.g., modal closed without creating POI)
   useEffect(() => {
     if (clearPendingTrigger > 0 && pendingLocation !== null) {
