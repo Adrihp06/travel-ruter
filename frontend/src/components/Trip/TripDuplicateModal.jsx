@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Calendar, MapPin, Building, Image as ImageIcon } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import CopyIcon from '@/components/icons/copy-icon';
-import FileDescriptionIcon from '@/components/icons/file-description-icon';
+import { Calendar, MapPin, Building, Image as ImageIcon, X as XIcon, Copy as CopyIcon, FileText as FileDescriptionIcon } from 'lucide-react';
 import DateRangePicker from '../common/DateRangePicker';
 
 const TripDuplicateModal = ({ isOpen, onClose, trip, onDuplicate }) => {

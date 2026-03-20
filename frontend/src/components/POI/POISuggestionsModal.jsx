@@ -9,10 +9,10 @@ import {
   Filter,
   Loader2,
   AlertCircle,
+  X as XIcon,
+  Star as StarIcon,
+  CheckCircle as FilledCheckedIcon,
 } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import StarIcon from '@/components/icons/star-icon';
-import FilledCheckedIcon from '@/components/icons/filled-checked-icon';
 import usePOIStore from '../../stores/usePOIStore';
 
 const CATEGORY_OPTIONS = [

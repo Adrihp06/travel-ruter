@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Calendar, Moon, Plus } from 'lucide-react';
-import AirplaneIcon from '@/components/icons/airplane-icon';
-import HomeIcon from '@/components/icons/home-icon';
+import { Calendar, Moon, Plus, Plane as AirplaneIcon, Home as HomeIcon } from 'lucide-react';
 import { formatDateShort } from '../../utils/dateFormat';
 import {
   DndContext,

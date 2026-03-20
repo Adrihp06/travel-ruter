@@ -1,7 +1,5 @@
 import React from 'react';
-import { Car, Footprints, Bike, Train, Ship, Bus } from 'lucide-react';
-import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
-import AirplaneIcon from '@/components/icons/airplane-icon';
+import { Car, Footprints, Bike, Train, Ship, Bus, AlertTriangle as TriangleAlertIcon, Plane as AirplaneIcon } from 'lucide-react';
 
 // Transport mode icons mapping
 const TRANSPORT_MODE_ICONS = {

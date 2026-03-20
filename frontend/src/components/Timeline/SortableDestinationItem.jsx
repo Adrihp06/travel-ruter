@@ -2,9 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Calendar, Moon } from 'lucide-react';
-import PenIcon from '@/components/icons/pen-icon';
-import TrashIcon from '@/components/icons/trash-icon';
+import { GripVertical, Calendar, Moon, Pencil as PenIcon, Trash2 as TrashIcon } from 'lucide-react';
 import { formatDateShort } from '../../utils/dateFormat';
 
 const SortableDestinationItem = ({

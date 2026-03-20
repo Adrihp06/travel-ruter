@@ -5,9 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Brain, MapPin, Route, Calculator, Calendar } from 'lucide-react';
-import MagnifierIcon from '@/components/icons/magnifier-icon';
-import SparklesIcon from '@/components/icons/sparkles-icon';
+import { Brain, MapPin, Route, Calculator, Calendar, Search as MagnifierIcon, Sparkles as SparklesIcon } from 'lucide-react';
 
 // Thinking message configs - text resolved via i18n at render time
 const THINKING_MESSAGES = [

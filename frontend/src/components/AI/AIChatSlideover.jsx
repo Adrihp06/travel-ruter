@@ -18,11 +18,11 @@ import {
   Copy,
   Clock,
   Brain,
+  X as XIcon,
+  Sparkles as SparklesIcon,
+  Check as CheckedIcon,
+  RefreshCw as RefreshIcon,
 } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import SparklesIcon from '@/components/icons/sparkles-icon';
-import CheckedIcon from '@/components/icons/checked-icon';
-import RefreshIcon from '@/components/icons/refresh-icon';
 import useAIStore from '../../stores/useAIStore';
 import TripSelector from './TripSelector';
 import ToolCallDisplay from './ToolCallDisplay';

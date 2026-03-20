@@ -19,12 +19,12 @@ import {
   Map,
   ListChecks,
   Compass,
+  Globe as GlobeIcon,
+  Search as MagnifierIcon,
+  DollarSign as CurrencyDollarIcon,
+  RefreshCw as RefreshIcon,
+  Info as InfoCircleIcon,
 } from 'lucide-react';
-import GlobeIcon from '@/components/icons/globe-icon';
-import MagnifierIcon from '@/components/icons/magnifier-icon';
-import CurrencyDollarIcon from '@/components/icons/currency-dollar-icon';
-import RefreshIcon from '@/components/icons/refresh-icon';
-import InfoCircleIcon from '@/components/icons/info-circle-icon';
 import useAIStore from '../../stores/useAIStore';
 
 // App tools configuration — must match MCP server tools in mcp_server/tools/

@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useId } from 'react';
-import XIcon from '@/components/icons/x-icon';
+import { X as XIcon } from 'lucide-react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 /**

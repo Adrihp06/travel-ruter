@@ -5,11 +5,19 @@
 
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Plus, Calendar, Clock, MessageSquare, Trash2, ArrowLeft } from 'lucide-react';
-import RightChevron from '@/components/icons/right-chevron';
-import AirplaneIcon from '@/components/icons/airplane-icon';
-import SparklesIcon from '@/components/icons/sparkles-icon';
-import GlobeIcon from '@/components/icons/globe-icon';
+import {
+  MapPin,
+  Plus,
+  Calendar,
+  Clock,
+  MessageSquare,
+  Trash2,
+  ArrowLeft,
+  ChevronRight as RightChevron,
+  Plane as AirplaneIcon,
+  Sparkles as SparklesIcon,
+  Globe as GlobeIcon,
+} from 'lucide-react';
 import useTripStore from '../../stores/useTripStore';
 import useAIStore from '../../stores/useAIStore';
 import { listConversations } from '../../utils/conversationStorage';

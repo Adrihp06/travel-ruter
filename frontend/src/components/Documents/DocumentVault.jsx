@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FolderOpen, Filter, Plus, MapPin, Calendar } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import DownChevron from '@/components/icons/down-chevron';
-import RightChevron from '@/components/icons/right-chevron';
-import LayersIcon from '@/components/icons/layers-icon';
-import UnorderedListIcon from '@/components/icons/unordered-list-icon';
+import {
+  FolderOpen, Filter, Plus, MapPin, Calendar,
+  X as XIcon,
+  ChevronDown as DownChevron,
+  ChevronRight as RightChevron,
+  Layers as LayersIcon,
+  List as UnorderedListIcon,
+} from 'lucide-react';
 import FileUpload from './FileUpload';
 import DocumentList from './DocumentList';
 import useDocumentStore from '../../stores/useDocumentStore';

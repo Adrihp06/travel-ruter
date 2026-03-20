@@ -4,11 +4,11 @@ import {
   Route,
   MapPin,
   Footprints,
+  X as XIcon,
+  Clock as ClockIcon,
+  Check as CheckedIcon,
+  AlertTriangle as TriangleAlertIcon,
 } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import ClockIcon from '@/components/icons/clock-icon';
-import CheckedIcon from '@/components/icons/checked-icon';
-import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
 
 const OptimizationPreview = ({
   isOpen,

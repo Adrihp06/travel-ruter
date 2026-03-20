@@ -11,12 +11,12 @@ import {
   Footprints,
   Bike,
   Train,
+  Clock as ClockIcon,
+  ExternalLink as ExternalLinkIcon,
+  ChevronDown as DownChevron,
+  X as XIcon,
+  Plane as AirplaneIcon,
 } from 'lucide-react';
-import ClockIcon from '@/components/icons/clock-icon';
-import ExternalLinkIcon from '@/components/icons/external-link-icon';
-import DownChevron from '@/components/icons/down-chevron';
-import XIcon from '@/components/icons/x-icon';
-import AirplaneIcon from '@/components/icons/airplane-icon';
 import RouteOptions from './RouteOptions';
 import useRouteStore from '../../stores/useRouteStore';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';

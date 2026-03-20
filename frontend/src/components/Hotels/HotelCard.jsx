@@ -1,8 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin } from 'lucide-react';
-import StarIcon from '@/components/icons/star-icon';
-import ExternalLinkIcon from '@/components/icons/external-link-icon';
+import { MapPin, Star as StarIcon, ExternalLink as ExternalLinkIcon } from 'lucide-react';
 
 const HotelCard = ({ hotel, onClick, isSelected = false }) => {
   const { t } = useTranslation();

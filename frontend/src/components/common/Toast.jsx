@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { useTranslation } from 'react-i18next';
-import XIcon from '@/components/icons/x-icon';
-import FilledCheckedIcon from '@/components/icons/filled-checked-icon';
-import InfoCircleIcon from '@/components/icons/info-circle-icon';
-import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
+import { X as XIcon, CheckCircle as FilledCheckedIcon, Info as InfoCircleIcon, AlertTriangle as TriangleAlertIcon } from 'lucide-react';
 
 // Toast context for global access
 const ToastContext = createContext(null);

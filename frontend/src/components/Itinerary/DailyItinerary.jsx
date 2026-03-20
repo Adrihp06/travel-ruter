@@ -43,15 +43,14 @@ import {
   ThumbsUp,
   BookOpen,
   ExternalLink,
+  ArrowLeft as ArrowBackIcon,
+  Clock as ClockIcon,
+  Camera as CameraIcon,
+  Pencil as PenIcon,
+  Trash2 as TrashIcon,
+  ArrowDown as ArrowNarrowDownIcon,
+  Sparkles as SparklesIcon,
 } from 'lucide-react';
-import ArrowBackIcon from '@/components/icons/arrow-back-icon';
-import ClockIcon from '@/components/icons/clock-icon';
-
-import CameraIcon from '@/components/icons/camera-icon';
-import PenIcon from '@/components/icons/pen-icon';
-import TrashIcon from '@/components/icons/trash-icon';
-import ArrowNarrowDownIcon from '@/components/icons/arrow-narrow-down-icon';
-import SparklesIcon from '@/components/icons/sparkles-icon';
 import { useToast } from '../common/Toast';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import usePOIStore from '../../stores/usePOIStore';

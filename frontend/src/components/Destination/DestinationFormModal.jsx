@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
+import { MapPin, X as XIcon, AlertTriangle as TriangleAlertIcon } from 'lucide-react';
 import useDestinationStore from '../../stores/useDestinationStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import DateRangePicker from '../common/DateRangePicker';

@@ -1,8 +1,6 @@
 import React from 'react';
 import { withTranslation } from 'react-i18next';
-import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
-import RefreshIcon from '@/components/icons/refresh-icon';
-import HomeIcon from '@/components/icons/home-icon';
+import { AlertTriangle as TriangleAlertIcon, RefreshCw as RefreshIcon, Home as HomeIcon } from 'lucide-react';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {

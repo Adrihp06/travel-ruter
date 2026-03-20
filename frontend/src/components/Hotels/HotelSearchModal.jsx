@@ -4,10 +4,10 @@ import {
   MapPin,
   SlidersHorizontal,
   Building2,
+  X as XIcon,
+  Search as MagnifierIcon,
+  Info as InfoCircleIcon,
 } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import MagnifierIcon from '@/components/icons/magnifier-icon';
-import InfoCircleIcon from '@/components/icons/info-circle-icon';
 import useHotelSearchStore from '../../stores/useHotelSearchStore';
 import HotelCard from './HotelCard';
 import HotelDetailModal from './HotelDetailModal';

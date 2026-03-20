@@ -7,11 +7,11 @@ import {
   Hash,
   Trash2,
   Clock,
+  ExternalLink as ExternalLinkIcon,
+  Star as StarIcon,
+  Pencil as PenIcon,
+  CheckCircle as FilledCheckedIcon,
 } from 'lucide-react';
-import ExternalLinkIcon from '@/components/icons/external-link-icon';
-import StarIcon from '@/components/icons/star-icon';
-import PenIcon from '@/components/icons/pen-icon';
-import FilledCheckedIcon from '@/components/icons/filled-checked-icon';
 import { formatDateWithWeekday } from '../../utils/dateFormat';
 
 const accommodationTypeIcons = {

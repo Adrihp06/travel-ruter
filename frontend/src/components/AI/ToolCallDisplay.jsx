@@ -17,15 +17,15 @@ import {
   Map,
   Star,
   CalendarCheck,
+  Search as MagnifierIcon,
+  Plane as AirplaneIcon,
+  Globe as GlobeIcon,
+  DollarSign as CurrencyDollarIcon,
+  Check as CheckedIcon,
+  Info as InfoCircleIcon,
+  Sparkles as SparklesIcon,
 } from 'lucide-react';
-import MagnifierIcon from '@/components/icons/magnifier-icon';
-import AirplaneIcon from '@/components/icons/airplane-icon';
-import GlobeIcon from '@/components/icons/globe-icon';
-import OpenAIIcon from '@/components/icons/openai-icon';
-import CurrencyDollarIcon from '@/components/icons/currency-dollar-icon';
-import CheckedIcon from '@/components/icons/checked-icon';
-import InfoCircleIcon from '@/components/icons/info-circle-icon';
-import SparklesIcon from '@/components/icons/sparkles-icon';
+import OpenAIIcon from '@/components/AI/OpenAIIcon';
 
 // Tool metadata with icons and descriptions (names/descriptions resolved via i18n at render time)
 const TOOL_INFO = {

@@ -3,14 +3,14 @@ import { useTranslation } from 'react-i18next';
 import {
   Filter,
   ArrowUpDown,
+  Search as MagnifierIcon,
+  Eye as EyeIcon,
+  EyeOff as EyeOffIcon,
+  ChevronDown as DownChevron,
+  Sparkles as SparklesIcon,
+  X as XIcon,
+  Check as CheckedIcon,
 } from 'lucide-react';
-import MagnifierIcon from '@/components/icons/magnifier-icon';
-import EyeIcon from '@/components/icons/eye-icon';
-import EyeOffIcon from '@/components/icons/eye-off-icon';
-import DownChevron from '@/components/icons/down-chevron';
-import SparklesIcon from '@/components/icons/sparkles-icon';
-import XIcon from '@/components/icons/x-icon';
-import CheckedIcon from '@/components/icons/checked-icon';
 
 const TripSearchFilter = ({
   searchQuery,

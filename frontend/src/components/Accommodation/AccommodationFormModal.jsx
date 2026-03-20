@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useMemo, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bed, Calendar, Building2 } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import MagnifierIcon from '@/components/icons/magnifier-icon';
+import { Bed, Calendar, Building2, X as XIcon, Search as MagnifierIcon } from 'lucide-react';
 import useAccommodationStore from '../../stores/useAccommodationStore';
 import LocationAutocomplete from '../Location/LocationAutocomplete';
 import DateRangePicker from '../common/DateRangePicker';

@@ -9,13 +9,13 @@ import {
   Calendar,
   DollarSign,
   MoreVertical,
-  Archive
+  Archive,
+  Pencil as PenIcon,
+  Trash2 as TrashIcon,
+  Copy as CopyIcon,
+  Clock as ClockIcon,
+  Plane as AirplaneIcon,
 } from 'lucide-react';
-import PenIcon from '@/components/icons/pen-icon';
-import TrashIcon from '@/components/icons/trash-icon';
-import CopyIcon from '@/components/icons/copy-icon';
-import ClockIcon from '@/components/icons/clock-icon';
-import AirplaneIcon from '@/components/icons/airplane-icon';
 import { formatDateFull } from '../../utils/dateFormat';
 
 // Tag color mapping - Warm Explorer theme colors

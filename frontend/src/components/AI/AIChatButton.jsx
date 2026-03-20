@@ -5,8 +5,7 @@
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import XIcon from '@/components/icons/x-icon';
-import SparklesIcon from '@/components/icons/sparkles-icon';
+import { X as XIcon, Sparkles as SparklesIcon } from 'lucide-react';
 
 const AIChatButton = ({ isOpen, onClick, hasUnread = false, isLoading = false }) => {
   const { t } = useTranslation();

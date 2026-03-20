@@ -1,8 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bed, Plus, ChevronUp } from 'lucide-react';
-import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
-import DownChevron from '@/components/icons/down-chevron';
+import { Bed, Plus, ChevronUp, AlertTriangle as TriangleAlertIcon, ChevronDown as DownChevron } from 'lucide-react';
 import { formatDateWithWeekday, parseDateString } from '../../utils/dateFormat';
 import AccommodationCard from './AccommodationCard';
 

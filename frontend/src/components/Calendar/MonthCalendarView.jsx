@@ -1,9 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, MapPin } from 'lucide-react';
-import RightChevron from '@/components/icons/right-chevron';
-import AirplaneIcon from '@/components/icons/airplane-icon';
-import HomeIcon from '@/components/icons/home-icon';
+import { ChevronLeft, MapPin, ChevronRight as RightChevron, Plane as AirplaneIcon, Home as HomeIcon } from 'lucide-react';
 import { getTransportIcon } from './calendarUtils';
 
 const MonthCalendarView = ({

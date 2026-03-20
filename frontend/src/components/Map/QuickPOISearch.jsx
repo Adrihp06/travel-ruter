@@ -1,11 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Loader2, Utensils, ChevronUp } from 'lucide-react';
-import MagnifierIcon from '@/components/icons/magnifier-icon';
-import StarIcon from '@/components/icons/star-icon';
-import XIcon from '@/components/icons/x-icon';
-import CameraIcon from '@/components/icons/camera-icon';
-import HotelIcon from '@/components/icons/hotel-icon';
+import { MapPin, Loader2, Utensils, ChevronUp, Search as MagnifierIcon, Star as StarIcon, X as XIcon, Camera as CameraIcon, Hotel as HotelIcon } from 'lucide-react';
 import authFetch from '../../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';

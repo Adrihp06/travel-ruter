@@ -14,8 +14,8 @@ import {
   Music,
   TreePine,
   Star,
+  Clock as ClockIcon,
 } from 'lucide-react';
-import ClockIcon from '@/components/icons/clock-icon';
 
 // Category icon mapping - lookup table, not function creating components
 const categoryIcons = {

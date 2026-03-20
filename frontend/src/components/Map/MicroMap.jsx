@@ -27,16 +27,16 @@ import {
   Layers,
   GripVertical,
   Info,
+  X as XIcon,
+  Clock as ClockIcon,
+  Camera as CameraIcon,
+  Pencil as PenIcon,
+  Trash2 as TrashIcon,
+  ExternalLink as ExternalLinkIcon,
+  ChevronDown as DownChevron,
+  Star as StarIcon,
+  Search as MagnifierIcon,
 } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import ClockIcon from '@/components/icons/clock-icon';
-import CameraIcon from '@/components/icons/camera-icon';
-import PenIcon from '@/components/icons/pen-icon';
-import TrashIcon from '@/components/icons/trash-icon';
-import ExternalLinkIcon from '@/components/icons/external-link-icon';
-import DownChevron from '@/components/icons/down-chevron';
-import StarIcon from '@/components/icons/star-icon';
-import MagnifierIcon from '@/components/icons/magnifier-icon';
 import { useTranslation } from 'react-i18next';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';

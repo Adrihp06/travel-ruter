@@ -103,7 +103,6 @@ export default defineConfig({
           'vendor-mapbox': ['mapbox-gl', 'react-map-gl'],
           'vendor-dnd': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
           'vendor-utils': ['zustand', 'dompurify'],
-          'vendor-motion': ['motion'],
           'vendor-i18n': ['i18next', 'react-i18next', 'i18next-browser-languagedetector'],
           'vendor-pdf': ['@react-pdf/renderer', 'jszip', 'marked', '@uiw/react-md-editor/nohighlight'],
         }

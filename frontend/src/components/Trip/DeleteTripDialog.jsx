@@ -1,9 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Calendar } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import TrashIcon from '@/components/icons/trash-icon';
-import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
+import { MapPin, Calendar, X as XIcon, Trash2 as TrashIcon, AlertTriangle as TriangleAlertIcon } from 'lucide-react';
 import { formatDateFull } from '../../utils/dateFormat';
 
 const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {

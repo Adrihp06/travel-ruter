@@ -13,8 +13,8 @@ import {
   Link,
   Image,
   Redo,
+  Undo2 as ArrowBackUpIcon,
 } from 'lucide-react';
-import ArrowBackUpIcon from '@/components/icons/arrow-back-up-icon';
 
 // Configure DOMPurify to allow safe HTML elements for rich text editing
 const sanitizeConfig = {

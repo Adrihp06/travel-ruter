@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Image, Upload, Tag as TagIcon, MapPin, Car, Train, Bus, Footprints, Bike, Ship } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import AirplaneIcon from '@/components/icons/airplane-icon';
-import HomeIcon from '@/components/icons/home-icon';
+import { Image, Upload, Tag as TagIcon, MapPin, Car, Train, Bus, Footprints, Bike, Ship, X as XIcon, Plane as AirplaneIcon, Home as HomeIcon } from 'lucide-react';
 import useTripStore from '../../stores/useTripStore';
 import authFetch from '../../utils/authFetch';
 import LocationAutocomplete from '../Location/LocationAutocomplete';

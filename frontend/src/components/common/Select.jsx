@@ -1,8 +1,5 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
-import DownChevron from '@/components/icons/down-chevron';
-import CheckedIcon from '@/components/icons/checked-icon';
-import MagnifierIcon from '@/components/icons/magnifier-icon';
-import XIcon from '@/components/icons/x-icon';
+import { ChevronDown as DownChevron, Check as CheckedIcon, Search as MagnifierIcon, X as XIcon } from 'lucide-react';
 
 /**
  * Select Component

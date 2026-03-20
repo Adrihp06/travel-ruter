@@ -1,9 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import { Plus, Users, Activity, List, Map as MapIcon, MoreHorizontal, Calendar, FolderOpen, BookOpen, ExternalLink, Star, Globe, Clock } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import PenIcon from '@/components/icons/pen-icon';
+import { Plus, Users, Activity, List, Map as MapIcon, MoreHorizontal, Calendar, FolderOpen, BookOpen, ExternalLink, Star, Globe, Clock, X as XIcon, Pencil as PenIcon } from 'lucide-react';
 import useTripStore from '../stores/useTripStore';
 import usePOIStore from '../stores/usePOIStore';
 import useDocumentStore from '../stores/useDocumentStore';

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FolderOpen, ChevronUp, Plus } from 'lucide-react';
-import DownChevron from '@/components/icons/down-chevron';
+import { FolderOpen, ChevronUp, Plus, ChevronDown as DownChevron } from 'lucide-react';
 import FileUpload from './FileUpload';
 import DocumentList from './DocumentList';
 import useDocumentStore from '../../stores/useDocumentStore';

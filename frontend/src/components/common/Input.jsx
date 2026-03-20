@@ -1,9 +1,5 @@
 import React, { useState, useId } from 'react';
-import EyeIcon from '@/components/icons/eye-icon';
-import EyeOffIcon from '@/components/icons/eye-off-icon';
-import InfoCircleIcon from '@/components/icons/info-circle-icon';
-import CheckedIcon from '@/components/icons/checked-icon';
-import XIcon from '@/components/icons/x-icon';
+import { Eye as EyeIcon, EyeOff as EyeOffIcon, Info as InfoCircleIcon, Check as CheckedIcon, X as XIcon } from 'lucide-react';
 
 /**
  * Input Component

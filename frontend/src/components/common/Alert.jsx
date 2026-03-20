@@ -1,9 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import InfoCircleIcon from '@/components/icons/info-circle-icon';
-import FilledCheckedIcon from '@/components/icons/filled-checked-icon';
-import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
-import XIcon from '@/components/icons/x-icon';
+import { Info as InfoCircleIcon, CheckCircle as FilledCheckedIcon, AlertTriangle as TriangleAlertIcon, X as XIcon } from 'lucide-react';
 
 /**
  * Alert Component

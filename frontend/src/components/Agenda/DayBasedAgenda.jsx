@@ -17,11 +17,11 @@ import {
   Filter,
   Route,
   Loader2,
+  Star as StarIcon,
+  Pencil as PenIcon,
+  Trash2 as TrashIcon,
+  X as XIcon,
 } from 'lucide-react';
-import StarIcon from '@/components/icons/star-icon';
-import PenIcon from '@/components/icons/pen-icon';
-import TrashIcon from '@/components/icons/trash-icon';
-import XIcon from '@/components/icons/x-icon';
 import { useToast } from '../common/Toast';
 import OptimizationPreview from './OptimizationPreview';
 import usePOIStore from '../../stores/usePOIStore';

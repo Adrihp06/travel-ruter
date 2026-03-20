@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MapPin, Loader2 } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
+import { MapPin, Loader2, X as XIcon } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 const SETTINGS_KEY = 'travel-ruter-settings';

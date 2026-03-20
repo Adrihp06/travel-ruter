@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Calendar as CalendarIcon, Grid3x3 } from 'lucide-react';
-import UnorderedListIcon from '@/components/icons/unordered-list-icon';
+import { Calendar as CalendarIcon, Grid3x3, List as UnorderedListIcon } from 'lucide-react';
 import MonthCalendarView from './MonthCalendarView';
 import WeekCalendarView from './WeekCalendarView';
 import CalendarExport from './CalendarExport';

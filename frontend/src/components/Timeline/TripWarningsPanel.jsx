@@ -1,9 +1,6 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Calendar, ChevronUp } from 'lucide-react';
-import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
-import HomeIcon from '@/components/icons/home-icon';
-import DownChevron from '@/components/icons/down-chevron';
+import { Calendar, ChevronUp, AlertTriangle as TriangleAlertIcon, Home as HomeIcon, ChevronDown as DownChevron } from 'lucide-react';
 import { useState } from 'react';
 import { formatDateShort } from '../../utils/dateFormat';
 import { findDestinationConflicts, findUncoveredNights, findAccommodationGaps } from '../../utils/tripValidation';

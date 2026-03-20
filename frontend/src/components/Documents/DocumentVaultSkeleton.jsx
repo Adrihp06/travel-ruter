@@ -1,6 +1,5 @@
 import React from 'react';
-import { FolderOpen } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
+import { FolderOpen, X as XIcon } from 'lucide-react';
 import Skeleton from '../UI/Skeleton';
 
 const DocumentVaultSkeleton = ({ isOpen, onClose }) => {

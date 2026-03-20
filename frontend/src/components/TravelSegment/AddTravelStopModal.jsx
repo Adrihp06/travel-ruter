@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Loader2 } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import MagnifierIcon from '@/components/icons/magnifier-icon';
+import { MapPin, Loader2, X as XIcon, Search as MagnifierIcon } from 'lucide-react';
 import useTravelStopStore from '../../stores/useTravelStopStore';
 import TravelModeSelector from './TravelModeSelector';
 

@@ -5,12 +5,14 @@
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2 } from 'lucide-react';
-import WifiIcon from '@/components/icons/wifi-icon';
-import WifiOffIcon from '@/components/icons/wifi-off-icon';
-import RefreshIcon from '@/components/icons/refresh-icon';
-import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
-import FilledCheckedIcon from '@/components/icons/filled-checked-icon';
+import {
+  Loader2,
+  Wifi as WifiIcon,
+  WifiOff as WifiOffIcon,
+  RefreshCw as RefreshIcon,
+  AlertTriangle as TriangleAlertIcon,
+  CheckCircle as FilledCheckedIcon,
+} from 'lucide-react';
 
 const ConnectionStatus = ({
   isConnected,

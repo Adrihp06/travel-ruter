@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Car, Footprints, Bike, Train } from 'lucide-react';
-import AirplaneIcon from '@/components/icons/airplane-icon';
+import { Car, Footprints, Bike, Train, Plane as AirplaneIcon } from 'lucide-react';
 
 // Transport mode configurations (labels resolved via i18n at render time)
 const TRANSPORT_MODES = [

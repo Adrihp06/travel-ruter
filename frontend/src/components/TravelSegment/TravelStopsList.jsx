@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Plus, GripVertical, ChevronUp, Car, Train, Bus, Footprints, Bike, Ship } from 'lucide-react';
-import ClockIcon from '@/components/icons/clock-icon';
-import TrashIcon from '@/components/icons/trash-icon';
-import PenIcon from '@/components/icons/pen-icon';
-import DownChevron from '@/components/icons/down-chevron';
-import AirplaneIcon from '@/components/icons/airplane-icon';
+import {
+  MapPin, Plus, GripVertical, ChevronUp, Car, Train, Bus, Footprints, Bike, Ship,
+  Clock as ClockIcon,
+  Trash2 as TrashIcon,
+  Pencil as PenIcon,
+  ChevronDown as DownChevron,
+  Plane as AirplaneIcon,
+} from 'lucide-react';
 import useTravelStopStore from '../../stores/useTravelStopStore';
 
 const TRAVEL_MODE_ICONS = {

@@ -1,8 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { TrendingUp, TrendingDown } from 'lucide-react';
-import WalletIcon from '@/components/icons/wallet-icon';
-import InfoCircleIcon from '@/components/icons/info-circle-icon';
+import { TrendingUp, TrendingDown, Wallet as WalletIcon, Info as InfoCircleIcon } from 'lucide-react';
 
 const BudgetDisplay = ({ budget, isLoading }) => {
   if (isLoading) {

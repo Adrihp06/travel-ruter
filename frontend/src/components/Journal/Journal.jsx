@@ -10,9 +10,9 @@ import {
   Calendar,
   Filter,
   BookOpen,
+  X as XIcon,
+  Search as MagnifierIcon,
 } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import MagnifierIcon from '@/components/icons/magnifier-icon';
 import useNoteStore from '../../stores/useNoteStore';
 import authFetch from '../../utils/authFetch';
 import NoteCard from './NoteCard';

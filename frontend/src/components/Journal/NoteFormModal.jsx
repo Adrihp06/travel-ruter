@@ -7,8 +7,8 @@ import {
   Lock,
   Unlock,
   Pin,
+  X as XIcon,
 } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
 import RichTextEditor from './RichTextEditor';
 import Spinner from '../UI/Spinner';
 

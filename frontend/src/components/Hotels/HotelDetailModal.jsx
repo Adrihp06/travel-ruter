@@ -5,14 +5,14 @@ import {
   ChevronLeft,
   Bed,
   Map,
+  X as XIcon,
+  Star as StarIcon,
+  Phone as TelephoneIcon,
+  Globe as GlobeIcon,
+  ChevronRight as RightChevron,
+  Info as InfoCircleIcon,
+  Check as CheckedIcon,
 } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import StarIcon from '@/components/icons/star-icon';
-import TelephoneIcon from '@/components/icons/telephone-icon';
-import GlobeIcon from '@/components/icons/globe-icon';
-import RightChevron from '@/components/icons/right-chevron';
-import InfoCircleIcon from '@/components/icons/info-circle-icon';
-import CheckedIcon from '@/components/icons/checked-icon';
 import useHotelSearchStore from '../../stores/useHotelSearchStore';
 import Spinner from '../UI/Spinner';
 

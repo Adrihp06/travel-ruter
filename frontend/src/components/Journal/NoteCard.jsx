@@ -11,11 +11,11 @@ import {
   Smile,
   Lock,
   Unlock,
+  Pencil as PenIcon,
+  Trash2 as TrashIcon,
+  Clock as ClockIcon,
+  Star as StarIcon,
 } from 'lucide-react';
-import PenIcon from '@/components/icons/pen-icon';
-import TrashIcon from '@/components/icons/trash-icon';
-import ClockIcon from '@/components/icons/clock-icon';
-import StarIcon from '@/components/icons/star-icon';
 
 const NoteCard = ({
   note,

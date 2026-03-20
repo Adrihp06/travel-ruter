@@ -1,7 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Car, Footprints, Bike, Train, Ship, Bus } from 'lucide-react';
-import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
-import AirplaneIcon from '@/components/icons/airplane-icon';
+import { ChevronLeft, ChevronRight, Car, Footprints, Bike, Train, Ship, Bus, AlertTriangle as TriangleAlertIcon, Plane as AirplaneIcon } from 'lucide-react';
 import SegmentHoverCard from './SegmentHoverCard';
 
 // Transport mode icons mapping

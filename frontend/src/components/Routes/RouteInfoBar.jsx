@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { MapPin, Footprints } from 'lucide-react';
-import ExternalLinkIcon from '@/components/icons/external-link-icon';
+import { MapPin, Footprints, ExternalLink as ExternalLinkIcon } from 'lucide-react';
 
 // Format duration nicely
 const formatDuration = (minutes) => {

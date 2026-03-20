@@ -1,8 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import RightChevron from '@/components/icons/right-chevron';
-import HomeIcon from '@/components/icons/home-icon';
+import { ChevronRight as RightChevron, Home as HomeIcon } from 'lucide-react';
 import useBreadcrumbData from '../../hooks/useBreadcrumbData';
 
 const LoadingSkeleton = () => (

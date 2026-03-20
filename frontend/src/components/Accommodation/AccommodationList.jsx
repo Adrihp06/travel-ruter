@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bed, Plus } from 'lucide-react';
-import InfoCircleIcon from '@/components/icons/info-circle-icon';
+import { Bed, Plus, Info as InfoCircleIcon } from 'lucide-react';
 import AccommodationCard from './AccommodationCard';
 
 const AccommodationList = ({

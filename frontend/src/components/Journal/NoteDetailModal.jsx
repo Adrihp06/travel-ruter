@@ -14,14 +14,14 @@ import {
   Unlock,
   Upload,
   Download,
+  X as XIcon,
+  Pencil as PenIcon,
+  Trash2 as TrashIcon,
+  Clock as ClockIcon,
+  Star as StarIcon,
+  Globe as GlobeIcon,
+  Check as CheckedIcon,
 } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import PenIcon from '@/components/icons/pen-icon';
-import TrashIcon from '@/components/icons/trash-icon';
-import ClockIcon from '@/components/icons/clock-icon';
-import StarIcon from '@/components/icons/star-icon';
-import GlobeIcon from '@/components/icons/globe-icon';
-import CheckedIcon from '@/components/icons/checked-icon';
 import useNoteStore from '../../stores/useNoteStore';
 import Spinner from '../UI/Spinner';
 

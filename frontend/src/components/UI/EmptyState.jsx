@@ -9,9 +9,9 @@ import {
   Luggage,
   Map,
   Plus,
+  Plane as AirplaneIcon,
+  Sparkles as SparklesIcon,
 } from 'lucide-react';
-import AirplaneIcon from '@/components/icons/airplane-icon';
-import SparklesIcon from '@/components/icons/sparkles-icon';
 
 // SVG Illustrations for different empty states
 const illustrations = {

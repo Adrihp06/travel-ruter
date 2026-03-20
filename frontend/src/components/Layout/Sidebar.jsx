@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Map, Bot, LogOut, FileText } from 'lucide-react';
+import { Map, Bot, LogOut, FileText, Settings as GearIcon, X as XIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import GearIcon from '@/components/icons/gear-icon';
-import XIcon from '@/components/icons/x-icon';
 import useAuthStore from '../../stores/useAuthStore';
 import NotificationBell from '../Notifications/NotificationBell';
 import NotificationPanel from '../Notifications/NotificationPanel';

@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Car, Train, Bus, Footprints, Bike, Ship } from 'lucide-react';
-import AirplaneIcon from '@/components/icons/airplane-icon';
+import { Car, Train, Bus, Footprints, Bike, Ship, Plane as AirplaneIcon } from 'lucide-react';
 
 const TRAVEL_MODES = [
   { id: 'plane', labelKey: 'trips.travelModes.plane', Icon: AirplaneIcon },

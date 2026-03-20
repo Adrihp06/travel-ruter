@@ -6,11 +6,7 @@ import Map, {
   Layer,
   Popup,
 } from 'react-map-gl';
-import { MapPin, Plus, Car, Footprints, Bike, Train, Ship, Bus, Calendar, CircleStop } from 'lucide-react';
-import ExternalLinkIcon from '@/components/icons/external-link-icon';
-import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
-import HomeIcon from '@/components/icons/home-icon';
-import AirplaneIcon from '@/components/icons/airplane-icon';
+import { MapPin, Plus, Car, Footprints, Bike, Train, Ship, Bus, Calendar, CircleStop, ExternalLink as ExternalLinkIcon, AlertTriangle as TriangleAlertIcon, Home as HomeIcon, Plane as AirplaneIcon } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
 import useRouteStore from '../../stores/useRouteStore';

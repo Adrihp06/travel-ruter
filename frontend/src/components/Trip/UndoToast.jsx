@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import ArrowBackUpIcon from '@/components/icons/arrow-back-up-icon';
-import XIcon from '@/components/icons/x-icon';
+import { Undo2 as ArrowBackUpIcon, X as XIcon } from 'lucide-react';
 
 const UndoToast = ({ message, onUndo, onDismiss, duration = 5000 }) => {
   const { t } = useTranslation();

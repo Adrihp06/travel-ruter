@@ -4,8 +4,7 @@
  */
 
 import React from 'react';
-import { MapPin, Compass, Sun, Mountain, Palmtree } from 'lucide-react';
-import AirplaneIcon from '@/components/icons/airplane-icon';
+import { MapPin, Compass, Sun, Mountain, Palmtree, Plane as AirplaneIcon } from 'lucide-react';
 
 // Floating travel icon component
 const FloatingIcon = ({ icon: Icon, delay, duration, startX, startY, color }) => (

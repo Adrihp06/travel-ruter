@@ -17,12 +17,12 @@ import {
   Navigation,
   Lock,
   Infinity,
+  X as XIcon,
+  Check as CheckedIcon,
+  Clock as ClockIcon,
+  AlertTriangle as TriangleAlertIcon,
+  Star as StarIcon,
 } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import CheckedIcon from '@/components/icons/checked-icon';
-import ClockIcon from '@/components/icons/clock-icon';
-import TriangleAlertIcon from '@/components/icons/triangle-alert-icon';
-import StarIcon from '@/components/icons/star-icon';
 import usePOIStore from '../../stores/usePOIStore';
 import {
   generateSmartSchedule,

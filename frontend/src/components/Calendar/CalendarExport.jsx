@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Download, Calendar as CalendarIcon } from 'lucide-react';
-import CheckedIcon from '@/components/icons/checked-icon';
+import { Download, Calendar as CalendarIcon, Check as CheckedIcon } from 'lucide-react';
 import { exportTripToICS } from '../../utils/icsExport';
 
 const CalendarExport = ({ trip, destinations, pois, accommodations }) => {

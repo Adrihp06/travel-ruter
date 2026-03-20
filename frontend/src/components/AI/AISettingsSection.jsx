@@ -5,10 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Bot, Key } from 'lucide-react';
-import RefreshIcon from '@/components/icons/refresh-icon';
-import CheckedIcon from '@/components/icons/checked-icon';
-import InfoCircleIcon from '@/components/icons/info-circle-icon';
+import { Bot, Key, RefreshCw as RefreshIcon, Check as CheckedIcon, Info as InfoCircleIcon } from 'lucide-react';
 import useAIStore from '../../stores/useAIStore';
 import authFetch from '../../utils/authFetch';
 

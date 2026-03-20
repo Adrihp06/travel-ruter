@@ -15,13 +15,13 @@ import {
   Utensils,
   MapPin,
   Calendar,
+  FileText as FileDescriptionIcon,
+  Trash2 as TrashIcon,
+  ExternalLink as ExternalLinkIcon,
+  Eye as EyeIcon,
+  Check as CheckedIcon,
+  Star as StarIcon,
 } from 'lucide-react';
-import FileDescriptionIcon from '@/components/icons/file-description-icon';
-import TrashIcon from '@/components/icons/trash-icon';
-import ExternalLinkIcon from '@/components/icons/external-link-icon';
-import EyeIcon from '@/components/icons/eye-icon';
-import CheckedIcon from '@/components/icons/checked-icon';
-import StarIcon from '@/components/icons/star-icon';
 import { formatDateForDocument } from '../../utils/dateFormat';
 
 const DOCUMENT_TYPE_ICONS = {

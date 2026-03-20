@@ -1,10 +1,12 @@
 import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Upload, Image, MapPin, Calendar } from 'lucide-react';
-import XIcon from '@/components/icons/x-icon';
-import FileDescriptionIcon from '@/components/icons/file-description-icon';
-import InfoCircleIcon from '@/components/icons/info-circle-icon';
-import FilledCheckedIcon from '@/components/icons/filled-checked-icon';
+import {
+  Upload, Image, MapPin, Calendar,
+  X as XIcon,
+  FileText as FileDescriptionIcon,
+  Info as InfoCircleIcon,
+  CheckCircle as FilledCheckedIcon,
+} from 'lucide-react';
 
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, Map, Sun, Monitor, Download, Upload, Save, Route, Calendar, Key } from 'lucide-react';
-import CurrencyDollarIcon from '@/components/icons/currency-dollar-icon';
-import MoonIcon from '@/components/icons/moon-icon';
-import CheckedIcon from '@/components/icons/checked-icon';
-import MagnifierIcon from '@/components/icons/magnifier-icon';
-import GlobeIcon from '@/components/icons/globe-icon';
+import {
+  User, Map, Sun, Monitor, Download, Upload, Save, Route, Calendar, Key,
+  DollarSign as CurrencyDollarIcon,
+  Moon as MoonIcon,
+  Check as CheckedIcon,
+  Search as MagnifierIcon,
+  Globe as GlobeIcon,
+} from 'lucide-react';
 import Breadcrumbs from '../components/Layout/Breadcrumbs';
 import { useTheme } from '../contexts/ThemeContext';
 import { dateLocales, invalidateLocaleCache } from '../utils/dateFormat';

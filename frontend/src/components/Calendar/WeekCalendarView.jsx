@@ -22,10 +22,10 @@ import {
   Footprints,
   Bike,
   Ship,
+  Clock as ClockIcon,
+  Plane as AirplaneIcon,
+  Home as HomeIcon,
 } from 'lucide-react';
-import ClockIcon from '@/components/icons/clock-icon';
-import AirplaneIcon from '@/components/icons/airplane-icon';
-import HomeIcon from '@/components/icons/home-icon';
 import { formatDateWithWeekday } from '../../utils/dateFormat';
 import usePOIStore from '../../stores/usePOIStore';
 import { getTransportIcon } from './calendarUtils';
