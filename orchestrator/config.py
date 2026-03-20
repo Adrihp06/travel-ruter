@@ -364,11 +364,11 @@ class ModelInfo:
 STATIC_MODELS: list[ModelInfo] = [
     # Anthropic (Claude)
     ModelInfo(
-        id="claude-sonnet-4-5-20241022",
-        pydantic_ai_name="anthropic:claude-sonnet-4-5-20241022",
-        display_name="Claude Sonnet 4.5",
+        id="claude-sonnet-4-6",
+        pydantic_ai_name="anthropic:claude-sonnet-4-6",
+        display_name="Claude Sonnet 4.6",
         provider="claude",
-        description="Best balance of speed and intelligence",
+        description="Best combination of speed and intelligence",
     ),
     ModelInfo(
         id="claude-haiku-4-5-20251001",
@@ -377,20 +377,20 @@ STATIC_MODELS: list[ModelInfo] = [
         provider="claude",
         description="Fastest and most affordable",
     ),
-    # OpenAI (Chat + POI Search)
+    # OpenAI
     ModelInfo(
-        id="gpt-5.2",
-        pydantic_ai_name="openai:gpt-5.2",
-        display_name="GPT-5.2",
+        id="gpt-5.4-mini",
+        pydantic_ai_name="openai:gpt-5.4-mini",
+        display_name="GPT-5.4 Mini",
         provider="openai",
-        description="Most capable OpenAI model",
+        description="Compact and capable",
     ),
     ModelInfo(
-        id="gpt-4.1",
-        pydantic_ai_name="openai:gpt-4.1",
-        display_name="GPT-4.1",
+        id="gpt-5.4-nano",
+        pydantic_ai_name="openai:gpt-5.4-nano",
+        display_name="GPT-5.4 Nano",
         provider="openai",
-        description="Reliable and cost-effective",
+        description="Ultra-fast and cost-efficient",
     ),
     # Google (Gemini)
     ModelInfo(
@@ -400,13 +400,6 @@ STATIC_MODELS: list[ModelInfo] = [
         provider="gemini",
         is_default=True,
         description="Cost-efficient frontier intelligence at lightning speed",
-    ),
-    ModelInfo(
-        id="gemini-2.5-flash",
-        pydantic_ai_name="google-gla:gemini-2.5-flash",
-        display_name="Gemini 2.5 Flash",
-        provider="gemini",
-        description="Fast and efficient",
     ),
 ]
 

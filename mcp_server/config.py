@@ -29,7 +29,7 @@ class MCPSettings(BaseSettings):
 
     # OpenAI (for web search via Responses API)
     OPENAI_API_KEY: Optional[str] = None
-    OPENAI_SEARCH_MODEL: str = "gpt-4.1-mini"
+    OPENAI_SEARCH_MODEL: str = "gpt-5.4-nano"
 
     # JWT Authentication (shared SECRET_KEY with backend/orchestrator)
     JWT_SECRET_KEY: Optional[str] = None
