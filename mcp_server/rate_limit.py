@@ -10,6 +10,7 @@ when the window expires. Suitable for single-process deployments.
 """
 
 import logging
+import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -40,6 +41,7 @@ class RateLimitStore:
 
     def __init__(self):
         self._buckets: dict[str, RateBucket] = defaultdict(RateBucket)
+        self._lock = threading.Lock()
 
     def check_and_increment(self, key: str, limit: int) -> tuple[bool, int]:
         """Check if the key is within rate limits and increment the counter.
@@ -48,33 +50,35 @@ class RateLimitStore:
             (allowed, remaining): whether the request is allowed and
             how many requests remain in the window.
         """
-        now = time.monotonic()
-        bucket = self._buckets[key]
+        with self._lock:
+            now = time.monotonic()
+            bucket = self._buckets[key]
 
-        # Reset window if expired
-        if now - bucket.window_start >= WINDOW_SECONDS:
-            bucket.count = 0
-            bucket.window_start = now
+            # Reset window if expired
+            if now - bucket.window_start >= WINDOW_SECONDS:
+                bucket.count = 0
+                bucket.window_start = now
 
-        bucket.count += 1
+            bucket.count += 1
 
-        if bucket.count > limit:
-            remaining = 0
-            return False, remaining
+            if bucket.count > limit:
+                remaining = 0
+                return False, remaining
 
-        remaining = limit - bucket.count
-        return True, remaining
+            remaining = limit - bucket.count
+            return True, remaining
 
     def cleanup_expired(self):
         """Remove expired buckets to prevent memory leaks."""
-        now = time.monotonic()
-        expired = [
-            key
-            for key, bucket in self._buckets.items()
-            if now - bucket.window_start >= WINDOW_SECONDS * 2
-        ]
-        for key in expired:
-            del self._buckets[key]
+        with self._lock:
+            now = time.monotonic()
+            expired = [
+                key
+                for key, bucket in self._buckets.items()
+                if now - bucket.window_start >= WINDOW_SECONDS * 2
+            ]
+            for key in expired:
+                del self._buckets[key]
 
 
 # Singleton store

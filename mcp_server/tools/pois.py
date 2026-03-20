@@ -163,7 +163,7 @@ def register_tools(server: FastMCP):
                             name = p.get("name", "")
                             plat = p.get("latitude", 0)
                             plng = p.get("longitude", 0)
-                            if name and plat and plng:
+                            if name and plat is not None and plng is not None:
                                 coords = await GooglePlacesService.find_place_coordinates(
                                     name, plat, plng
                                 )

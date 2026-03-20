@@ -136,9 +136,9 @@ def calculate_day_travel_time(
     total_seconds = 0.0
 
     # Travel from accommodation to first POI
-    if accommodation and accommodation.latitude and accommodation.longitude:
+    if accommodation and accommodation.latitude is not None and accommodation.longitude is not None:
         first_poi = day_pois[0]
-        if first_poi.latitude and first_poi.longitude:
+        if first_poi.latitude is not None and first_poi.longitude is not None:
             from_id = f"accom_{accommodation.day_number}"
             to_id = f"poi_{first_poi.id}"
 
@@ -224,8 +224,8 @@ def score_poi_for_day(
             score -= 20
 
     # Geographic bonus based on accommodation
-    if poi.latitude and poi.longitude and accommodation:
-        if accommodation.latitude and accommodation.longitude:
+    if poi.latitude is not None and poi.longitude is not None and accommodation:
+        if accommodation.latitude is not None and accommodation.longitude is not None:
             from_id = f"accom_{accommodation.day_number}"
             to_id = f"poi_{poi.id}"
 
@@ -244,9 +244,9 @@ def score_poi_for_day(
                 score += 15 * (1 - travel_to_accom / 10)
 
     # Geographic bonus - proximity to existing POIs
-    if poi.latitude and poi.longitude and day_pois:
+    if poi.latitude is not None and poi.longitude is not None and day_pois:
         last_poi = day_pois[-1]
-        if last_poi.latitude and last_poi.longitude:
+        if last_poi.latitude is not None and last_poi.longitude is not None:
             from_id = f"poi_{last_poi.id}"
             to_id = f"poi_{poi.id}"
 
@@ -290,7 +290,7 @@ def cluster_pois_by_travel_time(
     # Sort POIs by having coordinates first
     sorted_pois = sorted(
         pois,
-        key=lambda p: (0 if p.latitude and p.longitude else 1),
+        key=lambda p: (0 if p.latitude is not None and p.longitude is not None else 1),
     )
 
     for poi in sorted_pois:
@@ -300,11 +300,11 @@ def cluster_pois_by_travel_time(
         cluster = [poi]
         assigned.add(poi.id)
 
-        if poi.latitude and poi.longitude:
+        if poi.latitude is not None and poi.longitude is not None:
             for other in sorted_pois:
                 if other.id in assigned:
                     continue
-                if not other.latitude or not other.longitude:
+                if other.latitude is None or other.longitude is None:
                     continue
 
                 from_id = f"poi_{poi.id}"
