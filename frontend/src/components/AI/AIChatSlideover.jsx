@@ -79,16 +79,26 @@ const ThinkingAfterTools = () => {
   );
 };
 
+// Escape HTML entities to prevent XSS before markdown formatting
+const escapeHtml = (str) =>
+  str.replace(/[<>&"']/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c]));
+
 // Format markdown content to HTML (pure function, used by memoization)
 const formatMarkdown = (content) => {
   if (!content) return '';
-  let formatted = content;
 
-  // Code blocks
-  formatted = formatted.replace(
-    /```(\w*)\n?([\s\S]*?)```/g,
-    '<pre class="my-3 p-4 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-x-auto"><code class="text-sm font-mono text-gray-800 dark:text-gray-200">$2</code></pre>'
-  );
+  // Extract code blocks before escaping so their content stays raw
+  const codeBlocks = [];
+  let formatted = content.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    const placeholder = `%%CODEBLOCK_${codeBlocks.length}%%`;
+    codeBlocks.push(
+      `<pre class="my-3 p-4 rounded-lg bg-gray-100 dark:bg-gray-800 overflow-x-auto"><code class="text-sm font-mono text-gray-800 dark:text-gray-200">${escapeHtml(code)}</code></pre>`
+    );
+    return placeholder;
+  });
+
+  // Escape remaining HTML entities to prevent injection
+  formatted = escapeHtml(formatted);
 
   // Inline code
   formatted = formatted.replace(
@@ -113,7 +123,12 @@ const formatMarkdown = (content) => {
   // Line breaks
   formatted = formatted.replace(/\n/g, '<br />');
 
-  // Sanitize to prevent XSS
+  // Restore code blocks
+  codeBlocks.forEach((block, i) => {
+    formatted = formatted.replace(`%%CODEBLOCK_${i}%%`, block);
+  });
+
+  // Sanitize as a final safety net
   return DOMPurify.sanitize(formatted, {
     ALLOWED_TAGS: ['pre', 'code', 'strong', 'em', 'h2', 'h3', 'li', 'br', 'span', 'p', 'ul', 'ol'],
     ALLOWED_ATTR: ['class'],

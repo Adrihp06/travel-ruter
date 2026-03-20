@@ -946,17 +946,21 @@ const useAIStore = create((set, get) => ({
     // Ensure WebSocket is connected
     if (!isConnected || !_ws) {
       get().connectWebSocket();
-      // Wait for connection
+      // Wait for connection with guaranteed cleanup
       await new Promise((resolve, reject) => {
-        let checkConnection;
-        const timeout = setTimeout(() => {
-          clearInterval(checkConnection);
+        let checkConnection = null;
+        let timeout = null;
+        const cleanup = () => {
+          if (checkConnection) clearInterval(checkConnection);
+          if (timeout) clearTimeout(timeout);
+        };
+        timeout = setTimeout(() => {
+          cleanup();
           reject(new Error('Connection timeout'));
         }, 5000);
         checkConnection = setInterval(() => {
           if (get().isConnected) {
-            clearInterval(checkConnection);
-            clearTimeout(timeout);
+            cleanup();
             resolve();
           }
         }, 100);

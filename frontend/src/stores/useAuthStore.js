@@ -24,8 +24,15 @@ const useAuthStore = create((set, get) => ({
     }
 
     try {
-      // Check if token is expired by decoding payload
-      const payload = JSON.parse(atob(token.split('.')[1]));
+      // Validate JWT structure before decoding
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        localStorage.removeItem('accessToken');
+        set({ isLoading: false, isAuthenticated: false, accessToken: null });
+        return;
+      }
+
+      const payload = JSON.parse(atob(parts[1]));
       const isExpired = payload.exp * 1000 < Date.now();
 
       if (isExpired) {

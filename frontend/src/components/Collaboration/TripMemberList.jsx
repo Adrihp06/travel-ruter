@@ -16,7 +16,7 @@ export default function TripMemberList({ tripId }) {
 
   useEffect(() => {
     if (tripId) fetchMembers(tripId);
-  }, [tripId, fetchMembers]);
+  }, [tripId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isCurrentUserOwner = members.some(
     (m) => m.user_id === currentUser?.id && m.role === 'owner'

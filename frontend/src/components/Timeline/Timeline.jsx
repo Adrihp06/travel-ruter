@@ -98,6 +98,7 @@ const Timeline = ({
     if (over && active.id !== over.id) {
       const oldIndex = sortedDestinations.findIndex((d) => d.id === active.id);
       const newIndex = sortedDestinations.findIndex((d) => d.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
       const newOrder = arrayMove(sortedDestinations, oldIndex, newIndex);
       const newOrderIds = newOrder.map((d) => d.id);
 
