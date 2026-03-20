@@ -162,6 +162,10 @@ def _register_tools(server: FastMCP, transport: str = "stdio"):
     accommodations.register_tools(server)
     notes.register_tools(server)
 
+    # Hotel search and trip export tools
+    from mcp_server.tools import hotels_export
+    hotels_export.register_tools(server)
+
     # Only expose web_search to the internal orchestrator (stdio).
     # Remote clients should use their provider's built-in web search.
     if transport == "stdio":

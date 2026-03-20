@@ -16,6 +16,9 @@ import { registerAccommodationTools } from './tools/accommodations.js';
 import { registerSegmentTools } from './tools/segments.js';
 import { registerBatchTools } from './tools/batch.js';
 import { registerDiscoveryTools } from './tools/discovery.js';
+import { registerHotelTools } from './tools/hotels.js';
+import { registerNoteTools } from './tools/notes.js';
+import { registerPlanningTools } from './tools/planning.js';
 
 // Create the MCP server
 const server = new McpServer({
@@ -31,6 +34,9 @@ registerAccommodationTools(server);
 registerSegmentTools(server);
 registerBatchTools(server);
 registerDiscoveryTools(server);
+registerHotelTools(server);
+registerNoteTools(server);
+registerPlanningTools(server);
 
 // Start the server with stdio transport
 async function main() {

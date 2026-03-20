@@ -25,6 +25,12 @@ import type {
   GeocodingResult,
   POISuggestion,
   WeatherResponse,
+  HotelSearchResult,
+  HotelSearchResponse,
+  HotelDetailResult,
+  NoteCreate,
+  NoteResponse,
+  POIOptimizationResponse,
 } from '../types/schemas.js';
 
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -330,6 +336,86 @@ export class TravelRuterClient {
     return this.request<WeatherResponse>('GET', `/destinations/${destinationId}/weather`, undefined, {
       month,
     });
+  }
+
+  // ============================================================================
+  // Hotel Methods
+  // ============================================================================
+
+  async searchHotels(lat: number, lng: number, params?: {
+    radius?: number;
+    keyword?: string;
+    max_results?: number;
+  }): Promise<HotelSearchResponse> {
+    return this.request<HotelSearchResponse>('GET', '/hotels/discover', undefined, {
+      latitude: lat,
+      longitude: lng,
+      radius: params?.radius,
+      keyword: params?.keyword,
+      max_results: params?.max_results,
+    } as Record<string, string | number | undefined>);
+  }
+
+  async getHotelDetails(placeId: string): Promise<HotelDetailResult> {
+    return this.request<HotelDetailResult>('GET', `/hotels/discover/${placeId}`);
+  }
+
+  // ============================================================================
+  // Notes Methods
+  // ============================================================================
+
+  async createNote(tripId: number, note: NoteCreate): Promise<NoteResponse> {
+    return this.request<NoteResponse>('POST', `/trips/${tripId}/notes`, { ...note, trip_id: tripId });
+  }
+
+  async listNotes(tripId: number, params?: {
+    destination_id?: number;
+    day_number?: number;
+    note_type?: string;
+    is_pinned?: boolean;
+  }): Promise<NoteResponse[]> {
+    const response = await this.request<{ notes: NoteResponse[] }>('GET', `/trips/${tripId}/notes`, undefined, params as Record<string, string | number | undefined>);
+    return response.notes || [];
+  }
+
+  async getNote(noteId: number): Promise<NoteResponse> {
+    return this.request<NoteResponse>('GET', `/notes/${noteId}`);
+  }
+
+  async updateNote(noteId: number, data: Partial<NoteCreate>): Promise<NoteResponse> {
+    return this.request<NoteResponse>('PUT', `/notes/${noteId}`, data);
+  }
+
+  async deleteNote(noteId: number): Promise<void> {
+    return this.request<void>('DELETE', `/notes/${noteId}`);
+  }
+
+  async exportNotesMarkdown(tripId: number): Promise<string> {
+    const url = `${this.baseUrl}/trips/${tripId}/notes/export/markdown`;
+    const headers: Record<string, string> = {};
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error(`Export notes failed: ${res.status}`);
+    return res.text();
+  }
+
+  // ============================================================================
+  // POI Optimization Methods
+  // ============================================================================
+
+  async optimizeDaySchedule(destinationId: number, dayNumber: number, startLocation: {
+    lat: number;
+    lon: number;
+  }, startTime?: string): Promise<POIOptimizationResponse> {
+    return this.request<POIOptimizationResponse>(
+      'POST',
+      `/destinations/${destinationId}/pois/optimize-day`,
+      {
+        day_number: dayNumber,
+        start_location: startLocation,
+        start_time: startTime || '08:00',
+      }
+    );
   }
 }
 

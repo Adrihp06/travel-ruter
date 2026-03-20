@@ -401,3 +401,111 @@ export interface WeatherResponse {
   temperature_unit: string;
   display_text: string;
 }
+
+// ============================================================================
+// Hotel Types
+// ============================================================================
+
+export interface HotelPhoto {
+  url: string;
+  width?: number;
+  height?: number;
+}
+
+export interface HotelSearchResult {
+  place_id: string;
+  name: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  rating?: number;
+  user_ratings_total?: number;
+  photos: HotelPhoto[];
+  types: string[];
+}
+
+export interface HotelSearchResponse {
+  results: HotelSearchResult[];
+  total: number;
+}
+
+export interface HotelReview {
+  author_name?: string;
+  rating?: number;
+  text?: string;
+  relative_time_description?: string;
+}
+
+export interface HotelDetailResult {
+  place_id: string;
+  name: string;
+  address?: string;
+  formatted_address?: string;
+  latitude?: number;
+  longitude?: number;
+  rating?: number;
+  user_ratings_total?: number;
+  photos: HotelPhoto[];
+  types: string[];
+  website?: string;
+  phone_number?: string;
+  google_maps_url?: string;
+  reviews: HotelReview[];
+  opening_hours?: string[];
+}
+
+// ============================================================================
+// Notes Types
+// ============================================================================
+
+export interface NoteCreate {
+  title: string;
+  content?: string;
+  note_type?: 'general' | 'destination' | 'day' | 'poi';
+  destination_id?: number;
+  day_number?: number;
+  poi_id?: number;
+  is_pinned?: boolean;
+  tags?: string[];
+}
+
+export interface NoteResponse {
+  id: number;
+  title: string;
+  content?: string;
+  note_type: string;
+  trip_id: number;
+  destination_id?: number;
+  day_number?: number;
+  poi_id?: number;
+  is_pinned: boolean;
+  tags: string[];
+  media_files: Record<string, unknown>[];
+  created_at: string;
+  updated_at: string;
+}
+
+// ============================================================================
+// POI Optimization Types
+// ============================================================================
+
+export interface OptimizedPOI {
+  id: number;
+  name: string;
+  category: string;
+  latitude: number;
+  longitude: number;
+  dwell_time: number;
+  estimated_arrival: string;
+  estimated_departure: string;
+}
+
+export interface POIOptimizationResponse {
+  optimized_order: number[];
+  total_distance_km: number;
+  total_duration_minutes: number;
+  original_order: number[];
+  pois: POIResponse[];
+  schedule: OptimizedPOI[];
+  start_time: string;
+}
