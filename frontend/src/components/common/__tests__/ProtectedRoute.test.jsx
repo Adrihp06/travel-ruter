@@ -14,7 +14,7 @@ describe('ProtectedRoute', () => {
   it('renders children when authenticated', () => {
     useAuthStore.mockImplementation((selector) => {
       const state = { isAuthenticated: true, isLoading: false };
-      return selector(state);
+      return typeof selector === 'function' ? selector(state) : state;
     });
 
     render(
@@ -29,7 +29,7 @@ describe('ProtectedRoute', () => {
   it('shows spinner when loading', () => {
     useAuthStore.mockImplementation((selector) => {
       const state = { isAuthenticated: false, isLoading: true };
-      return selector(state);
+      return typeof selector === 'function' ? selector(state) : state;
     });
 
     render(
@@ -44,7 +44,7 @@ describe('ProtectedRoute', () => {
   it('redirects to login when unauthenticated', () => {
     useAuthStore.mockImplementation((selector) => {
       const state = { isAuthenticated: false, isLoading: false };
-      return selector(state);
+      return typeof selector === 'function' ? selector(state) : state;
     });
 
     render(
