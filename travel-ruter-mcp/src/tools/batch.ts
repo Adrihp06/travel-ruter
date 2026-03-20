@@ -239,9 +239,24 @@ export function registerBatchTools(server: McpServer): void {
     async (args) => {
       try {
         const client = getClient();
+
+        // Check for duplicates against existing POIs
+        const existingPoisByCategory = await client.listPOIs(args.destination_id);
+        const existingNames = new Set(
+          existingPoisByCategory.flatMap(c => c.pois?.map(p => p.name.toLowerCase().trim()) || [])
+        );
+
         const createdPois: POIResponse[] = [];
+        const skippedDuplicates: string[] = [];
 
         for (const poiInput of args.pois) {
+          const normalizedName = poiInput.name.toLowerCase().trim();
+          if (existingNames.has(normalizedName)) {
+            skippedDuplicates.push(poiInput.name);
+            continue;
+          }
+          existingNames.add(normalizedName);
+
           const poi = await client.createPOI({
             ...poiInput,
             destination_id: args.destination_id,
@@ -253,10 +268,11 @@ export function registerBatchTools(server: McpServer): void {
           (sum, p) => sum + (p.estimated_cost || 0), 0
         );
 
-        const result: AddPoisBatchResult = {
+        const result: AddPoisBatchResult & { skipped_duplicates: string[] } = {
           destination_id: args.destination_id,
           created: createdPois,
           total_estimated_cost: totalEstimatedCost,
+          skipped_duplicates: skippedDuplicates,
         };
 
         return {

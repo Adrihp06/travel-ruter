@@ -22,6 +22,9 @@ import type {
   TravelSegmentResponse,
   TravelSegmentCalculateRequest,
   TripTravelSegmentsResponse,
+  GeocodingResult,
+  POISuggestion,
+  WeatherResponse,
 } from '../types/schemas.js';
 
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -280,6 +283,53 @@ export class TravelRuterClient {
 
   async deleteTravelSegment(segmentId: number): Promise<void> {
     return this.request<void>('DELETE', `/travel-segments/${segmentId}`);
+  }
+
+  // ============================================================================
+  // Geocoding Methods
+  // ============================================================================
+
+  async searchLocations(query: string, limit?: number, lang?: string): Promise<GeocodingResult[]> {
+    const response = await this.request<{ results: GeocodingResult[] }>('GET', '/geocoding/search', undefined, {
+      q: query,
+      limit: limit || 5,
+      lang: lang || 'en',
+    });
+    return response.results || [];
+  }
+
+  // ============================================================================
+  // POI Suggestions Methods
+  // ============================================================================
+
+  async getPoiSuggestions(destinationId: number, params?: {
+    radius?: number;
+    category_filter?: string;
+    trip_type?: string;
+    max_results?: number;
+  }): Promise<POISuggestion[]> {
+    const response = await this.request<{ suggestions: POISuggestion[] }>(
+      'GET',
+      `/destinations/${destinationId}/pois/suggestions`,
+      undefined,
+      {
+        radius: params?.radius,
+        category_filter: params?.category_filter,
+        trip_type: params?.trip_type,
+        max_results: params?.max_results,
+      } as Record<string, string | number | undefined>
+    );
+    return response.suggestions || [];
+  }
+
+  // ============================================================================
+  // Weather Methods
+  // ============================================================================
+
+  async getDestinationWeather(destinationId: number, month?: number): Promise<WeatherResponse> {
+    return this.request<WeatherResponse>('GET', `/destinations/${destinationId}/weather`, undefined, {
+      month,
+    });
   }
 }
 

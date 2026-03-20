@@ -1,5 +1,6 @@
 from typing import List
 from datetime import date, timedelta
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,8 @@ from app.models.user import User
 from app.services.geocoding_service import GeocodingService
 from app.services.activity_service import log_activity
 from app.api.permissions import check_trip_membership
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -173,8 +176,8 @@ async def create_accommodation(
             if results:
                 latitude = results[0].latitude
                 longitude = results[0].longitude
-        except Exception:
-            pass  # Geocoding failure is not fatal
+        except Exception as e:
+            logger.warning("Geocoding failed for accommodation address '%s': %s", acc_data["address"], e)
 
     db_accommodation = Accommodation(**acc_data)
 
@@ -335,8 +338,8 @@ async def update_accommodation(
             if results:
                 latitude = results[0].latitude
                 longitude = results[0].longitude
-        except Exception:
-            pass  # Geocoding failure is not fatal
+        except Exception as e:
+            logger.warning("Geocoding failed for accommodation address '%s': %s", update_data["address"], e)
 
     # Validate dates if both are being updated
     check_in = update_data.get('check_in_date', db_accommodation.check_in_date)

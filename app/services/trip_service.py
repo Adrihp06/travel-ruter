@@ -11,7 +11,7 @@ from app.models.poi import POI
 from app.models.accommodation import Accommodation
 from app.models.document import Document
 from app.models.trip_member import TripMember
-from app.schemas.trip import TripCreate, TripUpdate, BudgetSummary, TripDuplicateRequest
+from app.schemas.trip import TripCreate, TripUpdate, BudgetSummary, TripDuplicateRequest, DestinationBudget
 
 
 class TripService:
@@ -259,6 +259,46 @@ class TripService:
         estimated_total = poi_estimated + accommodation_total
         actual_total = poi_actual
 
+        # Per-destination breakdown
+        dest_poi_result = await db.execute(
+            select(
+                Destination.id,
+                Destination.city_name,
+                func.coalesce(func.sum(POI.estimated_cost), 0).label('poi_estimated'),
+                func.coalesce(func.sum(POI.actual_cost), 0).label('poi_actual'),
+            )
+            .select_from(Destination)
+            .outerjoin(POI, POI.destination_id == Destination.id)
+            .where(Destination.trip_id == trip_id)
+            .group_by(Destination.id, Destination.city_name)
+            .order_by(Destination.order_index)
+        )
+        dest_acc_result = await db.execute(
+            select(
+                Destination.id,
+                func.coalesce(func.sum(Accommodation.total_cost), 0).label('acc_total'),
+            )
+            .select_from(Destination)
+            .outerjoin(Accommodation, Accommodation.destination_id == Destination.id)
+            .where(Destination.trip_id == trip_id)
+            .group_by(Destination.id)
+        )
+        acc_by_dest = {row.id: Decimal(str(row.acc_total)) for row in dest_acc_result}
+
+        by_destination = []
+        for row in dest_poi_result:
+            d_poi_est = Decimal(str(row.poi_estimated))
+            d_poi_act = Decimal(str(row.poi_actual))
+            d_acc = acc_by_dest.get(row.id, Decimal("0"))
+            by_destination.append(DestinationBudget(
+                destination_id=row.id,
+                city_name=row.city_name or f"Destination {row.id}",
+                poi_estimated=d_poi_est,
+                poi_actual=d_poi_act,
+                accommodation_total=d_acc,
+                subtotal=d_poi_est + d_acc,
+            ))
+
         # remaining_budget uses estimated_total so users see projected spend
         remaining_budget = None
         budget_percentage = None
@@ -276,6 +316,7 @@ class TripService:
             poi_estimated=poi_estimated,
             poi_actual=poi_actual,
             accommodation_total=accommodation_total,
+            by_destination=by_destination,
         )
 
     @staticmethod

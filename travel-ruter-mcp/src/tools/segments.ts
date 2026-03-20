@@ -17,6 +17,30 @@ function slimSegment(segment: Record<string, unknown>): Record<string, unknown> 
   return slim;
 }
 
+/**
+ * Generate travel warnings for long journeys.
+ */
+function getTravelWarnings(mode: string, durationMinutes?: number): string {
+  if (!durationMinutes) return '';
+  const hours = durationMinutes / 60;
+  const warnings: string[] = [];
+
+  if (mode === 'car' && hours > 4) {
+    warnings.push(`⚠️ Long drive (${hours.toFixed(1)}h). Consider splitting into segments with rest stops, or switching to train.`);
+  }
+  if (mode === 'train' && hours > 6) {
+    warnings.push(`⚠️ Long train journey (${hours.toFixed(1)}h). Consider a night train or breaking the trip with an overnight stop.`);
+  }
+  if (mode === 'bus' && hours > 3) {
+    warnings.push(`⚠️ Long bus ride (${hours.toFixed(1)}h). Train may be faster and more comfortable for this distance.`);
+  }
+  if ((mode === 'car' || mode === 'bus') && hours > 8) {
+    warnings.push(`🛑 Very long journey (${hours.toFixed(1)}h). Strongly recommend flying or adding an intermediate stop.`);
+  }
+
+  return warnings.join('\n');
+}
+
 export function registerSegmentTools(server: McpServer): void {
   // Calculate Travel Segment
   server.registerTool(
@@ -38,8 +62,11 @@ export function registerSegmentTools(server: McpServer): void {
           args.to_destination_id,
           { travel_mode: args.travel_mode }
         );
+        const slim = slimSegment(segment as unknown as Record<string, unknown>);
+        const warnings = getTravelWarnings(args.travel_mode, slim.duration_minutes as number | undefined);
+        const text = JSON.stringify(slim, null, 2) + (warnings ? `\n\n${warnings}` : '');
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(slimSegment(segment as unknown as Record<string, unknown>), null, 2) }],
+          content: [{ type: 'text' as const, text }],
         };
       } catch (error) {
         return {

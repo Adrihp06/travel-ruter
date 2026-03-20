@@ -15,6 +15,7 @@ import { registerPOITools } from './tools/pois.js';
 import { registerAccommodationTools } from './tools/accommodations.js';
 import { registerSegmentTools } from './tools/segments.js';
 import { registerBatchTools } from './tools/batch.js';
+import { registerDiscoveryTools } from './tools/discovery.js';
 
 // Create the MCP server
 const server = new McpServer({
@@ -29,6 +30,7 @@ registerPOITools(server);
 registerAccommodationTools(server);
 registerSegmentTools(server);
 registerBatchTools(server);
+registerDiscoveryTools(server);
 
 // Start the server with stdio transport
 async function main() {

@@ -59,6 +59,15 @@ export interface TripWithDestinationsResponse extends TripResponse {
   destinations: DestinationResponse[];
 }
 
+export interface DestinationBudget {
+  destination_id: number;
+  city_name: string;
+  poi_estimated: number;
+  poi_actual: number;
+  accommodation_total: number;
+  subtotal: number;
+}
+
 export interface BudgetSummary {
   total_budget: number;
   estimated_total: number;
@@ -68,6 +77,7 @@ export interface BudgetSummary {
   poi_estimated: number;
   poi_actual: number;
   accommodation_total: number;
+  by_destination: DestinationBudget[];
 }
 
 // ============================================================================
@@ -342,4 +352,52 @@ export interface PaginatedResponse<T> {
 
 export interface ApiError {
   detail: string;
+}
+
+// ============================================================================
+// Geocoding Types
+// ============================================================================
+
+export interface GeocodingResult {
+  place_id: string;
+  display_name: string;
+  latitude: number;
+  longitude: number;
+  type: string;
+  importance: number;
+}
+
+// ============================================================================
+// POI Suggestion Types
+// ============================================================================
+
+export interface POISuggestion {
+  name: string;
+  category: string;
+  address?: string;
+  latitude: number;
+  longitude: number;
+  external_id?: string;
+  external_source?: string;
+  metadata?: {
+    rating?: number;
+    user_ratings_total?: number;
+    price_level?: number;
+    opening_hours?: { open_now?: boolean };
+    business_status?: string;
+  };
+}
+
+// ============================================================================
+// Weather Types
+// ============================================================================
+
+export interface WeatherResponse {
+  destination_id: number;
+  city_name: string;
+  month: number;
+  month_name: string;
+  average_temperature: number | null;
+  temperature_unit: string;
+  display_text: string;
 }

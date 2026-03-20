@@ -43,6 +43,8 @@ class TravelSegmentResponse(TravelSegmentBase):
     route_geometry: Optional[dict[str, Any]] = Field(None, description="GeoJSON LineString geometry for the route")
     is_fallback: bool = Field(False, description="True if route is from fallback service (car route when transit unavailable)")
     route_legs: Optional[list[dict[str, Any]]] = Field(None, description="Per-leg route data when stops have different travel modes")
+    estimated_cost: Optional[float] = Field(None, description="Estimated cost for this travel segment")
+    cost_currency: Optional[str] = Field(None, max_length=3, description="Currency for estimated_cost")
     created_at: datetime
     updated_at: datetime
 

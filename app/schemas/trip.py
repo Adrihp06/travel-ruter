@@ -105,6 +105,16 @@ class TripWithDestinationsResponse(TripResponse):
     destinations: List[DestinationResponse] = Field(default_factory=list, description="List of destinations in this trip")
 
 
+class DestinationBudget(BaseModel):
+    """Budget breakdown for a single destination"""
+    destination_id: int
+    city_name: str
+    poi_estimated: Decimal = Field(default=Decimal("0"))
+    poi_actual: Decimal = Field(default=Decimal("0"))
+    accommodation_total: Decimal = Field(default=Decimal("0"))
+    subtotal: Decimal = Field(default=Decimal("0"))
+
+
 class BudgetSummary(BaseModel):
     """Schema for budget summary response"""
     total_budget: Optional[Decimal] = Field(None, description="Total trip budget set by user")
@@ -118,6 +128,9 @@ class BudgetSummary(BaseModel):
     poi_estimated: Decimal = Field(default=Decimal("0"), description="Estimated costs from POIs only")
     poi_actual: Decimal = Field(default=Decimal("0"), description="Actual costs from POIs only")
     accommodation_total: Decimal = Field(default=Decimal("0"), description="Total accommodation costs")
+
+    # Per-destination breakdown
+    by_destination: list[DestinationBudget] = Field(default_factory=list, description="Budget breakdown per destination")
 
     model_config = ConfigDict(from_attributes=True)
 

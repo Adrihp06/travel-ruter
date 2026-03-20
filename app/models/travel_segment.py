@@ -66,6 +66,8 @@ class TravelSegment(BaseModel):
         nullable=True,
         comment="Per-leg route data when stops have different travel modes"
     )
+    estimated_cost = Column(Float, nullable=True, comment="Estimated cost for this travel segment")
+    cost_currency = Column(String(3), nullable=True, comment="Currency for estimated_cost (e.g., EUR, USD)")
 
     # Relationships
     trip = relationship("Trip", foreign_keys=[trip_id])
