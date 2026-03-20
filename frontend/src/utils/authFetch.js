@@ -1,6 +1,5 @@
 import useAuthStore from '../stores/useAuthStore';
 
-let isRefreshing = false;
 let refreshPromise = null;
 
 /**
@@ -22,28 +21,29 @@ const authFetch = async (url, options = {}) => {
 
   // Handle 401 — try token refresh once
   if (response.status === 401 && token && !options._retried) {
-    // Deduplicate concurrent refresh calls
-    if (!isRefreshing) {
-      isRefreshing = true;
+    // Deduplicate: reuse an in-flight refresh promise if one exists
+    if (!refreshPromise) {
       refreshPromise = useAuthStore.getState().refreshAccessToken?.()
-        .finally(() => { isRefreshing = false; refreshPromise = null; });
+        .finally(() => { refreshPromise = null; });
     }
 
     try {
-      await refreshPromise;
-      const newToken = useAuthStore.getState().accessToken;
-      if (newToken && newToken !== token) {
-        // Retry with new token
-        const retryHeaders = { ...(options.headers || {}), 'Authorization': `Bearer ${newToken}` };
-        if (options.body && typeof options.body === 'string' && !retryHeaders['Content-Type']) {
-          retryHeaders['Content-Type'] = 'application/json';
+      const refreshed = await refreshPromise;
+      if (refreshed) {
+        const newToken = useAuthStore.getState().accessToken;
+        if (newToken && newToken !== token) {
+          const retryHeaders = { ...(options.headers || {}), 'Authorization': `Bearer ${newToken}` };
+          if (options.body && typeof options.body === 'string' && !retryHeaders['Content-Type']) {
+            retryHeaders['Content-Type'] = 'application/json';
+          }
+          return fetch(url, { ...options, headers: retryHeaders, _retried: true });
         }
-        return fetch(url, { ...options, headers: retryHeaders, _retried: true });
       }
     } catch {
-      // Refresh failed — logout
-      useAuthStore.getState().logout?.();
+      // Refresh failed — fall through, return original 401
     }
+    // Refresh failed or returned no new token — logout
+    useAuthStore.getState().logout?.();
   }
 
   return response;

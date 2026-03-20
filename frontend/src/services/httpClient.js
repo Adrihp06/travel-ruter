@@ -234,6 +234,9 @@ const request = async (url, options = {}) => {
           response.status,
           data
         );
+        // Attach request context snapshot so response interceptors can retry
+        error._requestUrl = url;
+        error._requestConfig = { ...config };
 
         // Run error interceptors
         for (const { onRejected } of responseInterceptors) {

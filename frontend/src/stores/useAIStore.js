@@ -984,6 +984,10 @@ const useAIStore = create((set, get) => ({
 
     // Send via WebSocket — include destinationId hint for cross-check
     try {
+      const ws = get()._ws;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        throw new Error('WebSocket is not connected');
+      }
       const payload = {
         type: 'chat',
         sessionId: currentSessionId,
@@ -992,7 +996,7 @@ const useAIStore = create((set, get) => ({
       if (destinationContext?.id) {
         payload.destinationId = destinationContext.id;
       }
-      get()._ws.send(JSON.stringify(payload));
+      ws.send(JSON.stringify(payload));
     } catch (error) {
       console.error('Failed to send message:', error);
       set({ isLoading: false });

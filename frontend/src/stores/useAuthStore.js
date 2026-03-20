@@ -95,7 +95,7 @@ const useAuthStore = create((set, get) => ({
   _isRefreshing: false,
 
   refreshAccessToken: async () => {
-    if (get()._isRefreshing) return;
+    if (get()._isRefreshing) return false;
     set({ _isRefreshing: true });
     try {
       const resp = await fetch(`${API_BASE}/auth/refresh`, {
@@ -107,14 +107,16 @@ const useAuthStore = create((set, get) => ({
       localStorage.setItem('accessToken', data.access_token);
       set({ accessToken: data.access_token });
       await get().fetchUser();
+      return true;
     } catch {
       // If refresh fails and CF Access is active, try CF Access as fallback
       if (CF_ACCESS_ENABLED) {
         const success = await get().loginWithCloudflareAccess();
-        if (success) return;
+        if (success) return true;
       }
       set({ isLoading: false, isAuthenticated: false, accessToken: null, user: null });
       localStorage.removeItem('accessToken');
+      return false;
     } finally {
       set({ _isRefreshing: false });
     }
