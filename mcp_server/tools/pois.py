@@ -495,8 +495,26 @@ def register_tools(server: FastMCP):
                             },
                         }
 
-                    # Refine coordinates via Google Places API
-                    if name and latitude is not None and longitude is not None:
+                    # Geocode/refine coordinates via Google Places API
+                    if name and latitude is None and longitude is None:
+                        # No coordinates — use destination coords as bias for lookup
+                        bias_lat = dest.latitude
+                        bias_lng = dest.longitude
+                        if bias_lat is not None and bias_lng is not None:
+                            try:
+                                places_service = get_google_places_service()
+                                if places_service and places_service._has_api_key:
+                                    refined = await GooglePlacesService.find_place_coordinates(
+                                        name, bias_lat, bias_lng
+                                    )
+                                    if refined:
+                                        latitude, longitude = refined
+                                        logger.info("Geocoded POI '%s' via Google Places → (%s, %s)", name, latitude, longitude)
+                            except Exception as e:
+                                logger.warning("Google geocoding failed for POI '%s': %s", name, e)
+
+                    elif name and latitude is not None and longitude is not None:
+                        # Refine user-provided coordinates via Google Places
                         try:
                             places_service = get_google_places_service()
                             if places_service and places_service._has_api_key:

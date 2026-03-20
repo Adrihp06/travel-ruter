@@ -10,7 +10,7 @@ from datetime import date
 
 from mcp.server.fastmcp import FastMCP, Context
 
-from mcp_server.context import get_geocoding_service, get_db_session
+from mcp_server.context import get_geocoding_service, get_google_places_service, get_db_session
 from mcp_server.auth import get_user_id_from_context, verify_trip_access
 from mcp_server.schemas.destinations import (
     SearchDestinationsInput,
@@ -312,6 +312,35 @@ def register_tools(server: FastMCP):
                             },
                         }
 
+                    # Geocode/refine coordinates via Google Places API
+                    geo_query = f"{city_name}, {country}" if country else city_name
+                    if latitude is None or longitude is None:
+                        # No coordinates provided — geocode from city name
+                        try:
+                            GeocodingService = get_geocoding_service()
+                            results = await GeocodingService.search(query=geo_query, limit=1)
+                            if results:
+                                latitude = results[0].latitude
+                                longitude = results[0].longitude
+                                logger.info("Geocoded destination '%s' → (%s, %s)", geo_query, latitude, longitude)
+                        except Exception as e:
+                            logger.warning("Geocoding failed for '%s': %s", geo_query, e)
+
+                    if latitude is not None and longitude is not None:
+                        # Refine coordinates via Google Places Find Place API
+                        try:
+                            from app.services.google_places_service import GooglePlacesService
+                            places_service = get_google_places_service()
+                            if places_service and places_service._has_api_key:
+                                refined = await GooglePlacesService.find_place_coordinates(
+                                    geo_query, latitude, longitude
+                                )
+                                if refined:
+                                    latitude, longitude = refined
+                                    logger.info("Refined destination '%s' → (%s, %s)", geo_query, latitude, longitude)
+                        except Exception as e:
+                            logger.warning("Google coordinate refinement failed for '%s': %s", geo_query, e)
+
                     db_dest = Destination(
                         trip_id=trip_id,
                         city_name=city_name,
@@ -427,7 +456,50 @@ def register_tools(server: FastMCP):
                         db_dest.longitude = longitude
 
                     # Update PostGIS coordinates if both provided
-                    if latitude is not None and longitude is not None:
+                    # Geocode if city_name changed but no coordinates given
+                    eff_lat = latitude if latitude is not None else db_dest.latitude
+                    eff_lng = longitude if longitude is not None else db_dest.longitude
+                    eff_city = city_name or db_dest.city_name
+                    eff_country = country or db_dest.country
+
+                    if city_name is not None and latitude is None and longitude is None:
+                        # City changed without new coords — geocode
+                        geo_query = f"{eff_city}, {eff_country}" if eff_country else eff_city
+                        try:
+                            GeocodingService = get_geocoding_service()
+                            results = await GeocodingService.search(query=geo_query, limit=1)
+                            if results:
+                                eff_lat = results[0].latitude
+                                eff_lng = results[0].longitude
+                                db_dest.latitude = eff_lat
+                                db_dest.longitude = eff_lng
+                                logger.info("Geocoded updated destination '%s' → (%s, %s)", geo_query, eff_lat, eff_lng)
+                        except Exception as e:
+                            logger.warning("Geocoding failed for '%s': %s", geo_query, e)
+
+                    if eff_lat is not None and eff_lng is not None and (
+                        latitude is not None or longitude is not None or city_name is not None
+                    ):
+                        # Refine via Google Places
+                        geo_query = f"{eff_city}, {eff_country}" if eff_country else eff_city
+                        try:
+                            from app.services.google_places_service import GooglePlacesService
+                            places_service = get_google_places_service()
+                            if places_service and places_service._has_api_key:
+                                refined = await GooglePlacesService.find_place_coordinates(
+                                    geo_query, eff_lat, eff_lng
+                                )
+                                if refined:
+                                    eff_lat, eff_lng = refined
+                                    db_dest.latitude = eff_lat
+                                    db_dest.longitude = eff_lng
+                        except Exception as e:
+                            logger.warning("Google refinement failed for '%s': %s", geo_query, e)
+
+                        db_dest.coordinates = ST_SetSRID(
+                            ST_MakePoint(eff_lng, eff_lat), 4326
+                        )
+                    elif latitude is not None and longitude is not None:
                         db_dest.coordinates = ST_SetSRID(
                             ST_MakePoint(longitude, latitude), 4326
                         )
