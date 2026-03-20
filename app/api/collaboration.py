@@ -17,7 +17,7 @@ from app.schemas.collaboration import (
     InvitationResponse,
 )
 from app.api.deps import get_current_user
-from app.api.permissions import require_owner
+from app.api.permissions import require_owner, require_viewer
 
 router = APIRouter(tags=["collaboration"])
 
@@ -102,8 +102,8 @@ async def invite_member(
 @router.get("/trips/{trip_id}/members", response_model=List[TripMemberResponse])
 async def list_members(
     trip_id: int,
-    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_viewer),
 ):
     stmt = (
         select(TripMember, User)

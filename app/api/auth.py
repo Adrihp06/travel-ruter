@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 
+from sqlalchemy import select
+
 from app.core.database import get_db
 from app.core.config import settings
 from app.models.user import User
@@ -91,13 +93,21 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
     if not userinfo:
         userinfo = await oauth.google.userinfo(token=token)
 
+    email = userinfo.get("email")
+    oauth_id = userinfo.get("sub")
+    if not email or not oauth_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OAuth provider did not return required email or sub fields",
+        )
+
     user = await get_or_create_user(
         db,
-        email=userinfo["email"],
+        email=email,
         name=userinfo.get("name"),
         avatar_url=userinfo.get("picture"),
         oauth_provider="google",
-        oauth_id=str(userinfo["sub"]),
+        oauth_id=str(oauth_id),
     )
 
     access_token = create_access_token(user.id)
@@ -106,7 +116,7 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
     # Access token in URL for SPA consumption (short-lived, consumed immediately).
     # Refresh token as HttpOnly cookie (long-lived, never exposed to JS).
     response = Response(status_code=status.HTTP_302_FOUND)
-    response.headers["location"] = f"{settings.FRONTEND_URL}/auth/callback?access_token={access_token}"
+    response.headers["location"] = f"{settings.FRONTEND_URL}/auth/callback#access_token={access_token}"
     _set_refresh_cookie(response, refresh_token)
     return response
 
@@ -125,13 +135,26 @@ async def github_callback(request: Request, db: AsyncSession = Depends(get_db)):
     resp = await oauth.github.get("user", token=token)
     profile = resp.json()
 
+    oauth_id = profile.get("id")
+    if not oauth_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OAuth provider did not return required id field",
+        )
+
     # Get email (may need separate call if profile email is null)
     email = profile.get("email")
     if not email:
         emails_resp = await oauth.github.get("user/emails", token=token)
         emails = emails_resp.json()
         primary = next((e for e in emails if e.get("primary")), emails[0] if emails else None)
-        email = primary["email"] if primary else f"{profile['id']}@github.noreply.com"
+        email = primary.get("email") if primary else f"{oauth_id}@github.noreply.com"
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OAuth provider did not return an email address",
+        )
 
     user = await get_or_create_user(
         db,
@@ -139,14 +162,14 @@ async def github_callback(request: Request, db: AsyncSession = Depends(get_db)):
         name=profile.get("name") or profile.get("login"),
         avatar_url=profile.get("avatar_url"),
         oauth_provider="github",
-        oauth_id=str(profile["id"]),
+        oauth_id=str(oauth_id),
     )
 
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)
 
     response = Response(status_code=status.HTTP_302_FOUND)
-    response.headers["location"] = f"{settings.FRONTEND_URL}/auth/callback?access_token={access_token}"
+    response.headers["location"] = f"{settings.FRONTEND_URL}/auth/callback#access_token={access_token}"
     _set_refresh_cookie(response, refresh_token)
     return response
 
@@ -174,6 +197,14 @@ async def refresh_tokens(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
 
     user_id = int(payload["sub"])
+
+    # Verify user still exists and is active before issuing new tokens
+    stmt = select(User).where(User.id == user_id)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
+
     new_access = create_access_token(user_id)
     new_refresh = create_refresh_token(user_id)
     _set_refresh_cookie(response, new_refresh)

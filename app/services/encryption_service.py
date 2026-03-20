@@ -16,7 +16,10 @@ def encrypt(plaintext: str) -> str:
 
 def decrypt(encrypted: str) -> str:
     f = _get_fernet()
-    return f.decrypt(encrypted.encode()).decode()
+    try:
+        return f.decrypt(encrypted.encode()).decode()
+    except InvalidToken:
+        raise ValueError("Encrypted data is corrupted or was encrypted with a different key")
 
 
 def mask_key(key: str) -> str:

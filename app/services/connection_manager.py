@@ -58,7 +58,7 @@ class ConnectionManager:
 
     async def push_notification(self, user_id: int, notification: dict):
         """Push notification to user across all their trip connections."""
-        for trip_id, connections in self._connections.items():
+        for trip_id, connections in list(self._connections.items()):
             if user_id in connections:
                 await self.send_to_user(trip_id, user_id, {
                     "type": "notification",

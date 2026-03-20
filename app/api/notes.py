@@ -500,6 +500,12 @@ async def get_note_media(
     current_user: User = Depends(get_current_user),
 ):
     """Get a media file from a note"""
+    if '/' in filename or '\\' in filename or '..' in filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid filename",
+        )
+
     note = await NoteService.get_note(db, note_id)
     if not note:
         raise HTTPException(

@@ -4,6 +4,7 @@ from typing import Optional
 
 from jose import jwt, JWTError, ExpiredSignatureError
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -77,7 +78,7 @@ async def get_or_create_user(
             f"Email {email} already registered with provider {existing.oauth_provider}"
         )
 
-    # Create new user
+    # Create new user — handle race condition where concurrent request creates same user
     user = User(
         email=email,
         name=name,
@@ -86,8 +87,25 @@ async def get_or_create_user(
         oauth_id=oauth_id,
         is_active=True,
     )
-    db.add(user)
-    await db.flush()
+    try:
+        db.add(user)
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        # Re-fetch the user that was created concurrently
+        stmt = select(User).where(
+            User.oauth_provider == oauth_provider,
+            User.oauth_id == oauth_id,
+        )
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user:
+            # Fallback: try by email
+            stmt = select(User).where(User.email == email)
+            result = await db.execute(stmt)
+            user = result.scalar_one_or_none()
+        if not user:
+            raise
     await db.refresh(user)
     return user
 

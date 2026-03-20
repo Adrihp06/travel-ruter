@@ -1,16 +1,19 @@
 import { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/useAuthStore';
 
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const handleCallback = useAuthStore((s) => s.handleCallback);
 
   useEffect(() => {
     const processCallback = async () => {
-      const token = searchParams.get('access_token');
+      // Read token from URL fragment (not query param) to prevent server-side logging
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const token = params.get('access_token');
       if (token) {
+        window.history.replaceState(null, '', window.location.pathname);
         await handleCallback(token);
         navigate('/trips', { replace: true });
       } else {
@@ -18,7 +21,7 @@ export default function AuthCallbackPage() {
       }
     };
     processCallback();
-  }, [searchParams, handleCallback, navigate]);
+  }, [handleCallback, navigate]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">

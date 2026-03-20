@@ -53,7 +53,14 @@ async def trip_websocket(
 
     try:
         while True:
-            data = await websocket.receive_json()
+            try:
+                data = await websocket.receive_json()
+            except (ValueError, TypeError):
+                await websocket.send_json({"type": "error", "detail": "Invalid JSON"})
+                continue
+            if not isinstance(data, dict):
+                await websocket.send_json({"type": "error", "detail": "Expected JSON object"})
+                continue
             # Handle incoming messages (e.g., typing indicators)
             if data.get("type") == "ping":
                 await websocket.send_json({"type": "pong"})

@@ -47,7 +47,17 @@ async def get_current_user(
     # Check for internal service auth first (orchestrator → backend)
     internal_key = request.headers.get("X-Internal-Key")
     user_id_header = request.headers.get("X-User-Id")
-    if internal_key and user_id_header and _INTERNAL_SERVICE_KEY:
+    if internal_key or user_id_header:
+        if not _INTERNAL_SERVICE_KEY:
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="Internal service authentication is not configured",
+            )
+        if not internal_key or not user_id_header:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Both X-Internal-Key and X-User-Id headers are required",
+            )
         if not compare_digest(internal_key, _INTERNAL_SERVICE_KEY):
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid service key")
         try:

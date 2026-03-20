@@ -298,9 +298,6 @@ async def reorder_destinations(
     # Invalidate origin/return segments (reorder may change first/last destination)
     await TravelSegmentService.invalidate_origin_return_segments(db, trip_id)
 
-    # Commit changes to database
-    await db.commit()
-
     # Refresh all destinations and return in new order
     reordered = []
     for dest_id in reorder_request.destination_ids:
