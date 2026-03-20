@@ -65,6 +65,9 @@ export interface BudgetSummary {
   actual_total: number;
   remaining_budget: number;
   budget_percentage: number;
+  poi_estimated: number;
+  poi_actual: number;
+  accommodation_total: number;
 }
 
 // ============================================================================

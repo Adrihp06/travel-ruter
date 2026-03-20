@@ -36,8 +36,11 @@ async def create_destination(
 
     await check_trip_membership(db, destination.trip_id, current_user, "editor")
 
-    # Create destination
-    db_destination = Destination(**destination.model_dump())
+    # Create destination, defaulting name to city_name if not provided
+    dest_data = destination.model_dump()
+    if not dest_data.get("name"):
+        dest_data["name"] = dest_data["city_name"]
+    db_destination = Destination(**dest_data)
 
     # If latitude and longitude are provided, create PostGIS point for coordinates
     if destination.latitude is not None and destination.longitude is not None:
@@ -52,6 +55,23 @@ async def create_destination(
 
     # Invalidate origin/return segments (new destination may change first/last)
     await TravelSegmentService.invalidate_origin_return_segments(db, destination.trip_id)
+
+    # Auto-update trip center coordinates from destination averages
+    if destination.latitude is not None and destination.longitude is not None:
+        center_result = await db.execute(
+            select(
+                func.avg(Destination.latitude).label('avg_lat'),
+                func.avg(Destination.longitude).label('avg_lng')
+            )
+            .where(Destination.trip_id == destination.trip_id)
+            .where(Destination.latitude.isnot(None))
+            .where(Destination.longitude.isnot(None))
+        )
+        center = center_result.one()
+        if center.avg_lat is not None:
+            trip.latitude = round(float(center.avg_lat), 6)
+            trip.longitude = round(float(center.avg_lng), 6)
+            await db.flush()
 
     await log_activity(
         db,

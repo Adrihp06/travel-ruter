@@ -9,6 +9,14 @@ import { getClient } from '../api/client.js';
 // Travel mode enum
 const travelModeEnum = z.enum(['plane', 'car', 'train', 'bus', 'walk', 'bike', 'ferry']);
 
+/**
+ * Strip route_geometry and route_legs from a segment to reduce response size for LLM context.
+ */
+function slimSegment(segment: Record<string, unknown>): Record<string, unknown> {
+  const { route_geometry, route_legs, ...slim } = segment;
+  return slim;
+}
+
 export function registerSegmentTools(server: McpServer): void {
   // Calculate Travel Segment
   server.registerTool(
@@ -31,7 +39,7 @@ export function registerSegmentTools(server: McpServer): void {
           { travel_mode: args.travel_mode }
         );
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(segment, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(slimSegment(segment as unknown as Record<string, unknown>), null, 2) }],
         };
       } catch (error) {
         return {
@@ -61,7 +69,7 @@ export function registerSegmentTools(server: McpServer): void {
           args.to_destination_id
         );
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(segment, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(slimSegment(segment as unknown as Record<string, unknown>), null, 2) }],
         };
       } catch (error) {
         return {
@@ -85,9 +93,17 @@ export function registerSegmentTools(server: McpServer): void {
     async (args) => {
       try {
         const client = getClient();
-        const segments = await client.getTripTravelSegments(args.trip_id);
+        const response = await client.getTripTravelSegments(args.trip_id);
+        // Slim all segments in the response
+        const raw = response as unknown as Record<string, unknown>;
+        const slimmed = {
+          ...raw,
+          segments: Array.isArray(raw.segments)
+            ? (raw.segments as Record<string, unknown>[]).map(slimSegment)
+            : raw.segments,
+        };
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(segments, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(slimmed, null, 2) }],
         };
       } catch (error) {
         return {
@@ -112,8 +128,11 @@ export function registerSegmentTools(server: McpServer): void {
       try {
         const client = getClient();
         const segments = await client.recalculateTravelSegments(args.trip_id);
+        const slimmed = Array.isArray(segments)
+          ? segments.map((s: unknown) => slimSegment(s as Record<string, unknown>))
+          : segments;
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(segments, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(slimmed, null, 2) }],
         };
       } catch (error) {
         return {

@@ -5,7 +5,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { getClient } from '../api/client.js';
-import type { TripCreate, DestinationCreate, TripResponse, DestinationResponse } from '../types/schemas.js';
+import type { TripCreate, DestinationCreate, TripResponse, DestinationResponse, POICreate, POIResponse } from '../types/schemas.js';
 
 // Destination input schema (without trip_id, since it will be set after trip creation)
 const destinationInputSchema = z.object({
@@ -28,6 +28,30 @@ interface DuplicateTripResult {
   original_trip_id: number;
   new_trip: TripResponse;
   destinations: DestinationResponse[];
+}
+
+// POI input schema (without destination_id, since it's set from the parent parameter)
+const poiInputSchema = z.object({
+  name: z.string().min(1).max(255).describe('POI name (required)'),
+  category: z.string().min(1).max(100).describe('Category: restaurant, museum, attraction, activity, shopping, etc. (required)'),
+  description: z.string().optional().describe('POI description'),
+  address: z.string().max(500).optional().describe('Street address'),
+  latitude: z.number().min(-90).max(90).optional().describe('Latitude'),
+  longitude: z.number().min(-180).max(180).optional().describe('Longitude'),
+  estimated_cost: z.number().min(0).optional().describe('Estimated cost'),
+  currency: z.string().length(3).default('USD').describe('Currency code'),
+  dwell_time: z.number().int().min(0).optional().describe('Time to spend in minutes'),
+  priority: z.number().int().min(0).default(0).describe('Priority (higher = more important)'),
+  scheduled_date: z.string().optional().describe('Scheduled visit date (YYYY-MM-DD)'),
+  day_order: z.number().int().min(0).optional().describe('Order within the scheduled day'),
+  external_id: z.string().optional().describe('External reference ID'),
+  external_source: z.string().optional().describe('Source of external ID'),
+});
+
+interface AddPoisBatchResult {
+  destination_id: number;
+  created: POIResponse[];
+  total_estimated_cost: number;
 }
 
 export function registerBatchTools(server: McpServer): void {
@@ -195,6 +219,52 @@ export function registerBatchTools(server: McpServer): void {
       } catch (error) {
         return {
           content: [{ type: 'text' as const, text: `Error duplicating trip: ${error instanceof Error ? error.message : String(error)}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // Add POIs Batch
+  server.registerTool(
+    'add_pois_batch',
+    {
+      title: 'Add POIs Batch',
+      description: 'Add multiple points of interest to a destination in a single operation. More efficient than adding POIs one by one.',
+      inputSchema: {
+        destination_id: z.number().int().positive().describe('Destination ID to add POIs to (required)'),
+        pois: z.array(poiInputSchema).min(1).max(50).describe('Array of POIs to add (1-50 items)'),
+      },
+    },
+    async (args) => {
+      try {
+        const client = getClient();
+        const createdPois: POIResponse[] = [];
+
+        for (const poiInput of args.pois) {
+          const poi = await client.createPOI({
+            ...poiInput,
+            destination_id: args.destination_id,
+          } as POICreate);
+          createdPois.push(poi);
+        }
+
+        const totalEstimatedCost = createdPois.reduce(
+          (sum, p) => sum + (p.estimated_cost || 0), 0
+        );
+
+        const result: AddPoisBatchResult = {
+          destination_id: args.destination_id,
+          created: createdPois,
+          total_estimated_cost: totalEstimatedCost,
+        };
+
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: 'text' as const, text: `Error adding POIs batch: ${error instanceof Error ? error.message : String(error)}` }],
           isError: true,
         };
       }

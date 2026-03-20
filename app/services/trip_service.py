@@ -225,14 +225,13 @@ class TripService:
 
     @staticmethod
     async def get_budget_summary(db: AsyncSession, trip_id: int) -> Optional[BudgetSummary]:
-        """Calculate budget summary for a trip by aggregating POI costs"""
-        # Get the trip first
+        """Calculate budget summary for a trip by aggregating POI and accommodation costs"""
         trip = await TripService.get_trip(db, trip_id)
         if not trip:
             return None
 
-        # Get sum of estimated and actual costs from all POIs in this trip's destinations
-        result = await db.execute(
+        # POI costs
+        poi_result = await db.execute(
             select(
                 func.coalesce(func.sum(POI.estimated_cost), 0).label('estimated_total'),
                 func.coalesce(func.sum(POI.actual_cost), 0).label('actual_total')
@@ -241,16 +240,31 @@ class TripService:
             .join(Destination, POI.destination_id == Destination.id)
             .where(Destination.trip_id == trip_id)
         )
-        row = result.one()
-        estimated_total = Decimal(str(row.estimated_total))
-        actual_total = Decimal(str(row.actual_total))
+        poi_row = poi_result.one()
+        poi_estimated = Decimal(str(poi_row.estimated_total))
+        poi_actual = Decimal(str(poi_row.actual_total))
 
-        # Calculate remaining budget and percentage
+        # Accommodation costs
+        acc_result = await db.execute(
+            select(
+                func.coalesce(func.sum(Accommodation.total_cost), 0).label('accommodation_total')
+            )
+            .select_from(Accommodation)
+            .join(Destination, Accommodation.destination_id == Destination.id)
+            .where(Destination.trip_id == trip_id)
+        )
+        acc_row = acc_result.one()
+        accommodation_total = Decimal(str(acc_row.accommodation_total))
+
+        estimated_total = poi_estimated + accommodation_total
+        actual_total = poi_actual
+
+        # remaining_budget uses estimated_total so users see projected spend
         remaining_budget = None
         budget_percentage = None
         if trip.total_budget is not None and trip.total_budget > 0:
-            remaining_budget = trip.total_budget - actual_total
-            budget_percentage = float((actual_total / trip.total_budget) * 100)
+            remaining_budget = trip.total_budget - estimated_total
+            budget_percentage = float((estimated_total / trip.total_budget) * 100)
 
         return BudgetSummary(
             total_budget=trip.total_budget,
@@ -258,7 +272,10 @@ class TripService:
             actual_total=actual_total,
             currency=trip.currency,
             remaining_budget=remaining_budget,
-            budget_percentage=budget_percentage
+            budget_percentage=budget_percentage,
+            poi_estimated=poi_estimated,
+            poi_actual=poi_actual,
+            accommodation_total=accommodation_total,
         )
 
     @staticmethod
