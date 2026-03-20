@@ -12,7 +12,7 @@ from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
 
-from orchestrator.config import SYSTEM_PROMPT, _MODEL_MAP, settings
+from orchestrator.config import _MODEL_MAP, settings
 
 logger = logging.getLogger("orchestrator.agent")
 
@@ -53,8 +53,10 @@ def create_agent(mcp: MCPServerStdio) -> Agent:
     The ``model`` is overridden at call-time via ``run(model=…)``,
     so the default here is just a sensible fallback.
     """
+    from orchestrator.config import SYSTEM_PROMPT
+
     return Agent(
-        "anthropic:claude-sonnet-4-5-20250929",
+        "anthropic:claude-sonnet-4-6",
         instructions=SYSTEM_PROMPT,
         toolsets=[mcp],
         retries=2,
@@ -66,8 +68,8 @@ def resolve_model_name(frontend_model_id: str) -> str:
     """Map a frontend model ID to a PydanticAI model string.
 
     Examples:
-        ``claude-sonnet-4-5-20250929``  →  ``anthropic:claude-sonnet-4-5-20250929``
-        ``gpt-4.1``                     →  ``openai:gpt-4.1``
+        ``claude-sonnet-4-6``           →  ``anthropic:claude-sonnet-4-6``
+        ``gpt-5.4-mini``                →  ``openai:gpt-5.4-mini``
         ``llama3.2:latest``             →  ``ollama:llama3.2:latest``
     """
     info = _MODEL_MAP.get(frontend_model_id)
@@ -135,225 +137,13 @@ def resolve_model_with_key(pydantic_ai_model: str, api_key: str | None):
     return pydantic_ai_model
 
 
+
+# Re-export for backward compatibility
 def build_instructions(
     trip_context: dict | None,
     chat_mode: str | None = None,
     custom_system_prompt: str | None = None,
 ) -> str:
-    """Append trip context to the system prompt.
-
-    Formats rich context (POIs, accommodations, itinerary) into a readable
-    section so the AI can answer contextually without extra tool calls.
-    """
-    prompt = custom_system_prompt or SYSTEM_PROMPT
-
-    if chat_mode == "new":
-        prompt += """
-
-## ⚠️ NEW TRIP MODE — STRICT CONSTRAINTS ⚠️
-
-The user wants to create a BRAND NEW trip from scratch. You have NO active trip.
-
-HARD RULES — violating these is a critical error:
-1. Your VERY FIRST tool call MUST be `manage_trip(operation="create")`. No exceptions.
-2. Use ONLY the `trip_id` returned by that create call for ALL subsequent `manage_destination` calls.
-3. NEVER call `manage_trip(operation="list")` or `manage_trip(operation="read")` — doing so will expose existing trip IDs and you will accidentally use them.
-4. NEVER use a trip_id from memory, context, or a previous conversation. Only use the id from the fresh create response.
-5. If `manage_trip(operation="create")` fails, stop and tell the user. Do NOT fall back to any existing trip.
-
-The user's existing trips (Japan, Rome, etc.) are completely off-limits. Do not touch them."""
-
-    if not trip_context:
-        return prompt
-
-    prompt += "\n\n## Current Context\n"
-
-    # Trip-level info — check tripId, trip_id, and legacy "id" field
-    tid = trip_context.get("tripId") or trip_context.get("trip_id") or trip_context.get("id")
-    if tid:
-        prompt += f"- Trip ID: {tid}\n"
-    name = trip_context.get("name")
-    if name:
-        prompt += f"- Trip: {name}\n"
-    start = trip_context.get("startDate") or trip_context.get("start_date")
-    end = trip_context.get("endDate") or trip_context.get("end_date")
-    if start and end:
-        prompt += f"- Dates: {start} to {end}\n"
-    budget = trip_context.get("budget")
-    currency = trip_context.get("currency")
-    if budget:
-        prompt += f"- Budget: {budget} {currency or 'USD'}\n"
-
-    # Trip destinations overview — include destination IDs so agent can reference them
-    dests = trip_context.get("destinations")
-    if dests:
-        prompt += f"\n### Trip Itinerary ({len(dests)} destinations)\n"
-        for d in dests:
-            did = d.get("id")
-            dname = d.get("name", "Unknown")
-            dcountry = d.get("country", "")
-            darr = d.get("arrivalDate") or d.get("arrival_date", "")
-            ddep = d.get("departureDate") or d.get("departure_date", "")
-            dlat = d.get("lat") or d.get("latitude")
-            dlng = d.get("lng") or d.get("longitude")
-            coords = f" ({dlat}, {dlng})" if dlat and dlng else ""
-            id_str = f" [destination_id={did}]" if did else ""
-            prompt += f"- {dname}, {dcountry}: {darr} → {ddep}{coords}{id_str}\n"
-
-    # Travel segments between destinations
-    segments_data = trip_context.get("travelSegments")
-    if segments_data and dests:
-        dest_names = {d.get("id"): d.get("name", f"dest#{d.get('id')}") for d in dests}
-        prompt += "\n### How to Travel Between Destinations\n"
-        for seg in segments_data:
-            from_name = dest_names.get(seg.get("fromId"), f"dest#{seg.get('fromId')}")
-            to_name = dest_names.get(seg.get("toId"), f"dest#{seg.get('toId')}")
-            mode = seg.get("mode", "unknown")
-            dist = seg.get("distanceKm")
-            dur = seg.get("durationMin")
-            details = []
-            if dist:
-                details.append(f"{dist:.0f} km")
-            if dur:
-                h, m = divmod(int(dur), 60)
-                details.append(f"{h}h{m:02d}min" if h else f"{m}min")
-            details_str = f" ({', '.join(details)})" if details else ""
-            prompt += f"- {from_name} → {to_name}: {mode}{details_str}\n"
-
-    origin_seg = trip_context.get("originSegment")
-    return_seg = trip_context.get("returnSegment")
-    if origin_seg or return_seg:
-        prompt += "\n### Journey Origin & Return\n"
-        for label, seg in [("Depart from", origin_seg), ("Return to", return_seg)]:
-            if not seg:
-                continue
-            mode = seg.get("mode", "")
-            dist = seg.get("distanceKm")
-            dur = seg.get("durationMin")
-            details = []
-            if dist:
-                details.append(f"{dist:.0f} km")
-            if dur:
-                h, m = divmod(int(dur), 60)
-                details.append(f"{h}h{m:02d}min" if h else f"{m}min")
-            details_str = f" ({', '.join(details)})" if details else ""
-            prompt += f"- {label}: {seg.get('fromName', '?')} → {seg.get('toName', '?')}: {mode}{details_str}\n"
-
-    # Active destination detail (when user is viewing a specific destination)
-    dest = trip_context.get("destination")
-    if dest:
-        dest_id = dest.get("id")
-        dest_name = dest.get('name', 'Unknown')
-        prompt += f"\n### Currently Viewing: {dest_name}"
-        if dest.get("country"):
-            prompt += f", {dest['country']}"
-        prompt += "\n"
-        if dest_id:
-            prompt += f"- Destination ID: {dest_id}\n"
-            prompt += (
-                f"\n⚠️ ACTIVE DESTINATION: {dest_name} [destination_id={dest_id}]\n"
-                f"ALL POI and accommodation operations MUST use destination_id={dest_id}.\n"
-                f"Do NOT use destination IDs from previous messages or other destinations.\n\n"
-            )
-        if dest.get("latitude") and dest.get("longitude"):
-            prompt += f"- Coordinates: ({dest['latitude']}, {dest['longitude']})\n"
-        if dest.get("arrivalDate") and dest.get("departureDate"):
-            prompt += f"- Dates: {dest['arrivalDate']} → {dest['departureDate']}\n"
-
-        # POIs — include IDs so agent can update/delete specific ones
-        pois = dest.get("pois", [])
-        if pois:
-            prompt += f"\n**Planned Activities ({len(pois)} POIs):**\n"
-            scheduled: dict[str, list] = {}
-            unscheduled: list = []
-            for p in pois:
-                sd = p.get("scheduledDate") or p.get("scheduled_date")
-                if sd:
-                    scheduled.setdefault(sd, []).append(p)
-                else:
-                    unscheduled.append(p)
-            for date in sorted(scheduled.keys()):
-                prompt += f"  Day {date}:\n"
-                for p in sorted(scheduled[date], key=lambda x: x.get("dayOrder", 0)):
-                    cost_str = f" (~{p.get('estimatedCost')} {p.get('currency', '')})" if p.get("estimatedCost") else ""
-                    time_str = f" [{p.get('dwellTime')}min]" if p.get("dwellTime") else ""
-                    pid_str = f" [poi_id={p['id']}]" if p.get("id") else ""
-                    prompt += f"    - {p['name']} ({p.get('category', 'Other')}){time_str}{cost_str}{pid_str}\n"
-            if unscheduled:
-                prompt += "  Unscheduled:\n"
-                for p in unscheduled:
-                    pid_str = f" [poi_id={p['id']}]" if p.get("id") else ""
-                    prompt += f"    - {p['name']} ({p.get('category', 'Other')}){pid_str}\n"
-
-        # Accommodations — include IDs
-        accs = dest.get("accommodations", [])
-        if accs:
-            prompt += f"\n**Accommodations ({len(accs)}):**\n"
-            for a in accs:
-                aid_str = f" [accommodation_id={a['id']}]" if a.get("id") else ""
-                prompt += f"  - {a['name']} ({a.get('type', 'hotel')}){aid_str}"
-                if a.get("address"):
-                    prompt += f" at {a['address']}"
-                if a.get("checkIn") and a.get("checkOut"):
-                    prompt += f" [{a['checkIn']} → {a['checkOut']}]"
-                if a.get("lat") and a.get("lng"):
-                    prompt += f" ({a['lat']}, {a['lng']})"
-                prompt += "\n"
-
-        dest_notes = dest.get("notes")
-        if dest_notes:
-            prompt += f"\n**Destination notes:**\n{dest_notes}\n"
-
-        reference_notes = dest.get("referenceNotes") or dest.get("reference_notes") or []
-        if reference_notes:
-            prompt += f"\n**Destination reference notes ({len(reference_notes)}):**\n"
-            for note in reference_notes:
-                title = note.get("title") or "Untitled"
-                content = (note.get("content") or "").strip()
-                prompt += f"  - {title}"
-                if content:
-                    prompt += f": {content[:280]}"
-                    if len(content) > 280:
-                        prompt += "..."
-                prompt += "\n"
-
-    writer_context = trip_context.get("writerContext") or trip_context.get("writer_context")
-    if writer_context:
-        prompt += "\n### Writing Context\n"
-        current_title = writer_context.get("currentDocumentTitle") or writer_context.get("current_document_title")
-        current_type = writer_context.get("currentDocumentType") or writer_context.get("current_document_type")
-        if current_title:
-            prompt += f"- Current document: {current_title}\n"
-        if current_type:
-            prompt += f"- Document type: {current_type}\n"
-
-        current_excerpt = (
-            writer_context.get("currentDocumentExcerpt")
-            or writer_context.get("current_document_excerpt")
-            or ""
-        ).strip()
-        if current_excerpt:
-            prompt += f"- Current excerpt: {current_excerpt}\n"
-
-        trip_notes = writer_context.get("tripReferenceNotes") or writer_context.get("trip_reference_notes") or []
-        if trip_notes:
-            prompt += f"- Trip reference notes: {len(trip_notes)} available\n"
-            for note in trip_notes:
-                title = note.get("title") or "Untitled"
-                content = (note.get("content") or "").strip()
-                prompt += f"  - {title}"
-                if content:
-                    prompt += f": {content[:200]}"
-                    if len(content) > 200:
-                        prompt += "..."
-                prompt += "\n"
-
-    # Legacy fallback
-    if trip_context.get("destinationId") or trip_context.get("destination_id"):
-        did = trip_context.get("destinationId") or trip_context.get("destination_id")
-        prompt += f"- Current destination ID: {did}\n"
-    loc = trip_context.get("currentLocation") or trip_context.get("current_location")
-    if loc:
-        prompt += f"- User location: ({loc.get('lat')}, {loc.get('lng')})\n"
-
-    return prompt
+    """Deprecated: use orchestrator.services.chat_service.build_instructions instead."""
+    from orchestrator.services.chat_service import build_instructions as _build
+    return _build(trip_context, chat_mode, custom_system_prompt)

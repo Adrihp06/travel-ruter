@@ -4,7 +4,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.api.google_places import router as google_places_router
+from app.api.maps.google_places import router as google_places_router
 
 
 @pytest.fixture

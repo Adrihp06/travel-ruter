@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from orchestrator.agent import create_agent, create_mcp_server
 from orchestrator.config import ensure_provider_env, settings
-from orchestrator.routes import router
+from orchestrator.api import router
 from orchestrator.session import SessionManager
 
 logging.basicConfig(
