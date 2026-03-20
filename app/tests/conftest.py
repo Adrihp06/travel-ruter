@@ -13,7 +13,7 @@ import shutil
 
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import StaticPool, NullPool
 
 from app.main import app
 from app.core.database import get_db, Base
@@ -48,10 +48,15 @@ def event_loop() -> Generator:
 @pytest.fixture(scope="session")
 async def test_engine():
     """Create test database engine."""
+    if "sqlite" in TEST_DATABASE_URL:
+        pool_class = StaticPool
+    else:
+        pool_class = NullPool
+
     engine = create_async_engine(
         TEST_DATABASE_URL,
         echo=False,
-        poolclass=StaticPool if "sqlite" in TEST_DATABASE_URL else None,
+        poolclass=pool_class,
     )
 
     async with engine.begin() as conn:
@@ -67,7 +72,7 @@ async def test_engine():
 
 @pytest.fixture
 async def db(test_engine) -> AsyncGenerator[AsyncSession, None]:
-    """Create a test database session."""
+    """Create a test database session with rollback-based isolation."""
     async_session = async_sessionmaker(
         test_engine,
         class_=AsyncSession,
@@ -77,13 +82,11 @@ async def db(test_engine) -> AsyncGenerator[AsyncSession, None]:
     )
 
     async with async_session() as session:
+        await session.begin()
         try:
             yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
         finally:
+            await session.rollback()
             await session.close()
 
 

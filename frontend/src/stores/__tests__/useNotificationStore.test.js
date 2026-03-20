@@ -349,6 +349,56 @@ describe('useNotificationStore', () => {
     expect(state.unreadCountRequestVersion).toBe(2);
   });
 
+  it('marking a notification as read removes it from unread and clears error', async () => {
+    useNotificationStore.setState({
+      notifications: [
+        { id: 1, title: 'A', is_read: false },
+        { id: 2, title: 'B', is_read: false },
+        { id: 3, title: 'C', is_read: false },
+      ],
+      unreadCount: 3,
+      error: null,
+    });
+    globalThis.fetch = vi.fn(() => Promise.resolve({ ok: true }));
+
+    const result = await useNotificationStore.getState().markAsRead(2);
+    expect(result).toBe(true);
+
+    const state = useNotificationStore.getState();
+    // The marked notification should be read
+    expect(state.notifications.find((n) => n.id === 2).is_read).toBe(true);
+    // Others remain unread
+    expect(state.notifications.find((n) => n.id === 1).is_read).toBe(false);
+    expect(state.notifications.find((n) => n.id === 3).is_read).toBe(false);
+    // Unread count decreased by 1
+    expect(state.unreadCount).toBe(2);
+    // No error
+    expect(state.error).toBeNull();
+  });
+
+  it('marking a notification as read on server error keeps it unread and sets error', async () => {
+    useNotificationStore.setState({
+      notifications: [
+        { id: 1, title: 'A', is_read: false },
+        { id: 2, title: 'B', is_read: false },
+      ],
+      unreadCount: 2,
+      error: null,
+    });
+    globalThis.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500 }));
+
+    const result = await useNotificationStore.getState().markAsRead(1);
+    expect(result).toBe(false);
+
+    const state = useNotificationStore.getState();
+    // Notification stays unread
+    expect(state.notifications.find((n) => n.id === 1).is_read).toBe(false);
+    // Unread count unchanged
+    expect(state.unreadCount).toBe(2);
+    // Error is set
+    expect(state.error).toBe('markReadFailed');
+  });
+
   it('unread count updates', async () => {
     globalThis.fetch = vi.fn(() =>
       Promise.resolve({ ok: true, json: () => Promise.resolve({ count: 5 }) })

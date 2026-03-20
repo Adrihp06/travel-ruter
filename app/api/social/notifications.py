@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -61,9 +61,8 @@ async def mark_as_read(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
 
     notification.is_read = True
-    notification.read_at = datetime.now(timezone.utc)
+    notification.read_at = datetime.utcnow()
     await db.flush()
-    await db.commit()
     await db.refresh(notification)
     return NotificationResponse.model_validate(notification)
 
@@ -76,11 +75,9 @@ async def mark_all_as_read(
     stmt = (
         update(Notification)
         .where(Notification.user_id == user.id, Notification.is_read == False)
-        .values(is_read=True, read_at=datetime.now(timezone.utc))
+        .values(is_read=True, read_at=datetime.utcnow())
     )
     await db.execute(stmt)
-    await db.flush()
-    await db.commit()
 
 
 @router.get("/unread-count", response_model=UnreadCount)
