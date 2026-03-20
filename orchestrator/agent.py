@@ -22,7 +22,14 @@ def create_mcp_server() -> MCPServerStdio:
 
     Same behaviour as ``mcp/client.ts`` lines 24-31.
     """
-    env = {**os.environ, "PYTHONPATH": os.environ.get("PYTHONPATH", "..")}
+    # Allowlist: only pass env vars the MCP subprocess actually needs,
+    # avoiding leaking secrets (JWT keys, internal service keys, etc.).
+    _SYSTEM_ENV_KEYS = ("PATH", "HOME", "LANG", "LC_ALL", "VIRTUAL_ENV", "PYTHONUNBUFFERED")
+    env: dict[str, str] = {
+        k: v for k, v in ((k, os.environ.get(k)) for k in _SYSTEM_ENV_KEYS) if v is not None
+    }
+    env["PYTHONPATH"] = os.environ.get("PYTHONPATH", "..")
+
     if settings.database_url:
         env["DATABASE_URL"] = settings.database_url
     if settings.google_maps_api_key:

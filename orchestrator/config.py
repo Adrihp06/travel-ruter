@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -64,6 +65,61 @@ class OrchestratorSettings(BaseSettings):
 
 settings = OrchestratorSettings()
 
+logger = logging.getLogger(__name__)
+
+_PLACEHOLDER_SECRETS = frozenset({
+    "change-me-in-production",
+    "changeme",
+    "secret",
+    "your-secret-key",
+    "replace-me",
+})
+
+
+def validate_security_settings() -> None:
+    """Validate that critical security keys are properly configured.
+
+    In production (ENVIRONMENT or ENV == "production" | "prod"), missing or
+    placeholder keys raise ``RuntimeError`` to prevent the service from
+    starting in an insecure state.  In development the same conditions emit
+    a WARNING so developers are alerted but not blocked.
+    """
+    env = (
+        os.environ.get("ENVIRONMENT", "") or os.environ.get("ENV", "")
+    ).lower().strip()
+    is_production = env in ("production", "prod")
+
+    issues: list[str] = []
+
+    jwt_key = settings.JWT_SECRET_KEY.strip()
+    if not jwt_key or jwt_key.lower() in _PLACEHOLDER_SECRETS:
+        issues.append(
+            "JWT_SECRET_KEY is empty or a known placeholder — "
+            "attackers can forge authentication tokens"
+        )
+
+    if not settings.INTERNAL_SERVICE_KEY.strip():
+        issues.append(
+            "INTERNAL_SERVICE_KEY is empty — "
+            "service-to-service calls cannot be authenticated"
+        )
+
+    if not issues:
+        return
+
+    msg = (
+        "Security configuration issues detected:\n"
+        + "\n".join(f"  • {i}" for i in issues)
+    )
+
+    if is_production:
+        raise RuntimeError(
+            f"{msg}\n\nRefusing to start in production with insecure defaults. "
+            "Set these environment variables before deploying."
+        )
+
+    logger.warning(msg)
+
 
 # ---------------------------------------------------------------------------
 # Credential fallback helpers
@@ -102,8 +158,10 @@ def ensure_provider_env() -> None:
     """Set env vars from credential files when API keys are missing.
 
     PydanticAI reads keys from well-known env vars, so we populate them once
-    at startup.
+    at startup.  Also validates critical security settings.
     """
+    validate_security_settings()
+
     if not os.environ.get("ANTHROPIC_API_KEY") and not settings.anthropic_api_key:
         key = _read_claude_credentials()
         if key:

@@ -31,6 +31,7 @@ class Session:
     custom_system_prompt: str | None = None
     cancel_event: asyncio.Event = field(default_factory=lambda: asyncio.Event())
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    _api_key_lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
     _resolved_api_key: str | None = field(default=None, repr=False)
     _resolved_api_key_at: float = field(default=0.0, repr=False)
 

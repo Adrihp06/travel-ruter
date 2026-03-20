@@ -125,43 +125,43 @@ async def _resolve_trip_api_key(
     Uses a cached value on the session to avoid repeated lookups.
     Uses internal service auth (X-Internal-Key) instead of user JWT.
     """
-    if session._resolved_api_key is not None:
-        if (time.monotonic() - session._resolved_api_key_at) < _KEY_TTL:
-            return session._resolved_api_key
-        # TTL expired, clear cached value
-        session._resolved_api_key = None
+    async with session._api_key_lock:
+        if session._resolved_api_key is not None:
+            if (time.monotonic() - session._resolved_api_key_at) < _KEY_TTL:
+                return session._resolved_api_key
+            session._resolved_api_key = None
 
-    if not session.trip_id:
+        if not session.trip_id:
+            return None
+
+        provider = provider_from_model_id(session.model_id)
+        if not provider:
+            return None
+
+        if not session.user_id:
+            return None
+
+        try:
+            async with httpx.AsyncClient(timeout=5) as client:
+                resp = await client.get(
+                    f"{_BACKEND_URL}/api/v1/trips/{session.trip_id}/api-keys/{provider}/value",
+                    headers={
+                        "X-Internal-Key": settings.INTERNAL_SERVICE_KEY,
+                        "X-User-Id": str(session.user_id),
+                    },
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    key = data.get("key")
+                    if key:
+                        session._resolved_api_key = key
+                        session._resolved_api_key_at = time.monotonic()
+                        logger.info("Resolved trip-level %s key for trip_id=%s", provider, session.trip_id)
+                        return key
+        except Exception as exc:
+            logger.debug("Could not fetch trip-level key for %s: %s", provider, exc)
+
         return None
-
-    provider = provider_from_model_id(session.model_id)
-    if not provider:
-        return None
-
-    if not session.user_id:
-        return None
-
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            resp = await client.get(
-                f"{_BACKEND_URL}/api/v1/trips/{session.trip_id}/api-keys/{provider}/value",
-                headers={
-                    "X-Internal-Key": settings.INTERNAL_SERVICE_KEY,
-                    "X-User-Id": str(session.user_id),
-                },
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                key = data.get("key")
-                if key:
-                    session._resolved_api_key = key
-                    session._resolved_api_key_at = time.monotonic()
-                    logger.info("Resolved trip-level %s key for trip_id=%s", provider, session.trip_id)
-                    return key
-    except Exception as exc:
-        logger.debug("Could not fetch trip-level key for %s: %s", provider, exc)
-
-    return None
 
 
 # ---------------------------------------------------------------------------
@@ -367,14 +367,14 @@ async def chat(body: ChatRequest, request: Request) -> dict:
         )
         sm.truncate_history(session)
 
-        # Resolve trip-level API key for the AI provider
-        trip_api_key = await _resolve_trip_api_key(session)
-        model = resolve_model_with_key(session.pydantic_ai_model, trip_api_key)
-
         usage_limits = UsageLimits(request_limit=25)
 
         async with session.lock:
-            result = await asyncio.wait_for(
+            # Resolve trip-level API key inside session lock to avoid races
+            trip_api_key = await _resolve_trip_api_key(session)
+            model = resolve_model_with_key(session.pydantic_ai_model, trip_api_key)
+
+            run_task = asyncio.create_task(
                 agent.run(
                     body.message,
                     model=model,
@@ -382,10 +382,23 @@ async def chat(body: ChatRequest, request: Request) -> dict:
                     instructions=instructions,
                     model_settings=_get_model_settings(session.pydantic_ai_model),
                     usage_limits=usage_limits,
-                ),
-                timeout=180,
+                )
             )
-            session.message_history = result.all_messages()
+
+            async def _cancel_watcher():
+                await session.cancel_event.wait()
+                if not run_task.done():
+                    run_task.cancel()
+
+            watcher = asyncio.create_task(_cancel_watcher())
+            try:
+                result = await asyncio.wait_for(run_task, timeout=180)
+                session.message_history = result.all_messages()
+            except asyncio.CancelledError:
+                logger.info("Chat cancelled by user (session_id=%s)", body.session_id)
+                return JSONResponse({"error": "Request cancelled by user"}, status_code=499)
+            finally:
+                watcher.cancel()
 
         # Extract tool calls from the result messages
         tool_calls: list[dict] = []
@@ -420,6 +433,9 @@ async def chat(body: ChatRequest, request: Request) -> dict:
 # MCP subprocess health check (CR-12)
 # ---------------------------------------------------------------------------
 
+_mcp_restart_lock = asyncio.Lock()
+
+
 async def _ensure_mcp_alive(app) -> None:
     """Check if MCP subprocess is alive, restart if needed."""
     mcp = app.state.mcp
@@ -434,18 +450,34 @@ async def _ensure_mcp_alive(app) -> None:
         is_dead = True
     if not is_dead:
         return
-    logger.warning("MCP subprocess died, restarting...")
-    try:
-        await mcp.__aexit__(None, None, None)
-    except Exception:
-        pass
-    try:
-        await mcp.__aenter__()
-        app.state.mcp_connected = True
-        logger.info("MCP subprocess restarted successfully")
-    except Exception as exc:
-        app.state.mcp_connected = False
-        logger.error("MCP subprocess restart failed: %s", exc)
+
+    async with _mcp_restart_lock:
+        # Re-check under lock (another coroutine may have already restarted)
+        proc = getattr(mcp, '_process', None) or getattr(mcp, 'process', None)
+        if proc is not None:
+            still_dead = False
+            if hasattr(proc, 'poll') and proc.poll() is not None:
+                still_dead = True
+            elif hasattr(proc, 'returncode') and proc.returncode is not None:
+                still_dead = True
+            if not still_dead:
+                return
+
+        logger.warning("MCP subprocess died, restarting...")
+        try:
+            await mcp.__aexit__(None, None, None)
+        except Exception:
+            pass
+        try:
+            await mcp.__aenter__()
+            app.state.mcp_connected = True
+            # Recreate agent with fresh MCP connection
+            from orchestrator.agent import create_agent
+            app.state.agent = create_agent(mcp)
+            logger.info("MCP subprocess restarted successfully, agent recreated")
+        except Exception as exc:
+            app.state.mcp_connected = False
+            logger.error("MCP subprocess restart failed: %s", exc)
 
 
 # ---------------------------------------------------------------------------
@@ -487,6 +519,8 @@ async def websocket_chat_stream(ws: WebSocket) -> None:
     agent: Agent = ws.app.state.agent
     sm: SessionManager = ws.app.state.session_manager
 
+    active_session_id: str | None = None
+
     try:
         while True:
             raw = await ws.receive_text()
@@ -507,6 +541,7 @@ async def websocket_chat_stream(ws: WebSocket) -> None:
             if msg_type == "chat":
                 # Always update session user_id from WS auth
                 session_id = data.get("sessionId")
+                active_session_id = session_id
                 if session_id:
                     session = sm.get_session(session_id)
                     if session:
@@ -531,6 +566,8 @@ async def websocket_chat_stream(ws: WebSocket) -> None:
 
     except WebSocketDisconnect:
         logger.info("WebSocket client disconnected")
+        if active_session_id:
+            sm.cancel_chat(active_session_id)
     except Exception as exc:
         logger.exception("WebSocket error")
         try:
@@ -605,10 +642,6 @@ async def _handle_chat(
 
         # Ensure MCP subprocess is alive before running the agent (CR-12)
         await _ensure_mcp_alive(ws.app)
-
-        # Resolve trip-level API key for the AI provider
-        trip_api_key = await _resolve_trip_api_key(session)
-        model = resolve_model_with_key(session.pydantic_ai_model, trip_api_key)
 
         async def event_handler(ctx, event_stream):
             """Forward ALL events to WebSocket — text, tool calls, and tool results.
@@ -700,7 +733,11 @@ async def _handle_chat(
         usage_limits = UsageLimits(request_limit=25)
 
         async with session.lock:
-            result = await asyncio.wait_for(
+            # Resolve trip-level API key inside session lock to avoid races
+            trip_api_key = await _resolve_trip_api_key(session)
+            model = resolve_model_with_key(session.pydantic_ai_model, trip_api_key)
+
+            run_task = asyncio.create_task(
                 agent.run(
                     user_message,
                     model=model,
@@ -709,10 +746,24 @@ async def _handle_chat(
                     event_stream_handler=event_handler,
                     model_settings=_get_model_settings(session.pydantic_ai_model),
                     usage_limits=usage_limits,
-                ),
-                timeout=180,
+                )
             )
-            session.message_history = result.all_messages()
+
+            async def _cancel_watcher():
+                await session.cancel_event.wait()
+                if not run_task.done():
+                    run_task.cancel()
+
+            watcher = asyncio.create_task(_cancel_watcher())
+            try:
+                result = await asyncio.wait_for(run_task, timeout=180)
+                session.message_history = result.all_messages()
+            except asyncio.CancelledError:
+                logger.info("Chat cancelled by user (message_id=%s)", message_id)
+                await ws.send_json({"type": "end", "messageId": message_id, "cancelled": True})
+                return
+            finally:
+                watcher.cancel()
 
         await ws.send_json({"type": "end", "messageId": message_id})
 
