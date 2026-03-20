@@ -291,7 +291,7 @@ const GlobalTripView = () => {
 
         {/* Hero Section with Map - Skeleton */}
         <div className="relative">
-          <div className="h-[500px] lg:h-[550px] relative">
+          <div className="h-[280px] sm:h-[400px] lg:h-[550px] relative">
             <MapPlaceholder height="100%" />
             {/* Bottom gradient only - less intrusive */}
             <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-stone-50 dark:from-stone-900 to-transparent pointer-events-none" />
@@ -314,7 +314,7 @@ const GlobalTripView = () => {
         </div>
 
         {/* Stats Cards - Skeleton */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 lg:pt-36 pb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:pt-28 lg:pt-36 pb-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="bg-white dark:bg-stone-800 rounded-xl p-5 shadow-sm border border-stone-200/50 dark:border-stone-700/50">
@@ -357,7 +357,7 @@ const GlobalTripView = () => {
 
       {/* Hero Section with Map */}
       <div className="relative">
-        <div className="h-[500px] lg:h-[550px] relative z-0">
+        <div className="h-[280px] sm:h-[400px] lg:h-[550px] relative z-0">
           <Suspense fallback={<MapPlaceholder height="100%" />}>
             <MacroMap trips={tripsWithDestinations} />
           </Suspense>
@@ -402,7 +402,7 @@ const GlobalTripView = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 lg:pt-36 pb-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:pt-28 lg:pt-36 pb-12">
         {/* Pending Trip Invitations */}
         {isAuthenticated && <PendingInvitations onAccepted={handleInvitationAccepted} />}
 

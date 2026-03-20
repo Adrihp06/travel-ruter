@@ -297,7 +297,7 @@ const TripFormModal = ({ isOpen, onClose, trip = null, onSuccess }) => {
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 modal-backdrop flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 modal-backdrop flex items-center justify-center z-50 p-4"
       role="presentation"
     >
       <div

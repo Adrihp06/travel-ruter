@@ -88,10 +88,10 @@ const AIChat = ({ tripContext = null, isOpen, onToggle, onClose }) => {
       {/* Side panel - renders in-flow within the Layout flex container */}
       <div
         className={`flex-shrink-0 h-screen transition-[width] duration-300 ease-out overflow-hidden ${
-          isOpen ? 'w-[420px]' : 'w-0'
+          isOpen ? 'w-full sm:w-[420px]' : 'w-0'
         }`}
       >
-        <div className="w-[420px] h-full">
+        <div className="w-full sm:w-[420px] h-full">
           <AIChatSlideover
             isOpen={isOpen}
             onClose={onClose}

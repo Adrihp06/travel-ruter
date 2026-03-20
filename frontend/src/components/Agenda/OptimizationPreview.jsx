@@ -45,7 +45,7 @@ const OptimizationPreview = ({
   const { original_order, total_distance_km, total_duration_minutes, schedule } = optimizationResult;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop bg-black/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center modal-backdrop bg-black/50 p-4">
       <div className="modal-content bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col border border-gray-200/50 dark:border-gray-700/50 overflow-hidden">
         {/* Header */}
         <div className="modal-header flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">

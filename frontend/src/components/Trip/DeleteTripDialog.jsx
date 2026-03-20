@@ -22,7 +22,7 @@ const DeleteTripDialog = ({ isOpen, onClose, trip, onConfirm, isDeleting }) => {
   };
 
   return (
-    <div className="fixed inset-0 modal-backdrop bg-black/40 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 modal-backdrop bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="dialog-content bg-white dark:bg-stone-800 rounded-2xl shadow-2xl w-full max-w-md border border-stone-200/50 dark:border-stone-700/50">
         {/* Header */}
         <div className="modal-header flex items-center justify-between px-6 py-4 border-b border-stone-200 dark:border-stone-700">
