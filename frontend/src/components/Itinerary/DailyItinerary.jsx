@@ -277,7 +277,7 @@ const MoveToDayDropdown = React.memo(function MoveToDayDropdown({ poi, days, cur
 });
 
 // Sortable POI Item
-const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onClick, onAddNote, noteCount = 0, days, currentDate, onMoveToDay, isDragActive, t }) => {
+const SortablePOIItem = ({ poi, onEdit, onDelete, onVote, onClick, onAddNote, noteCount = 0, days, currentDate, onMoveToDay, isDragActive, t }) => {
   const {
     attributes,
     listeners,
@@ -305,7 +305,6 @@ const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onC
         flex items-start p-2.5 rounded-lg bg-white dark:bg-gray-800
         border border-gray-200 dark:border-gray-700
         ${isDragging ? 'shadow-lg ring-2 ring-[#D97706]' : 'shadow-sm'}
-        ${isOverlay ? 'shadow-xl' : ''}
         transition-shadow cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50
       `}
       onClick={() => onClick && onClick(poi)}
@@ -416,6 +415,53 @@ const SortablePOIItem = ({ poi, isOverlay = false, onEdit, onDelete, onVote, onC
               </button>
             )}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Static visual-only POI item for DragOverlay (no useSortable to avoid
+// registering a duplicate droppable that corrupts the DnD state).
+const POIOverlayItem = ({ poi }) => {
+  const CategoryIcon = categoryIcons[poi.category] || MapPin;
+  const score = (poi.likes || 0) - (poi.vetoes || 0);
+
+  return (
+    <div
+      className="flex items-start p-2.5 rounded-lg bg-white dark:bg-gray-800
+        border border-gray-200 dark:border-gray-700 shadow-xl
+        cursor-grabbing"
+    >
+      <div className="p-1 mr-2 mt-0.5 text-gray-400 flex-shrink-0">
+        <GripVertical className="w-4 h-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start">
+          <span className="text-sm font-medium text-gray-900 dark:text-white truncate pt-0.5">
+            {poi.name}
+          </span>
+        </div>
+        <div className="flex items-center mt-1.5 gap-2 flex-wrap">
+          <span className={`text-xs px-1.5 py-0.5 rounded flex items-center ${categoryColors[poi.category] || 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'}`}>
+            <CategoryIcon className="w-3 h-3 mr-1" />
+            {poi.category}
+          </span>
+          {poi.dwell_time && (
+            <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+              <ClockIcon className="w-3 h-3 mr-1" />
+              {formatDwellTime(poi.dwell_time)}
+            </span>
+          )}
+          {(poi.likes > 0 || poi.vetoes > 0) && (
+            <span className={`text-xs px-1.5 py-0.5 rounded ${
+              score > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+              score < 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+              'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+            }`}>
+              {score > 0 ? '+' : ''}{score}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -1236,7 +1282,7 @@ const DailyItinerary = ({
           {/* Drag Overlay */}
           <DragOverlay>
             {activePOI ? (
-              <SortablePOIItem poi={activePOI} isOverlay />
+              <POIOverlayItem poi={activePOI} />
             ) : null}
           </DragOverlay>
         </DndContext>

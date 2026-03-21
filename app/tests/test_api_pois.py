@@ -602,6 +602,142 @@ class TestPOIBulkSchedule:
             assert poi.id in returned_ids
 
     @pytest.mark.asyncio
+    async def test_bulk_update_schedule_persists_values(
+        self,
+        client: AsyncClient,
+        db: AsyncSession,
+        created_destination: Destination,
+    ):
+        """Test that scheduled_date and day_order are actually persisted in the response."""
+        pois = []
+        for i in range(3):
+            poi = POI(
+                destination_id=created_destination.id,
+                name=f"Persist POI {i}",
+                category="Test",
+            )
+            db.add(poi)
+            pois.append(poi)
+        await db.flush()
+
+        target_date = str(created_destination.arrival_date)
+        updates = [
+            {"id": pois[0].id, "scheduled_date": target_date, "day_order": 2},
+            {"id": pois[1].id, "scheduled_date": target_date, "day_order": 0},
+            {"id": pois[2].id, "scheduled_date": None, "day_order": 1},
+        ]
+
+        response = await client.put(
+            f"/api/v1/destinations/{created_destination.id}/pois/schedule",
+            json={"updates": updates},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        by_id = {item["id"]: item for item in data}
+
+        # Verify scheduled_date and day_order are correctly returned
+        assert by_id[pois[0].id]["scheduled_date"] == target_date
+        assert by_id[pois[0].id]["day_order"] == 2
+        assert by_id[pois[1].id]["scheduled_date"] == target_date
+        assert by_id[pois[1].id]["day_order"] == 0
+        assert by_id[pois[2].id]["scheduled_date"] is None
+        assert by_id[pois[2].id]["day_order"] == 1
+
+    @pytest.mark.asyncio
+    async def test_bulk_update_schedule_reorder_within_day(
+        self,
+        client: AsyncClient,
+        db: AsyncSession,
+        created_destination: Destination,
+    ):
+        """Test reordering POIs within the same day (mimics drag-and-drop reorder)."""
+        target_date = str(created_destination.arrival_date)
+        pois = []
+        for i in range(3):
+            poi = POI(
+                destination_id=created_destination.id,
+                name=f"Reorder POI {i}",
+                category="Test",
+                scheduled_date=created_destination.arrival_date,
+                day_order=i,
+            )
+            db.add(poi)
+            pois.append(poi)
+        await db.flush()
+
+        # Reverse the order: 2, 1, 0
+        updates = [
+            {"id": pois[0].id, "scheduled_date": target_date, "day_order": 2},
+            {"id": pois[1].id, "scheduled_date": target_date, "day_order": 1},
+            {"id": pois[2].id, "scheduled_date": target_date, "day_order": 0},
+        ]
+
+        response = await client.put(
+            f"/api/v1/destinations/{created_destination.id}/pois/schedule",
+            json={"updates": updates},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Response should be sorted by day_order
+        assert data[0]["id"] == pois[2].id  # day_order 0
+        assert data[0]["day_order"] == 0
+        assert data[1]["id"] == pois[1].id  # day_order 1
+        assert data[1]["day_order"] == 1
+        assert data[2]["id"] == pois[0].id  # day_order 2
+        assert data[2]["day_order"] == 2
+
+    @pytest.mark.asyncio
+    async def test_bulk_update_schedule_move_between_days(
+        self,
+        client: AsyncClient,
+        db: AsyncSession,
+        created_destination: Destination,
+    ):
+        """Test moving a POI from one day to another (mimics cross-container drag)."""
+        day1 = str(created_destination.arrival_date)
+        day2 = str(created_destination.arrival_date + timedelta(days=1))
+
+        poi_day1 = POI(
+            destination_id=created_destination.id,
+            name="Day1 POI",
+            category="Test",
+            scheduled_date=created_destination.arrival_date,
+            day_order=0,
+        )
+        poi_day2 = POI(
+            destination_id=created_destination.id,
+            name="Day2 POI",
+            category="Test",
+            scheduled_date=created_destination.arrival_date + timedelta(days=1),
+            day_order=0,
+        )
+        db.add_all([poi_day1, poi_day2])
+        await db.flush()
+
+        # Move poi_day1 to day2 at position 1
+        updates = [
+            {"id": poi_day1.id, "scheduled_date": day2, "day_order": 1},
+            {"id": poi_day2.id, "scheduled_date": day2, "day_order": 0},
+        ]
+
+        response = await client.put(
+            f"/api/v1/destinations/{created_destination.id}/pois/schedule",
+            json={"updates": updates},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        by_id = {item["id"]: item for item in data}
+
+        assert by_id[poi_day1.id]["scheduled_date"] == day2
+        assert by_id[poi_day1.id]["day_order"] == 1
+        assert by_id[poi_day2.id]["scheduled_date"] == day2
+        assert by_id[poi_day2.id]["day_order"] == 0
+
+    @pytest.mark.asyncio
     async def test_bulk_update_schedule_poi_not_found(
         self,
         client: AsyncClient,
