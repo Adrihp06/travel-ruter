@@ -121,7 +121,7 @@ const POICard = ({ poi, isDragging }) => {
 };
 
 // Droppable Day Column
-const DayColumn = ({ dateKey, pois, accommodations, destinations, isInTrip, travelSegments }) => {
+const DayColumn = ({ dateKey, pois, accommodations, destinations, isInTrip, travelSegments, isLoadingPOIs }) => {
   const { t } = useTranslation();
   const { setNodeRef, isOver } = useDroppable({
     id: dateKey,
@@ -181,7 +181,7 @@ const DayColumn = ({ dateKey, pois, accommodations, destinations, isInTrip, trav
 
       {/* POI List */}
       <div className="flex-1 p-2 space-y-2 overflow-y-auto">
-        {pois.length === 0 ? (
+        {!isLoadingPOIs && pois.length === 0 ? (
           <div className="flex items-center justify-center h-24 text-sm text-gray-400 dark:text-gray-500">
             {t('calendar.noPoisScheduled')}
           </div>
@@ -232,7 +232,7 @@ const WeekCalendarView = ({
     return start;
   });
 
-  const { updatePOI } = usePOIStore();
+  const { updatePOI, isLoading: isLoadingPOIs } = usePOIStore();
 
   // Generate week days
   const weekDays = useMemo(() => {
@@ -354,6 +354,7 @@ const WeekCalendarView = ({
                 destinations={dayDestinations}
                 isInTrip={inTrip}
                 travelSegments={travelSegments}
+                isLoadingPOIs={isLoadingPOIs}
               />
             </div>
           );

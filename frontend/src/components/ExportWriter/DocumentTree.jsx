@@ -122,7 +122,7 @@ const DocumentTree = ({ trip, destinations }) => {
             </div>
           )}
 
-          {docList.length === 0 && (
+          {!isLoadingRefs && docList.length === 0 && (
             <p className="text-xs text-gray-400 dark:text-gray-500 px-1 py-2">
               {t('exportWriter.documents.noDocuments')}
             </p>

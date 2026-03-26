@@ -3,11 +3,13 @@ import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 let _accommodationLoadGeneration = 0;
+let _tripAccommodationLoadGeneration = 0;
 
 const useAccommodationStore = create((set, get) => ({
   // State
   accommodations: [],
   accommodationsByDestination: {}, // Map of destination_id -> accommodations[]
+  accommodationDestinationId: null, // Tracks which destination the loaded accommodations belong to
   selectedAccommodation: null,
   isLoading: false,
   error: null,
@@ -15,7 +17,7 @@ const useAccommodationStore = create((set, get) => ({
   // Actions
   fetchAccommodations: async (destinationId) => {
     const gen = ++_accommodationLoadGeneration;
-    set({ isLoading: true, error: null });
+    set({ accommodations: [], isLoading: true, error: null, accommodationDestinationId: destinationId });
     try {
       const response = await authFetch(
         `${API_BASE_URL}/destinations/${destinationId}/accommodations`
@@ -31,11 +33,11 @@ const useAccommodationStore = create((set, get) => ({
       }
       // Handle paginated response format { items: [...] } or direct array
       const accommodations = Array.isArray(data) ? data : (data.items || []);
-      set({ accommodations, isLoading: false });
+      set({ accommodations, isLoading: false, accommodationDestinationId: destinationId });
       return accommodations;
     } catch (error) {
       if (gen === _accommodationLoadGeneration) {
-        set({ error: error.message, isLoading: false });
+        set({ error: error.message, isLoading: false, accommodationDestinationId: destinationId });
       }
       return [];
     }
@@ -141,7 +143,13 @@ const useAccommodationStore = create((set, get) => ({
 
   clearAccommodations: () => {
     _accommodationLoadGeneration++;
-    set({ accommodations: [], accommodationsByDestination: {}, selectedAccommodation: null, isLoading: false, error: null });
+    set({ accommodations: [], accommodationsByDestination: {}, selectedAccommodation: null, isLoading: false, error: null, accommodationDestinationId: null });
+  },
+
+  // Clear only per-destination accommodations (preserves trip-level accommodationsByDestination)
+  clearDestinationAccommodations: () => {
+    _accommodationLoadGeneration++;
+    set({ accommodations: [], selectedAccommodation: null, isLoading: false, error: null, accommodationDestinationId: null });
   },
 
   clearError: () => set({ error: null }),
@@ -152,6 +160,8 @@ const useAccommodationStore = create((set, get) => ({
       set({ accommodationsByDestination: {} });
       return {};
     }
+
+    const gen = ++_tripAccommodationLoadGeneration;
 
     try {
       const grouped = {};
@@ -176,10 +186,17 @@ const useAccommodationStore = create((set, get) => ({
         })
       );
 
+      if (gen !== _tripAccommodationLoadGeneration) {
+        return {};
+      }
+
       set({ accommodationsByDestination: grouped });
       return grouped;
     } catch (error) {
       console.error('Failed to fetch accommodations for trip:', error);
+      if (gen === _tripAccommodationLoadGeneration) {
+        set({ accommodationsByDestination: {} });
+      }
       return {};
     }
   },

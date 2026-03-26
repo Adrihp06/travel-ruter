@@ -2,7 +2,7 @@ import os
 import uuid
 import aiofiles
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.config import settings
@@ -162,8 +162,10 @@ async def get_trips(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    response: Response = None,
 ) -> List[TripResponse]:
     """Get all trips with pagination. Authenticated users see only their trips."""
+    response.headers["Cache-Control"] = "no-cache, must-revalidate"
     trips = await TripService.get_trips(db, skip=skip, limit=limit, user_id=current_user.id)
     return [TripResponse.model_validate(trip) for trip in trips]
 
@@ -179,8 +181,10 @@ async def get_trips_summary(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    response: Response = None,
 ) -> TripsSummaryResponse:
     """Get all trips with destinations and POI stats in one query"""
+    response.headers["Cache-Control"] = "no-cache, must-revalidate"
     trips_with_summary, total_count = await TripService.get_trips_with_summary(
         db, skip=skip, limit=limit, user_id=current_user.id
     )
@@ -232,8 +236,10 @@ async def get_trip(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _: User = Depends(require_viewer),
+    response: Response = None,
 ) -> TripWithDestinationsResponse:
     """Get a specific trip by ID with destinations"""
+    response.headers["Cache-Control"] = "no-cache, must-revalidate"
     trip = await TripService.get_trip_with_destinations(db, trip_id)
     if not trip:
         raise HTTPException(
@@ -352,8 +358,10 @@ async def get_trip_budget(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _: User = Depends(require_viewer),
+    response: Response = None,
 ) -> BudgetSummary:
     """Get budget summary for a trip"""
+    response.headers["Cache-Control"] = "no-cache, must-revalidate"
     budget = await TripService.get_budget_summary(db, trip_id)
     if not budget:
         raise HTTPException(
@@ -374,8 +382,10 @@ async def get_trip_poi_stats(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _: User = Depends(require_viewer),
+    response: Response = None,
 ) -> POIStats:
     """Get POI statistics for a trip"""
+    response.headers["Cache-Control"] = "no-cache, must-revalidate"
     # Verify trip exists
     trip = await TripService.get_trip(db, trip_id)
     if not trip:

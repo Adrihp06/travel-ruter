@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import authFetch from '../utils/authFetch';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+let _membersLoadGeneration = 0;
 
 const useCollaborationStore = create((set, get) => ({
   members: [],
@@ -11,11 +12,13 @@ const useCollaborationStore = create((set, get) => ({
   error: null,
 
   fetchMembers: async (tripId) => {
+    const gen = ++_membersLoadGeneration;
     set({ isLoading: true });
     try {
       const resp = await authFetch(`${API_BASE}/trips/${tripId}/members`);
       if (!resp.ok) throw new Error('Failed to fetch members');
       const members = await resp.json();
+      if (gen !== _membersLoadGeneration) return;
       set({ members, isLoading: false, error: null });
     } catch (err) {
       set({ isLoading: false, error: err.message });

@@ -1,6 +1,6 @@
 from datetime import timedelta
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy import select, func, delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from geoalchemy2.functions import ST_SetSRID, ST_MakePoint
@@ -93,8 +93,10 @@ async def list_destinations_by_trip(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _: User = Depends(require_viewer),
+    response: Response = None,
 ):
     """Get all destinations for a specific trip with pagination"""
+    response.headers["Cache-Control"] = "no-cache, must-revalidate"
     # Verify that the trip exists
     trip_result = await db.execute(select(Trip).where(Trip.id == trip_id))
     trip = trip_result.scalar_one_or_none()
@@ -134,8 +136,10 @@ async def get_destination(
     id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    response: Response = None,
 ):
     """Get a specific destination by ID"""
+    response.headers["Cache-Control"] = "no-cache, must-revalidate"
     result = await db.execute(select(Destination).where(Destination.id == id))
     destination = result.scalar_one_or_none()
 

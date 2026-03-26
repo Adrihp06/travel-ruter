@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+let _segmentLoadGeneration = 0;
 
 export const TRAVEL_MODES = {
   plane: { label: 'Plane', icon: 'Plane' },
@@ -38,20 +39,24 @@ const useTravelSegmentStore = create((set, get) => ({
 
   // Fetch all travel segments for a trip
   fetchTripSegments: async (tripId) => {
+    const gen = ++_segmentLoadGeneration;
     // Keep old segments visible during refetch (clearSegments handles tripId changes)
     set({ isLoading: true, error: null });
 
-    // Restore from sessionStorage cache for instant display
+    // Restore from sessionStorage cache for instant display (max 2 min staleness)
     const cacheKey = `travel_segments_${tripId}`;
     try {
       const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
         const cachedData = JSON.parse(cached);
-        set({
-          segments: cachedData.segments || [],
-          originSegment: cachedData.origin_segment || null,
-          returnSegment: cachedData.return_segment || null,
-        });
+        const isFresh = cachedData._cachedAt && (Date.now() - cachedData._cachedAt < 120000);
+        if (isFresh) {
+          set({
+            segments: cachedData.segments || [],
+            originSegment: cachedData.origin_segment || null,
+            returnSegment: cachedData.return_segment || null,
+          });
+        }
       }
     } catch {
       // Ignore cache parse errors
@@ -65,6 +70,7 @@ const useTravelSegmentStore = create((set, get) => ({
       }
 
       const data = await response.json();
+      if (gen !== _segmentLoadGeneration) return;
       set({
         segments: data.segments,
         originSegment: data.origin_segment || null,
@@ -73,9 +79,9 @@ const useTravelSegmentStore = create((set, get) => ({
         hasFetchedInitial: true
       });
 
-      // Update sessionStorage cache
+      // Update sessionStorage cache with timestamp
       try {
-        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        sessionStorage.setItem(cacheKey, JSON.stringify({ ...data, _cachedAt: Date.now() }));
       } catch {
         // Ignore storage quota errors
       }

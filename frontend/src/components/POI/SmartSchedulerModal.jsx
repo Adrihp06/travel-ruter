@@ -330,6 +330,7 @@ const SmartSchedulerModal = ({
   // Fetch accommodations for all days when modal opens
   useEffect(() => {
     if (isOpen && destinationId && days.length > 0) {
+      let isMounted = true;
       setIsLoadingAccom(true);
       Promise.all(
         days.map(async (day) => {
@@ -346,11 +347,16 @@ const SmartSchedulerModal = ({
           }
         })
       ).then((results) => {
+        if (!isMounted) return;
         const byDay = {};
         results.forEach(r => { byDay[r.dayNumber] = r; });
         setAccommodationsByDay(byDay);
         setIsLoadingAccom(false);
+      }).catch(() => {
+        if (isMounted) setIsLoadingAccom(false);
       });
+
+      return () => { isMounted = false; };
     }
   }, [isOpen, destinationId, days, getAccommodationForDay]);
 
@@ -503,13 +509,14 @@ const SmartSchedulerModal = ({
     );
   }, [scheduleResult.schedule, days, constraints, accommodationsByDay, effectiveMatrix, transportMode]);
 
-  // Count days without accommodation
+  // Count days without accommodation (only after accommodation data is loaded)
   const daysWithoutAccommodation = useMemo(() => {
+    if (isLoadingAccom) return [];
     return schedulePreview.filter(day =>
       day.warnings?.some(w => w.type === 'no_accommodation') ||
       day.warningsLegacy?.noAccommodation
     );
-  }, [schedulePreview]);
+  }, [schedulePreview, isLoadingAccom]);
 
   // Toggle day expansion
   const toggleDay = useCallback((date) => {

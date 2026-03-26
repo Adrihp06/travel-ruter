@@ -4,6 +4,8 @@ import authFetch from '../utils/authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
+let _tripDetailsGeneration = 0;
+
 // Helper to get trip status priority for default sorting
 // Order: ongoing/in progress > planning/upcoming > completed
 const getStatusPriority = (trip) => {
@@ -214,7 +216,7 @@ const useTripStore = create((set, get) => ({
   }),
 
   fetchTrips: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       const response = await authFetch(`${API_BASE_URL}/trips`);
       if (!response.ok) throw new Error('Failed to fetch trips');
@@ -238,7 +240,7 @@ const useTripStore = create((set, get) => ({
   // Optimized: Fetch all trips with destinations and POI stats in ONE API call
   // This eliminates the N+1 problem (2N+1 calls reduced to 1)
   fetchTripsSummary: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       const response = await authFetch(`${API_BASE_URL}/trips/summary`);
       if (!response.ok) throw new Error('Failed to fetch trips summary');
@@ -294,7 +296,8 @@ const useTripStore = create((set, get) => ({
   },
 
   fetchTripDetails: async (tripId) => {
-    set({ isLoading: true });
+    const gen = ++_tripDetailsGeneration;
+    set({ isLoading: true, error: null });
     try {
       // Fetch trip details, destinations, and budget in parallel
       const [tripResponse, destinationsResponse, budgetResponse] = await Promise.all([
@@ -302,6 +305,8 @@ const useTripStore = create((set, get) => ({
         authFetch(`${API_BASE_URL}/trips/${tripId}/destinations`),
         authFetch(`${API_BASE_URL}/trips/${tripId}/budget`),
       ]);
+
+      if (gen !== _tripDetailsGeneration) return;
 
       if (!tripResponse.ok) throw new Error('Failed to fetch trip details');
 
@@ -346,7 +351,7 @@ const useTripStore = create((set, get) => ({
   },
 
   fetchTripBudget: async (tripId) => {
-    set({ isBudgetLoading: true });
+    set({ isBudgetLoading: true, error: null });
     try {
       const response = await authFetch(`${API_BASE_URL}/trips/${tripId}/budget`);
       if (!response.ok) throw new Error('Failed to fetch budget');

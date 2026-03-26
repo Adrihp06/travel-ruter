@@ -52,7 +52,7 @@ class TripService:
         """Get a trip by ID with destinations eagerly loaded"""
         result = await db.execute(
             select(Trip)
-            .options(selectinload(Trip.destinations))
+            .options(selectinload(Trip.destinations).selectinload(Destination.accommodations))
             .where(Trip.id == trip_id)
         )
         return result.scalar_one_or_none()
@@ -89,7 +89,7 @@ class TripService:
         When user_id is provided, only returns trips owned by or shared with that user.
         """
         # Query 1: Get trips with destinations eagerly loaded
-        base_query = select(Trip).options(selectinload(Trip.destinations))
+        base_query = select(Trip).options(selectinload(Trip.destinations).selectinload(Destination.accommodations))
         count_query = select(func.count(Trip.id))
 
         if user_id is not None:

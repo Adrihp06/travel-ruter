@@ -33,7 +33,16 @@ Frontend (React/Vite/Nginx) --> Backend (FastAPI/SQLAlchemy) <--> Orchestrator (
 
 ### Backend (`app/`)
 - **FastAPI** with async endpoints
-- Pattern: `api/routers/` -> `services/` -> `models/` -> `schemas/`
+- API routers organized by domain:
+  - `api/trips/` — trips, destinations, POIs, routes, waypoints, segments, stops
+  - `api/content/` — notes, documents, comments
+  - `api/accommodation/` — accommodations, hotels
+  - `api/auth/` — OAuth/JWT auth, API keys, MCP tokens
+  - `api/social/` — collaboration, activity feed, notifications
+  - `api/maps/` — geocoding, Google Places, weather
+  - `api/realtime/` — conversations, WebSocket
+  - `api/deps.py` & `api/permissions.py` — shared dependencies at root
+- Pattern: `api/{domain}/` -> `services/` -> `models/` -> `schemas/`
 - ORM: **SQLAlchemy 2.0** async sessions
 - Migrations: **Alembic** (`alembic/` at project root)
 - Auth: OAuth (Google, GitHub) + JWT tokens
@@ -43,7 +52,14 @@ Frontend (React/Vite/Nginx) --> Backend (FastAPI/SQLAlchemy) <--> Orchestrator (
 - **PydanticAI** agent with multi-model support (Claude, GPT, Gemini)
 - WebSocket streaming for chat responses
 - Tool calling via MCP subprocess
-- Key files: `agent.py`, `routes.py`, `session.py`, `config.py`
+- Structure:
+  - `agent.py` — Agent factory + MCP subprocess setup
+  - `config.py` — Settings, model registry, system prompt
+  - `session.py` — In-memory session management
+  - `schemas.py` — Pydantic API contracts
+  - `api/` — Route modules (chat, sessions, health, providers)
+  - `services/` — Business logic (chat_service, error_handler)
+  - `middleware/` — WebSocket rate limiting
 
 ### MCP Server (`mcp_server/`)
 - Model Context Protocol server exposing travel tools

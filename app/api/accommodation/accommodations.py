@@ -1,7 +1,7 @@
 from typing import List
 from datetime import date, timedelta
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from geoalchemy2.functions import ST_SetSRID, ST_MakePoint, ST_X, ST_Y
@@ -222,8 +222,10 @@ async def list_accommodations_by_destination(
     pagination: PaginationParams = Depends(),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    response: Response = None,
 ):
     """Get accommodations for a specific destination with pagination"""
+    response.headers["Cache-Control"] = "no-cache, must-revalidate"
     # Verify that the destination exists
     dest_result = await db.execute(select(Destination).where(Destination.id == destination_id))
     destination = dest_result.scalar_one_or_none()
@@ -269,8 +271,10 @@ async def get_accommodation(
     id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    response: Response = None,
 ):
     """Get a specific accommodation by ID"""
+    response.headers["Cache-Control"] = "no-cache, must-revalidate"
     result = await db.execute(
         select(
             Accommodation,

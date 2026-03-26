@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, lazy, Suspense } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { Plus, Users, Activity, List, Map as MapIcon, MoreHorizontal, Calendar, FolderOpen, BookOpen, ExternalLink, Star, Globe, Clock, X as XIcon, Pencil as PenIcon } from 'lucide-react';
@@ -741,10 +741,10 @@ const DetailViewContent = () => {
   const { t } = useTranslation();
   const { id } = useParams();
   const { selectedTrip, fetchTripDetails, isLoading, setSelectedTripDestinations } = useTripStore();
-  const { pois, fetchPOIsByDestination, createPOI, updatePOI, deletePOI, votePOI, updatePOISchedules, isLoading: isPOIsLoading } = usePOIStore();
+  const { pois, fetchPOIsByDestination, createPOI, updatePOI, deletePOI, votePOI, updatePOISchedules, clearPOIs, isLoading: isPOIsLoading, poisDestinationId } = usePOIStore();
   const { documents } = useDocumentStore();
   const { deleteDestination, reorderDestinations, setSelectedDestination, resetSelectedDestination, selectedDestination: storeSelectedDestination } = useDestinationStore();
-  const { accommodations, accommodationsByDestination, fetchAccommodations, fetchAccommodationsForTrip, deleteAccommodation, isLoading: isAccLoading } = useAccommodationStore();
+  const { accommodations, accommodationsByDestination, accommodationDestinationId, fetchAccommodations, fetchAccommodationsForTrip, clearDestinationAccommodations, deleteAccommodation, isLoading: isAccLoading } = useAccommodationStore();
   const { noteStats, fetchNoteStats } = useNoteStore();
   const setDestinationContext = useAIStore(state => state.setDestinationContext);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -753,6 +753,7 @@ const DetailViewContent = () => {
 
   // State
   const [selectedDestinationId, setSelectedDestinationId] = useState(null); // null = Level 1
+  const lastFetchedDestRef = useRef(null); // Prevents duplicate fetches when deps change reference
   const [selectedPOIs, setSelectedPOIs] = useState([]);
   const [centerOnPOI, setCenterOnPOI] = useState(null);
   const [showAddPOIModal, setShowAddPOIModal] = useState(false);
@@ -794,8 +795,14 @@ const DetailViewContent = () => {
   // - isDataOverlayLoading: Show overlay while POIs/accommodations load (non-blocking)
   const isMapReady = selectedDestination?.latitude && selectedDestination?.longitude;
   const isDataOverlayLoading = isPOIsLoading || isAccLoading;
-  // Only block left panel content when we have NO data yet
-  const isLeftPanelLoading = (isPOIsLoading && (!pois || pois.length === 0));
+  // Block left panel until POIs for the CURRENT destination are confirmed loaded.
+  // poisDestinationId tracks which destination the store data belongs to — prevents
+  // showing empty DailyItinerary during clear→fetch transitions or stale data from
+  // a previous destination.
+  const isLeftPanelLoading = selectedDestinationId && (
+    poisDestinationId !== selectedDestinationId ||
+    (isPOIsLoading && (!pois || pois.length === 0))
+  );
 
   // Generate days for the selected destination
   // Uses parseDateString to avoid UTC timezone off-by-one errors
@@ -918,6 +925,18 @@ const DetailViewContent = () => {
 
   // Handlers
   const handleSelectDestination = useCallback((destId) => {
+    // Start data loading immediately in the event handler to avoid intermediate frame
+    // with empty data (React 18 batches these into a single render with isLoading=true)
+    const destExists = selectedTrip?.destinations?.some(d => d.id === destId);
+    if (destExists) {
+      lastFetchedDestRef.current = destId;
+      fetchPOIsByDestination(destId);   // Self-clears old data + sets isLoading=true
+      fetchAccommodations(destId);      // Self-clears old data + sets isLoading=true
+    } else {
+      // Trip data not loaded yet — just clear stale data; effect will fetch when ready
+      clearPOIs();
+      clearDestinationAccommodations();
+    }
     setSelectedDestinationId(destId);
     setSelectedPOIs([]);
     setCenterOnPOI(null);
@@ -932,13 +951,15 @@ const DetailViewContent = () => {
     if (isMobile) {
       setMobileActiveTab('map');
     }
-  }, [selectedTrip?.destinations, setSelectedDestination, isMobile, setMobileActiveTab]);
+  }, [selectedTrip?.destinations, setSelectedDestination, isMobile, setMobileActiveTab, clearPOIs, clearDestinationAccommodations, fetchPOIsByDestination, fetchAccommodations]);
 
   const handleBackToLevel1 = useCallback(() => {
+    clearPOIs();
+    clearDestinationAccommodations();
     setSelectedDestinationId(null);
     setSelectedPOIs([]);
     resetSelectedDestination();
-  }, [resetSelectedDestination]);
+  }, [resetSelectedDestination, clearPOIs, clearDestinationAccommodations]);
 
   const handleSelectPOI = useCallback((poiId) => {
     setSelectedPOIs(prev =>
@@ -1160,15 +1181,28 @@ const DetailViewContent = () => {
 
   useEffect(() => {
     if (selectedDestinationId) {
+      // Validate destination exists in loaded trip data before fetching
+      const destExists = selectedTrip?.destinations?.some(d => d.id === selectedDestinationId);
+      if (!destExists) return;
+
+      // Skip if we already fetched for this destination (prevents re-fetch on reference changes)
+      if (lastFetchedDestRef.current === selectedDestinationId) return;
+      lastFetchedDestRef.current = selectedDestinationId;
+
+      // Fetch functions self-clear old data and set loading state
       fetchPOIsByDestination(selectedDestinationId);
       fetchAccommodations(selectedDestinationId);
+    } else {
+      lastFetchedDestRef.current = null;
     }
-  }, [selectedDestinationId, fetchPOIsByDestination, fetchAccommodations]);
+  }, [selectedDestinationId, selectedTrip?.destinations, fetchPOIsByDestination, fetchAccommodations]);
 
   // Handle browser back button: return to trip level instead of navigating away
   useEffect(() => {
     const handlePopState = (e) => {
       if (selectedDestinationId) {
+        clearPOIs();
+        clearDestinationAccommodations();
         setSelectedDestinationId(null);
         setSelectedPOIs([]);
         resetSelectedDestination();
@@ -1176,7 +1210,7 @@ const DetailViewContent = () => {
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [selectedDestinationId, resetSelectedDestination]);
+  }, [selectedDestinationId, resetSelectedDestination, clearPOIs, clearDestinationAccommodations]);
 
   // Sync local state with store (for breadcrumb navigation back to trip level)
   useEffect(() => {
@@ -1245,7 +1279,7 @@ const DetailViewContent = () => {
     };
 
     setDestinationContext(context);
-  }, [selectedDestinationId, flatPois.length, accommodations?.length]);
+  }, [selectedDestinationId, flatPois, accommodations, selectedTrip?.destinations]);
 
   // Clear destination context on unmount
   useEffect(() => {
@@ -1393,7 +1427,7 @@ const DetailViewContent = () => {
                 <AccommodationTimeline
                   className="w-full"
                   destination={selectedDestination}
-                  accommodations={accommodations}
+                  accommodations={accommodationDestinationId === selectedDestinationId ? accommodations : []}
                   onAddForGap={handleAddAccommodationForGap}
                   onEditAccommodation={handleEditAccommodation}
                   onCenterOnAccommodation={handleCenterOnAccommodation}

@@ -32,6 +32,9 @@ if (ORCHESTRATOR_URL.startsWith('http')) {
 }
 const SETTINGS_KEY = 'travel-ruter-settings';
 
+// Generation counter to prevent stale conversation loads from overwriting fresh data
+let _conversationLoadGeneration = 0;
+
 // Tools that mutate data and require frontend store invalidation
 const MUTATING_TOOLS = {
   manage_poi:          { stores: ['poi', 'trip'] },
@@ -390,8 +393,10 @@ const useAIStore = create((set, get) => ({
    * with restored message history for AI memory continuity.
    */
   loadConversation: async (id) => {
+    const gen = ++_conversationLoadGeneration;
     const saved = await loadConversation(id);
     if (!saved) return;
+    if (gen !== _conversationLoadGeneration) return;
 
     set({
       conversationId: saved.id,
@@ -428,6 +433,7 @@ const useAIStore = create((set, get) => ({
           }),
         });
 
+        if (gen !== _conversationLoadGeneration) return;
         if (res.ok) {
           const data = await res.json();
           set({ sessionId: data.sessionId, connectionError: null });
@@ -483,8 +489,10 @@ const useAIStore = create((set, get) => ({
    * Restores chatMode, tripContext, and messages from the saved conversation.
    */
   loadConversationFromHistory: async (id) => {
+    const gen = ++_conversationLoadGeneration;
     const saved = await loadConversation(id);
     if (!saved) return;
+    if (gen !== _conversationLoadGeneration) return;
 
     const chatMode = saved.tripId ? 'existing' : 'new';
 
@@ -526,6 +534,7 @@ const useAIStore = create((set, get) => ({
           }),
         });
 
+        if (gen !== _conversationLoadGeneration) return;
         if (res.ok) {
           const data = await res.json();
           set({ sessionId: data.sessionId, connectionError: null });

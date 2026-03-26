@@ -19,6 +19,7 @@ const buildPOIMap = (pois) => {
 const usePOIStore = create((set, get) => ({
   pois: [], // List of POIsByCategory objects
   poisById: new Map(), // O(1) lookup map for POIs by ID
+  poisDestinationId: null, // Tracks which destination the loaded POIs belong to
   selectedPOI: null,
   isLoading: false,
   error: null,
@@ -35,7 +36,7 @@ const usePOIStore = create((set, get) => ({
 
   fetchPOIsByDestination: async (destinationId) => {
     const gen = ++_poiLoadGeneration;
-    set({ isLoading: true, error: null });
+    set({ pois: [], poisById: new Map(), isLoading: true, error: null, poisDestinationId: destinationId });
     try {
       const response = await authFetch(`${API_BASE_URL}/destinations/${destinationId}/pois`);
 
@@ -49,11 +50,11 @@ const usePOIStore = create((set, get) => ({
       }
       // Handle paginated response format { items: [...] } or direct array
       const pois = Array.isArray(data) ? data : (data.items || []);
-      set({ pois, poisById: buildPOIMap(pois), isLoading: false });
+      set({ pois, poisById: buildPOIMap(pois), isLoading: false, poisDestinationId: destinationId });
       return pois;
     } catch (error) {
       if (gen === _poiLoadGeneration) {
-        set({ error: error.message, isLoading: false, pois: [], poisById: new Map() });
+        set({ error: error.message, isLoading: false, pois: [], poisById: new Map(), poisDestinationId: destinationId });
       }
       return [];
     }
@@ -61,7 +62,7 @@ const usePOIStore = create((set, get) => ({
 
   clearPOIs: () => {
     _poiLoadGeneration++;
-    set({ pois: [], poisById: new Map(), selectedPOI: null, isLoading: false, error: null });
+    set({ pois: [], poisById: new Map(), selectedPOI: null, isLoading: false, error: null, poisDestinationId: null });
   },
 
   createPOI: async (poiData) => {
