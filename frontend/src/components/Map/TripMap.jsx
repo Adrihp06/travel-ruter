@@ -9,6 +9,7 @@ import Map, {
 import { MapPin, Plus, Car, Footprints, Bike, Train, Ship, Bus, Calendar, CircleStop, ExternalLink as ExternalLinkIcon, AlertTriangle as TriangleAlertIcon, Home as HomeIcon, Plane as AirplaneIcon } from 'lucide-react';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
+import useMapStore from '../../stores/useMapStore';
 import useRouteStore from '../../stores/useRouteStore';
 import useWaypointStore from '../../stores/useWaypointStore';
 import useTravelStopStore from '../../stores/useTravelStopStore';
@@ -339,6 +340,24 @@ const TripMap = ({
     zoom: 5,
   });
   const [showFallbackWarning, setShowFallbackWarning] = useState(true);
+
+  // Voice agent map commands — fly to location when voice agent calls show_on_map
+  const voiceCommand = useMapStore((s) => s.voiceCommand);
+  useEffect(() => {
+    if (!voiceCommand) return;
+    // react-map-gl wraps mapbox — use getMap() to get the native instance
+    const map = mapRef.current?.getMap?.() || mapRef.current;
+    if (map && typeof map.flyTo === 'function') {
+      console.log('[TripMap] Voice flyTo:', voiceCommand.center, 'zoom:', voiceCommand.zoom);
+      map.flyTo({
+        center: voiceCommand.center, // [lng, lat] — Mapbox format
+        zoom: voiceCommand.zoom || 14,
+        duration: 1500,
+      });
+    } else {
+      console.warn('[TripMap] Map ref not available for voice flyTo');
+    }
+  }, [voiceCommand]);
 
   // Travel segments store for segment-based routing
   const { segments, originSegment, returnSegment, fetchTripSegments, clearSegments, isLoading: isSegmentsLoading, hasFetchedInitial } = useTravelSegmentStore();

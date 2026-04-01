@@ -1361,5 +1361,21 @@
   "dates": {
     "selectStartDate": "Seleccionar fecha inicio",
     "selectEndDate": "Seleccionar fecha fin"
+  },
+
+  "voice": {
+    "agentName": "Agente Canario",
+    "open": "Abrir agente de voz",
+    "close": "Cerrar agente de voz",
+    "listening": "Escuchando...",
+    "processing": "Procesando...",
+    "speaking": "Hablando...",
+    "pushToTalk": "Toca para hablar",
+    "tapToStop": "Toca para parar",
+    "sessionEnding": "La sesión de voz termina pronto",
+    "connectionError": "Error de conexión de voz",
+    "micPermissionDenied": "Permiso de micrófono denegado. Permite el acceso al micrófono.",
+    "connecting": "Conectando...",
+    "emptyState": "Pulsa el micrófono y habla para empezar"
   }
 }

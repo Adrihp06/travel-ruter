@@ -39,6 +39,15 @@ def create_mcp_server() -> MCPServerStdio:
     if settings.openai_api_key:
         env["OPENAI_API_KEY"] = settings.openai_api_key
 
+    # Auth settings needed by app.core.config (imported by MCP server).
+    # The orchestrator receives JWT_SECRET_KEY (mapped from SECRET_KEY in docker-compose),
+    # but the backend config expects SECRET_KEY. Pass it under both names.
+    secret_key = os.environ.get("SECRET_KEY") or os.environ.get("JWT_SECRET_KEY", "")
+    if secret_key:
+        env["SECRET_KEY"] = secret_key
+    # Disable auth validation in MCP subprocess — it doesn't serve HTTP endpoints
+    env["AUTH_ENABLED"] = os.environ.get("AUTH_ENABLED", "false")
+
     return MCPServerStdio(
         settings.mcp_python_path,
         args=["-m", "mcp_server"],

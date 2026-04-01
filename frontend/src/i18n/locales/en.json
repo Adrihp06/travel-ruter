@@ -1359,5 +1359,21 @@
   "dates": {
     "selectStartDate": "Select start date",
     "selectEndDate": "Select end date"
+  },
+
+  "voice": {
+    "agentName": "Agente Canario",
+    "open": "Open voice agent",
+    "close": "Close voice agent",
+    "listening": "Listening...",
+    "processing": "Processing...",
+    "speaking": "Speaking...",
+    "pushToTalk": "Tap to speak",
+    "tapToStop": "Tap to stop",
+    "sessionEnding": "Voice session ending soon",
+    "connectionError": "Voice connection failed",
+    "micPermissionDenied": "Microphone permission denied. Please allow microphone access.",
+    "connecting": "Connecting...",
+    "emptyState": "Tap the microphone and speak to start"
   }
 }

@@ -59,6 +59,9 @@ class OrchestratorSettings(BaseSettings):
     # Internal service auth (orchestrator → backend)
     INTERNAL_SERVICE_KEY: str = ""
 
+    # Gemini Live voice agent
+    gemini_live_model: str = "models/gemini-3.1-flash-live-preview"
+
     # CORS — restrict in production via CORS_ORIGINS env var
     cors_origins: str = "https://travelruter.com,http://localhost:5173"
 

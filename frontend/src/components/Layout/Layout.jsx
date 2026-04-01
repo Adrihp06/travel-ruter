@@ -9,6 +9,7 @@ import useTravelSegmentStore from '../../stores/useTravelSegmentStore';
 import NotificationBell from '../Notifications/NotificationBell';
 
 const AIChat = lazy(() => import('../AI/AIChat'));
+const VoiceAgent = lazy(() => import('../Voice/VoiceAgent'));
 
 // Skip to main content link for keyboard navigation accessibility
 const SkipToMain = () => (
@@ -127,6 +128,11 @@ const Layout = () => {
           onToggle={() => setIsChatOpen(prev => !prev)}
           onClose={() => setIsChatOpen(false)}
         />
+      </Suspense>
+
+      {/* Voice Agent - floating button + fullscreen overlay */}
+      <Suspense fallback={null}>
+        <VoiceAgent tripContext={tripContext} />
       </Suspense>
     </div>
   );
