@@ -26,15 +26,30 @@ function slugify(str) {
  * @param {Object} trip - Trip object with name, destinations, etc.
  * @param {Array} destinations - Array of destination objects
  * @param {string} mapboxToken - Mapbox access token (may be undefined)
+ * @param {Object} [options] - Optional settings
+ * @param {Function} [options.onProgress] - Progress callback ({ phase, current, total })
+ * @returns {Promise<{succeeded: string[], failed: Array<{title: string, error: string}>, warnings: string[]}>}
  */
-export async function exportTripAsPDFs(selectedDocuments, trip, destinations, mapboxToken) {
-  if (!selectedDocuments || selectedDocuments.length === 0) return;
+export async function exportTripAsPDFs(selectedDocuments, trip, destinations, mapboxToken, options = {}) {
+  const { onProgress } = options;
+
+  if (!selectedDocuments || selectedDocuments.length === 0) return {
+    succeeded: [],
+    failed: [],
+    warnings: [],
+  };
 
   const tripName = trip?.name || 'Trip';
   const tripSlug = slugify(tripName);
+  const total = selectedDocuments.length;
+  const succeeded = [];
+  const failed = [];
+  const allWarnings = [];
 
   // Step 1: Pre-fetch all map images in parallel
-  const mapImagePromises = selectedDocuments.map(async (doc) => {
+  onProgress?.({ phase: 'maps', current: 0, total });
+
+  const mapImagePromises = selectedDocuments.map(async (doc, i) => {
     if (!mapboxToken) return [doc.id, undefined];
 
     let url;
@@ -48,6 +63,7 @@ export async function exportTripAsPDFs(selectedDocuments, trip, destinations, ma
       }
     }
     const dataUri = await fetchMapAsBase64(url);
+    onProgress?.({ phase: 'maps', current: i + 1, total });
     return [doc.id, dataUri];
   });
 
@@ -72,11 +88,17 @@ export async function exportTripAsPDFs(selectedDocuments, trip, destinations, ma
     const doc = selectedDocuments[i];
     const mapImage = mapImages[doc.id];
 
+    onProgress?.({ phase: 'pdf', current: i, total });
+
     // Resolve route blocks (:::route ... :::) into renderable cards
-    const { processedMarkdown, routeCards } = await resolveRouteBlocksForExport(
+    const { processedMarkdown, routeCards, warnings } = await resolveRouteBlocksForExport(
       doc.content || '',
       routeContext
     );
+
+    if (warnings?.length) {
+      allWarnings.push(...warnings);
+    }
 
     const docElement = markdownToPDFDocument(
       processedMarkdown,
@@ -98,12 +120,16 @@ export async function exportTripAsPDFs(selectedDocuments, trip, destinations, ma
       }
 
       zip.file(filename, blob);
+      succeeded.push(filename);
     } catch (error) {
       console.error(`Failed to generate PDF for "${doc.title}":`, error);
+      failed.push({ title: doc.title, error: error.message || String(error) });
     }
   }
 
   // Step 3: Generate ZIP and trigger download
+  onProgress?.({ phase: 'zip' });
+
   const zipBlob = await zip.generateAsync({ type: 'blob' });
   const url = URL.createObjectURL(zipBlob);
 
@@ -114,4 +140,6 @@ export async function exportTripAsPDFs(selectedDocuments, trip, destinations, ma
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+
+  return { succeeded, failed, warnings: allWarnings };
 }
