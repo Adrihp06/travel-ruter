@@ -166,6 +166,10 @@ def _register_tools(server: FastMCP, transport: str = "stdio"):
     from mcp_server.tools import hotels_export
     hotels_export.register_tools(server)
 
+    # Export document scaffolding (AI-driven document generation)
+    from mcp_server.tools import export_scaffold
+    export_scaffold.register_tools(server)
+
     # Only expose web_search to the internal orchestrator (stdio).
     # Remote clients should use their provider's built-in web search.
     if transport == "stdio":
