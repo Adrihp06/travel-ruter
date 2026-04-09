@@ -113,7 +113,10 @@
       "insertTripRouteOnly": "Solo ruta del viaje",
       "insertAllRoutes": "Todas las rutas (Viaje + Dias)",
       "wordCount": "{{count}} palabra",
-      "wordCount_other": "{{count}} palabras"
+      "wordCount_other": "{{count}} palabras",
+      "scaffold": "Plantilla",
+      "scaffoldTitle": "Generar documento automáticamente con datos del viaje",
+      "scaffoldConfirm": "Este documento ya tiene contenido. ¿Reemplazarlo con una plantilla?"
     },
     "travelData": {
       "title": "Datos de viaje",

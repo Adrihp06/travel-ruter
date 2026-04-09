@@ -113,7 +113,10 @@
       "insertTripRouteOnly": "Trip Route Only",
       "insertAllRoutes": "All Routes (Trip + Days)",
       "wordCount": "{{count}} word",
-      "wordCount_other": "{{count}} words"
+      "wordCount_other": "{{count}} words",
+      "scaffold": "Scaffold",
+      "scaffoldTitle": "Auto-generate document from trip data",
+      "scaffoldConfirm": "This document already has content. Replace it with a scaffold?"
     },
     "travelData": {
       "title": "Travel Data",

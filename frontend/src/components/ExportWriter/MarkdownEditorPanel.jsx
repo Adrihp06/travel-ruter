@@ -9,6 +9,7 @@ import usePOIStore from '../../stores/usePOIStore';
 import useAccommodationStore from '../../stores/useAccommodationStore';
 import useDayRoutesStore from '../../stores/useDayRoutesStore';
 import authFetch from '../../utils/authFetch';
+import { fetchAndScaffold } from '../../utils/documentScaffold';
 
 const sanitizeConfig = {
   ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'u', 'strong', 'em', 'h1', 'h2', 'h3', 'ul', 'ol', 'li', 'blockquote', 'a', 'img', 'span', 'div'],
@@ -44,7 +45,7 @@ function SaveStatusIndicator({ status }) {
   return null;
 }
 
-const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove, onInsertTripRoute, onInsertAllRoutes, onInsertDayRoute, onInsertDestinationRoute, tripId, destinations }, ref) => {
+const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove, onInsertTripRoute, onInsertAllRoutes, onInsertDayRoute, onInsertDestinationRoute, tripId, trip, destinations }, ref) => {
   const { t } = useTranslation();
   const {
     documents,
@@ -60,6 +61,7 @@ const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove, onInsertTr
   // Cache of { [destinationId]: { name, dates: ['2025-04-19', ...] } }
   const [destDayRoutes, setDestDayRoutes] = useState(null);
   const [loadingDayRoutes, setLoadingDayRoutes] = useState(false);
+  const [scaffolding, setScaffolding] = useState(false);
 
   // Lazy-fetch scheduled dates per destination when dropdown opens
   useEffect(() => {
@@ -189,6 +191,33 @@ const MarkdownEditorPanel = forwardRef(({ onGenerateDraft, onImprove, onInsertTr
             >
               <PenLine className="w-3.5 h-3.5" />
               {t('exportWriter.editor.improve')}
+            </button>
+            <button
+              onClick={async () => {
+                if (!selectedDoc) return;
+                const currentContent = selectedDoc.content || '';
+                if (currentContent.length > 50) {
+                  if (!window.confirm(t('exportWriter.editor.scaffoldConfirm'))) return;
+                }
+                setScaffolding(true);
+                try {
+                  const result = await fetchAndScaffold(selectedDoc, trip, destinations);
+                  updateContent(selectedDocId, result);
+                } catch {
+                  // silently handle — user sees no change
+                } finally {
+                  setScaffolding(false);
+                }
+              }}
+              disabled={scaffolding}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              title={t('exportWriter.editor.scaffoldTitle')}
+            >
+              {scaffolding
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <FileText className="w-3.5 h-3.5" />
+              }
+              {t('exportWriter.editor.scaffold')}
             </button>
             {tripId && (
               <div className="relative" ref={routeMenuRef}>
