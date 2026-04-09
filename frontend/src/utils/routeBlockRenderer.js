@@ -131,7 +131,10 @@ async function loadTripSegments(tripId, context = {}) {
 
     const data = await response.json();
     return Array.isArray(data?.segments) ? data.segments : [];
-  })().catch(() => []);
+  })().catch(() => {
+    cache?.delete(tripId);
+    return [];
+  });
 
   cache?.set(tripId, promise);
   return promise;
@@ -153,14 +156,17 @@ async function loadDestinationPois(destinationId, context = {}) {
   }
 
   const promise = (async () => {
-    const response = await authFetch(`${API_BASE_URL}/destinations/${destinationId}/pois`);
+    const response = await authFetch(`${API_BASE_URL}/destinations/${destinationId}/pois?limit=200`);
     if (!response.ok) {
       throw new Error('Failed to load destination POIs');
     }
 
     const data = await response.json();
     return flattenPoisResponse(data);
-  })().catch(() => []);
+  })().catch(() => {
+    cache?.delete(destinationId);
+    return [];
+  });
 
   cache?.set(destinationId, promise);
   return promise;
@@ -287,6 +293,7 @@ async function loadDayRouteData(descriptor, context = {}) {
       stops,
     };
   })().catch(() => {
+    cache?.delete(cacheKey);
     const fallbackCoordinates = buildRouteCoordinates(descriptor, context.destinations);
     return {
       mapCoordinates: fallbackCoordinates,
@@ -427,6 +434,7 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
       stops,
     };
   })().catch(() => {
+    cache?.delete(descriptor.destinationId);
     const fallbackCoordinates = buildRouteCoordinates(descriptor, context.destinations);
     return {
       mapCoordinates: fallbackCoordinates,
@@ -580,7 +588,7 @@ export function buildGoogleMapsUrlForRoute(coordinates, travelMode = GoogleMapsT
     const [lng, lat] = coordinates[0];
     const name = stops?.[0]?.name;
     if (name) {
-      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}&query=${lat},${lng}`;
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name} ${lat},${lng}`)}`;
     }
     return `https://www.google.com/maps/@${lat},${lng},14z`;
   }
