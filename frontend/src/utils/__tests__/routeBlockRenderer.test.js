@@ -309,6 +309,26 @@ describe('buildMapUrlForRoute', () => {
   it('returns null for day-route with no coordinates', () => {
     expect(buildMapUrlForRoute(dayRouteDesc, null, destinations, token)).toBeNull();
   });
+
+  it('passes markers through to map URL when provided', () => {
+    const coords = [[12.4964, 41.9028], [11.2558, 43.7696]];
+    const markers = [
+      { lng: 12.4964, lat: 41.9028, label: '1' },
+      { lng: 11.2558, lat: 43.7696, label: '2' },
+    ];
+    const url = buildMapUrlForRoute(dayRouteDesc, coords, destinations, token, markers);
+    expect(url).toContain('pin-s-1+D97706');
+    expect(url).toContain('pin-s-2+D97706');
+    expect(url).toContain('path-');
+  });
+
+  it('works without markers parameter (backward compatibility)', () => {
+    const coords = [[12.4964, 41.9028], [11.2558, 43.7696]];
+    const url = buildMapUrlForRoute(dayRouteDesc, coords, destinations, token);
+    expect(url).toContain('api.mapbox.com');
+    expect(url).toContain('path-');
+    expect(url).not.toContain('pin-s-');
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -47,6 +47,7 @@ More content.`;
       tripId: 42,
       destinationId: null,
       date: null,
+      mode: null,
       label: 'Full Trip Route',
     });
     expect(blocks[0].valid).toBe(true);
@@ -532,6 +533,62 @@ describe('buildRouteMapUrl', () => {
   it('respects custom color', () => {
     const url = buildRouteMapUrl(coords, token, { color: '0284C7' });
     expect(url).toContain('0284C7');
+  });
+
+  it('includes marker overlays when markers are provided', () => {
+    const markers = [
+      { lng: 12.4964, lat: 41.9028, label: '1' },
+      { lng: 12.4922, lat: 41.8902, label: '2' },
+    ];
+    const url = buildRouteMapUrl(coords, token, { markers });
+    expect(url).toContain('pin-s-1+D97706(12.4964,41.9028)');
+    expect(url).toContain('pin-s-2+D97706(12.4922,41.8902)');
+    expect(url).toContain('path-3+D97706(');
+  });
+
+  it('works without markers (backward compatibility)', () => {
+    const url = buildRouteMapUrl(coords, token);
+    expect(url).toContain('path-3+D97706(');
+    expect(url).not.toContain('pin-s');
+  });
+
+  it('omits markers with invalid coordinates', () => {
+    const markers = [
+      { lng: 12.4964, lat: 41.9028, label: '1' },
+      { lng: null, lat: 41.8902, label: '2' },
+      { lng: 12.0, lat: undefined, label: '3' },
+    ];
+    const url = buildRouteMapUrl(coords, token, { markers });
+    expect(url).toContain('pin-s-1+D97706(12.4964,41.9028)');
+    expect(url).not.toContain('pin-s-2');
+    expect(url).not.toContain('pin-s-3');
+  });
+
+  it('drops labels for markers with label > 99', () => {
+    const markers = [
+      { lng: 12.4964, lat: 41.9028, label: '100' },
+      { lng: 12.4922, lat: 41.8902, label: '5' },
+    ];
+    const url = buildRouteMapUrl(coords, token, { markers });
+    // label 100 exceeds Mapbox's 0-99 range → unlabeled pin
+    expect(url).toContain('pin-s+D97706(12.4964,41.9028)');
+    // label 5 is fine → labeled pin
+    expect(url).toContain('pin-s-5+D97706(12.4922,41.8902)');
+  });
+
+  it('degrades gracefully when URL exceeds length limit', () => {
+    // Generate many markers to push URL over the 7500 char limit
+    const manyMarkers = Array.from({ length: 150 }, (_, i) => ({
+      lng: 12.0 + i * 0.001,
+      lat: 41.0 + i * 0.001,
+      label: String(i + 1),
+    }));
+    const longCoords = Array.from({ length: 300 }, (_, i) => [12.0 + i * 0.001, 41.0 + i * 0.001]);
+    const url = buildRouteMapUrl(longCoords, token, { markers: manyMarkers });
+    // Should still produce a valid URL (may have dropped labels/markers)
+    expect(url).toBeTruthy();
+    expect(url).toContain('api.mapbox.com');
+    expect(url.length).toBeLessThanOrEqual(7600);
   });
 });
 

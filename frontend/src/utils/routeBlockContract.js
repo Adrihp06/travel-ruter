@@ -39,6 +39,9 @@ export const ROUTE_BLOCK_TYPE = {
 
 const VALID_TYPES = new Set(Object.values(ROUTE_BLOCK_TYPE));
 
+export const VALID_ROUTE_MODES = new Set(['walking', 'cycling', 'driving', 'transit']);
+export const DEFAULT_ROUTE_MODE = 'walking';
+
 /** Regex that captures the full fenced block including delimiters. */
 const ROUTE_BLOCK_RE = /^:::route\n([\s\S]*?)^:::/gm;
 
@@ -62,6 +65,7 @@ function parseBlockBody(body) {
     tripId: null,
     destinationId: null,
     date: null,
+    mode: null,
     label: null,
   };
 
@@ -86,6 +90,9 @@ function parseBlockBody(body) {
         break;
       case 'date':
         descriptor.date = value || null;
+        break;
+      case 'mode':
+        descriptor.mode = value || null;
         break;
       case 'label':
         descriptor.label = value || null;
@@ -183,6 +190,10 @@ export function validateDescriptor(descriptor) {
     }
   }
 
+  if (descriptor.mode != null && !VALID_ROUTE_MODES.has(descriptor.mode)) {
+    errors.push(`Invalid route mode: "${descriptor.mode}". Must be one of: ${[...VALID_ROUTE_MODES].join(', ')}`);
+  }
+
   return { valid: errors.length === 0, errors };
 }
 
@@ -205,7 +216,7 @@ export function serializeRouteBlock(descriptor) {
   const lines = [':::route'];
 
   // Emit properties in a stable, deterministic order
-  const orderedKeys = ['type', 'tripId', 'destinationId', 'date', 'label'];
+  const orderedKeys = ['type', 'tripId', 'destinationId', 'date', 'mode', 'label'];
   for (const key of orderedKeys) {
     if (descriptor[key] != null && descriptor[key] !== '') {
       lines.push(`${key}: ${descriptor[key]}`);
@@ -229,7 +240,7 @@ export function serializeRouteBlock(descriptor) {
  */
 export function normalizeDescriptor(raw) {
   if (!raw || typeof raw !== 'object') {
-    return { type: null, tripId: null, destinationId: null, date: null, label: null };
+    return { type: null, tripId: null, destinationId: null, date: null, mode: null, label: null };
   }
 
   const type = VALID_TYPES.has(raw.type) ? raw.type : null;
@@ -242,9 +253,10 @@ export function normalizeDescriptor(raw) {
     date = raw.date;
   }
 
+  const mode = typeof raw.mode === 'string' && VALID_ROUTE_MODES.has(raw.mode) ? raw.mode : null;
   const label = typeof raw.label === 'string' && raw.label.trim() ? raw.label.trim() : null;
 
-  return { type, tripId, destinationId, date, label };
+  return { type, tripId, destinationId, date, mode, label };
 }
 
 // ---------------------------------------------------------------------------
@@ -272,13 +284,15 @@ export function createTripOverviewBlock(tripId, label) {
  * @param {number} destinationId
  * @param {string} date          - ISO date string (YYYY-MM-DD)
  * @param {string} [label]
+ * @param {string} [mode]        - Travel mode (walking, cycling, driving, transit)
  * @returns {object}
  */
-export function createDayRouteBlock(destinationId, date, label) {
+export function createDayRouteBlock(destinationId, date, label, mode) {
   return normalizeDescriptor({
     type: ROUTE_BLOCK_TYPE.DAY_ROUTE,
     destinationId,
     date,
+    mode: mode ?? null,
     label: label ?? null,
   });
 }
@@ -288,12 +302,14 @@ export function createDayRouteBlock(destinationId, date, label) {
  *
  * @param {number} destinationId
  * @param {string} [label]
+ * @param {string} [mode]        - Travel mode (walking, cycling, driving, transit)
  * @returns {object}
  */
-export function createDestinationOverviewBlock(destinationId, label) {
+export function createDestinationOverviewBlock(destinationId, label, mode) {
   return normalizeDescriptor({
     type: ROUTE_BLOCK_TYPE.DESTINATION_OVERVIEW,
     destinationId,
+    mode: mode ?? null,
     label: label ?? null,
   });
 }
@@ -385,13 +401,16 @@ export function replaceRouteBlocks(markdown, resolver) {
  * @param {string} [color='D97706'] - Hex color without #
  * @param {number} [strokeWidth=3]
  * @param {number} [opacity=1]
+ * @param {number} [maxPointsOverride] - Override the default 200-point subsample limit
  * @returns {string|null}
  */
-export function encodePathOverlay(coordinates, color = 'D97706', strokeWidth = 3, opacity = 1) {
+export function encodePathOverlay(coordinates, color = 'D97706', strokeWidth = 3, opacity = 1, maxPointsOverride) {
   if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
 
   // Subsample for very long routes to stay within URL limits
-  const maxPoints = 200;
+  const maxPoints = Number.isFinite(maxPointsOverride) && maxPointsOverride > 2
+    ? maxPointsOverride
+    : 200;
   const sampled =
     coordinates.length > maxPoints ? subsampleCoordinates(coordinates, maxPoints) : coordinates;
 
@@ -403,11 +422,12 @@ export function encodePathOverlay(coordinates, color = 'D97706', strokeWidth = 3
 }
 
 /**
- * Build a Mapbox Static API URL that renders a route polyline.
+ * Build a Mapbox Static API URL that renders a route polyline with optional
+ * numbered POI markers.
  *
  * @param {Array<[number,number]>} coordinates - [[lng, lat], …]
  * @param {string} token - Mapbox access token
- * @param {{ color?: string, strokeWidth?: number, width?: number, height?: number, retina?: boolean, padding?: number }} [options]
+ * @param {{ color?: string, strokeWidth?: number, width?: number, height?: number, retina?: boolean, padding?: number, markers?: Array<{lng: number, lat: number, label: string}> }} [options]
  * @returns {string|null}
  */
 export function buildRouteMapUrl(coordinates, token, options = {}) {
@@ -420,16 +440,65 @@ export function buildRouteMapUrl(coordinates, token, options = {}) {
     height = 300,
     retina = true,
     padding = 40,
+    markers = [],
   } = options;
-
-  const overlay = encodePathOverlay(coordinates, color, strokeWidth);
-  if (!overlay) return null;
 
   const MAPBOX_STATIC_BASE = 'https://api.mapbox.com/styles/v1/mapbox/streets-v12/static';
   const suffix = retina ? '@2x' : '';
+  const MAX_URL_LENGTH = 7500;
 
-  // Overlay syntax (+, parens) must NOT be re-encoded — only polyline internals are encoded above
-  return `${MAPBOX_STATIC_BASE}/${overlay}/auto/${width}x${height}${suffix}?access_token=${token}&padding=${padding}`;
+  const validMarkers = Array.isArray(markers)
+    ? markers.filter((m) => m && Number.isFinite(m.lng) && Number.isFinite(m.lat))
+    : [];
+
+  // Try building with full markers (labeled), then degrade if URL is too long
+  const buildUrl = (pathOverlay, markerOverlays) => {
+    const overlayStr = [pathOverlay, ...markerOverlays].filter(Boolean).join(',');
+    return `${MAPBOX_STATIC_BASE}/${overlayStr}/auto/${width}x${height}${suffix}?access_token=${token}&padding=${padding}`;
+  };
+
+  const labeledPins = validMarkers.map((m) => {
+    const lng = round5(m.lng);
+    const lat = round5(m.lat);
+    // Mapbox labels support 0–99; beyond that, use unlabeled pins
+    const labelNum = Number(m.label);
+    const labelPart = Number.isFinite(labelNum) && labelNum >= 0 && labelNum <= 99
+      ? `-${m.label}`
+      : '';
+    return `pin-s${labelPart}+${color}(${lng},${lat})`;
+  });
+
+  const unlabeledPins = validMarkers.map((m) => {
+    const lng = round5(m.lng);
+    const lat = round5(m.lat);
+    return `pin-s+${color}(${lng},${lat})`;
+  });
+
+  // Attempt 1: full polyline + labeled markers
+  let overlay = encodePathOverlay(coordinates, color, strokeWidth);
+  if (!overlay) return null;
+
+  let url = buildUrl(overlay, labeledPins);
+  if (url.length <= MAX_URL_LENGTH) return url;
+
+  // Attempt 2: drop labels — use unlabeled small pins
+  url = buildUrl(overlay, unlabeledPins);
+  if (url.length <= MAX_URL_LENGTH) return url;
+
+  // Attempt 3: reduce polyline precision (fewer subsampled points)
+  const reducedOverlay = encodePathOverlay(coordinates, color, strokeWidth, 1, 80);
+  if (reducedOverlay) {
+    url = buildUrl(reducedOverlay, unlabeledPins);
+    if (url.length <= MAX_URL_LENGTH) return url;
+  }
+
+  // Attempt 4: omit markers entirely
+  const finalOverlay = reducedOverlay || overlay;
+  url = buildUrl(finalOverlay, []);
+  if (url.length <= MAX_URL_LENGTH) return url;
+
+  // Last resort: reduced polyline, no markers
+  return `${MAPBOX_STATIC_BASE}/${finalOverlay}/auto/${width}x${height}${suffix}?access_token=${token}&padding=${padding}`;
 }
 
 // ---------------------------------------------------------------------------

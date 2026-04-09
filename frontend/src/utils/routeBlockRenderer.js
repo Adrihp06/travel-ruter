@@ -16,6 +16,7 @@ import {
   replaceRouteBlocks,
   buildRouteMapUrl,
   ROUTE_BLOCK_TYPE,
+  DEFAULT_ROUTE_MODE,
 } from './routeBlockContract';
 import {
   buildTripOverviewMapUrl,
@@ -26,7 +27,6 @@ import { generateGoogleMapsUrl, GoogleMapsTravelMode } from './googleMaps';
 import authFetch from './authFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
-const DEFAULT_DAY_ROUTE_MODE = 'walking';
 
 function toGoogleMapsTravelMode(mode) {
   switch (mode) {
@@ -182,6 +182,7 @@ async function loadDayRouteData(descriptor, context = {}) {
       totalDistanceKm: null,
       totalDurationMin: null,
       stops: null,
+      markers: [],
     };
   }
 
@@ -195,10 +196,14 @@ async function loadDayRouteData(descriptor, context = {}) {
       totalDistanceKm: Number.isFinite(result?.totalDistanceKm) ? result.totalDistanceKm : null,
       totalDurationMin: Number.isFinite(result?.totalDurationMin) ? result.totalDurationMin : null,
       stops: Array.isArray(result?.stops) ? result.stops : null,
+      markers: Array.isArray(result?.markers) ? result.markers : [],
     };
   }
 
-  const cacheKey = `${descriptor.destinationId}:${descriptor.date}`;
+  const effectiveMode = descriptor.mode || DEFAULT_ROUTE_MODE;
+  const effectiveTravelMode = toGoogleMapsTravelMode(effectiveMode);
+
+  const cacheKey = `${descriptor.destinationId}:${descriptor.date}:${effectiveMode}`;
   const cache = context.cache?.dayRoutes;
   if (cache?.has(cacheKey)) {
     return cache.get(cacheKey);
@@ -219,15 +224,23 @@ async function loadDayRouteData(descriptor, context = {}) {
       placeId: poi.external_source === 'google_places' ? poi.external_id : null,
     }));
 
+    // Build numbered markers for static map overlays
+    const markers = routablePois.map((poi, idx) => ({
+      lng: poi.longitude,
+      lat: poi.latitude,
+      label: String(idx + 1),
+    }));
+
     if (navigationCoordinates.length === 0) {
       return {
         mapCoordinates: null,
         navigationCoordinates: null,
-        travelMode: GoogleMapsTravelMode.WALKING,
+        travelMode: effectiveTravelMode,
         stopCount: 0,
         totalDistanceKm: null,
         totalDurationMin: null,
         stops: null,
+        markers: [],
       };
     }
 
@@ -235,11 +248,12 @@ async function loadDayRouteData(descriptor, context = {}) {
       return {
         mapCoordinates: navigationCoordinates,
         navigationCoordinates,
-        travelMode: GoogleMapsTravelMode.WALKING,
+        travelMode: effectiveTravelMode,
         stopCount: 1,
         totalDistanceKm: null,
         totalDurationMin: null,
         stops,
+        markers,
       };
     }
 
@@ -259,7 +273,7 @@ async function loadDayRouteData(descriptor, context = {}) {
           origin_lng: fromPoi.longitude,
           destination_lat: toPoi.latitude,
           destination_lng: toPoi.longitude,
-          mode: DEFAULT_DAY_ROUTE_MODE,
+          mode: effectiveMode,
         }),
       });
 
@@ -284,11 +298,12 @@ async function loadDayRouteData(descriptor, context = {}) {
     return {
       mapCoordinates: mapCoordinates.length >= 2 ? mapCoordinates : navigationCoordinates,
       navigationCoordinates,
-      travelMode: GoogleMapsTravelMode.WALKING,
+      travelMode: effectiveTravelMode,
       stopCount: scheduledPois.length,
       totalDistanceKm: totalDistanceKm > 0 ? totalDistanceKm : null,
       totalDurationMin: totalDurationMin > 0 ? totalDurationMin : null,
       stops,
+      markers,
     };
   })().catch(() => {
     cache?.delete(cacheKey);
@@ -296,11 +311,13 @@ async function loadDayRouteData(descriptor, context = {}) {
     return {
       mapCoordinates: fallbackCoordinates,
       navigationCoordinates: fallbackCoordinates,
-      travelMode: GoogleMapsTravelMode.WALKING,
+      travelMode: effectiveTravelMode,
       stopCount: 0,
       totalDistanceKm: null,
       totalDurationMin: null,
       stops: null,
+      markers: [],
+      _usedFallback: true,
     };
   });
 
@@ -318,6 +335,7 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
       totalDistanceKm: null,
       totalDurationMin: null,
       dayCount: 0,
+      markers: [],
     };
   }
 
@@ -331,12 +349,17 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
       totalDistanceKm: Number.isFinite(result?.totalDistanceKm) ? result.totalDistanceKm : null,
       totalDurationMin: Number.isFinite(result?.totalDurationMin) ? result.totalDurationMin : null,
       dayCount: Number.isFinite(result?.dayCount) ? result.dayCount : 0,
+      markers: Array.isArray(result?.markers) ? result.markers : [],
     };
   }
 
+  const effectiveMode = descriptor.mode || DEFAULT_ROUTE_MODE;
+  const effectiveTravelMode = toGoogleMapsTravelMode(effectiveMode);
+
+  const destCacheKey = `${descriptor.destinationId}:${effectiveMode}`;
   const cache = context.cache?.destinationRoutes;
-  if (cache?.has(descriptor.destinationId)) {
-    return cache.get(descriptor.destinationId);
+  if (cache?.has(destCacheKey)) {
+    return cache.get(destCacheKey);
   }
 
   const promise = (async () => {
@@ -360,6 +383,15 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
         placeId: poi.external_source === 'google_places' ? poi.external_id : null,
       }));
 
+    // Build numbered markers for static map overlays (sequential across all days)
+    const markers = scheduledPois
+      .filter((poi) => getCoordinatePairFromLocation(poi))
+      .map((poi, idx) => ({
+        lng: poi.longitude,
+        lat: poi.latitude,
+        label: String(idx + 1),
+      }));
+
     // Group POIs by day
     const poisByDay = new Map();
     for (const poi of scheduledPois) {
@@ -372,11 +404,12 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
       return {
         mapCoordinates: null,
         navigationCoordinates: null,
-        travelMode: GoogleMapsTravelMode.WALKING,
+        travelMode: effectiveTravelMode,
         stopCount: 0,
         totalDistanceKm: null,
         totalDurationMin: null,
         dayCount: 0,
+        markers: [],
       };
     }
 
@@ -399,7 +432,7 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
             origin_lng: fromPoi.longitude,
             destination_lat: toPoi.latitude,
             destination_lng: toPoi.longitude,
-            mode: DEFAULT_DAY_ROUTE_MODE,
+            mode: effectiveMode,
           }),
         });
 
@@ -425,7 +458,7 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
     return {
       mapCoordinates: mapCoordinates.length >= 2 ? mapCoordinates : navigationCoordinates,
       navigationCoordinates,
-      travelMode: GoogleMapsTravelMode.WALKING,
+      travelMode: effectiveTravelMode,
       stopCount: scheduledPois.length,
       totalDistanceKm: totalDistanceKm > 0 ? totalDistanceKm : null,
       totalDurationMin: totalDurationMin > 0 ? totalDurationMin : null,
@@ -433,21 +466,22 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
       stops,
     };
   })().catch(() => {
-    cache?.delete(descriptor.destinationId);
+    cache?.delete(destCacheKey);
     const fallbackCoordinates = buildRouteCoordinates(descriptor, context.destinations);
     return {
       mapCoordinates: fallbackCoordinates,
       navigationCoordinates: fallbackCoordinates,
-      travelMode: GoogleMapsTravelMode.WALKING,
+      travelMode: effectiveTravelMode,
       stopCount: 0,
       totalDistanceKm: null,
       totalDurationMin: null,
       dayCount: 0,
       stops: null,
+      _usedFallback: true,
     };
   });
 
-  cache?.set(descriptor.destinationId, promise);
+  cache?.set(destCacheKey, promise);
   return promise;
 }
 
@@ -719,7 +753,7 @@ export function buildRouteStats(descriptor, coordinates, destinations, metadata 
  * Build a map image URL for a route block with appropriate fallbacks.
  *
  * Priority:
- *   1. Route polyline map (2+ coordinates via buildRouteMapUrl)
+ *   1. Route polyline map with optional POI markers (2+ coordinates via buildRouteMapUrl)
  *   2. Trip overview markers map (trip-overview fallback)
  *   3. Single destination marker map (day-route / destination-overview fallback)
  *
@@ -727,14 +761,15 @@ export function buildRouteStats(descriptor, coordinates, destinations, metadata 
  * @param {Array<[number,number]>|null} coordinates
  * @param {Array} destinations
  * @param {string} mapboxToken
+ * @param {Array<{lng: number, lat: number, label: string}>} [markers]
  * @returns {string|null}
  */
-export function buildMapUrlForRoute(descriptor, coordinates, destinations, mapboxToken) {
+export function buildMapUrlForRoute(descriptor, coordinates, destinations, mapboxToken, markers = []) {
   if (!mapboxToken) return null;
 
   // Prefer a route polyline if we have 2+ points
   if (coordinates && coordinates.length >= 2) {
-    return buildRouteMapUrl(coordinates, mapboxToken);
+    return buildRouteMapUrl(coordinates, mapboxToken, { markers });
   }
 
   // Fallback: trip overview with destination markers
@@ -777,8 +812,10 @@ export async function resolveRouteBlocksForExport(markdown, context = {}) {
   const { trip, destinations, mapboxToken } = context;
   const blocks = parseRouteBlocks(markdown);
   if (blocks.length === 0) {
-    return { processedMarkdown: markdown, routeCards: [] };
+    return { processedMarkdown: markdown, routeCards: [], warnings: [] };
   }
+
+  const warnings = [];
 
   // Pre-allocate in document order and map block offsets to indices
   const cardDataList = new Array(blocks.length);
@@ -792,6 +829,7 @@ export async function resolveRouteBlocksForExport(markdown, context = {}) {
     const { descriptor, valid } = block;
 
     if (!valid) {
+      warnings.push(`Route block ${docIndex + 1} is invalid and was skipped`);
       cardDataList[docIndex] = {
         type: null,
         label: 'Invalid Route Block',
@@ -812,10 +850,15 @@ export async function resolveRouteBlocksForExport(markdown, context = {}) {
       routeData = await loadDayRouteData(descriptor, { ...context, trip, destinations });
     }
 
+    if (routeData._usedFallback) {
+      const label = descriptor.label || defaultRouteLabel(descriptor, destinations);
+      warnings.push(`Route map fallback used for ${label}`);
+    }
+
     const fallbackCoordinates = buildRouteCoordinates(descriptor, destinations);
     const mapCoordinates = routeData.mapCoordinates || fallbackCoordinates;
     const navigationCoordinates = routeData.navigationCoordinates || fallbackCoordinates;
-    const mapUrl = buildMapUrlForRoute(descriptor, mapCoordinates, destinations, mapboxToken);
+    const mapUrl = buildMapUrlForRoute(descriptor, mapCoordinates, destinations, mapboxToken, routeData.markers);
     const googleMapsUrl = buildGoogleMapsUrlForRoute(navigationCoordinates, routeData.travelMode, routeData.stops);
     const label = descriptor.label || defaultRouteLabel(descriptor, destinations);
     const stats = buildRouteStats(descriptor, navigationCoordinates, destinations, routeData);
@@ -841,9 +884,12 @@ export async function resolveRouteBlocksForExport(markdown, context = {}) {
     cardDataList.map(async (card) => {
       if (card.mapUrl) {
         card.mapImageDataUri = await fetchMapAsBase64(card.mapUrl);
+        if (!card.mapImageDataUri) {
+          warnings.push(`Map image fetch failed for "${card.label}"`);
+        }
       }
     })
   );
 
-  return { processedMarkdown, routeCards: cardDataList };
+  return { processedMarkdown, routeCards: cardDataList, warnings };
 }
