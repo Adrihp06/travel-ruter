@@ -329,7 +329,20 @@ def register_tools(server: FastMCP):
         async with get_db_session() as db:
             try:
                 # Verify access
-                trip = await verify_trip_access(db, trip_id, user_id)
+                has_access = await verify_trip_access(db, trip_id, user_id)
+                if not has_access:
+                    return ScaffoldExportOutput(
+                        success=False,
+                        message=f"Access denied to trip {trip_id}",
+                    ).model_dump()
+
+                # Fetch trip
+                trip = await db.get(Trip, trip_id)
+                if not trip:
+                    return ScaffoldExportOutput(
+                        success=False,
+                        message=f"Trip {trip_id} not found",
+                    ).model_dump()
 
                 # Fetch destinations
                 dest_query = (
