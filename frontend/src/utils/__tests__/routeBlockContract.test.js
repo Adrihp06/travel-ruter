@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   ROUTE_BLOCK_TYPE,
+  VALID_ROUTE_MODES,
+  DEFAULT_ROUTE_MODE,
   parseRouteBlocks,
   validateDescriptor,
   serializeRouteBlock,
@@ -140,6 +142,22 @@ date: 2025-01-10
     expect(blocks[0].valid).toBe(true);
     expect(blocks[0].descriptor.type).toBe('trip-overview');
   });
+
+  it('parses a day-route block with mode property', () => {
+    const md = `:::route\ntype: day-route\ndestinationId: 7\ndate: 2025-03-15\nmode: cycling\nlabel: Day 1 Bike Tour\n:::`;
+    const blocks = parseRouteBlocks(md);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].descriptor.mode).toBe('cycling');
+    expect(blocks[0].valid).toBe(true);
+  });
+
+  it('parses blocks without mode as mode: null', () => {
+    const md = `:::route\ntype: day-route\ndestinationId: 7\ndate: 2025-03-15\n:::`;
+    const blocks = parseRouteBlocks(md);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].descriptor.mode).toBeNull();
+    expect(blocks[0].valid).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -190,6 +208,30 @@ describe('validateDescriptor', () => {
     const result = validateDescriptor({ type: 'banana' });
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('Unknown route block type: "banana"');
+  });
+
+  it('accepts valid mode values', () => {
+    for (const mode of ['walking', 'cycling', 'driving', 'transit']) {
+      const result = validateDescriptor({
+        type: 'day-route', destinationId: 1, date: '2025-01-01', mode,
+      });
+      expect(result.valid).toBe(true);
+    }
+  });
+
+  it('rejects invalid mode values', () => {
+    const result = validateDescriptor({
+      type: 'day-route', destinationId: 1, date: '2025-01-01', mode: 'flying',
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('Invalid route mode: "flying"');
+  });
+
+  it('accepts null/undefined mode (optional)', () => {
+    const result = validateDescriptor({
+      type: 'day-route', destinationId: 1, date: '2025-01-01', mode: null,
+    });
+    expect(result.valid).toBe(true);
   });
 });
 
@@ -245,6 +287,29 @@ describe('serializeRouteBlock', () => {
     expect(result).toBe(':::route\ntype: trip-overview\ntripId: 1\n:::');
   });
 
+  it('serializes a day-route block with mode', () => {
+    const result = serializeRouteBlock({
+      type: 'day-route',
+      destinationId: 7,
+      date: '2025-03-15',
+      mode: 'driving',
+      label: 'Drive Day',
+    });
+    expect(result).toBe(
+      ':::route\ntype: day-route\ndestinationId: 7\ndate: 2025-03-15\nmode: driving\nlabel: Drive Day\n:::'
+    );
+  });
+
+  it('omits mode when null', () => {
+    const result = serializeRouteBlock({
+      type: 'day-route',
+      destinationId: 7,
+      date: '2025-03-15',
+      mode: null,
+    });
+    expect(result).not.toContain('mode:');
+  });
+
   it('round-trips through parse → serialize', () => {
     const original = ':::route\ntype: day-route\ndestinationId: 5\ndate: 2025-06-01\nlabel: Walk\n:::';
     const blocks = parseRouteBlocks(original);
@@ -295,6 +360,19 @@ describe('normalizeDescriptor', () => {
   it('nullifies unknown type', () => {
     expect(normalizeDescriptor({ type: 'unknown' }).type).toBeNull();
   });
+
+  it('accepts valid mode values', () => {
+    expect(normalizeDescriptor({ mode: 'walking' }).mode).toBe('walking');
+    expect(normalizeDescriptor({ mode: 'cycling' }).mode).toBe('cycling');
+    expect(normalizeDescriptor({ mode: 'driving' }).mode).toBe('driving');
+    expect(normalizeDescriptor({ mode: 'transit' }).mode).toBe('transit');
+  });
+
+  it('nullifies invalid mode values', () => {
+    expect(normalizeDescriptor({ mode: 'flying' }).mode).toBeNull();
+    expect(normalizeDescriptor({ mode: '' }).mode).toBeNull();
+    expect(normalizeDescriptor({ mode: 123 }).mode).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -325,7 +403,18 @@ describe('createDayRouteBlock', () => {
     expect(d.destinationId).toBe(7);
     expect(d.date).toBe('2025-03-15');
     expect(d.label).toBe('Rome Day');
+    expect(d.mode).toBeNull();
     expect(d.tripId).toBeNull();
+  });
+
+  it('accepts a mode parameter', () => {
+    const d = createDayRouteBlock(7, '2025-03-15', 'Bike Day', 'cycling');
+    expect(d.mode).toBe('cycling');
+  });
+
+  it('ignores invalid mode', () => {
+    const d = createDayRouteBlock(7, '2025-03-15', 'Day', 'teleport');
+    expect(d.mode).toBeNull();
   });
 });
 
@@ -335,8 +424,14 @@ describe('createDestinationOverviewBlock', () => {
     expect(d.type).toBe('destination-overview');
     expect(d.destinationId).toBe(7);
     expect(d.label).toBe('Rome Route Overview');
+    expect(d.mode).toBeNull();
     expect(d.tripId).toBeNull();
     expect(d.date).toBeNull();
+  });
+
+  it('accepts a mode parameter', () => {
+    const d = createDestinationOverviewBlock(7, 'Overview', 'driving');
+    expect(d.mode).toBe('driving');
   });
 });
 
@@ -622,5 +717,28 @@ describe('full round-trip', () => {
     expect(blocks).toHaveLength(1);
     expect(blocks[0].descriptor).toEqual(desc);
     expect(blocks[0].valid).toBe(true);
+  });
+
+  it('day-route with mode: full round-trip', () => {
+    const desc = createDayRouteBlock(7, '2025-03-15', 'Bike Tour', 'cycling');
+    expect(desc.mode).toBe('cycling');
+    const md = serializeRouteBlock(desc);
+    expect(md).toContain('mode: cycling');
+    const blocks = parseRouteBlocks(md);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].valid).toBe(true);
+    expect(blocks[0].descriptor).toEqual(desc);
+    expect(blocks[0].descriptor.mode).toBe('cycling');
+  });
+
+  it('day-route without mode: backward compatible round-trip', () => {
+    const desc = createDayRouteBlock(7, '2025-03-15', 'Walk');
+    expect(desc.mode).toBeNull();
+    const md = serializeRouteBlock(desc);
+    expect(md).not.toContain('mode:');
+    const blocks = parseRouteBlocks(md);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].valid).toBe(true);
+    expect(blocks[0].descriptor.mode).toBeNull();
   });
 });

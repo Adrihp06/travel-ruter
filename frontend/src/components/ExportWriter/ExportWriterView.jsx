@@ -152,14 +152,14 @@ const ExportWriterView = ({ tripId, trip }) => {
     updateContent(selectedDoc.id, content);
   }, [tripId, trip, getSelectedDocument, updateContent, localDestinations]);
 
-  const handleInsertDestinationRoute = useCallback(({ destinationId, label }) => {
-    const descriptor = createDestinationOverviewBlock(destinationId, label || null);
+  const handleInsertDestinationRoute = useCallback(({ destinationId, label, mode }) => {
+    const descriptor = createDestinationOverviewBlock(destinationId, label || null, mode);
     insertBlockAtCursor(descriptor);
   }, [insertBlockAtCursor]);
 
   // TravelContext action: insert day/destination route block
-  const handleInsertDayRoute = useCallback(({ destinationId, date, label }) => {
-    const descriptor = createDayRouteBlock(destinationId, date, label || null);
+  const handleInsertDayRoute = useCallback(({ destinationId, date, label, mode }) => {
+    const descriptor = createDayRouteBlock(destinationId, date, label || null, mode);
     insertBlockAtCursor(descriptor);
   }, [insertBlockAtCursor]);
 
@@ -210,8 +210,8 @@ const ExportWriterView = ({ tripId, trip }) => {
     let position = editorRef.current?.getCursorPosition?.();
     if (position == null) position = content.length;
 
-    for (const { destinationId, date, label } of descriptors) {
-      const descriptor = createDayRouteBlock(destinationId, date, label || null);
+    for (const { destinationId, date, label, mode } of descriptors) {
+      const descriptor = createDayRouteBlock(destinationId, date, label || null, mode);
       content = insertRouteBlock(content, position, descriptor);
       position = content.length;
     }
