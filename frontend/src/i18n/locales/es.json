@@ -170,6 +170,16 @@
         "pois": "Puntos de interes",
         "accommodations": "Alojamientos"
       }
+    },
+    "progress": {
+      "fetchingMaps": "Obteniendo mapas...",
+      "generatingPdfs": "Generando PDFs...",
+      "creatingZip": "Creando ZIP...",
+      "complete": "Exportación completada",
+      "completeWithIssues": "Exportación finalizada con problemas",
+      "succeeded": "{{count}} documentos exportados",
+      "failed": "{{count}} documentos fallidos",
+      "warnings": "{{count}} advertencias"
     }
   },
 

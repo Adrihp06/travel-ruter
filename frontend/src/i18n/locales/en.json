@@ -170,6 +170,16 @@
         "pois": "Places of interest",
         "accommodations": "Accommodations"
       }
+    },
+    "progress": {
+      "fetchingMaps": "Fetching maps...",
+      "generatingPdfs": "Generating PDFs...",
+      "creatingZip": "Creating ZIP...",
+      "complete": "Export complete",
+      "completeWithIssues": "Export finished with issues",
+      "succeeded": "{{count}} documents exported",
+      "failed": "{{count}} documents failed",
+      "warnings": "{{count}} warnings"
     }
   },
 

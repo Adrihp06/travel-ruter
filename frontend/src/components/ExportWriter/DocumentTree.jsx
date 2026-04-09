@@ -4,6 +4,7 @@ import { FileText, Square, CheckSquare, Download, Loader2 } from 'lucide-react';
 import useExportWriterStore from '../../stores/useExportWriterStore';
 import { exportTripAsPDFs } from '../../utils/pdfExport';
 import { useMapboxToken } from '../../contexts/MapboxContext';
+import ExportProgressModal from './ExportProgressModal';
 
 function StatusDot({ status, t }) {
   if (status === 'saved') {
@@ -30,33 +31,44 @@ const DocumentTree = ({ trip, destinations }) => {
   } = useExportWriterStore();
   const { mapboxAccessToken } = useMapboxToken();
   const [isExporting, setIsExporting] = useState(false);
+  const [exportProgress, setExportProgress] = useState(null);
+  const [exportResult, setExportResult] = useState(null);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const docList = Object.values(documents);
   const selectedCount = docList.filter((doc) => selectedForExport.has(doc.id)).length;
   const overviewDoc = docList.find((doc) => !doc.destinationId);
   const destinationDocs = docList.filter((doc) => doc.destinationId);
 
-  const handleExportSelected = async () => {
-    const selectedDocs = docList.filter((doc) => selectedForExport.has(doc.id));
-    if (selectedDocs.length === 0) return;
-
+  const handleExport = async (docs) => {
+    if (!docs || docs.length === 0) return;
+    setExportProgress(null);
+    setExportResult(null);
+    setShowExportModal(true);
     setIsExporting(true);
     try {
-      await exportTripAsPDFs(selectedDocs, trip, destinations, mapboxAccessToken);
+      const result = await exportTripAsPDFs(docs, trip, destinations, mapboxAccessToken, {
+        onProgress: (p) => setExportProgress(p),
+      });
+      setExportResult(result);
+    } catch (error) {
+      setExportResult({
+        succeeded: [],
+        failed: [{ title: 'Export', error: error.message || String(error) }],
+        warnings: [],
+      });
     } finally {
       setIsExporting(false);
     }
   };
 
-  const handleExportAll = async () => {
-    if (docList.length === 0) return;
+  const handleExportSelected = () => {
+    const selectedDocs = docList.filter((doc) => selectedForExport.has(doc.id));
+    handleExport(selectedDocs);
+  };
 
-    setIsExporting(true);
-    try {
-      await exportTripAsPDFs(docList, trip, destinations, mapboxAccessToken);
-    } finally {
-      setIsExporting(false);
-    }
+  const handleExportAll = () => {
+    handleExport(docList);
   };
 
   const renderDocItem = (doc) => {
@@ -182,6 +194,13 @@ const DocumentTree = ({ trip, destinations }) => {
           </button>
         </div>
       )}
+
+      <ExportProgressModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        progress={exportProgress}
+        result={!isExporting ? exportResult : null}
+      />
     </div>
   );
 };
