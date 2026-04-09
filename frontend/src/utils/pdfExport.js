@@ -43,7 +43,7 @@ export async function exportTripAsPDFs(selectedDocuments, trip, destinations, ma
       url = buildTripOverviewMapUrl(destinations, mapboxToken);
     } else {
       const dest = destinations.find((d) => d.id === doc.destinationId);
-      if (dest?.longitude && dest?.latitude) {
+      if (Number.isFinite(dest?.longitude) && Number.isFinite(dest?.latitude)) {
         url = buildDestinationMapUrl(dest.longitude, dest.latitude, mapboxToken);
       }
     }

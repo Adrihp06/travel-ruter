@@ -207,19 +207,17 @@ async function loadDayRouteData(descriptor, context = {}) {
   const promise = (async () => {
     const scheduledPois = (await loadDestinationPois(descriptor.destinationId, context))
       .filter((poi) => poi?.scheduled_date === descriptor.date)
-      .sort((a, b) => (a.day_order || 0) - (b.day_order || 0));
+      .sort((a, b) => (a.day_order ?? Infinity) - (b.day_order ?? Infinity));
 
-    const navigationCoordinates = scheduledPois
-      .map((poi) => getCoordinatePairFromLocation(poi))
-      .filter(Boolean);
+    const routablePois = scheduledPois.filter((poi) => getCoordinatePairFromLocation(poi));
+
+    const navigationCoordinates = routablePois.map((poi) => getCoordinatePairFromLocation(poi));
 
     // Extract stop metadata for Google Maps URL construction
-    const stops = scheduledPois
-      .filter((poi) => getCoordinatePairFromLocation(poi))
-      .map((poi) => ({
-        name: poi.name || null,
-        placeId: poi.external_source === 'google_places' ? poi.external_id : null,
-      }));
+    const stops = routablePois.map((poi) => ({
+      name: poi.name || null,
+      placeId: poi.external_source === 'google_places' ? poi.external_id : null,
+    }));
 
     if (navigationCoordinates.length === 0) {
       return {
@@ -249,9 +247,9 @@ async function loadDayRouteData(descriptor, context = {}) {
     let totalDistanceKm = 0;
     let totalDurationMin = 0;
 
-    for (let index = 0; index < scheduledPois.length - 1; index += 1) {
-      const fromPoi = scheduledPois[index];
-      const toPoi = scheduledPois[index + 1];
+    for (let index = 0; index < routablePois.length - 1; index += 1) {
+      const fromPoi = routablePois[index];
+      const toPoi = routablePois[index + 1];
 
       const response = await authFetch(`${API_BASE_URL}/routes/day-segment`, {
         method: 'POST',
@@ -348,7 +346,7 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
       .sort((a, b) => {
         const dateCompare = (a.scheduled_date || '').localeCompare(b.scheduled_date || '');
         if (dateCompare !== 0) return dateCompare;
-        return (a.day_order || 0) - (b.day_order || 0);
+        return (a.day_order ?? Infinity) - (b.day_order ?? Infinity);
       });
 
     const navigationCoordinates = scheduledPois
@@ -388,9 +386,10 @@ async function loadDestinationOverviewData(descriptor, context = {}) {
     let totalDurationMin = 0;
 
     for (const [, dayPois] of [...poisByDay.entries()].sort(([a], [b]) => a.localeCompare(b))) {
-      for (let index = 0; index < dayPois.length - 1; index += 1) {
-        const fromPoi = dayPois[index];
-        const toPoi = dayPois[index + 1];
+      const routableDayPois = dayPois.filter((poi) => getCoordinatePairFromLocation(poi));
+      for (let index = 0; index < routableDayPois.length - 1; index += 1) {
+        const fromPoi = routableDayPois[index];
+        const toPoi = routableDayPois[index + 1];
 
         const response = await authFetch(`${API_BASE_URL}/routes/day-segment`, {
           method: 'POST',

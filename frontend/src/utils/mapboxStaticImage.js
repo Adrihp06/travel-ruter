@@ -12,7 +12,7 @@ export function buildTripOverviewMapUrl(destinations, token) {
   if (!token || !destinations || destinations.length === 0) return null;
 
   // Build markers for each destination that has coordinates
-  const validDests = destinations.filter((d) => d.latitude && d.longitude);
+  const validDests = destinations.filter((d) => Number.isFinite(d.latitude) && Number.isFinite(d.longitude));
   if (validDests.length === 0) return null;
 
   const markers = validDests
@@ -26,7 +26,7 @@ export function buildTripOverviewMapUrl(destinations, token) {
  * Build a Mapbox Static API URL centered on a single destination.
  */
 export function buildDestinationMapUrl(lng, lat, token, zoom = 11) {
-  if (!token || !lng || !lat) return null;
+  if (!token || !Number.isFinite(lng) || !Number.isFinite(lat)) return null;
   const marker = `pin-s+D97706(${lng},${lat})`;
   return `${MAPBOX_STATIC_BASE}/${marker}/${lng},${lat},${zoom}/600x300@2x?access_token=${token}`;
 }
