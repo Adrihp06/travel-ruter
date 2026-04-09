@@ -8,15 +8,86 @@ import PDFStyles from '../components/PDF/PDFStyles';
 import { ROUTE_CARD_SENTINEL_RE } from './routeBlockRenderer';
 
 /**
- * Render inline text — strips inline marks for simplicity (bold/italic not supported in basic react-pdf Text).
+ * Legacy fallback — strips inline marks when tokens are not available.
  */
 function renderInlineText(raw) {
-  // Strip markdown bold/italic markers for plain text
   return raw
     .replace(/\*\*(.+?)\*\*/g, '$1')
     .replace(/\*(.+?)\*/g, '$1')
     .replace(/`(.+?)`/g, '$1')
     .replace(/\[(.+?)\]\(.+?\)/g, '$1');
+}
+
+/**
+ * Resolve fontFamily based on accumulated bold/italic marks.
+ */
+function resolveFontStyle(marks) {
+  if (marks.bold && marks.italic) return 'Helvetica-BoldOblique';
+  if (marks.bold) return 'Helvetica-Bold';
+  if (marks.italic) return 'Helvetica-Oblique';
+  return undefined;
+}
+
+/**
+ * Render an array of marked inline tokens into react-pdf elements.
+ * Carries formatting state (marks) to handle nested bold+italic.
+ */
+function renderInlineTokens(tokens, styles, marks = { bold: false, italic: false }) {
+  if (!tokens || !Array.isArray(tokens) || tokens.length === 0) return null;
+
+  return tokens.map((token, i) => {
+    switch (token.type) {
+      case 'strong': {
+        const next = { ...marks, bold: true };
+        const fontFamily = resolveFontStyle(next);
+        return (
+          <Text key={i} style={{ fontFamily }}>
+            {renderInlineTokens(token.tokens, styles, next)}
+          </Text>
+        );
+      }
+      case 'em': {
+        const next = { ...marks, italic: true };
+        const fontFamily = resolveFontStyle(next);
+        return (
+          <Text key={i} style={{ fontFamily }}>
+            {renderInlineTokens(token.tokens, styles, next)}
+          </Text>
+        );
+      }
+      case 'codespan':
+        return <Text key={i} style={styles.inlineCode}>{token.text}</Text>;
+      case 'link':
+        return (
+          <Link key={i} src={token.href}>
+            <Text style={styles.link}>
+              {renderInlineTokens(token.tokens, styles, marks)}
+            </Text>
+          </Link>
+        );
+      case 'br':
+        return <Text key={i}>{'\n'}</Text>;
+      case 'del':
+        return <Text key={i}>{token.text}</Text>;
+      case 'html':
+        return null;
+      case 'text':
+      case 'escape':
+        return <Text key={i}>{token.text}</Text>;
+      default:
+        return <Text key={i}>{token.text || ''}</Text>;
+    }
+  });
+}
+
+/**
+ * Extract inline tokens from a block token, falling back to renderInlineText.
+ */
+function renderInlineContent(token, styles) {
+  if (token.tokens && token.tokens.length > 0) {
+    return renderInlineTokens(token.tokens, styles);
+  }
+  return renderInlineText(token.text || token.raw || '');
 }
 
 /**
@@ -61,7 +132,7 @@ function tokensToElements(tokens, styles, routeCards = []) {
         const styleKey = token.depth === 1 ? 'h1' : token.depth === 2 ? 'h2' : 'h3';
         elements.push(
           <Text key={idx} style={styles[styleKey]}>
-            {renderInlineText(token.text)}
+            {renderInlineContent(token, styles)}
           </Text>
         );
         break;
@@ -70,19 +141,30 @@ function tokensToElements(tokens, styles, routeCards = []) {
       case 'paragraph': {
         elements.push(
           <Text key={idx} style={styles.body}>
-            {renderInlineText(token.text)}
+            {renderInlineContent(token, styles)}
           </Text>
         );
         break;
       }
 
       case 'list': {
-        const listItems = (token.items || []).map((item, itemIdx) => (
-          <View key={itemIdx} style={styles.bulletRow}>
-            <Text style={styles.bulletPoint}>{token.ordered ? `${itemIdx + 1}.` : '•'}</Text>
-            <Text style={styles.bulletText}>{renderInlineText(item.text)}</Text>
-          </View>
-        ));
+        const listItems = (token.items || []).map((item, itemIdx) => {
+          // list_item.tokens can be: [text, ...] (tight) or [paragraph, ...] (loose)
+          const firstChild = item.tokens && item.tokens[0];
+          const inlineTokens =
+            firstChild && firstChild.tokens ? firstChild.tokens : null;
+
+          return (
+            <View key={itemIdx} style={styles.bulletRow}>
+              <Text style={styles.bulletPoint}>{token.ordered ? `${itemIdx + 1}.` : '•'}</Text>
+              <Text style={styles.bulletText}>
+                {inlineTokens
+                  ? renderInlineTokens(inlineTokens, styles)
+                  : renderInlineText(item.text)}
+              </Text>
+            </View>
+          );
+        });
         elements.push(
           <View key={idx} style={styles.section}>
             {listItems}
@@ -92,12 +174,13 @@ function tokensToElements(tokens, styles, routeCards = []) {
       }
 
       case 'blockquote': {
-        const innerText = token.tokens
-          ? token.tokens.map((t) => t.text || '').join(' ')
-          : token.text || '';
+        // Recursively render blockquote's child block tokens
+        const innerElements = token.tokens
+          ? tokensToElements(token.tokens, styles, routeCards)
+          : [<Text key={0} style={styles.blockquoteText}>{renderInlineText(token.text || '')}</Text>];
         elements.push(
           <View key={idx} style={styles.blockquote}>
-            <Text style={styles.blockquoteText}>{renderInlineText(innerText)}</Text>
+            {innerElements}
           </View>
         );
         break;
@@ -128,6 +211,44 @@ function tokensToElements(tokens, styles, routeCards = []) {
 
       case 'space': {
         elements.push(<View key={idx} style={styles.spacer} />);
+        break;
+      }
+
+      case 'table': {
+        const headers = token.header || [];
+        const rows = token.rows || [];
+        const aligns = token.align || [];
+
+        elements.push(
+          <View key={idx} style={styles.table}>
+            {/* Header row */}
+            <View style={styles.tableHeaderRow}>
+              {headers.map((cell, ci) => (
+                <View key={ci} style={styles.tableHeaderCell}>
+                  <Text style={[styles.tableHeaderText, aligns[ci] ? { textAlign: aligns[ci] } : null]}>
+                    {cell.tokens
+                      ? renderInlineTokens(cell.tokens, styles)
+                      : renderInlineText(cell.text)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            {/* Data rows */}
+            {rows.map((row, ri) => (
+              <View key={ri} style={[styles.tableRow, ri % 2 === 1 && styles.tableRowAlt]}>
+                {row.map((cell, ci) => (
+                  <View key={ci} style={styles.tableCell}>
+                    <Text style={[styles.tableCellText, aligns[ci] ? { textAlign: aligns[ci] } : null]}>
+                      {cell.tokens
+                        ? renderInlineTokens(cell.tokens, styles)
+                        : renderInlineText(cell.text)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        );
         break;
       }
 

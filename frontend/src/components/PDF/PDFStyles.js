@@ -159,6 +159,66 @@ const PDFStyles = StyleSheet.create({
     fontSize: 9,
     color: GRAY_500,
   },
+  // Inline formatting
+  bold: {
+    fontFamily: 'Helvetica-Bold',
+  },
+  italic: {
+    fontFamily: 'Helvetica-Oblique',
+  },
+  boldItalic: {
+    fontFamily: 'Helvetica-BoldOblique',
+  },
+  inlineCode: {
+    fontFamily: 'Courier',
+    fontSize: 9,
+  },
+  link: {
+    color: BRAND_AMBER,
+    textDecoration: 'underline',
+  },
+  // Table styles
+  table: {
+    width: '100%',
+    marginBottom: 10,
+    borderWidth: 0.5,
+    borderColor: GRAY_200,
+  },
+  tableHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: GRAY_100,
+    borderBottomWidth: 1,
+    borderBottomColor: GRAY_200,
+  },
+  tableHeaderCell: {
+    flex: 1,
+    padding: 6,
+    borderRightWidth: 0.5,
+    borderRightColor: GRAY_200,
+  },
+  tableHeaderText: {
+    fontSize: 9,
+    fontFamily: 'Helvetica-Bold',
+    color: GRAY_700,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.5,
+    borderBottomColor: GRAY_200,
+  },
+  tableRowAlt: {
+    backgroundColor: GRAY_100,
+  },
+  tableCell: {
+    flex: 1,
+    padding: 5,
+    borderRightWidth: 0.5,
+    borderRightColor: GRAY_200,
+  },
+  tableCellText: {
+    fontSize: 9,
+    color: GRAY_700,
+  },
 });
 
 export default PDFStyles;
