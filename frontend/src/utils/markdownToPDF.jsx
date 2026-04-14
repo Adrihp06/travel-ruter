@@ -44,7 +44,7 @@ function stripEmojis(text) {
   for (const [pattern, replacement] of UNICODE_REPLACEMENTS) {
     result = result.replace(pattern, replacement);
   }
-  return result.replace(EMOJI_RE, '').replace(CJK_RE, '').replace(/\s{2,}/g, ' ').trim();
+  return result.replace(EMOJI_RE, '').replace(CJK_RE, '').replace(/ {2,}/g, ' ');
 }
 
 /**
