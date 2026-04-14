@@ -73,8 +73,7 @@ const PDFStyles = StyleSheet.create({
   },
   blockquoteText: {
     fontSize: 11,
-    fontStyle: 'italic',
-    color: GRAY_700,
+    color: GRAY_500,
   },
   divider: {
     borderBottom: `1pt solid ${GRAY_200}`,
@@ -172,12 +171,12 @@ const PDFStyles = StyleSheet.create({
     fontWeight: 700,
   },
   italic: {
-    fontStyle: 'italic',
+    color: GRAY_500,
   },
   boldItalic: {
     fontFamily: FONT_FAMILY_BOLD,
     fontWeight: 700,
-    fontStyle: 'italic',
+    color: GRAY_500,
   },
   inlineCode: {
     fontFamily: 'Courier',

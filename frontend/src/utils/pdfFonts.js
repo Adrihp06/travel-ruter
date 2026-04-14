@@ -14,9 +14,7 @@ Font.register({
   family: 'Noto Sans JP',
   fonts: [
     { src: REGULAR, fontWeight: 400 },
-    { src: REGULAR, fontWeight: 400, fontStyle: 'italic' },
     { src: BOLD, fontWeight: 700 },
-    { src: BOLD, fontWeight: 700, fontStyle: 'italic' },
   ],
 });
 

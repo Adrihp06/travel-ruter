@@ -62,7 +62,7 @@ function renderInlineText(raw) {
 function resolveFontStyle(marks) {
   const style = {};
   if (marks.bold) style.fontWeight = 700;
-  if (marks.italic) style.fontStyle = 'italic';
+  if (marks.italic) style.color = '#6B7280';
   return Object.keys(style).length > 0 ? style : undefined;
 }
 
