@@ -6,6 +6,7 @@ import { Document, Page, View, Text, Image, Link } from '@react-pdf/renderer';
 import { marked } from 'marked';
 import PDFStyles from '../components/PDF/PDFStyles';
 import { ROUTE_CARD_SENTINEL_RE } from './routeBlockRenderer';
+import './pdfFonts'; // side-effect: registers CJK-compatible fonts
 
 /**
  * Legacy fallback — strips inline marks when tokens are not available.
@@ -19,13 +20,14 @@ function renderInlineText(raw) {
 }
 
 /**
- * Resolve fontFamily based on accumulated bold/italic marks.
+ * Resolve font style based on accumulated bold/italic marks.
+ * Returns a style object for use with react-pdf Text components.
  */
 function resolveFontStyle(marks) {
-  if (marks.bold && marks.italic) return 'Helvetica-BoldOblique';
-  if (marks.bold) return 'Helvetica-Bold';
-  if (marks.italic) return 'Helvetica-Oblique';
-  return undefined;
+  const style = {};
+  if (marks.bold) style.fontWeight = 700;
+  if (marks.italic) style.fontStyle = 'italic';
+  return Object.keys(style).length > 0 ? style : undefined;
 }
 
 /**
@@ -39,18 +41,18 @@ function renderInlineTokens(tokens, styles, marks = { bold: false, italic: false
     switch (token.type) {
       case 'strong': {
         const next = { ...marks, bold: true };
-        const fontFamily = resolveFontStyle(next);
+        const fontStyle = resolveFontStyle(next);
         return (
-          <Text key={i} style={{ fontFamily }}>
+          <Text key={i} style={fontStyle}>
             {renderInlineTokens(token.tokens, styles, next)}
           </Text>
         );
       }
       case 'em': {
         const next = { ...marks, italic: true };
-        const fontFamily = resolveFontStyle(next);
+        const fontStyle = resolveFontStyle(next);
         return (
-          <Text key={i} style={{ fontFamily }}>
+          <Text key={i} style={fontStyle}>
             {renderInlineTokens(token.tokens, styles, next)}
           </Text>
         );

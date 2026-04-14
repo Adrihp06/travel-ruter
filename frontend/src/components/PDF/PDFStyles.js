@@ -7,13 +7,16 @@ const GRAY_500 = '#6B7280';
 const GRAY_200 = '#E5E7EB';
 const GRAY_100 = '#F3F4F6';
 
+const FONT_FAMILY = 'Noto Sans JP';
+const FONT_FAMILY_BOLD = 'Noto Sans JP';
+
 const PDFStyles = StyleSheet.create({
   page: {
     paddingTop: 48,
     paddingBottom: 48,
     paddingLeft: 56,
     paddingRight: 56,
-    fontFamily: 'Helvetica',
+    fontFamily: FONT_FAMILY,
     fontSize: 11,
     color: GRAY_700,
     lineHeight: 1.6,
@@ -23,21 +26,24 @@ const PDFStyles = StyleSheet.create({
   },
   h1: {
     fontSize: 22,
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: FONT_FAMILY_BOLD,
+    fontWeight: 700,
     color: BRAND_AMBER,
     marginBottom: 8,
     marginTop: 4,
   },
   h2: {
     fontSize: 16,
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: FONT_FAMILY_BOLD,
+    fontWeight: 700,
     color: GRAY_700,
     marginBottom: 6,
     marginTop: 12,
   },
   h3: {
     fontSize: 13,
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: FONT_FAMILY_BOLD,
+    fontWeight: 700,
     color: GRAY_700,
     marginBottom: 4,
     marginTop: 8,
@@ -67,7 +73,7 @@ const PDFStyles = StyleSheet.create({
   },
   blockquoteText: {
     fontSize: 11,
-    fontFamily: 'Helvetica-Oblique',
+    fontStyle: 'italic',
     color: GRAY_700,
   },
   divider: {
@@ -127,7 +133,8 @@ const PDFStyles = StyleSheet.create({
   },
   routeCardLabel: {
     fontSize: 12,
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: FONT_FAMILY_BOLD,
+    fontWeight: 700,
     color: GRAY_700,
     marginBottom: 4,
   },
@@ -161,13 +168,16 @@ const PDFStyles = StyleSheet.create({
   },
   // Inline formatting
   bold: {
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: FONT_FAMILY_BOLD,
+    fontWeight: 700,
   },
   italic: {
-    fontFamily: 'Helvetica-Oblique',
+    fontStyle: 'italic',
   },
   boldItalic: {
-    fontFamily: 'Helvetica-BoldOblique',
+    fontFamily: FONT_FAMILY_BOLD,
+    fontWeight: 700,
+    fontStyle: 'italic',
   },
   inlineCode: {
     fontFamily: 'Courier',
@@ -198,7 +208,8 @@ const PDFStyles = StyleSheet.create({
   },
   tableHeaderText: {
     fontSize: 9,
-    fontFamily: 'Helvetica-Bold',
+    fontFamily: FONT_FAMILY_BOLD,
+    fontWeight: 700,
     color: GRAY_700,
   },
   tableRow: {
