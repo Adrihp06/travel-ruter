@@ -1,24 +1,21 @@
 /**
  * PDF font registration for react-pdf.
  *
- * Registers Noto Sans JP (with Latin + Japanese coverage) so that
- * CJK characters render correctly instead of crashing the PDF writer.
- * Fonts are loaded on demand — only downloaded when a PDF is generated.
+ * Registers Noto Sans JP (full glyph set: Latin + Japanese + symbols) so that
+ * CJK characters and special Unicode render correctly instead of crashing.
+ * Uses Google Fonts TTF (full coverage) — downloaded on demand at export time.
  */
 import { Font } from '@react-pdf/renderer';
-
-const NOTO_SANS_JP_BASE =
-  'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp/files';
 
 Font.register({
   family: 'Noto Sans JP',
   fonts: [
     {
-      src: `${NOTO_SANS_JP_BASE}/noto-sans-jp-japanese-400-normal.woff2`,
+      src: 'https://fonts.gstatic.com/s/notosansjp/v56/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75s.ttf',
       fontWeight: 400,
     },
     {
-      src: `${NOTO_SANS_JP_BASE}/noto-sans-jp-japanese-700-normal.woff2`,
+      src: 'https://fonts.gstatic.com/s/notosansjp/v56/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFPYk75s.ttf',
       fontWeight: 700,
     },
   ],

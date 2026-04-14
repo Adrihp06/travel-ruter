@@ -104,7 +104,7 @@ def register_tools(server: FastMCP):
 
         Args:
             trip_id: Trip ID to export
-            format: Export format — currently supports "markdown" (default)
+            format: Export format -- currently supports "markdown" (default)
 
         Returns:
             The full trip document as text content.
@@ -140,7 +140,7 @@ def register_tools(server: FastMCP):
                 if trip.description:
                     lines.append(f"> {trip.description}")
                     lines.append("")
-                lines.append(f"**Dates:** {trip.start_date} → {trip.end_date}")
+                lines.append(f"**Dates:** {trip.start_date} -> {trip.end_date}")
                 if trip.location:
                     lines.append(f"**Location:** {trip.location}")
                 if trip.total_budget:
@@ -159,7 +159,7 @@ def register_tools(server: FastMCP):
 
                 for dest in destinations:
                     lines.append(f"## {dest.city_name or dest.name}{', ' + dest.country if dest.country else ''}")
-                    lines.append(f"**{dest.arrival_date} → {dest.departure_date}**")
+                    lines.append(f"**{dest.arrival_date} -> {dest.departure_date}**")
                     lines.append("")
 
                     # Accommodations
@@ -170,7 +170,7 @@ def register_tools(server: FastMCP):
                     )
                     accommodations = acc_result.scalars().all()
                     for acc in accommodations:
-                        cost = f" — {acc.total_cost} {acc.currency}" if acc.total_cost else ""
+                        cost = f" -- {acc.total_cost} {acc.currency}" if acc.total_cost else ""
                         lines.append(f"**{acc.name}** ({acc.type}){cost}")
                         if acc.address:
                             lines.append(f"   {acc.address}")
@@ -197,7 +197,7 @@ def register_tools(server: FastMCP):
                                 lines.append(f"\n**{date_str}:**")
                             cost = f"€{poi.estimated_cost}" if poi.estimated_cost else "free"
                             time = f" ({poi.dwell_time}min)" if poi.dwell_time else ""
-                            lines.append(f"- {poi.name} ({poi.category}) — {cost}{time}")
+                            lines.append(f"- {poi.name} ({poi.category}) -- {cost}{time}")
                         lines.append("")
 
                     # Travel segment from this destination

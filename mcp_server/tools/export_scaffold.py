@@ -25,13 +25,13 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Helpers — markdown generation (mirrors frontend documentScaffold.js)
+# Helpers -- markdown generation (mirrors frontend documentScaffold.js)
 # ---------------------------------------------------------------------------
 
 def _format_date(d) -> str:
     """Format a date object or ISO string for display."""
     if d is None:
-        return "—"
+        return "--"
     if isinstance(d, date_type):
         return d.strftime("%a, %b %d")
     if isinstance(d, str):
@@ -42,7 +42,7 @@ def _format_date(d) -> str:
     try:
         return str(d)
     except Exception:
-        return "—"
+        return "--"
 
 
 def _nights_between(arrival, departure) -> Optional[int]:
@@ -63,7 +63,7 @@ def _nights_between(arrival, departure) -> Optional[int]:
 def _escape_cell(value) -> str:
     """Escape a markdown table cell value."""
     if value is None or value == "":
-        return "—"
+        return "--"
     return str(value).replace("|", "\\|").replace("\n", " ")
 
 
@@ -123,7 +123,7 @@ def _generate_overview_markdown(trip, destinations: list) -> str:
 
     start = _format_date(trip.start_date)
     end = _format_date(trip.end_date)
-    lines.append(f"**Dates**: {start} → {end}")
+    lines.append(f"**Dates**: {start} -> {end}")
 
     if trip.total_budget is not None:
         lines.append(f"**Budget**: {trip.total_budget} {trip.currency or 'USD'}")
@@ -142,8 +142,8 @@ def _generate_overview_markdown(trip, destinations: list) -> str:
             arrival = _format_date(dest.arrival_date)
             departure = _format_date(dest.departure_date)
             nights = _nights_between(dest.arrival_date, dest.departure_date)
-            duration = f"{nights} night{'s' if nights != 1 else ''}" if nights else "—"
-            lines.append(f"| {_escape_cell(name)} | {arrival} → {departure} | {duration} |")
+            duration = f"{nights} night{'s' if nights != 1 else ''}" if nights else "--"
+            lines.append(f"| {_escape_cell(name)} | {arrival} -> {departure} | {duration} |")
 
         lines.append("")
 
@@ -176,7 +176,7 @@ def _generate_destination_markdown(
     lines.append(f"# {city_name or 'Destination'}")
     lines.append("")
     lines.append(
-        f"**Dates**: {_format_date(destination.arrival_date)} → {_format_date(destination.departure_date)}"
+        f"**Dates**: {_format_date(destination.arrival_date)} -> {_format_date(destination.departure_date)}"
     )
     lines.append("")
 
@@ -193,11 +193,11 @@ def _generate_destination_markdown(
             cost = (
                 f"{acc.total_cost} {acc.currency or 'USD'}"
                 if acc.total_cost is not None
-                else "—"
+                else "--"
             )
             lines.append(
                 f"| {_escape_cell(acc.name)} | {_escape_cell(acc.type)} "
-                f"| {check_in} → {check_out} | {cost} |"
+                f"| {check_in} -> {check_out} | {cost} |"
             )
 
             if acc.booking_reference:
@@ -219,16 +219,16 @@ def _generate_destination_markdown(
             if is_unscheduled:
                 heading = "### Unscheduled"
             else:
-                heading = f"### Day {day_number} — {_format_date(date_key)}"
+                heading = f"### Day {day_number} -- {_format_date(date_key)}"
             lines.append(heading)
             lines.append("")
             lines.append("| # | Place | Category | Time | Cost | Notes |")
             lines.append("|---|---|---|---|---|---|")
 
             for idx, poi in enumerate(day_pois, 1):
-                duration = f"{poi.dwell_time}min" if poi.dwell_time else "—"
-                cost = str(poi.estimated_cost) if poi.estimated_cost is not None else "—"
-                poi_notes = _escape_cell(poi.description) if poi.description else "—"
+                duration = f"{poi.dwell_time}min" if poi.dwell_time else "--"
+                cost = str(poi.estimated_cost) if poi.estimated_cost is not None else "--"
+                poi_notes = _escape_cell(poi.description) if poi.description else "--"
                 lines.append(
                     f"| {idx} | {_escape_cell(poi.name)} | {_escape_cell(poi.category)} "
                     f"| {duration} | {cost} | {poi_notes} |"
@@ -238,7 +238,7 @@ def _generate_destination_markdown(
 
             # Day route block (only for scheduled days)
             if not is_unscheduled and destination.id:
-                day_label = f"{destination.city_name or 'Destination'} — {_format_date(date_key)} Route"
+                day_label = f"{destination.city_name or 'Destination'} -- {_format_date(date_key)} Route"
                 block = _serialize_route_block(
                     "day-route",
                     destinationId=destination.id,
@@ -306,7 +306,7 @@ def register_tools(server: FastMCP):
 
         Args:
             trip_id: Trip ID to generate documents for.
-            destination_id: Optional — generate only for this destination.
+            destination_id: Optional -- generate only for this destination.
                            If omitted, generates for ALL destinations plus a trip overview.
             overwrite: If False (default), skip documents that already have content.
                       If True, regenerate and overwrite existing content.

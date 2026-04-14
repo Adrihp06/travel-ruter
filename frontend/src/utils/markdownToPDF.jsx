@@ -9,16 +9,39 @@ import { ROUTE_CARD_SENTINEL_RE } from './routeBlockRenderer';
 import './pdfFonts'; // side-effect: registers CJK-compatible fonts
 
 /**
- * Strip emoji and other problematic Unicode characters that react-pdf
+ * Strip emoji and replace problematic Unicode characters that react-pdf
  * cannot measure (causes "unsupported number" overflow errors).
- * Removes: emoticons, symbols, pictographs, transport/map symbols,
- * supplemental symbols, flags, dingbats, misc symbols, variation selectors.
+ * - Removes emoticons, symbols, pictographs, flags, dingbats, variation selectors
+ * - Replaces Unicode arrows/dashes with ASCII equivalents
  */
 const EMOJI_RE = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu;
 
+const UNICODE_REPLACEMENTS = [
+  [/\u2192/g, '->'],   // → RIGHTWARDS ARROW
+  [/\u2190/g, '<-'],   // ← LEFTWARDS ARROW
+  [/\u2194/g, '<->'],  // ↔ LEFT RIGHT ARROW
+  [/\u21D2/g, '=>'],   // ⇒ RIGHTWARDS DOUBLE ARROW
+  [/\u2014/g, '--'],   // — EM DASH
+  [/\u2013/g, '-'],    // – EN DASH
+  [/\u2026/g, '...'],  // … HORIZONTAL ELLIPSIS
+  [/\u2018/g, "'"],    // ' LEFT SINGLE QUOTE
+  [/\u2019/g, "'"],    // ' RIGHT SINGLE QUOTE
+  [/\u201C/g, '"'],    // " LEFT DOUBLE QUOTE
+  [/\u201D/g, '"'],    // " RIGHT DOUBLE QUOTE
+  [/\u2022/g, '*'],    // • BULLET
+  [/\u00B7/g, '*'],    // · MIDDLE DOT
+  [/\u2032/g, "'"],    // ′ PRIME
+  [/\u2033/g, '"'],    // ″ DOUBLE PRIME
+  [/\u00A0/g, ' '],    // NO-BREAK SPACE
+];
+
 function stripEmojis(text) {
   if (!text || typeof text !== 'string') return text;
-  return text.replace(EMOJI_RE, '').replace(/\s{2,}/g, ' ').trim();
+  let result = text;
+  for (const [pattern, replacement] of UNICODE_REPLACEMENTS) {
+    result = result.replace(pattern, replacement);
+  }
+  return result.replace(EMOJI_RE, '').replace(/\s{2,}/g, ' ').trim();
 }
 
 /**
