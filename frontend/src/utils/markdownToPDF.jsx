@@ -9,13 +9,15 @@ import { ROUTE_CARD_SENTINEL_RE } from './routeBlockRenderer';
 import './pdfFonts'; // side-effect: registers CJK-compatible fonts
 
 /**
- * Strip emoji and replace problematic Unicode characters that react-pdf
- * cannot measure (causes "unsupported number" overflow errors).
- * - Removes emoticons, symbols, pictographs, flags, dingbats, variation selectors
- * - Replaces Unicode arrows/dashes with ASCII equivalents
+ * Sanitize text for Helvetica rendering in react-pdf.
+ *
+ * Uses a WHITELIST approach: only characters that Helvetica (WinAnsiEncoding)
+ * can render are kept. Everything else is stripped. This prevents the
+ * "unsupported number" crash caused by glyph metric overflow.
+ *
+ * Step 1: Replace known Unicode chars with readable ASCII equivalents.
+ * Step 2: Strip every remaining character outside the Helvetica-safe set.
  */
-const EMOJI_RE = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F700}-\u{1F77F}\u{1F780}-\u{1F7FF}\u{1F800}-\u{1F8FF}\u{1F1E0}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu;
-
 const UNICODE_REPLACEMENTS = [
   [/\u2192/g, '->'],   // → RIGHTWARDS ARROW
   [/\u2190/g, '<-'],   // ← LEFTWARDS ARROW
@@ -35,8 +37,10 @@ const UNICODE_REPLACEMENTS = [
   [/\u00A0/g, ' '],    // NO-BREAK SPACE
 ];
 
-// CJK Unified Ideographs + Hiragana + Katakana + CJK extensions
-const CJK_RE = /[\u{3000}-\u{303F}\u{3040}-\u{309F}\u{30A0}-\u{30FF}\u{4E00}-\u{9FFF}\u{FF00}-\u{FFEF}]/gu;
+// Whitelist: ONLY these characters survive into the PDF.
+// Covers ASCII printable + Latin-1 Supplement + tab/LF/CR + euro sign.
+// Anything not matched here (emoji, CJK, symbols, surrogates…) is removed.
+const UNSAFE_RE = /[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF\u20AC]/g;
 
 function stripEmojis(text) {
   if (!text || typeof text !== 'string') return text;
@@ -44,7 +48,7 @@ function stripEmojis(text) {
   for (const [pattern, replacement] of UNICODE_REPLACEMENTS) {
     result = result.replace(pattern, replacement);
   }
-  return result.replace(EMOJI_RE, '').replace(CJK_RE, '').replace(/ {2,}/g, ' ');
+  return result.replace(UNSAFE_RE, '').replace(/ {2,}/g, ' ');
 }
 
 /**
