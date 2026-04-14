@@ -7,8 +7,8 @@
  */
 import { Font } from '@react-pdf/renderer';
 
-const REGULAR = 'https://fonts.gstatic.com/s/notosansjp/v56/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75s.ttf';
-const BOLD = 'https://fonts.gstatic.com/s/notosansjp/v56/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFPYk75s.ttf';
+const REGULAR = '/fonts/NotoSansJP-Regular.ttf';
+const BOLD = '/fonts/NotoSansJP-Bold.ttf';
 
 Font.register({
   family: 'Noto Sans JP',
