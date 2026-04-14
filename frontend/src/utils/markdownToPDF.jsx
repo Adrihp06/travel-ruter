@@ -9,6 +9,19 @@ import { ROUTE_CARD_SENTINEL_RE } from './routeBlockRenderer';
 import './pdfFonts'; // side-effect: registers CJK-compatible fonts
 
 /**
+ * Strip emoji and other problematic Unicode characters that react-pdf
+ * cannot measure (causes "unsupported number" overflow errors).
+ * Removes: emoticons, symbols, pictographs, transport/map symbols,
+ * supplemental symbols, flags, dingbats, misc symbols, variation selectors.
+ */
+const EMOJI_RE = /[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}\u{E0020}-\u{E007F}]/gu;
+
+function stripEmojis(text) {
+  if (!text || typeof text !== 'string') return text;
+  return text.replace(EMOJI_RE, '').replace(/\s{2,}/g, ' ').trim();
+}
+
+/**
  * Legacy fallback — strips inline marks when tokens are not available.
  */
 function renderInlineText(raw) {
@@ -102,12 +115,12 @@ function renderRouteCard(card, key, styles) {
         <Image src={card.mapImageDataUri} style={styles.routeCardImage} />
       )}
       <View style={styles.routeCardBody}>
-        <Text style={styles.routeCardLabel}>{card.label}</Text>
+        <Text style={styles.routeCardLabel}>{stripEmojis(card.label)}</Text>
         {card.stats && card.stats.length > 0 && (
           <View style={styles.routeCardStatsRow}>
             {card.stats.map((stat, i) => (
               <Text key={i} style={styles.routeCardStat}>
-                {stat.label}
+                {stripEmojis(stat.label)}
               </Text>
             ))}
           </View>
@@ -284,7 +297,8 @@ function tokensToElements(tokens, styles, routeCards = []) {
  */
 export function markdownToPDFDocument(markdownContent, mapImageDataUri, title, tripName = '', routeCards = []) {
   const styles = PDFStyles;
-  const tokens = marked.lexer(markdownContent || '');
+  const sanitized = stripEmojis(markdownContent || '');
+  const tokens = marked.lexer(sanitized);
   const contentElements = tokensToElements(tokens, styles, routeCards);
 
   return (
@@ -296,7 +310,7 @@ export function markdownToPDFDocument(markdownContent, mapImageDataUri, title, t
         )}
 
         {/* Title */}
-        <Text style={styles.h1}>{title}</Text>
+        <Text style={styles.h1}>{stripEmojis(title)}</Text>
         <View style={styles.divider} />
         <View style={styles.spacer} />
 
@@ -309,7 +323,7 @@ export function markdownToPDFDocument(markdownContent, mapImageDataUri, title, t
 
         {/* Footer */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>{tripName}</Text>
+          <Text style={styles.footerText}>{stripEmojis(tripName)}</Text>
           <Text
             style={styles.footerText}
             render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
@@ -326,7 +340,8 @@ export function markdownToPDFDocument(markdownContent, mapImageDataUri, title, t
  */
 export function markdownToPDFPages(markdownContent, mapImageDataUri, title, tripName = '', routeCards = []) {
   const styles = PDFStyles;
-  const tokens = marked.lexer(markdownContent || '');
+  const sanitized = stripEmojis(markdownContent || '');
+  const tokens = marked.lexer(sanitized);
   const contentElements = tokensToElements(tokens, styles, routeCards);
 
   return [
@@ -335,7 +350,7 @@ export function markdownToPDFPages(markdownContent, mapImageDataUri, title, trip
         <Image src={mapImageDataUri} style={styles.mapImage} />
       )}
 
-      <Text style={styles.h1}>{title}</Text>
+      <Text style={styles.h1}>{stripEmojis(title)}</Text>
       <View style={styles.divider} />
       <View style={styles.spacer} />
 
@@ -346,7 +361,7 @@ export function markdownToPDFPages(markdownContent, mapImageDataUri, title, trip
       )}
 
       <View style={styles.footer} fixed>
-        <Text style={styles.footerText}>{tripName}</Text>
+        <Text style={styles.footerText}>{stripEmojis(tripName)}</Text>
         <Text
           style={styles.footerText}
           render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}

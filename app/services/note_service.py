@@ -549,7 +549,7 @@ class NoteService:
 
             # Add location if present
             if note.location_name:
-                md_lines.append(f"📍 {note.location_name}")
+                md_lines.append(f"Location: {note.location_name}")
                 md_lines.append("")
 
             md_lines.append("---")

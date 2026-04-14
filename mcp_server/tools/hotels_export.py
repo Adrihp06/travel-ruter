@@ -150,7 +150,7 @@ def register_tools(server: FastMCP):
                 # Budget summary
                 budget = await TripService.get_budget_summary(db, trip_id)
                 if budget:
-                    lines.append("## 💰 Budget Summary")
+                    lines.append("## Budget Summary")
                     lines.append(f"- Estimated total: {budget.estimated_total} {budget.currency}")
                     lines.append(f"- POIs: {budget.poi_estimated} / Accommodation: {budget.accommodation_total}")
                     if budget.remaining_budget is not None:
@@ -158,7 +158,7 @@ def register_tools(server: FastMCP):
                     lines.append("")
 
                 for dest in destinations:
-                    lines.append(f"## 📍 {dest.city_name or dest.name}{', ' + dest.country if dest.country else ''}")
+                    lines.append(f"## {dest.city_name or dest.name}{', ' + dest.country if dest.country else ''}")
                     lines.append(f"**{dest.arrival_date} → {dest.departure_date}**")
                     lines.append("")
 
@@ -171,7 +171,7 @@ def register_tools(server: FastMCP):
                     accommodations = acc_result.scalars().all()
                     for acc in accommodations:
                         cost = f" — {acc.total_cost} {acc.currency}" if acc.total_cost else ""
-                        lines.append(f"🏨 **{acc.name}** ({acc.type}){cost}")
+                        lines.append(f"**{acc.name}** ({acc.type}){cost}")
                         if acc.address:
                             lines.append(f"   {acc.address}")
                         lines.append(f"   Check-in: {acc.check_in_date} / Check-out: {acc.check_out_date}")
@@ -210,7 +210,7 @@ def register_tools(server: FastMCP):
                         hours = (segment.duration_minutes or 0) // 60
                         mins = (segment.duration_minutes or 0) % 60
                         dist = f"{segment.distance_km:.0f}km" if segment.distance_km else "?"
-                        lines.append(f"🚂 **Travel:** {segment.travel_mode} — {hours}h {mins}m, {dist}")
+                        lines.append(f"**Travel:** {segment.travel_mode} -- {hours}h {mins}m, {dist}")
                         lines.append("")
 
                 lines.append("---")
