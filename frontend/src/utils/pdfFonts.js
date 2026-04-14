@@ -7,17 +7,16 @@
  */
 import { Font } from '@react-pdf/renderer';
 
+const REGULAR = 'https://fonts.gstatic.com/s/notosansjp/v56/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75s.ttf';
+const BOLD = 'https://fonts.gstatic.com/s/notosansjp/v56/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFPYk75s.ttf';
+
 Font.register({
   family: 'Noto Sans JP',
   fonts: [
-    {
-      src: 'https://fonts.gstatic.com/s/notosansjp/v56/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFBEj75s.ttf',
-      fontWeight: 400,
-    },
-    {
-      src: 'https://fonts.gstatic.com/s/notosansjp/v56/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFPYk75s.ttf',
-      fontWeight: 700,
-    },
+    { src: REGULAR, fontWeight: 400 },
+    { src: REGULAR, fontWeight: 400, fontStyle: 'italic' },
+    { src: BOLD, fontWeight: 700 },
+    { src: BOLD, fontWeight: 700, fontStyle: 'italic' },
   ],
 });
 
