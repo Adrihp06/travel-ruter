@@ -35,13 +35,16 @@ const UNICODE_REPLACEMENTS = [
   [/\u00A0/g, ' '],    // NO-BREAK SPACE
 ];
 
+// CJK Unified Ideographs + Hiragana + Katakana + CJK extensions
+const CJK_RE = /[\u{3000}-\u{303F}\u{3040}-\u{309F}\u{30A0}-\u{30FF}\u{4E00}-\u{9FFF}\u{FF00}-\u{FFEF}]/gu;
+
 function stripEmojis(text) {
   if (!text || typeof text !== 'string') return text;
   let result = text;
   for (const [pattern, replacement] of UNICODE_REPLACEMENTS) {
     result = result.replace(pattern, replacement);
   }
-  return result.replace(EMOJI_RE, '').replace(/\s{2,}/g, ' ').trim();
+  return result.replace(EMOJI_RE, '').replace(CJK_RE, '').replace(/\s{2,}/g, ' ').trim();
 }
 
 /**
@@ -56,14 +59,13 @@ function renderInlineText(raw) {
 }
 
 /**
- * Resolve font style based on accumulated bold/italic marks.
- * Returns a style object for use with react-pdf Text components.
+ * Resolve fontFamily based on accumulated bold/italic marks.
  */
 function resolveFontStyle(marks) {
-  const style = {};
-  if (marks.bold) style.fontWeight = 700;
-  if (marks.italic) style.color = '#6B7280';
-  return Object.keys(style).length > 0 ? style : undefined;
+  if (marks.bold && marks.italic) return 'Helvetica-BoldOblique';
+  if (marks.bold) return 'Helvetica-Bold';
+  if (marks.italic) return 'Helvetica-Oblique';
+  return undefined;
 }
 
 /**
@@ -77,18 +79,18 @@ function renderInlineTokens(tokens, styles, marks = { bold: false, italic: false
     switch (token.type) {
       case 'strong': {
         const next = { ...marks, bold: true };
-        const fontStyle = resolveFontStyle(next);
+        const fontFamily = resolveFontStyle(next);
         return (
-          <Text key={i} style={fontStyle}>
+          <Text key={i} style={{ fontFamily }}>
             {renderInlineTokens(token.tokens, styles, next)}
           </Text>
         );
       }
       case 'em': {
         const next = { ...marks, italic: true };
-        const fontStyle = resolveFontStyle(next);
+        const fontFamily = resolveFontStyle(next);
         return (
-          <Text key={i} style={fontStyle}>
+          <Text key={i} style={{ fontFamily }}>
             {renderInlineTokens(token.tokens, styles, next)}
           </Text>
         );
