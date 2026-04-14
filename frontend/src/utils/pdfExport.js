@@ -3,7 +3,7 @@
  */
 import { pdf } from '@react-pdf/renderer';
 import JSZip from 'jszip';
-import { markdownToPDFDocument } from './markdownToPDF.jsx';
+import { markdownToPDFDocument, markdownToPDFPages, createDocumentFromPages } from './markdownToPDF.jsx';
 import {
   buildTripOverviewMapUrl,
   buildDestinationMapUrl,
@@ -90,25 +90,25 @@ export async function exportTripAsPDFs(selectedDocuments, trip, destinations, ma
 
     onProgress?.({ phase: 'pdf', current: i, total });
 
-    // Resolve route blocks (:::route ... :::) into renderable cards
-    const { processedMarkdown, routeCards, warnings } = await resolveRouteBlocksForExport(
-      doc.content || '',
-      routeContext
-    );
-
-    if (warnings?.length) {
-      allWarnings.push(...warnings);
-    }
-
-    const docElement = markdownToPDFDocument(
-      processedMarkdown,
-      mapImage,
-      doc.title,
-      tripName,
-      routeCards
-    );
-
     try {
+      // Resolve route blocks (:::route ... :::) into renderable cards
+      const { processedMarkdown, routeCards, warnings } = await resolveRouteBlocksForExport(
+        doc.content || '',
+        routeContext
+      );
+
+      if (warnings?.length) {
+        allWarnings.push(...warnings);
+      }
+
+      const docElement = markdownToPDFDocument(
+        processedMarkdown,
+        mapImage,
+        doc.title,
+        tripName,
+        routeCards
+      );
+
       const blob = await pdf(docElement).toBlob();
 
       let filename;
@@ -136,6 +136,126 @@ export async function exportTripAsPDFs(selectedDocuments, trip, destinations, ma
   const a = document.createElement('a');
   a.href = url;
   a.download = `${tripSlug}_export.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  return { succeeded, failed, warnings: allWarnings };
+}
+
+/**
+ * Export selected documents as a single combined PDF file.
+ * Each document starts on a new page. Failed documents are skipped.
+ *
+ * @param {Array<{id, title, content, destinationId}>} selectedDocuments
+ * @param {Object} trip - Trip object with name, destinations, etc.
+ * @param {Array} destinations - Array of destination objects
+ * @param {string} mapboxToken - Mapbox access token (may be undefined)
+ * @param {Object} [options] - Optional settings
+ * @param {Function} [options.onProgress] - Progress callback ({ phase, current, total })
+ * @returns {Promise<{succeeded: string[], failed: Array<{title: string, error: string}>, warnings: string[]}>}
+ */
+export async function exportTripAsSinglePDF(selectedDocuments, trip, destinations, mapboxToken, options = {}) {
+  const { onProgress } = options;
+
+  if (!selectedDocuments || selectedDocuments.length === 0) return {
+    succeeded: [],
+    failed: [],
+    warnings: [],
+  };
+
+  const tripName = trip?.name || 'Trip';
+  const tripSlug = slugify(tripName);
+  const total = selectedDocuments.length;
+  const succeeded = [];
+  const failed = [];
+  const allWarnings = [];
+
+  // Step 1: Pre-fetch all map images in parallel
+  onProgress?.({ phase: 'maps', current: 0, total });
+
+  const mapImagePromises = selectedDocuments.map(async (doc, i) => {
+    if (!mapboxToken) return [doc.id, undefined];
+
+    let url;
+    if (!doc.destinationId) {
+      url = buildTripOverviewMapUrl(destinations, mapboxToken);
+    } else {
+      const dest = destinations.find((d) => d.id === doc.destinationId);
+      if (Number.isFinite(dest?.longitude) && Number.isFinite(dest?.latitude)) {
+        url = buildDestinationMapUrl(dest.longitude, dest.latitude, mapboxToken);
+      }
+    }
+    const dataUri = await fetchMapAsBase64(url);
+    onProgress?.({ phase: 'maps', current: i + 1, total });
+    return [doc.id, dataUri];
+  });
+
+  const mapImageEntries = await Promise.all(mapImagePromises);
+  const mapImages = Object.fromEntries(mapImageEntries);
+
+  // Step 2: Build pages for each document
+  const routeContext = {
+    trip,
+    destinations,
+    mapboxToken,
+    cache: {
+      tripSegments: new Map(),
+      dayRoutes: new Map(),
+      destinationPois: new Map(),
+      destinationRoutes: new Map(),
+    },
+  };
+
+  const allPages = [];
+
+  for (let i = 0; i < selectedDocuments.length; i++) {
+    const doc = selectedDocuments[i];
+    const mapImage = mapImages[doc.id];
+
+    onProgress?.({ phase: 'pdf', current: i, total });
+
+    try {
+      const { processedMarkdown, routeCards, warnings } = await resolveRouteBlocksForExport(
+        doc.content || '',
+        routeContext
+      );
+
+      if (warnings?.length) {
+        allWarnings.push(...warnings);
+      }
+
+      const pages = markdownToPDFPages(
+        processedMarkdown,
+        mapImage,
+        doc.title,
+        tripName,
+        routeCards
+      );
+
+      allPages.push(...pages);
+      succeeded.push(doc.title);
+    } catch (error) {
+      console.error(`Failed to generate pages for "${doc.title}":`, error);
+      failed.push({ title: doc.title, error: error.message || String(error) });
+    }
+  }
+
+  if (allPages.length === 0) {
+    return { succeeded, failed, warnings: allWarnings };
+  }
+
+  // Step 3: Render combined document and trigger download
+  onProgress?.({ phase: 'pdf', current: total, total });
+
+  const combinedDoc = createDocumentFromPages(allPages);
+  const blob = await pdf(combinedDoc).toBlob();
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${tripSlug}_complete.pdf`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

@@ -493,72 +493,79 @@ async function resolveTripOverviewData(descriptor, context = {}) {
     .map((destination) => getCoordinatePairFromLocation(destination))
     .filter(Boolean);
 
-  // Build stop metadata for Google Maps URL
-  const stops = orderedDestinations.map((d) => ({
-    name: d.name || d.city_name || null,
-    placeId: null,
-  }));
+  const fallback = {
+    mapCoordinates: navigationCoordinates.length >= 2 ? navigationCoordinates : null,
+    navigationCoordinates: navigationCoordinates.length >= 2 ? navigationCoordinates : null,
+    travelMode: GoogleMapsTravelMode.DRIVING,
+    stopCount: navigationCoordinates.length,
+    totalDistanceKm: null,
+    totalDurationMin: null,
+    stops: orderedDestinations.map((d) => ({
+      name: d.name || d.city_name || null,
+      placeId: null,
+    })),
+  };
 
-  const segments = await loadTripSegments(descriptor.tripId, context);
-  if (!segments.length) {
+  try {
+    // Build stop metadata for Google Maps URL
+    const stops = fallback.stops;
+
+    const segments = await loadTripSegments(descriptor.tripId, context);
+    if (!segments.length) {
+      return fallback;
+    }
+
+    const segmentMap = new Map(
+      segments.map((segment) => [`${segment.from_destination_id}:${segment.to_destination_id}`, segment])
+    );
+
+    const mapCoordinates = [];
+    let totalDistanceKm = 0;
+    let totalDurationMin = 0;
+    let hasDistance = false;
+    let hasDuration = false;
+    let travelMode = GoogleMapsTravelMode.DRIVING;
+
+    for (let index = 0; index < orderedDestinations.length - 1; index += 1) {
+      const fromDestination = orderedDestinations[index];
+      const toDestination = orderedDestinations[index + 1];
+      const segment = segmentMap.get(`${fromDestination.id}:${toDestination.id}`);
+
+      if (segment?.travel_mode) {
+        travelMode = toGoogleMapsTravelMode(segment.travel_mode);
+      }
+
+      if (Number.isFinite(segment?.distance_km)) {
+        totalDistanceKm += segment.distance_km;
+        hasDistance = true;
+      }
+      if (Number.isFinite(segment?.duration_minutes)) {
+        totalDurationMin += segment.duration_minutes;
+        hasDuration = true;
+      }
+
+      appendCoordinates(
+        mapCoordinates,
+        segment?.route_geometry?.coordinates || [
+          getCoordinatePairFromLocation(fromDestination),
+          getCoordinatePairFromLocation(toDestination),
+        ]
+      );
+    }
+
     return {
-      mapCoordinates: navigationCoordinates.length >= 2 ? navigationCoordinates : null,
+      mapCoordinates: mapCoordinates.length >= 2 ? mapCoordinates : navigationCoordinates,
       navigationCoordinates: navigationCoordinates.length >= 2 ? navigationCoordinates : null,
-      travelMode: GoogleMapsTravelMode.DRIVING,
+      travelMode,
       stopCount: navigationCoordinates.length,
-      totalDistanceKm: null,
-      totalDurationMin: null,
+      totalDistanceKm: hasDistance ? totalDistanceKm : null,
+      totalDurationMin: hasDuration ? totalDurationMin : null,
       stops,
     };
+  } catch (err) {
+    console.warn('resolveTripOverviewData failed, using fallback:', err);
+    return { ...fallback, _usedFallback: true };
   }
-
-  const segmentMap = new Map(
-    segments.map((segment) => [`${segment.from_destination_id}:${segment.to_destination_id}`, segment])
-  );
-
-  const mapCoordinates = [];
-  let totalDistanceKm = 0;
-  let totalDurationMin = 0;
-  let hasDistance = false;
-  let hasDuration = false;
-  let travelMode = GoogleMapsTravelMode.DRIVING;
-
-  for (let index = 0; index < orderedDestinations.length - 1; index += 1) {
-    const fromDestination = orderedDestinations[index];
-    const toDestination = orderedDestinations[index + 1];
-    const segment = segmentMap.get(`${fromDestination.id}:${toDestination.id}`);
-
-    if (segment?.travel_mode) {
-      travelMode = toGoogleMapsTravelMode(segment.travel_mode);
-    }
-
-    if (Number.isFinite(segment?.distance_km)) {
-      totalDistanceKm += segment.distance_km;
-      hasDistance = true;
-    }
-    if (Number.isFinite(segment?.duration_minutes)) {
-      totalDurationMin += segment.duration_minutes;
-      hasDuration = true;
-    }
-
-    appendCoordinates(
-      mapCoordinates,
-      segment?.route_geometry?.coordinates || [
-        getCoordinatePairFromLocation(fromDestination),
-        getCoordinatePairFromLocation(toDestination),
-      ]
-    );
-  }
-
-  return {
-    mapCoordinates: mapCoordinates.length >= 2 ? mapCoordinates : navigationCoordinates,
-    navigationCoordinates: navigationCoordinates.length >= 2 ? navigationCoordinates : null,
-    travelMode,
-    stopCount: navigationCoordinates.length,
-    totalDistanceKm: hasDistance ? totalDistanceKm : null,
-    totalDurationMin: hasDuration ? totalDurationMin : null,
-    stops,
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -841,36 +848,50 @@ export async function resolveRouteBlocksForExport(markdown, context = {}) {
       return;
     }
 
-    let routeData;
-    if (descriptor.type === ROUTE_BLOCK_TYPE.TRIP_OVERVIEW) {
-      routeData = await resolveTripOverviewData(descriptor, { ...context, trip, destinations });
-    } else if (descriptor.type === ROUTE_BLOCK_TYPE.DESTINATION_OVERVIEW) {
-      routeData = await loadDestinationOverviewData(descriptor, { ...context, trip, destinations });
-    } else {
-      routeData = await loadDayRouteData(descriptor, { ...context, trip, destinations });
-    }
+    try {
+      let routeData;
+      if (descriptor.type === ROUTE_BLOCK_TYPE.TRIP_OVERVIEW) {
+        routeData = await resolveTripOverviewData(descriptor, { ...context, trip, destinations });
+      } else if (descriptor.type === ROUTE_BLOCK_TYPE.DESTINATION_OVERVIEW) {
+        routeData = await loadDestinationOverviewData(descriptor, { ...context, trip, destinations });
+      } else {
+        routeData = await loadDayRouteData(descriptor, { ...context, trip, destinations });
+      }
 
-    if (routeData._usedFallback) {
+      if (routeData._usedFallback) {
+        const label = descriptor.label || defaultRouteLabel(descriptor, destinations);
+        warnings.push(`Route map fallback used for ${label}`);
+      }
+
+      const fallbackCoordinates = buildRouteCoordinates(descriptor, destinations);
+      const mapCoordinates = routeData.mapCoordinates || fallbackCoordinates;
+      const navigationCoordinates = routeData.navigationCoordinates || fallbackCoordinates;
+      const mapUrl = buildMapUrlForRoute(descriptor, mapCoordinates, destinations, mapboxToken, routeData.markers);
+      const googleMapsUrl = buildGoogleMapsUrlForRoute(navigationCoordinates, routeData.travelMode, routeData.stops);
       const label = descriptor.label || defaultRouteLabel(descriptor, destinations);
-      warnings.push(`Route map fallback used for ${label}`);
+      const stats = buildRouteStats(descriptor, navigationCoordinates, destinations, routeData);
+
+      cardDataList[docIndex] = {
+        type: descriptor.type,
+        label,
+        mapUrl,
+        mapImageDataUri: null,
+        googleMapsUrl,
+        stats,
+      };
+    } catch (err) {
+      const label = descriptor?.label || defaultRouteLabel(descriptor, destinations);
+      console.warn(`Route block "${label}" failed:`, err);
+      warnings.push(`Route block "${label}" failed and was skipped`);
+      cardDataList[docIndex] = {
+        type: descriptor?.type || null,
+        label,
+        mapUrl: null,
+        mapImageDataUri: null,
+        googleMapsUrl: null,
+        stats: null,
+      };
     }
-
-    const fallbackCoordinates = buildRouteCoordinates(descriptor, destinations);
-    const mapCoordinates = routeData.mapCoordinates || fallbackCoordinates;
-    const navigationCoordinates = routeData.navigationCoordinates || fallbackCoordinates;
-    const mapUrl = buildMapUrlForRoute(descriptor, mapCoordinates, destinations, mapboxToken, routeData.markers);
-    const googleMapsUrl = buildGoogleMapsUrlForRoute(navigationCoordinates, routeData.travelMode, routeData.stops);
-    const label = descriptor.label || defaultRouteLabel(descriptor, destinations);
-    const stats = buildRouteStats(descriptor, navigationCoordinates, destinations, routeData);
-
-    cardDataList[docIndex] = {
-      type: descriptor.type,
-      label,
-      mapUrl,
-      mapImageDataUri: null,
-      googleMapsUrl,
-      stats,
-    };
   }));
 
   // Phase 1: Replace blocks with sentinels
@@ -882,9 +903,15 @@ export async function resolveRouteBlocksForExport(markdown, context = {}) {
   // Phase 2: Fetch map images in parallel
   await Promise.all(
     cardDataList.map(async (card) => {
+      if (!card) return;
       if (card.mapUrl) {
-        card.mapImageDataUri = await fetchMapAsBase64(card.mapUrl);
-        if (!card.mapImageDataUri) {
+        try {
+          card.mapImageDataUri = await fetchMapAsBase64(card.mapUrl);
+          if (!card.mapImageDataUri) {
+            warnings.push(`Map image fetch failed for "${card.label}"`);
+          }
+        } catch (err) {
+          console.warn(`Map image fetch error for "${card.label}":`, err);
           warnings.push(`Map image fetch failed for "${card.label}"`);
         }
       }

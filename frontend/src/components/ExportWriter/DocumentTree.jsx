@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileText, Square, CheckSquare, Download, Loader2 } from 'lucide-react';
+import { FileText, Square, CheckSquare, Download, FileArchive, Loader2 } from 'lucide-react';
 import useExportWriterStore from '../../stores/useExportWriterStore';
-import { exportTripAsPDFs } from '../../utils/pdfExport';
+import { exportTripAsPDFs, exportTripAsSinglePDF } from '../../utils/pdfExport';
 import { useMapboxToken } from '../../contexts/MapboxContext';
 import ExportProgressModal from './ExportProgressModal';
 
@@ -40,14 +40,15 @@ const DocumentTree = ({ trip, destinations }) => {
   const overviewDoc = docList.find((doc) => !doc.destinationId);
   const destinationDocs = docList.filter((doc) => doc.destinationId);
 
-  const handleExport = async (docs) => {
+  const handleExport = async (docs, { asSinglePDF = false } = {}) => {
     if (!docs || docs.length === 0) return;
     setExportProgress(null);
     setExportResult(null);
     setShowExportModal(true);
     setIsExporting(true);
     try {
-      const result = await exportTripAsPDFs(docs, trip, destinations, mapboxAccessToken, {
+      const exportFn = asSinglePDF ? exportTripAsSinglePDF : exportTripAsPDFs;
+      const result = await exportFn(docs, trip, destinations, mapboxAccessToken, {
         onProgress: (p) => setExportProgress(p),
       });
       setExportResult(result);
@@ -69,6 +70,10 @@ const DocumentTree = ({ trip, destinations }) => {
 
   const handleExportAll = () => {
     handleExport(docList);
+  };
+
+  const handleExportSinglePDF = () => {
+    handleExport(docList, { asSinglePDF: true });
   };
 
   const renderDocItem = (doc) => {
@@ -191,6 +196,19 @@ const DocumentTree = ({ trip, destinations }) => {
               <Download className="w-3.5 h-3.5" />
             )}
             {t('exportWriter.documents.exportAllDrafts')}
+          </button>
+
+          <button
+            onClick={handleExportSinglePDF}
+            disabled={docList.length === 0 || isExporting}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isExporting ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <FileArchive className="w-3.5 h-3.5" />
+            )}
+            {t('exportWriter.documents.exportSinglePDF')}
           </button>
         </div>
       )}

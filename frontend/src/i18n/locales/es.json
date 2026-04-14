@@ -95,7 +95,8 @@
       "removeFromExport": "Quitar de la exportacion",
       "addToExport": "Anadir a la exportacion",
       "exportSelectedCount": "Exportar ({{count}})",
-      "exportAllDrafts": "Exportar todos los borradores"
+      "exportAllDrafts": "Exportar todos los borradores",
+      "exportSinglePDF": "Exportar como PDF único"
     },
     "editor": {
       "saving": "Guardando...",

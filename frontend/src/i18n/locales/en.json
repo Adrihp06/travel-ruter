@@ -95,7 +95,8 @@
       "removeFromExport": "Remove from export",
       "addToExport": "Add to export",
       "exportSelectedCount": "Export ({{count}})",
-      "exportAllDrafts": "Export All Drafts"
+      "exportAllDrafts": "Export All Drafts",
+      "exportSinglePDF": "Export as Single PDF"
     },
     "editor": {
       "saving": "Saving...",

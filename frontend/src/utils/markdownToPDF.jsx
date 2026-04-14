@@ -317,3 +317,46 @@ export function markdownToPDFDocument(markdownContent, mapImageDataUri, title, t
     </Document>
   );
 }
+
+/**
+ * Convert markdown content to react-pdf Page elements (without a wrapping Document).
+ * Used for combining multiple documents into a single PDF.
+ */
+export function markdownToPDFPages(markdownContent, mapImageDataUri, title, tripName = '', routeCards = []) {
+  const styles = PDFStyles;
+  const tokens = marked.lexer(markdownContent || '');
+  const contentElements = tokensToElements(tokens, styles, routeCards);
+
+  return [
+    <Page key={title} size="A4" style={styles.page}>
+      {mapImageDataUri && (
+        <Image src={mapImageDataUri} style={styles.mapImage} />
+      )}
+
+      <Text style={styles.h1}>{title}</Text>
+      <View style={styles.divider} />
+      <View style={styles.spacer} />
+
+      {contentElements.length > 0 ? (
+        contentElements
+      ) : (
+        <Text style={styles.body}>No content yet.</Text>
+      )}
+
+      <View style={styles.footer} fixed>
+        <Text style={styles.footerText}>{tripName}</Text>
+        <Text
+          style={styles.footerText}
+          render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
+        />
+      </View>
+    </Page>
+  ];
+}
+
+/**
+ * Wrap an array of Page elements in a Document.
+ */
+export function createDocumentFromPages(pages) {
+  return <Document>{pages}</Document>;
+}
