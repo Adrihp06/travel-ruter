@@ -4,6 +4,37 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 
+/**
+ * Vite plugin: clamp extreme numbers in @react-pdf instead of throwing.
+ *
+ * react-pdf's PDFObject.number() throws "unsupported number" for |n| >= 1e21.
+ * This happens during PDF serialization (PDFReference.finalize) which has NO
+ * try-catch, crashing the entire export. The fix clamps to 0 instead of
+ * throwing — an annotation Rect coordinate of 0 is invisible but harmless,
+ * whereas throwing kills the whole PDF.
+ */
+function reactPdfNumberClamp() {
+  return {
+    name: 'react-pdf-number-clamp',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!id.includes('@react-pdf/render') && !id.includes('@react-pdf/pdfkit')) {
+        return null;
+      }
+      if (!code.includes('unsupported number')) {
+        return null;
+      }
+      const target = 'throw new Error(`unsupported number: ${n}`)';
+      const replacement = 'return (console.warn("[react-pdf] clamped extreme number:", n), 0)';
+      const patched = code.replaceAll(target, replacement);
+      if (patched === code) return null;
+      const count = (patched.match(/clamped extreme number/g) || []).length;
+      console.log(`[react-pdf-number-clamp] Patched ${count} throw(s) in ${id.split('node_modules/').pop()}`);
+      return { code: patched, map: null };
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   resolve: {
@@ -12,6 +43,7 @@ export default defineConfig({
     },
   },
   plugins: [
+    reactPdfNumberClamp(),
     react(),
     tailwindcss(),
     VitePWA({

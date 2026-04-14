@@ -11,7 +11,10 @@ import {
 } from './mapboxStaticImage';
 import { resolveRouteBlocksForExport } from './routeBlockRenderer';
 
-/** Slugify a string for use in filenames */
+/** Strip markdown links, keeping only the link text. Removes <Link> annotations from PDF. */
+function stripMarkdownLinks(md) {
+  return md.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
+}
 function slugify(str) {
   return (str || 'document')
     .toLowerCase()
@@ -109,7 +112,27 @@ export async function exportTripAsPDFs(selectedDocuments, trip, destinations, ma
         routeCards
       );
 
-      const blob = await pdf(docElement).toBlob();
+      let blob;
+      try {
+        blob = await pdf(docElement).toBlob();
+      } catch (renderErr) {
+        // Retry 1: strip links (most likely source of extreme annotation coords)
+        console.warn(`PDF render failed for "${doc.title}", retrying without links:`, renderErr);
+        try {
+          const noLinkDoc = markdownToPDFDocument(
+            stripMarkdownLinks(processedMarkdown), mapImage, doc.title, tripName, []
+          );
+          blob = await pdf(noLinkDoc).toBlob();
+          allWarnings.push(`"${doc.title}": rendered without links (${renderErr.message})`);
+        } catch {
+          // Retry 2: strip links AND images/routes
+          const plainDoc = markdownToPDFDocument(
+            stripMarkdownLinks(processedMarkdown), null, doc.title, tripName, []
+          );
+          blob = await pdf(plainDoc).toBlob();
+          allWarnings.push(`"${doc.title}": rendered without links/maps/routes (${renderErr.message})`);
+        }
+      }
 
       let filename;
       if (!doc.destinationId) {
@@ -237,8 +260,20 @@ export async function exportTripAsSinglePDF(selectedDocuments, trip, destination
       allPages.push(...pages);
       succeeded.push(doc.title);
     } catch (error) {
-      console.error(`Failed to generate pages for "${doc.title}":`, error);
-      failed.push({ title: doc.title, error: error.message || String(error) });
+      // Retry without images/routes before giving up
+      try {
+        const { processedMarkdown: pm2 } = await resolveRouteBlocksForExport(
+          doc.content || '',
+          { ...routeContext, mapboxToken: null }
+        );
+        const fallbackPages = markdownToPDFPages(pm2, null, doc.title, tripName, []);
+        allPages.push(...fallbackPages);
+        succeeded.push(doc.title);
+        allWarnings.push(`"${doc.title}": rendered without maps/routes (${error.message})`);
+      } catch (retryErr) {
+        console.error(`Failed to generate pages for "${doc.title}":`, retryErr);
+        failed.push({ title: doc.title, error: error.message || String(error) });
+      }
     }
   }
 
@@ -250,7 +285,17 @@ export async function exportTripAsSinglePDF(selectedDocuments, trip, destination
   onProgress?.({ phase: 'pdf', current: total, total });
 
   const combinedDoc = createDocumentFromPages(allPages);
-  const blob = await pdf(combinedDoc).toBlob();
+  let blob;
+  try {
+    blob = await pdf(combinedDoc).toBlob();
+  } catch (blobErr) {
+    console.error('Combined PDF toBlob failed:', blobErr);
+    return {
+      succeeded: [],
+      failed: [{ title: 'Combined PDF', error: blobErr.message || String(blobErr) }],
+      warnings: allWarnings,
+    };
+  }
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
